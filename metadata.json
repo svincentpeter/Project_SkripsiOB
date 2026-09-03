@@ -1,0 +1,6 @@
+{
+  "name": "Omah Ban POS & Keuangan Cabang 3",
+  "description": "Sistem Point of Sale (POS) dan Pengelolaan Keuangan Toko Ban Cabang 3 dengan modul kasir sentuh, cetak struk thermal 80mm, dashboard eksekutif, kartu stok inventori, beban operasional, jurnal umum, dan laporan keuangan standar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
