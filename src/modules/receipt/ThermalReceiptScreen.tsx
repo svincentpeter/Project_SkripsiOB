@@ -15,6 +15,7 @@ import { formatDateIndo, formatRupiah, playCashDrawerSound } from '../../shared/
 interface ThermalReceiptScreenProps {
   currentTransaction: PosTransaction | null;
   transactionsHistory: PosTransaction[];
+  storeSettings?: any;
   onBackToPos: () => void;
   onSelectTransaction: (tx: PosTransaction) => void;
 }
@@ -22,6 +23,7 @@ interface ThermalReceiptScreenProps {
 export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
   currentTransaction,
   transactionsHistory,
+  storeSettings,
   onBackToPos,
   onSelectTransaction,
 }) => {
@@ -30,6 +32,13 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
 
   // If no current transaction, pick the latest one from history
   const activeTx = currentTransaction || (transactionsHistory.length > 0 ? transactionsHistory[transactionsHistory.length - 1] : null);
+
+  const headerText = storeSettings?.invoice_header || 'OMAH BAN CABANG 3 (OB3)\nPUSAT PENJUALAN BAN & SPOORING 3D';
+  const addressText = storeSettings?.address || 'Jl. Raya Otomotif No. 88, Kav. 3, BSD Tangerang';
+  const phoneText = `Telp: ${storeSettings?.phone || '(021) 543-9988'} / WA: ${storeSettings?.whatsapp || '0812-8899-3300'}`;
+  const warrantyText = storeSettings?.invoice_warranty_text || 'Garansi pabrik 1 tahun untuk cacat produksi. Gratis Nitrogen & Balancing 2x dalam 6 bulan.';
+  const footerTitle = storeSettings?.invoice_footer_title || 'TERIMA KASIH ATAS KUNJUNGAN ANDA!';
+  const showBarcode = storeSettings?.show_barcode_on_receipt !== false;
 
   const handlePrint = () => {
     window.print();
@@ -188,17 +197,14 @@ Terima kasih atas kunjungan Anda!`;
 
           {/* Header Section */}
           <div className="text-center pb-2 border-b border-dashed border-slate-400 space-y-1">
-            <div className="font-extrabold text-sm tracking-tight text-black">
-              OMAH BAN CABANG 3 (OB3)
-            </div>
-            <div className="font-bold text-[10px] text-slate-700">
-              PUSAT PENJUALAN BAN & SPOORING 3D
+            <div className="font-extrabold text-sm tracking-tight text-black whitespace-pre-line">
+              {headerText}
             </div>
             <div className="text-[10px] text-slate-600 leading-tight">
-              Jl. Raya Otomotif No. 88, Kav. 3, BSD Tangerang
+              {addressText}
             </div>
             <div className="text-[10px] text-slate-600">
-              Telp: (021) 543-9988 / WA: 0812-8899-3300
+              {phoneText}
             </div>
           </div>
 
@@ -312,24 +318,27 @@ Terima kasih atas kunjungan Anda!`;
           <div className="pt-3 pb-2 text-center space-y-2 text-[9px] text-slate-600 leading-tight">
             <div className="p-1.5 bg-slate-100 rounded border border-slate-200 text-slate-700 font-semibold">
               ★ KEBIJAKAN GARANSI OMAH BAN ★
-              <div className="font-normal text-[8.5px] mt-0.5">
-                Garansi pabrik 1 tahun untuk cacat produksi.
-                Gratis Nitrogen & Balancing 2x dalam 6 bulan.
+              <div className="font-normal text-[8.5px] mt-0.5 whitespace-pre-line">
+                {warrantyText}
               </div>
             </div>
 
-            <div className="font-mono tracking-widest text-slate-400 text-[10px]">
-              ||| | ||||| || |||| ||||| | ||
-            </div>
-            <div className="text-[8px] text-slate-400 font-mono">
-              {activeTx.invoice_number}
-            </div>
+            {showBarcode && (
+              <>
+                <div className="font-mono tracking-widest text-slate-400 text-[10px]">
+                  ||| | ||||| || |||| ||||| | ||
+                </div>
+                <div className="text-[8px] text-slate-400 font-mono">
+                  {activeTx.invoice_number}
+                </div>
+              </>
+            )}
 
             <p className="font-bold text-black text-[10px] pt-1">
-              TERIMA KASIH ATAS KUNJUNGAN ANDA!
+              {footerTitle}
             </p>
             <p className="text-[8px] text-slate-500">
-              Kritik & Saran: info@omahban.co.id
+              Kritik & Saran: {storeSettings?.email || 'info@omahban.co.id'}
             </p>
           </div>
 

@@ -14,6 +14,7 @@ import {
   SalesBookingRecord, 
   ServiceMasterItem, 
   StockMutation, 
+  StoreSettings, 
   SupplierItem, 
   TireProduct, 
   UpdateProductInput 
@@ -27,6 +28,7 @@ import {
   INITIAL_PRODUCTS, 
   INITIAL_SERVICES, 
   INITIAL_STOCK_MUTATIONS, 
+  INITIAL_STORE_SETTINGS, 
   INITIAL_SUPPLIERS, 
   INITIAL_TRANSACTIONS 
 } from './shared/data/mockData';
@@ -58,6 +60,7 @@ import { InventoryScreen } from './modules/inventory';
 import { ExpensesScreen } from './modules/expenses';
 import { GeneralLedgerScreen } from './modules/accounting';
 import { FinancialStatementsScreen } from './modules/accounting';
+import { SettingsScreen } from './modules/settings';
 import { WireframeGuideModal } from './shared/components/WireframeGuideModal';
 import { HeaderNavbar } from './shared/components/HeaderNavbar';
 import { Loader2 } from 'lucide-react';
@@ -67,6 +70,15 @@ export default function App() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
 
   // Core Data persistent in LocalStorage
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_store_settings');
+      return saved ? JSON.parse(saved) : INITIAL_STORE_SETTINGS;
+    } catch {
+      return INITIAL_STORE_SETTINGS;
+    }
+  });
+
   const [products, setProducts] = useState<ProductItem[]>(() => {
     try {
       const saved = localStorage.getItem('ob3_products');
@@ -207,6 +219,10 @@ export default function App() {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_store_settings', JSON.stringify(storeSettings));
+  }, [storeSettings]);
 
   // Save to LocalStorage
   useEffect(() => {
@@ -710,6 +726,7 @@ export default function App() {
               <ThermalReceiptScreen
                 currentTransaction={currentReceiptTx}
                 transactionsHistory={transactions}
+                storeSettings={storeSettings}
                 onBackToPos={() => setActiveScreen('pos')}
                 onSelectTransaction={(tx) => setCurrentReceiptTx(tx)}
               />
@@ -774,6 +791,13 @@ export default function App() {
                 cashInDrawer={cashInDrawer}
                 journals={journals}
                 initialBalances={accountBalances}
+              />
+            )}
+
+            {activeScreen === 'settings' && (
+              <SettingsScreen
+                settings={storeSettings}
+                onSaveSettings={(newSet) => setStoreSettings(newSet)}
               />
             )}
           </main>

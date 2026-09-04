@@ -1,4 +1,4 @@
-import { ExpenseRecord, ItemCategory, JournalEntry, PayableInvoice, PosTransaction, ProductItem, SalesBookingRecord, ServiceMasterItem, StockMutation, SupplierItem } from '../types';
+import { ExpenseRecord, ItemCategory, JournalEntry, PayableInvoice, PosTransaction, ProductItem, SalesBookingRecord, ServiceMasterItem, StockMutation, StoreSettings, SupplierItem } from '../types';
 
 export const INITIAL_PRODUCTS: ProductItem[] = [
   {
@@ -746,6 +746,35 @@ export const INITIAL_SUPPLIERS: SupplierItem[] = [
     is_active: true,
   },
 ];
+
+export const INITIAL_STORE_SETTINGS: StoreSettings = {
+  store_name: 'Omah Ban',
+  branch_name: 'Cabang 3',
+  tagline: 'Pusat Penjualan Ban Baru, Velg & Bengkel Spooring 3D',
+  phone: '(021) 543-9988',
+  whatsapp: '0812-8899-3300',
+  email: 'cabang3@omahban.co.id',
+  address: 'Jl. Raya Otomotif No. 88, Kav. 3, BSD City',
+  city: 'Tangerang Selatan, Banten',
+  
+  invoice_header: 'OMAH BAN CABANG 3 (OB3)\nPUSAT PENJUALAN BAN & SPOORING 3D',
+  invoice_footer_title: 'TERIMA KASIH ATAS KUNJUNGAN ANDA!',
+  invoice_footer_notes: 'Barang yang sudah dibeli dapat ditukar dalam 3 hari jika ada cacat pabrik dan belum digunakan jalan.',
+  invoice_warranty_text: 'Garansi pabrik 1 tahun untuk cacat produksi. Gratis Nitrogen & Balancing 2x dalam 6 bulan.',
+  show_barcode_on_receipt: true,
+  show_cashier_name: true,
+  show_vehicle_info: true,
+  paper_width_mm: 80,
+  
+  bank_name: 'Bank Central Asia (BCA)',
+  bank_account_number: '8830-1928-33',
+  bank_account_holder: 'Omah Ban Cabang 3 PT',
+  qris_merchant_name: 'OMAH BAN CABANG 3',
+  qris_nmid: 'ID1020039918231',
+  
+  default_tax_rate: 11,
+  default_payment_terms_days: 30,
+};
 
 export const INITIAL_BOOKINGS: SalesBookingRecord[] = [
   {

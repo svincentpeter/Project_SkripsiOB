@@ -4,3 +4,4 @@ export * from './inventory';
 export * from './expenses';
 export * from './accounting';
 export * from './receipt';
+export * from './settings';

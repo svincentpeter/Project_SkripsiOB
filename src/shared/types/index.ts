@@ -239,7 +239,37 @@ export type ActiveScreen =
   | 'inventory'
   | 'expenses'
   | 'ledger'
-  | 'financials';
+  | 'financials'
+  | 'settings';
+
+export interface StoreSettings {
+  store_name: string;
+  branch_name: string;
+  tagline: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  address: string;
+  city: string;
+  
+  invoice_header: string;
+  invoice_footer_title: string;
+  invoice_footer_notes: string;
+  invoice_warranty_text: string;
+  show_barcode_on_receipt: boolean;
+  show_cashier_name: boolean;
+  show_vehicle_info: boolean;
+  paper_width_mm: number;
+  
+  bank_name: string;
+  bank_account_number: string;
+  bank_account_holder: string;
+  qris_merchant_name: string;
+  qris_nmid: string;
+  
+  default_tax_rate: number;
+  default_payment_terms_days: number;
+}
 
 export interface CreateProductInput {
   category: ItemCategory;

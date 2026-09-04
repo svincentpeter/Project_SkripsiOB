@@ -14,7 +14,8 @@ import {
   RotateCcw,
   HelpCircle,
   Home,
-  ChevronRight
+  ChevronRight,
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { ActiveScreen } from '../types';
 import { formatRupiah } from '../utils/formatters';
@@ -77,6 +78,12 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
       label: 'Riwayat Struk', 
       icon: Receipt,
       breadcrumb: ['Transaksi Kasir', 'Riwayat Nota & Struk Thermal 80mm'],
+    },
+    { 
+      id: 'settings' as ActiveScreen, 
+      label: 'Pengaturan', 
+      icon: SettingsIcon,
+      breadcrumb: ['Pengaturan Sistem', 'Identitas Toko, Struk 80mm & SAK EMKM'],
     },
   ];
 
