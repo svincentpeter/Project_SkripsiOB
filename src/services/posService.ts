@@ -1,4 +1,4 @@
-import { CartItem, PaymentMethod, PosTransaction, TireProduct } from '../shared/types';
+import { CartItem, PaymentMethod, PosTransaction, ProductItem, SalesBookingRecord } from '../shared/types';
 import { allocateFifoBatches } from './fifoCostingService';
 
 export const generateInvoiceNumber = (): string => {
@@ -8,13 +8,20 @@ export const generateInvoiceNumber = (): string => {
   return `OB3-INV-${yearMonth}-${randomSuffix}`;
 };
 
+export const generateBookingNumber = (): string => {
+  const date = new Date();
+  const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}`;
+  const randomSuffix = Math.floor(100 + Math.random() * 900);
+  return `BK-${yearMonth}-${randomSuffix}`;
+};
+
 export const calculateCartTotals = (
   cart: CartItem[],
   discountAmount: number = 0,
   taxRatePercent: number = 0
 ) => {
   const subtotal = cart.reduce((acc, item) => {
-    const unitPrice = item.custom_price ?? (item.product.product_price ?? item.product.price ?? 0);
+    const unitPrice = item.custom_price ?? (item.item_type === 'SERVICE' && item.service ? item.service.standard_price : (item.product.product_price ?? item.product.price ?? 0));
     return acc + unitPrice * item.qty - (item.discount_per_item ?? 0) * item.qty;
   }, 0);
 
@@ -24,6 +31,9 @@ export const calculateCartTotals = (
   const grandTotal = taxableAmount + tax;
 
   const totalHpp = cart.reduce((acc, item) => {
+    if (item.item_type === 'SERVICE') {
+      return acc + (item.service?.cost_price || 0) * item.qty;
+    }
     const { totalHpp: itemHpp } = allocateFifoBatches(item.product, item.qty);
     return acc + itemHpp;
   }, 0);
@@ -47,7 +57,8 @@ export const createPosTransactionRecord = (
   cashTendered: number,
   cashierName: string,
   taxRatePercent: number = 0,
-  manualDiscount: number = 0
+  manualDiscount: number = 0,
+  isBon: boolean = false
 ): PosTransaction => {
   const totals = calculateCartTotals(cart, manualDiscount, taxRatePercent);
   const change = Math.max(0, cashTendered - totals.grandTotal);
@@ -65,10 +76,14 @@ export const createPosTransactionRecord = (
     vehicle_plate: vehiclePlate || 'B 1984 SKZ',
     cashier_name: cashierName,
     items: cart.map((item) => ({
+      item_type: item.item_type || 'PRODUCT',
       product: item.product,
+      service: item.service,
       qty: item.qty,
       discount_per_item: item.discount_per_item ?? 0,
       custom_price: item.custom_price,
+      custom_name_override: item.custom_name_override,
+      note: item.note,
       override_reason: item.override_reason,
       adjusted_by: item.adjusted_by,
     })),
@@ -86,10 +101,44 @@ export const createPosTransactionRecord = (
     gross_profit: totals.grandTotal - totals.totalHpp,
     total_profit: totals.grandTotal - totals.totalHpp,
     payment_method: paymentMethod,
-    amount_paid: cashTendered,
-    paid_amount: cashTendered,
-    change_amount: change,
-    status: 'LUNAS',
+    amount_paid: isBon ? 0 : cashTendered,
+    paid_amount: isBon ? 0 : cashTendered,
+    change_amount: isBon ? 0 : change,
+    status: isBon ? 'PENDING' : 'LUNAS',
     stock_deducted: true,
+  };
+};
+
+export const createSalesBookingRecord = (
+  cart: CartItem[],
+  customerName: string,
+  customerPhone: string,
+  vehiclePlate: string,
+  vehicleModel: string,
+  dpAmount: number,
+  paymentMethod: PaymentMethod,
+  notes?: string
+): SalesBookingRecord => {
+  const totals = calculateCartTotals(cart, 0, 0);
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const fullTime = `${dateStr} ${now.toTimeString().split(' ')[0].substring(0, 5)}`;
+
+  return {
+    id: `bk-${Date.now()}`,
+    booking_number: generateBookingNumber(),
+    date: dateStr,
+    customer_name: customerName,
+    customer_phone: customerPhone,
+    vehicle_plate: vehiclePlate,
+    vehicle_model: vehicleModel,
+    items: [...cart],
+    estimated_total: totals.grandTotal,
+    dp_amount: dpAmount,
+    remaining_amount: Math.max(0, totals.grandTotal - dpAmount),
+    payment_method: paymentMethod,
+    notes: notes,
+    status: 'ACTIVE',
+    created_at: fullTime,
   };
 };

@@ -10,17 +10,24 @@ import {
   ManualJournalInput, 
   PayableInvoice, 
   PosTransaction, 
+  ProductItem, 
+  SalesBookingRecord, 
+  ServiceMasterItem, 
   StockMutation, 
+  SupplierItem, 
   TireProduct, 
   UpdateProductInput 
 } from './shared/types';
 import { 
   INITIAL_ACCOUNT_BALANCES, 
+  INITIAL_BOOKINGS, 
   INITIAL_EXPENSES, 
   INITIAL_JOURNALS, 
   INITIAL_PAYABLE_INVOICES, 
   INITIAL_PRODUCTS, 
+  INITIAL_SERVICES, 
   INITIAL_STOCK_MUTATIONS, 
+  INITIAL_SUPPLIERS, 
   INITIAL_TRANSACTIONS 
 } from './shared/data/mockData';
 import { generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
@@ -34,6 +41,16 @@ import {
   createProductWithInitialStock, 
   processGoodsReceipt 
 } from './services/inventoryService';
+import { 
+  createServiceItem, 
+  deleteOrToggleServiceItem, 
+  updateServiceItem 
+} from './services/serviceMasterService';
+import { 
+  createSupplierItem, 
+  deleteOrToggleSupplierItem, 
+  updateSupplierItem 
+} from './services/supplierService';
 import { PosScreen } from './modules/pos';
 import { ThermalReceiptScreen } from './modules/receipt';
 import { ExecutiveDashboardScreen } from './modules/dashboard';
@@ -50,12 +67,39 @@ export default function App() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
 
   // Core Data persistent in LocalStorage
-  const [products, setProducts] = useState<TireProduct[]>(() => {
+  const [products, setProducts] = useState<ProductItem[]>(() => {
     try {
       const saved = localStorage.getItem('ob3_products');
       return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
     } catch {
       return INITIAL_PRODUCTS;
+    }
+  });
+
+  const [services, setServices] = useState<ServiceMasterItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_services');
+      return saved ? JSON.parse(saved) : INITIAL_SERVICES;
+    } catch {
+      return INITIAL_SERVICES;
+    }
+  });
+
+  const [suppliers, setSuppliers] = useState<SupplierItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_suppliers');
+      return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
+    } catch {
+      return INITIAL_SUPPLIERS;
+    }
+  });
+
+  const [bookings, setBookings] = useState<SalesBookingRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_bookings');
+      return saved ? JSON.parse(saved) : INITIAL_BOOKINGS;
+    } catch {
+      return INITIAL_BOOKINGS;
     }
   });
 
@@ -168,6 +212,18 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('ob3_products', JSON.stringify(products));
   }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_services', JSON.stringify(services));
+  }, [services]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_suppliers', JSON.stringify(suppliers));
+  }, [suppliers]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_bookings', JSON.stringify(bookings));
+  }, [bookings]);
 
   useEffect(() => {
     localStorage.setItem('ob3_transactions', JSON.stringify(transactions));
@@ -448,10 +504,87 @@ export default function App() {
     }
   };
 
+  const handleSaveService = (serviceData: Omit<ServiceMasterItem, 'id' | 'is_active'>, serviceId?: string) => {
+    if (serviceId) {
+      setServices((prev) => updateServiceItem(prev, serviceId, serviceData));
+    } else {
+      const { updatedServices } = createServiceItem(services, serviceData);
+      setServices(updatedServices);
+    }
+  };
+
+  const handleToggleService = (serviceId: string) => {
+    setServices((prev) => deleteOrToggleServiceItem(prev, serviceId));
+  };
+
+  const handleSaveSupplier = (supplierData: Omit<SupplierItem, 'id' | 'is_active'>, supplierId?: string) => {
+    if (supplierId) {
+      setSuppliers((prev) => updateSupplierItem(prev, supplierId, supplierData));
+    } else {
+      const { updatedSuppliers } = createSupplierItem(suppliers, supplierData);
+      setSuppliers(updatedSuppliers);
+    }
+  };
+
+  const handleToggleSupplier = (supplierId: string) => {
+    setSuppliers((prev) => deleteOrToggleSupplierItem(prev, supplierId));
+  };
+
+  const handleSaveBooking = (booking: SalesBookingRecord) => {
+    setBookings((prev) => [booking, ...prev]);
+
+    if (booking.payment_method === 'TUNAI') {
+      setCashInDrawer((prev) => prev + booking.dp_amount);
+    }
+
+    const journalId = `JU-DP-${Date.now()}`;
+    const targetCashAccount = booking.payment_method === 'TUNAI' ? '1-1000' : '1-1001';
+    const targetCashName = booking.payment_method === 'TUNAI' ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3';
+
+    const dpJournal: JournalEntry = {
+      id: journalId,
+      journal_number: `JU-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`,
+      reference_number: booking.booking_number,
+      date: booking.date,
+      ref_doc: booking.booking_number,
+      description: `Penerimaan Uang Muka (DP) Booking ${booking.customer_name} - ${booking.vehicle_plate}`,
+      status: 'POSTED',
+      total_debit: booking.dp_amount,
+      total_credit: booking.dp_amount,
+      lines: [
+        {
+          account_code: targetCashAccount,
+          account_name: targetCashName,
+          debit: booking.dp_amount,
+          credit: 0,
+          note: `DP Booking ${booking.payment_method}`,
+        },
+        {
+          account_code: '2-1000',
+          account_name: 'Hutang Dagang & Uang Muka Pelanggan',
+          debit: 0,
+          credit: booking.dp_amount,
+          note: `Uang muka pesanan ${booking.customer_name}`,
+        },
+      ],
+    };
+
+    setJournals((prev) => [dpJournal, ...prev]);
+  };
+
+  const handleConvertBooking = (bookingId: string) => {
+    setBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, status: 'CONVERTED' } : b))
+    );
+  };
+
   // Reset to default seed data
   const handleResetData = () => {
     if (window.confirm('Reset seluruh data simulasi toko ke bawaan awal?')) {
       setProducts(INITIAL_PRODUCTS);
+      setServices(INITIAL_SERVICES);
+      setSuppliers(INITIAL_SUPPLIERS);
+      setBookings(INITIAL_BOOKINGS);
       setTransactions(INITIAL_TRANSACTIONS);
       setExpenses(INITIAL_EXPENSES);
       setMutations(INITIAL_STOCK_MUTATIONS);
@@ -466,13 +599,11 @@ export default function App() {
     }
   };
 
-
   const lowStockCount = products.filter((p) => p.stock < 5).length;
   const cartTotalQty = cart.reduce((acc, c) => acc + c.qty, 0);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* Global Loading Overlay if simulated */}
       {isLoading && (
         <div className="fixed inset-0 z-50 bg-white/85 backdrop-blur-sm flex flex-col items-center justify-center text-indigo-600 gap-3 select-none">
           <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
@@ -483,13 +614,16 @@ export default function App() {
         </div>
       )}
 
-      {/* CASE 1: DEDICATED POS KIOSK TERMINAL (Bebas dari Menu Navbar agar 100% Bersih & Fokus) */}
       {activeScreen === 'pos' ? (
         <PosScreen
           products={products}
+          services={services}
+          bookings={bookings}
           cart={cart}
           setCart={setCart}
           onCompleteSale={handleCompleteSale}
+          onSaveBooking={handleSaveBooking}
+          onConvertBooking={handleConvertBooking}
           cashierName="Fani A. (Shift Pagi)"
           cashInDrawer={cashInDrawer}
           timeString={timeString}
@@ -498,9 +632,7 @@ export default function App() {
           isEmptyState={isEmptyState}
         />
       ) : (
-        /* CASE 2: BACKOFFICE MANAGEMENT (Sederhana dengan Top Navbar & Pita Breadcrumb) */
         <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
-          {/* Top Navbar & Dynamic Breadcrumb Ribbon */}
           <HeaderNavbar
             activeScreen={activeScreen}
             setActiveScreen={setActiveScreen}
@@ -512,9 +644,7 @@ export default function App() {
             currentTimeStr={timeString}
           />
 
-          {/* Main Screen Content View */}
           <main className="flex-1 flex flex-col relative overflow-hidden bg-[#F8FAFC]">
-            {/* Screen 2: Thermal Receipt 80mm Screen */}
             {activeScreen === 'receipt' && (
               <ThermalReceiptScreen
                 currentTransaction={currentReceiptTx}
@@ -524,7 +654,6 @@ export default function App() {
               />
             )}
 
-            {/* Screen 3: Executive Dashboard Owner */}
             {activeScreen === 'dashboard' && (
               <ExecutiveDashboardScreen
                 transactions={transactions}
@@ -535,10 +664,11 @@ export default function App() {
               />
             )}
 
-            {/* Screen 4: Inventory & Stock Card */}
             {activeScreen === 'inventory' && (
               <InventoryScreen
                 products={products}
+                services={services}
+                suppliers={suppliers}
                 mutations={mutations}
                 transactions={transactions}
                 onCreateProduct={handleCreateProduct}
@@ -546,11 +676,14 @@ export default function App() {
                 onGoodsReceipt={handleGoodsReceipt}
                 onDeleteOrDeactivateProduct={handleDeleteOrDeactivateProduct}
                 onUpdateProductStock={handleUpdateProductStock}
+                onSaveService={handleSaveService}
+                onToggleService={handleToggleService}
+                onSaveSupplier={handleSaveSupplier}
+                onToggleSupplier={handleToggleSupplier}
                 isEmptyState={isEmptyState}
               />
             )}
 
-            {/* Screen 5: Modul Expenses */}
             {activeScreen === 'expenses' && (
               <ExpensesScreen
                 expenses={expenses}
@@ -559,7 +692,6 @@ export default function App() {
               />
             )}
 
-            {/* Screen 6: General Ledger & Accounting Hub */}
             {activeScreen === 'ledger' && (
               <GeneralLedgerScreen
                 journals={journals}
@@ -573,7 +705,6 @@ export default function App() {
               />
             )}
 
-            {/* Screen 7: Financial Statements SAK EMKM */}
             {activeScreen === 'financials' && (
               <FinancialStatementsScreen
                 transactions={transactions}

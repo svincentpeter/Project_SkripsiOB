@@ -1,57 +1,117 @@
-export type TireBrand = 'Bridgestone' | 'Accelera' | 'Dunlop' | 'Forceum' | 'Hankook' | 'GTRadial';
-export type TireRing = 'R13' | 'R14' | 'R15' | 'R16' | 'R17' | 'R18+';
+export type ItemCategory = 'BAN_BARU' | 'VELG' | 'BAN_DALAM';
+export type TireBrand = 'Bridgestone' | 'Accelera' | 'Dunlop' | 'Forceum' | 'Hankook' | 'GTRadial' | 'HSR' | 'Enkei' | 'Rays' | 'Swallow' | 'Kingland' | string;
+export type TireRing = 'R13' | 'R14' | 'R15' | 'R16' | 'R17' | 'R18' | 'R19' | 'R20+' | string;
 
 export interface ProductBatch {
   id: string;
   product_id: string;
-  batch_code: string; // e.g. "BATCH-2026-08-01"
-  source_name: string; // e.g. "PT Bridgestone Tire Indonesia"
-  batch_cost: number; // HPP spesifik layer
+  batch_code: string;
+  source_name: string;
+  batch_cost: number;
   initial_qty: number;
   remaining_qty: number;
   purchase_date: string;
 }
 
-export interface TireProduct {
+export interface ProductItem {
   id: string;
+  category: ItemCategory;
   category_id?: number;
   brand_id?: number;
-  brand: TireBrand;
-  product_name: string; // Nama ban resmi
-  name: string; // Alias kompatibilitas
-  product_code: string; // SKU Kode Unik: e.g. "BRI-1856515-TUR"
+  brand: string;
+  product_name: string;
+  name: string;
+  product_code: string;
   barcode: string;
-  product_size: string; // e.g. "185/65 R15"
-  size_width: number; // 185
-  size_ratio: string; // "65"
-  ring: TireRing;
-  motif: string; // Pola kembangan tapak ban
-  pattern: string; // Alias kompatibilitas
-  product_year: number | string; // Tahun produksi DOT (misal: 2024, 2025)
-  condition_code: 'BARU'; // Fokus Cabang 3: Ban Baru
-  product_quantity: number; // Stok gudang riil
-  stock: number; // Alias kompatibilitas
-  product_stock_alert: number; // Batas minimum stok peringatan
-  min_stock: number; // Alias kompatibilitas
-  product_cost: number; // HPP per unit
-  cost_price: number; // Alias kompatibilitas
-  cost?: number; // Alias kompatibilitas
-  product_price: number; // Harga jual retail
-  price?: number; // Alias kompatibilitas
-  size?: string; // Alias kompatibilitas
+  
+  product_size?: string;
+  size_width?: number;
+  size_ratio?: string;
+  ring?: string;
+  motif?: string;
+  pattern?: string;
+  product_year?: number | string;
+  condition_code: 'BARU';
+  
+  pcd?: string;
+  rim_width?: number;
+  offset_et?: number;
+  color_finish?: string;
+  
+  valve_type?: string;
+  
+  product_quantity: number;
+  stock: number;
+  product_stock_alert: number;
+  min_stock: number;
+  product_cost: number;
+  cost_price: number;
+  cost?: number;
+  product_price: number;
+  price?: number;
+  size?: string;
   is_active?: boolean;
   is_old_stock?: boolean;
-  image_placeholder_color: string;
-  batches?: ProductBatch[]; // Layer FIFO
+  image_placeholder_color?: string;
+  batches?: ProductBatch[];
+}
+
+export type TireProduct = ProductItem;
+
+export type ServiceCategory = 'SPOORING' | 'BALANCING' | 'BONGKAR_PASANG' | 'PERBAIKAN_BAN' | 'NITROGEN';
+
+export interface ServiceMasterItem {
+  id: string;
+  service_code: string;
+  service_name: string;
+  category: ServiceCategory;
+  standard_price: number;
+  cost_price: number;
+  description?: string;
+  is_active: boolean;
+}
+
+export interface SupplierItem {
+  id: string;
+  supplier_code: string;
+  supplier_name: string;
+  phone: string;
+  email?: string;
+  address: string;
+  contact_person: string;
+  payment_terms_days: number;
+  is_active: boolean;
 }
 
 export interface CartItem {
-  product: TireProduct;
+  item_type?: 'PRODUCT' | 'SERVICE';
+  product: ProductItem;
+  service?: ServiceMasterItem;
   qty: number;
   discount_per_item: number;
-  custom_price?: number; // Override price with supervisor approval
+  custom_price?: number;
+  custom_name_override?: string;
+  note?: string;
   override_reason?: string;
   adjusted_by?: string;
+}
+
+export interface SalesBookingRecord {
+  id: string;
+  booking_number: string;
+  date: string;
+  customer_name: string;
+  customer_phone: string;
+  vehicle_plate: string;
+  vehicle_model: string;
+  items: CartItem[];
+  estimated_total: number;
+  dp_amount: number;
+  remaining_amount: number;
+  payment_method: PaymentMethod;
+  notes?: string;
+  status: 'ACTIVE' | 'CONVERTED' | 'EXPIRED' | 'CANCELLED';
+  created_at: string;
 }
 
 export type PaymentMethod = 'TUNAI' | 'TRANSFER_BCA' | 'QRIS' | 'EDC_DEBIT' | 'EDC_CREDIT';
@@ -182,15 +242,25 @@ export type ActiveScreen =
   | 'financials';
 
 export interface CreateProductInput {
-  brand: TireBrand;
+  category: ItemCategory;
+  brand: string;
   product_name: string;
   product_code?: string;
   barcode?: string;
-  size_width: number;
-  size_ratio: string;
-  ring: TireRing;
-  motif: string;
-  product_year: number | string;
+  
+  size_width?: number;
+  size_ratio?: string;
+  ring?: string;
+  motif?: string;
+  product_year?: number | string;
+  
+  pcd?: string;
+  rim_width?: number;
+  offset_et?: number;
+  color_finish?: string;
+  
+  valve_type?: string;
+  
   product_cost: number;
   product_price: number;
   product_stock_alert: number;
@@ -199,15 +269,25 @@ export interface CreateProductInput {
 }
 
 export interface UpdateProductInput {
-  brand?: TireBrand;
+  category?: ItemCategory;
+  brand?: string;
   product_name?: string;
   product_code?: string;
   barcode?: string;
+  
   size_width?: number;
   size_ratio?: string;
-  ring?: TireRing;
+  ring?: string;
   motif?: string;
   product_year?: number | string;
+  
+  pcd?: string;
+  rim_width?: number;
+  offset_et?: number;
+  color_finish?: string;
+  
+  valve_type?: string;
+  
   product_cost?: number;
   product_price?: number;
   product_stock_alert?: number;

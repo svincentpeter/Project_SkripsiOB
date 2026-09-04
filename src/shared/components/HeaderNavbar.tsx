@@ -49,7 +49,7 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
     },
     { 
       id: 'inventory' as ActiveScreen, 
-      label: 'Stok Ban', 
+      label: 'Inventori & Master', 
       icon: Package,
       badge: lowStockCount > 0 ? `${lowStockCount}` : undefined,
     },

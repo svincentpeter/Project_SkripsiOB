@@ -5,19 +5,19 @@ import {
   X, 
   Sparkles, 
   Barcode, 
-  Tag, 
   Layers, 
   Package, 
   DollarSign, 
   AlertTriangle,
-  Building2
+  Building2,
+  Disc,
+  CircleDot
 } from 'lucide-react';
 import { 
   CreateProductInput, 
+  ItemCategory,
   StockMutation, 
-  TireBrand, 
   TireProduct, 
-  TireRing, 
   UpdateProductInput 
 } from '../../../shared/types';
 import { 
@@ -40,50 +40,47 @@ interface ProductFormModalProps {
   onSaveEdit: (productId: string, updates: UpdateProductInput) => void;
 }
 
-const BRANDS: TireBrand[] = [
-  'Bridgestone',
-  'Accelera',
-  'Dunlop',
-  'Forceum',
-  'Hankook',
-  'GTRadial',
-];
-
-const RINGS: TireRing[] = ['R13', 'R14', 'R15', 'R16', 'R17', 'R18+'];
+const BRANDS_BAN = ['Bridgestone', 'Accelera', 'Dunlop', 'Forceum', 'Hankook', 'GTRadial'];
+const BRANDS_VELG = ['HSR', 'Enkei', 'Rays', 'Work', 'BBS', 'SSW', 'OEM'];
+const BRANDS_TUBE = ['GTRadial', 'Swallow', 'Kingland', 'IRC'];
+const RINGS = ['R13', 'R14', 'R15', 'R16', 'R17', 'R18', 'R19', 'R20+'];
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   isOpen,
   mode,
   productToEdit,
   existingProducts,
-  existingMutations,
   onClose,
   onSaveCreate,
   onSaveEdit,
 }) => {
-  // Form States
-  const [brand, setBrand] = useState<TireBrand>('Bridgestone');
+  const [category, setCategory] = useState<ItemCategory>('BAN_BARU');
+  const [brand, setBrand] = useState<string>('Bridgestone');
   const [productName, setProductName] = useState('');
   const [sizeWidth, setSizeWidth] = useState<number>(185);
   const [sizeRatio, setSizeRatio] = useState<string>('65');
-  const [ring, setRing] = useState<TireRing>('R15');
+  const [ring, setRing] = useState<string>('R15');
   const [motif, setMotif] = useState('');
   const [productYear, setProductYear] = useState<number>(2025);
+  
+  const [pcd, setPcd] = useState<string>('4x100');
+  const [rimWidth, setRimWidth] = useState<number>(6.5);
+  const [offsetEt, setOffsetEt] = useState<number>(38);
+  const [colorFinish, setColorFinish] = useState<string>('Glossy Black');
+  
+  const [valveType, setValveType] = useState<string>('TR13 Karet Lurus');
+  
   const [productCode, setProductCode] = useState('');
   const [barcode, setBarcode] = useState('');
   const [costPrice, setCostPrice] = useState<number>(750000);
   const [sellingPrice, setSellingPrice] = useState<number>(950000);
   const [stockAlert, setStockAlert] = useState<number>(5);
 
-  // Initial stock fields (Only for CREATE)
   const [hasInitialStock, setHasInitialStock] = useState<boolean>(false);
   const [initialQty, setInitialQty] = useState<number>(10);
   const [supplierName, setSupplierName] = useState<string>('PT Bridgestone Tire Indonesia');
-
-  // Error message
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Synchronize state when opening or switching productToEdit
   useEffect(() => {
     if (!isOpen) {
       setErrorMsg(null);
@@ -91,414 +88,485 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
 
     if (mode === 'EDIT' && productToEdit) {
+      setCategory(productToEdit.category || 'BAN_BARU');
       setBrand(productToEdit.brand);
       setProductName(productToEdit.name || productToEdit.product_name);
       setSizeWidth(productToEdit.size_width || 185);
       setSizeRatio(String(productToEdit.size_ratio || '65'));
-      setRing(productToEdit.ring);
+      setRing(productToEdit.ring || 'R15');
       setMotif(productToEdit.motif || productToEdit.pattern || '');
       setProductYear(Number(productToEdit.product_year) || 2025);
-      setProductCode(productToEdit.product_code || '');
+      setPcd(productToEdit.pcd || '4x100');
+      setRimWidth(productToEdit.rim_width || 6.5);
+      setOffsetEt(productToEdit.offset_et || 38);
+      setColorFinish(productToEdit.color_finish || 'Glossy Black');
+      setValveType(productToEdit.valve_type || 'TR13 Karet Lurus');
+      setProductCode(productToEdit.product_code);
       setBarcode(productToEdit.barcode || '');
-      setCostPrice(productToEdit.cost_price || productToEdit.product_cost || 0);
+      setCostPrice(productToEdit.product_cost || productToEdit.cost_price || 0);
       setSellingPrice(productToEdit.product_price || productToEdit.price || 0);
-      setStockAlert(productToEdit.product_stock_alert || productToEdit.min_stock || 5);
+      setStockAlert(productToEdit.product_stock_alert ?? productToEdit.min_stock ?? 5);
       setHasInitialStock(false);
     } else {
-      // Reset for CREATE
+      setCategory('BAN_BARU');
       setBrand('Bridgestone');
-      setProductName('Bridgestone Turanza T005A');
+      setProductName('');
       setSizeWidth(185);
       setSizeRatio('65');
       setRing('R15');
-      setMotif('Turanza T005A Premium Quiet');
+      setMotif('');
       setProductYear(2025);
-      setCostPrice(800000);
-      setSellingPrice(1050000);
+      setPcd('4x100');
+      setRimWidth(6.5);
+      setOffsetEt(38);
+      setColorFinish('Glossy Black');
+      setValveType('TR13 Karet Lurus');
+      setCostPrice(750000);
+      setSellingPrice(950000);
       setStockAlert(5);
       setHasInitialStock(false);
       setInitialQty(10);
       setSupplierName('PT Bridgestone Tire Indonesia');
-
-      // Generate initial SKU & Barcode
+      
       const existingBarcodes = existingProducts.map((p) => p.barcode).filter(Boolean);
-      const generatedSku = generateProductSku('Bridgestone', 185, '65', 'R15', 'Turanza');
-      const generatedBarcode = generateBarcodeEan13(existingBarcodes);
-      setProductCode(generatedSku);
-      setBarcode(generatedBarcode);
+      setBarcode(generateBarcodeEan13(existingBarcodes));
     }
-  }, [isOpen, mode, productToEdit]);
+  }, [isOpen, mode, productToEdit, existingProducts]);
+
+  useEffect(() => {
+    if (mode === 'CREATE') {
+      if (category === 'BAN_BARU') {
+        const autoName = `${brand} ${motif ? motif.trim() + ' ' : ''}${sizeWidth}/${sizeRatio} ${ring}`.trim();
+        setProductName(autoName);
+        setProductCode(generateProductSku(brand, sizeWidth, sizeRatio, ring, motif || 'STD', 'BAN_BARU'));
+      } else if (category === 'VELG') {
+        const autoName = `Velg ${brand} ${motif ? motif.trim() + ' ' : ''}${ring} ${pcd} (Set 4 Pcs)`.trim();
+        setProductName(autoName);
+        setProductCode(generateProductSku(brand, undefined, undefined, ring, motif || 'STD', 'VELG', pcd));
+      } else if (category === 'BAN_DALAM') {
+        const autoName = `Ban Dalam ${brand} ${sizeRatio || '14'} (${valveType})`.trim();
+        setProductName(autoName);
+        setProductCode(generateProductSku(brand, undefined, sizeRatio || '14', ring, motif || 'STD', 'BAN_DALAM'));
+      }
+    }
+  }, [category, brand, sizeWidth, sizeRatio, ring, motif, pcd, rimWidth, colorFinish, valveType, mode]);
 
   if (!isOpen) return null;
 
-  // Handle Auto-Generate Button Click
-  const handleAutoGenerate = () => {
-    const generatedSku = generateProductSku(brand, sizeWidth, sizeRatio, ring, motif || productName);
-    const existingBarcodes = existingProducts
-      .filter((p) => mode === 'CREATE' || p.id !== productToEdit?.id)
-      .map((p) => p.barcode)
-      .filter(Boolean);
-    const generatedBarcode = generateBarcodeEan13(existingBarcodes);
-
-    setProductCode(generatedSku);
-    setBarcode(generatedBarcode);
-  };
-
-  // Submit Handler
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
-    const trimmedName = productName.trim();
-    if (!trimmedName) {
-      setErrorMsg('Nama produk ban wajib diisi.');
+    if (!productName.trim()) {
+      setErrorMsg('Nama produk wajib diisi.');
       return;
     }
 
-    if (sellingPrice <= 0) {
-      setErrorMsg('Harga jual retail harus lebih besar dari 0.');
+    if (costPrice <= 0 || sellingPrice <= 0) {
+      setErrorMsg('Harga modal (HPP) dan harga jual retail harus lebih besar dari 0.');
       return;
     }
 
-    if (costPrice <= 0) {
-      setErrorMsg('Harga beli (HPP) harus lebih besar dari 0.');
+    if (sellingPrice < costPrice) {
+      setErrorMsg('Peringatan: Harga jual tidak boleh lebih rendah dari harga modal HPP.');
       return;
     }
-
-    const finalSku = productCode.trim() || generateProductSku(brand, sizeWidth, sizeRatio, ring, motif || trimmedName);
-    const existingBarcodes = existingProducts
-      .filter((p) => mode === 'CREATE' || p.id !== productToEdit?.id)
-      .map((p) => p.barcode)
-      .filter(Boolean);
-    const finalBarcode = barcode.trim() || generateBarcodeEan13(existingBarcodes);
 
     if (mode === 'CREATE') {
       const input: CreateProductInput = {
+        category,
         brand,
-        product_name: trimmedName,
-        product_code: finalSku,
-        barcode: finalBarcode,
-        size_width: Number(sizeWidth),
-        size_ratio: String(sizeRatio),
-        ring,
-        motif: motif.trim() || trimmedName,
-        product_year: productYear,
+        product_name: productName.trim(),
+        product_code: productCode.trim(),
+        barcode: barcode.trim(),
+        size_width: category === 'BAN_BARU' ? sizeWidth : undefined,
+        size_ratio: category === 'BAN_BARU' ? sizeRatio : category === 'BAN_DALAM' ? sizeRatio : undefined,
+        ring: category !== 'BAN_DALAM' ? ring : undefined,
+        motif: motif.trim() || '-',
+        product_year: category === 'BAN_BARU' ? productYear : undefined,
+        pcd: category === 'VELG' ? pcd : undefined,
+        rim_width: category === 'VELG' ? rimWidth : undefined,
+        offset_et: category === 'VELG' ? offsetEt : undefined,
+        color_finish: category === 'VELG' ? colorFinish : undefined,
+        valve_type: category === 'BAN_DALAM' ? valveType : undefined,
         product_cost: costPrice,
         product_price: sellingPrice,
         product_stock_alert: stockAlert,
-        initial_stock: hasInitialStock ? Number(initialQty) : 0,
-        supplier_name: hasInitialStock ? supplierName.trim() : undefined,
+        initial_stock: hasInitialStock ? initialQty : 0,
+        supplier_name: hasInitialStock ? supplierName : undefined,
       };
-
       onSaveCreate(input);
     } else if (mode === 'EDIT' && productToEdit) {
       const updates: UpdateProductInput = {
+        category,
         brand,
-        product_name: trimmedName,
-        product_code: finalSku,
-        barcode: finalBarcode,
-        size_width: Number(sizeWidth),
-        size_ratio: String(sizeRatio),
-        ring,
-        motif: motif.trim() || trimmedName,
-        product_year: productYear,
+        product_name: productName.trim(),
+        product_code: productCode.trim(),
+        barcode: barcode.trim(),
+        size_width: category === 'BAN_BARU' ? sizeWidth : undefined,
+        size_ratio: category === 'BAN_BARU' ? sizeRatio : category === 'BAN_DALAM' ? sizeRatio : undefined,
+        ring: category !== 'BAN_DALAM' ? ring : undefined,
+        motif: motif.trim() || '-',
+        product_year: category === 'BAN_BARU' ? productYear : undefined,
+        pcd: category === 'VELG' ? pcd : undefined,
+        rim_width: category === 'VELG' ? rimWidth : undefined,
+        offset_et: category === 'VELG' ? offsetEt : undefined,
+        color_finish: category === 'VELG' ? colorFinish : undefined,
+        valve_type: category === 'BAN_DALAM' ? valveType : undefined,
         product_cost: costPrice,
         product_price: sellingPrice,
         product_stock_alert: stockAlert,
       };
-
       onSaveEdit(productToEdit.id, updates);
     }
-
-    onClose();
   };
 
+  const currentBrandOptions = category === 'VELG' ? BRANDS_VELG : category === 'BAN_DALAM' ? BRANDS_TUBE : BRANDS_BAN;
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in">
-      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-3xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col text-slate-900">
-        {/* Modal Header */}
-        <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-850">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+            <div className={`p-2 rounded-xl ${mode === 'CREATE' ? 'bg-blue-600/20 text-blue-400' : 'bg-amber-600/20 text-amber-400'}`}>
               {mode === 'CREATE' ? <Plus className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
             </div>
             <div>
-              <h3 className="font-black text-lg text-slate-900 tracking-tight">
-                {mode === 'CREATE' ? 'Tambah Master Produk Ban Baru' : 'Edit Spesifikasi Produk Ban'}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {mode === 'CREATE'
-                  ? 'Daftarkan SKU ban baru dengan format cerdas, barcode otomatis, dan opsi stok awal.'
-                  : 'Perbarui informasi spesifikasi ukuran, harga jual retail, atau batas stok minimum.'}
+              <h2 className="text-lg font-bold text-white">
+                {mode === 'CREATE' ? 'Tambah Master Produk Baru' : 'Edit Data Master Produk'}
+              </h2>
+              <p className="text-xs text-slate-400">
+                {mode === 'CREATE' ? 'Pilih kategori (Ban Baru, Velg, atau Ban Dalam) dan isi spesifikasi teknis.' : `Mengubah informasi: ${productToEdit?.product_name}`}
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-200/60 transition-colors"
-          >
+          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+            <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-xl flex items-center gap-3 text-red-400 text-sm">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Section 1: Basic Identifiers */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {mode === 'CREATE' && (
             <div>
-              <label className="text-slate-600 text-xs font-bold block mb-1">Merek / Brand:</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Kategori Produk
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setCategory('BAN_BARU'); setBrand('Bridgestone'); }}
+                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
+                    category === 'BAN_BARU'
+                      ? 'bg-blue-600/20 border-blue-500 text-blue-400 shadow-md shadow-blue-900/30'
+                      : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:bg-slate-800'
+                  }`}
+                >
+                  <Disc className="w-4 h-4" />
+                  Ban Baru
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCategory('VELG'); setBrand('HSR'); }}
+                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
+                    category === 'VELG'
+                      ? 'bg-amber-600/20 border-amber-500 text-amber-400 shadow-md shadow-amber-900/30'
+                      : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:bg-slate-800'
+                  }`}
+                >
+                  <CircleDot className="w-4 h-4" />
+                  Velg Mobil
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCategory('BAN_DALAM'); setBrand('GTRadial'); }}
+                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
+                    category === 'BAN_DALAM'
+                      ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400 shadow-md shadow-emerald-900/30'
+                      : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:bg-slate-800'
+                  }`}
+                >
+                  <Package className="w-4 h-4" />
+                  Ban Dalam
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Merek / Pabrikan</label>
               <select
                 value={brand}
-                onChange={(e) => {
-                  const b = e.target.value as TireBrand;
-                  setBrand(b);
-                  setSupplierName(`PT ${b} Tire Indonesia`);
-                }}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
+                onChange={(e) => setBrand(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-hidden focus:border-blue-500"
               >
-                {BRANDS.map((b) => (
+                {currentBrandOptions.map((b) => (
                   <option key={b} value={b}>{b}</option>
                 ))}
               </select>
             </div>
 
-            <div className="sm:col-span-2">
-              <label className="text-slate-600 text-xs font-bold block mb-1">Nama Lengkap Seri Ban:</label>
-              <input
-                type="text"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                placeholder="Contoh: Bridgestone Turanza T005A"
-                required
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Section 2: Tire Dimensions & Specifications */}
-          <div className="bg-slate-50/70 border border-slate-200 p-3.5 rounded-2xl space-y-3">
-            <span className="text-xs font-black text-slate-800 uppercase tracking-wider block">
-              Spesifikasi Dimensi & Tapak Ban:
-            </span>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <label className="text-slate-600 text-[11px] font-semibold block mb-1">Lebar (mm):</label>
-                <input
-                  type="number"
-                  value={sizeWidth}
-                  onChange={(e) => setSizeWidth(Number(e.target.value))}
-                  min={135}
-                  max={335}
-                  step={5}
-                  required
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-600 text-[11px] font-semibold block mb-1">Aspek Rasio (%):</label>
-                <input
-                  type="text"
-                  value={sizeRatio}
-                  onChange={(e) => setSizeRatio(e.target.value)}
-                  placeholder="65"
-                  required
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-slate-600 text-[11px] font-semibold block mb-1">Ukuran Ring:</label>
-                <select
-                  value={ring}
-                  onChange={(e) => setRing(e.target.value as TireRing)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
-                >
-                  {RINGS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-slate-600 text-[11px] font-semibold block mb-1">Tahun DOT:</label>
-                <input
-                  type="number"
-                  value={productYear}
-                  onChange={(e) => setProductYear(Number(e.target.value))}
-                  min={2020}
-                  max={2030}
-                  required
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-            </div>
-
             <div>
-              <label className="text-slate-600 text-[11px] font-semibold block mb-1">Pola Kembangan / Motif Tapak:</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nama Pola / Motif / Model</label>
               <input
                 type="text"
                 value={motif}
                 onChange={(e) => setMotif(e.target.value)}
-                placeholder="Contoh: Turanza T005A Premium Quiet / Asymmetric Grip"
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
+                placeholder={category === 'VELG' ? 'e.g. Myth01 / RPF1' : category === 'BAN_DALAM' ? 'e.g. Butyl Heavy Duty' : 'e.g. Turanza T005A'}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-hidden focus:border-blue-500"
               />
             </div>
           </div>
 
-          {/* Section 3: Autonumeric SKU & Barcode Generator */}
-          <div className="bg-indigo-50/50 border border-indigo-200/80 p-3.5 rounded-2xl space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
-                <Barcode className="w-4 h-4 text-indigo-600" />
-                <span>Kode Produk SKU & Barcode Scanner</span>
-              </span>
-
-              <button
-                type="button"
-                onClick={handleAutoGenerate}
-                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-              >
-                <Sparkles className="w-3 h-3 text-amber-300" />
-                <span>Generate Ulang Otomatis</span>
-              </button>
+          {category === 'BAN_BARU' && (
+            <div className="p-4 bg-slate-850 border border-slate-700/60 rounded-xl space-y-4">
+              <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                <Disc className="w-4 h-4" /> Spesifikasi Ban Baru
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Lebar (mm)</label>
+                  <input
+                    type="number"
+                    value={sizeWidth}
+                    onChange={(e) => setSizeWidth(Number(e.target.value))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Rasio (%)</label>
+                  <input
+                    type="text"
+                    value={sizeRatio}
+                    onChange={(e) => setSizeRatio(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Diameter Ring</label>
+                  <select
+                    value={ring}
+                    onChange={(e) => setRing(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  >
+                    {RINGS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Tahun DOT</label>
+                  <input
+                    type="number"
+                    value={productYear}
+                    onChange={(e) => setProductYear(Number(e.target.value))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+              </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {category === 'VELG' && (
+            <div className="p-4 bg-slate-850 border border-slate-700/60 rounded-xl space-y-4">
+              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                <CircleDot className="w-4 h-4" /> Spesifikasi Velg Mobil
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Diameter Ring</label>
+                  <select
+                    value={ring}
+                    onChange={(e) => setRing(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  >
+                    {RINGS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">PCD Lubang Baut</label>
+                  <input
+                    type="text"
+                    value={pcd}
+                    onChange={(e) => setPcd(e.target.value)}
+                    placeholder="e.g. 4x100 / 5x114.3"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Lebar Velg (Inch)</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={rimWidth}
+                    onChange={(e) => setRimWidth(Number(e.target.value))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Offset / ET</label>
+                  <input
+                    type="number"
+                    value={offsetEt}
+                    onChange={(e) => setOffsetEt(Number(e.target.value))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+              </div>
               <div>
-                <label className="text-indigo-900 text-[11px] font-semibold block mb-1">
-                  Kode SKU Produk (Smart Code):
-                </label>
+                <label className="block text-[11px] text-slate-400 mb-1">Warna / Finishing</label>
                 <input
                   type="text"
-                  value={productCode}
-                  onChange={(e) => setProductCode(e.target.value.toUpperCase())}
-                  placeholder="BRI-1856515-TUR"
-                  required
-                  className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
+                  value={colorFinish}
+                  onChange={(e) => setColorFinish(e.target.value)}
+                  placeholder="e.g. Semi Matte Bronze / Silver Machined"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
                 />
               </div>
+            </div>
+          )}
 
-              <div>
-                <label className="text-indigo-900 text-[11px] font-semibold block mb-1">
-                  Barcode EAN-13 (GS1 Indonesia):
-                </label>
+          {category === 'BAN_DALAM' && (
+            <div className="p-4 bg-slate-850 border border-slate-700/60 rounded-xl space-y-4">
+              <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                <Package className="w-4 h-4" /> Spesifikasi Ban Dalam
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Ukuran / Kompatibilitas</label>
+                  <input
+                    type="text"
+                    value={sizeRatio}
+                    onChange={(e) => setSizeRatio(e.target.value)}
+                    placeholder="e.g. 175/185-14 / 7.50-16"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">Tipe Pentil (Valve)</label>
+                  <input
+                    type="text"
+                    value={valveType}
+                    onChange={(e) => setValveType(e.target.value)}
+                    placeholder="e.g. TR13 / TR218A"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nama Lengkap Tampilan</label>
+            <input
+              type="text"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-medium text-sm focus:outline-hidden focus:border-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kode SKU</label>
+              <input
+                type="text"
+                value={productCode}
+                onChange={(e) => setProductCode(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-mono text-xs focus:outline-hidden focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Barcode EAN-13</label>
+              <div className="relative">
                 <input
                   type="text"
                   value={barcode}
                   onChange={(e) => setBarcode(e.target.value)}
-                  placeholder="8993001018515"
-                  required
-                  className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-mono text-xs focus:outline-hidden focus:border-blue-500 pr-10"
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const existingBarcodes = existingProducts.map((p) => p.barcode).filter(Boolean);
+                    setBarcode(generateBarcodeEan13(existingBarcodes));
+                  }}
+                  title="Generate Barcode Baru"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-white"
+                >
+                  <Barcode className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Section 4: Pricing & Stock Limits */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="text-slate-600 text-xs font-bold block mb-1">Harga Beli / HPP Modal:</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
-                <input
-                  type="text"
-                  value={costPrice.toLocaleString('id-ID')}
-                  onChange={(e) => setCostPrice(parseRupiahInput(e.target.value))}
-                  required
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Harga Modal / HPP (Rp)</label>
+              <input
+                type="text"
+                value={formatRupiah(costPrice)}
+                onChange={(e) => setCostPrice(parseRupiahInput(e.target.value))}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm font-semibold"
+              />
             </div>
-
             <div>
-              <label className="text-slate-600 text-xs font-bold block mb-1">Harga Jual Retail:</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
-                <input
-                  type="text"
-                  value={sellingPrice.toLocaleString('id-ID')}
-                  onChange={(e) => setSellingPrice(parseRupiahInput(e.target.value))}
-                  required
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-black text-emerald-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Harga Jual Retail (Rp)</label>
+              <input
+                type="text"
+                value={formatRupiah(sellingPrice)}
+                onChange={(e) => setSellingPrice(parseRupiahInput(e.target.value))}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-emerald-400 text-sm font-bold"
+              />
             </div>
-
             <div>
-              <label className="text-slate-600 text-xs font-bold block mb-1">Batas Minimum Peringatan:</label>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Batas Peringatan Stok</label>
               <input
                 type="number"
                 value={stockAlert}
                 onChange={(e) => setStockAlert(Number(e.target.value))}
-                min={1}
-                max={50}
-                required
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm"
               />
             </div>
           </div>
 
-          {/* Section 5: Initial Stock Switch (Only for CREATE) */}
           {mode === 'CREATE' && (
-            <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/70 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-black text-slate-900 block">
-                    Input Saldo Fisik Stok Awal Sekarang?
-                  </span>
-                  <p className="text-[11px] text-slate-500">
-                    Jika diaktifkan, sistem akan langsung membuatkan Batch FIFO ke-1 dan mutasi MASUK perdana.
-                  </p>
-                </div>
-
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={hasInitialStock}
-                    onChange={(e) => setHasInitialStock(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
-              </div>
+            <div className="pt-4 border-t border-slate-800">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasInitialStock}
+                  onChange={(e) => setHasInitialStock(e.target.checked)}
+                  className="w-4 h-4 rounded-sm border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm font-semibold text-slate-300">
+                  Input Stok Awal Sekarang (Otomatis membentuk batch FIFO & Jurnal Persediaan)
+                </span>
+              </label>
 
               {hasInitialStock && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200 animate-in fade-in">
+                <div className="mt-4 p-4 bg-slate-850 border border-slate-700/80 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-slate-600 text-[11px] font-semibold block mb-1">
-                      Jumlah Stok Awal Fisik (pcs):
-                    </label>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Jumlah Unit Masuk</label>
                     <input
                       type="number"
                       value={initialQty}
                       onChange={(e) => setInitialQty(Number(e.target.value))}
-                      min={1}
-                      max={500}
-                      required={hasInitialStock}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
                     />
                   </div>
-
                   <div>
-                    <label className="text-slate-600 text-[11px] font-semibold block mb-1">
-                      Nama Supplier / Distributor:
-                    </label>
+                    <label className="block text-xs font-semibold text-slate-400 mb-1">Distributor / Supplier Pengadaan</label>
                     <input
                       type="text"
                       value={supplierName}
                       onChange={(e) => setSupplierName(e.target.value)}
-                      placeholder="PT Bridgestone Tire Indonesia"
-                      required={hasInitialStock}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none"
+                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
                     />
                   </div>
                 </div>
@@ -506,21 +574,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           )}
 
-          {/* Form Actions */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+              className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs flex items-center gap-1.5"
+              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-900/30 flex items-center gap-2"
             >
-              {mode === 'CREATE' ? <Plus className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-              <span>{mode === 'CREATE' ? 'Simpan Produk Ban Baru' : 'Perbarui Perubahan'}</span>
+              <Sparkles className="w-4 h-4" />
+              {mode === 'CREATE' ? 'Simpan Master Produk' : 'Perbarui Produk'}
             </button>
           </div>
         </form>

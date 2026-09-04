@@ -1,0 +1,238 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Plus, 
+  Edit3, 
+  X, 
+  Wrench, 
+  DollarSign, 
+  AlertTriangle 
+} from 'lucide-react';
+import { ServiceCategory, ServiceMasterItem } from '../../../shared/types';
+import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
+import { generateServiceCode } from '../../../services/serviceMasterService';
+
+interface ServiceFormModalProps {
+  isOpen: boolean;
+  mode: 'CREATE' | 'EDIT';
+  serviceToEdit?: ServiceMasterItem | null;
+  onClose: () => void;
+  onSave: (serviceData: Omit<ServiceMasterItem, 'id' | 'is_active'>, serviceId?: string) => void;
+}
+
+const CATEGORIES: { value: ServiceCategory; label: string }[] = [
+  { value: 'SPOORING', label: 'Spooring 3D Digital' },
+  { value: 'BALANCING', label: 'Balancing Roda & Timah' },
+  { value: 'BONGKAR_PASANG', label: 'Bongkar Pasang & Rotasi' },
+  { value: 'PERBAIKAN_BAN', label: 'Tambal & Servis Ban' },
+  { value: 'NITROGEN', label: 'Pengisian Gas Nitrogen' },
+];
+
+export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
+  isOpen,
+  mode,
+  serviceToEdit,
+  onClose,
+  onSave,
+}) => {
+  const [serviceName, setServiceName] = useState('');
+  const [serviceCode, setServiceCode] = useState('');
+  const [category, setCategory] = useState<ServiceCategory>('SPOORING');
+  const [standardPrice, setStandardPrice] = useState<number>(150000);
+  const [costPrice, setCostPrice] = useState<number>(0);
+  const [description, setDescription] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setErrorMsg(null);
+      return;
+    }
+
+    if (mode === 'EDIT' && serviceToEdit) {
+      setServiceName(serviceToEdit.service_name);
+      setServiceCode(serviceToEdit.service_code);
+      setCategory(serviceToEdit.category);
+      setStandardPrice(serviceToEdit.standard_price);
+      setCostPrice(serviceToEdit.cost_price || 0);
+      setDescription(serviceToEdit.description || '');
+    } else {
+      setServiceName('');
+      setCategory('SPOORING');
+      setServiceCode(generateServiceCode('SPOORING'));
+      setStandardPrice(150000);
+      setCostPrice(0);
+      setDescription('');
+    }
+  }, [isOpen, mode, serviceToEdit]);
+
+  const handleCategoryChange = (newCat: ServiceCategory) => {
+    setCategory(newCat);
+    if (mode === 'CREATE') {
+      setServiceCode(generateServiceCode(newCat));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    if (!serviceName.trim()) {
+      setErrorMsg('Nama layanan / jasa wajib diisi.');
+      return;
+    }
+
+    if (standardPrice <= 0) {
+      setErrorMsg('Tarif standar layanan harus lebih besar dari 0.');
+      return;
+    }
+
+    onSave(
+      {
+        service_name: serviceName.trim(),
+        service_code: serviceCode.trim(),
+        category,
+        standard_price: standardPrice,
+        cost_price: costPrice,
+        description: description.trim(),
+      },
+      mode === 'EDIT' && serviceToEdit ? serviceToEdit.id : undefined
+    );
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-850">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-xl ${mode === 'CREATE' ? 'bg-cyan-600/20 text-cyan-400' : 'bg-amber-600/20 text-amber-400'}`}>
+              {mode === 'CREATE' ? <Plus className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-white">
+                {mode === 'CREATE' ? 'Tambah Master Layanan / Jasa' : 'Edit Tarif Layanan Bengkel'}
+              </h2>
+              <p className="text-xs text-slate-400">
+                Layanan bengkel tidak memotong stok fisik barang.
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {errorMsg && (
+            <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-xl flex items-center gap-3 text-red-400 text-sm">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Kategori Layanan
+            </label>
+            <select
+              value={category}
+              onChange={(e) => handleCategoryChange(e.target.value as ServiceCategory)}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-hidden focus:border-cyan-500"
+            >
+              {CATEGORIES.map((cat) => (
+                <option key={cat.value} value={cat.value}>
+                  {cat.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Nama Layanan / Jasa
+            </label>
+            <input
+              type="text"
+              value={serviceName}
+              onChange={(e) => setServiceName(e.target.value)}
+              placeholder="e.g. Spooring 3D Digital Mobil SUV"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-medium text-sm focus:outline-hidden focus:border-cyan-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Kode Jasa
+              </label>
+              <input
+                type="text"
+                value={serviceCode}
+                onChange={(e) => setServiceCode(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-mono text-xs focus:outline-hidden focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Tarif ke Pelanggan (Rp)
+              </label>
+              <input
+                type="text"
+                value={formatRupiah(standardPrice)}
+                onChange={(e) => setStandardPrice(parseRupiahInput(e.target.value))}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-emerald-400 font-bold text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Biaya Modal Bahan (HPP) jika ada (Rp)
+            </label>
+            <input
+              type="text"
+              value={formatRupiah(costPrice)}
+              onChange={(e) => setCostPrice(parseRupiahInput(e.target.value))}
+              placeholder="0 jika murni tenaga bengkel"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm"
+            />
+            <p className="text-[11px] text-slate-400 mt-1">
+              Contoh: Timah balancing Rp 5.000 / Lem tambal Rp 10.000. Isi 0 jika tanpa bahan.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Keterangan / SOP Pengerjaan
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={2}
+              placeholder="Deskripsi pengerjaan layanan..."
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-bold shadow-lg shadow-cyan-900/30 flex items-center gap-2"
+            >
+              <Wrench className="w-4 h-4" />
+              {mode === 'CREATE' ? 'Simpan Layanan' : 'Perbarui Layanan'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

@@ -11,16 +11,17 @@ import {
   DollarSign, 
   CheckCircle2, 
   TrendingUp,
-  UserCheck
+  UserCheck,
+  Clock
 } from 'lucide-react';
-import { GoodsReceiptInput, PaymentTerms, StockMutation, TireProduct } from '../../../shared/types';
+import { GoodsReceiptInput, PaymentTerms, StockMutation, TireProduct, SupplierItem } from '../../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
-import { generateBatchCode, generateGrnNumber } from '../../../services/inventoryService';
 
 interface GoodsReceiptModalProps {
   isOpen: boolean;
   preselectedProduct?: TireProduct | null;
   products: TireProduct[];
+  suppliers?: SupplierItem[];
   existingMutations: StockMutation[];
   onClose: () => void;
   onSubmitReceipt: (input: GoodsReceiptInput) => void;
@@ -30,7 +31,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   isOpen,
   preselectedProduct,
   products,
-  existingMutations,
+  suppliers = [],
   onClose,
   onSubmitReceipt,
 }) => {
@@ -46,7 +47,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   const [operator, setOperator] = useState<string>('Gudang - Bambang');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Sync state on open
+  const activeProducts = products.filter((p) => p.is_active !== false);
+
   useEffect(() => {
     if (!isOpen) {
       setErrorMsg(null);
@@ -56,376 +58,310 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     const todayStr = new Date().toISOString().split('T')[0];
     setReceiptDate(todayStr);
 
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    setDueDate(d.toISOString().split('T')[0]);
+    const due = new Date();
+    due.setDate(due.getDate() + 30);
+    setDueDate(due.toISOString().split('T')[0]);
 
     if (preselectedProduct) {
       setSelectedProductId(preselectedProduct.id);
-      setUnitCost(preselectedProduct.cost_price || preselectedProduct.product_cost || 750000);
-      setSupplierName(`PT ${preselectedProduct.brand} Tire Indonesia`);
-    } else if (products.length > 0) {
-      setSelectedProductId(products[0].id);
-      setUnitCost(products[0].cost_price || products[0].product_cost || 750000);
-      setSupplierName(`PT ${products[0].brand} Tire Indonesia`);
+      setUnitCost(preselectedProduct.product_cost || preselectedProduct.cost_price || 750000);
+      setSupplierName(
+        suppliers.find((s) => s.supplier_name.toLowerCase().includes(preselectedProduct.brand.toLowerCase()))?.supplier_name ||
+        `PT ${preselectedProduct.brand} Tire Indonesia`
+      );
+    } else if (activeProducts.length > 0) {
+      setSelectedProductId(activeProducts[0].id);
+      setUnitCost(activeProducts[0].product_cost || activeProducts[0].cost_price || 750000);
+      if (suppliers.length > 0) {
+        setSupplierName(suppliers[0].supplier_name);
+      }
     }
-  }, [isOpen, preselectedProduct, products]);
-
-  // Update unitCost & supplier when selected product changes
-  const handleProductSelectChange = (productId: string) => {
-    setSelectedProductId(productId);
-    const prod = products.find((p) => p.id === productId);
-    if (prod) {
-      setUnitCost(prod.cost_price || prod.product_cost || 750000);
-      setSupplierName(`PT ${prod.brand} Tire Indonesia`);
-    }
-  };
+  }, [isOpen, preselectedProduct, products, suppliers]);
 
   if (!isOpen) return null;
 
-  const selectedProduct = products.find((p) => p.id === selectedProductId);
-  const currentStock = selectedProduct ? selectedProduct.stock : 0;
-  const newProjectedStock = currentStock + (Number(incomingQty) || 0);
-  const totalValuation = (Number(incomingQty) || 0) * (Number(unitCost) || 0);
+  const currentProduct = activeProducts.find((p) => p.id === selectedProductId);
 
-  const previewGrn = generateGrnNumber(existingMutations);
-  const previewBatchCode = selectedProduct 
-    ? generateBatchCode(selectedProduct.batches || []) 
-    : 'BATCH-20260903-01';
+  const handleProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedProductId(id);
+    const prod = activeProducts.find((p) => p.id === id);
+    if (prod) {
+      setUnitCost(prod.product_cost || prod.cost_price || 0);
+      const matchedSup = suppliers.find((s) => s.supplier_name.toLowerCase().includes(prod.brand.toLowerCase()));
+      if (matchedSup) {
+        setSupplierName(matchedSup.supplier_name);
+      }
+    }
+  };
+
+  const totalReceiptValue = incomingQty * unitCost;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
     if (!selectedProductId) {
-      setErrorMsg('Pilih produk ban yang akan di-restock.');
+      setErrorMsg('Pilih produk yang akan diterima.');
       return;
     }
 
     if (incomingQty <= 0) {
-      setErrorMsg('Jumlah ban masuk harus lebih besar dari 0.');
+      setErrorMsg('Jumlah unit masuk harus lebih besar dari 0.');
       return;
     }
 
     if (unitCost <= 0) {
-      setErrorMsg('Harga beli HPP per unit harus lebih besar dari 0.');
+      setErrorMsg('Harga modal beli (HPP) per unit harus lebih besar dari 0.');
       return;
     }
 
     if (!supplierName.trim()) {
-      setErrorMsg('Nama supplier atau distributor wajib diisi.');
+      setErrorMsg('Nama distributor / supplier wajib diisi.');
       return;
     }
 
     const input: GoodsReceiptInput = {
       product_id: selectedProductId,
-      incoming_qty: Number(incomingQty),
-      unit_cost: Number(unitCost),
+      incoming_qty: incomingQty,
+      unit_cost: unitCost,
       supplier_name: supplierName.trim(),
       supplier_invoice: supplierInvoice.trim() || undefined,
       receipt_date: receiptDate,
       payment_terms: paymentTerms,
       due_date: paymentTerms === 'TEMPO_HUTANG' ? dueDate : undefined,
       notes: notes.trim() || undefined,
-      operator: operator.trim() || 'Gudang OB3',
+      operator: operator.trim() || 'Petugas Gudang OB3',
     };
 
     onSubmitReceipt(input);
-    onClose();
   };
 
-
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in">
-      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col text-slate-900">
-        {/* Modal Header */}
-        <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-850">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-md">
+            <div className="p-2 rounded-xl bg-emerald-600/20 text-emerald-400">
               <ArrowDownLeft className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-black text-lg text-slate-900 tracking-tight">
-                Penerimaan Barang Masuk (Restock / GRN)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Catat kedatangan pasokan ban baru dari distributor, alokasi batch FIFO baru, dan pembaruan kartu stok.
+              <h2 className="text-lg font-bold text-white">Penerimaan Barang Masuk (Restock)</h2>
+              <p className="text-xs text-slate-400">
+                Mencatat stok masuk (Ban/Velg/Ban Dalam), layer batch FIFO baru, & jurnal akuntansi.
               </p>
             </div>
           </div>
-          <button
+          <button 
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-200/60 transition-colors"
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+            <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-xl flex items-center gap-3 text-red-400 text-sm">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Autonumeric Preview Badge Bar */}
-          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div>
-              <span className="text-[10px] text-emerald-800 font-bold block uppercase tracking-wider">
-                No. Bukti Penerimaan (GRN):
-              </span>
-              <span className="font-mono font-black text-emerald-950 text-sm">{previewGrn}</span>
-            </div>
-
-            <div>
-              <span className="text-[10px] text-emerald-800 font-bold block uppercase tracking-wider">
-                Kode Batch FIFO Baru:
-              </span>
-              <span className="font-mono font-bold text-indigo-700 text-xs bg-white px-2 py-0.5 rounded border border-indigo-200">
-                {previewBatchCode}
-              </span>
-            </div>
-
-            <div>
-              <span className="text-[10px] text-emerald-800 font-bold block uppercase tracking-wider">
-                Total Nilai Pembelian:
-              </span>
-              <span className="font-mono font-black text-emerald-900 text-sm">
-                {formatRupiah(totalValuation)}
-              </span>
-            </div>
-          </div>
-
-          {/* Product Target Selector */}
           <div>
-            <label className="text-slate-700 text-xs font-bold block mb-1">
-              Pilih Ban yang Di-Restock:
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Pilih Produk yang Diterima
             </label>
             <select
               value={selectedProductId}
-              onChange={(e) => handleProductSelectChange(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
+              onChange={handleProductChange}
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-hidden focus:border-emerald-500"
             >
-              {products.map((p) => (
+              {activeProducts.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.brand} - {p.name || p.product_name} ({p.product_size}) — Stok Saat Ini: {p.stock} pcs
+                  [{p.category}] {p.product_name} — (Stok Saat Ini: {p.stock || p.product_quantity || 0})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Quantities & Price */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-slate-700 text-xs font-bold block mb-1">
-                Jumlah Ban Masuk (pcs):
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Distributor / Supplier Resmi
               </label>
-              <input
-                type="number"
-                value={incomingQty}
-                onChange={(e) => setIncomingQty(Number(e.target.value))}
-                min={1}
-                max={1000}
-                required
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-black text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
-              />
-              <span className="text-[11px] text-slate-500 mt-1 block">
-                Stok saat ini: <strong>{currentStock} pcs</strong> $\rightarrow$ Saldo baru: <strong className="text-emerald-700 font-mono">{newProjectedStock} pcs</strong>
-              </span>
-            </div>
-
-            <div>
-              <label className="text-slate-700 text-xs font-bold block mb-1">
-                Harga Modal Beli / HPP Layer Baru (Rp):
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
-                <input
-                  type="text"
-                  value={unitCost.toLocaleString('id-ID')}
-                  onChange={(e) => setUnitCost(parseRupiahInput(e.target.value))}
-                  required
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
-                />
+              <div className="space-y-2">
+                {suppliers.length > 0 ? (
+                  <select
+                    value={supplierName}
+                    onChange={(e) => setSupplierName(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-hidden focus:border-emerald-500"
+                  >
+                    {suppliers.map((s) => (
+                      <option key={s.id} value={s.supplier_name}>
+                        {s.supplier_name}
+                      </option>
+                    ))}
+                    <option value="Lainnya">Ketik Manual Distributor Lain...</option>
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={supplierName}
+                    onChange={(e) => setSupplierName(e.target.value)}
+                    placeholder="e.g. PT Bridgestone Tire Indonesia"
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-hidden focus:border-emerald-500"
+                  />
+                )}
+                {supplierName === 'Lainnya' && (
+                  <input
+                    type="text"
+                    placeholder="Nama distributor baru..."
+                    onChange={(e) => setSupplierName(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white text-xs"
+                  />
+                )}
               </div>
-              <span className="text-[11px] text-slate-500 mt-1 block">
-                Akan dicatat sebagai HPP spesifik layer batch ini.
-              </span>
-            </div>
-          </div>
-
-          {/* Supplier & Delivery Order */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-slate-700 text-xs font-bold block mb-1">
-                Nama Supplier / Distributor:
-              </label>
-              <input
-                type="text"
-                value={supplierName}
-                onChange={(e) => setSupplierName(e.target.value)}
-                placeholder="PT Bridgestone Tire Indonesia"
-                required
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
-              />
             </div>
 
             <div>
-              <label className="text-slate-700 text-xs font-bold block mb-1">
-                No. Surat Jalan / Faktur Supplier (Opsional):
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                No. Faktur / Surat Jalan Supplier
               </label>
               <input
                 type="text"
                 value={supplierInvoice}
                 onChange={(e) => setSupplierInvoice(e.target.value)}
-                placeholder="Contoh: SJ-BS-202609-881"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
+                placeholder="e.g. INV-SJ/2026/09/8812"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-hidden focus:border-emerald-500"
               />
             </div>
           </div>
 
-          {/* Payment Terms (Akuntansi SAK EMKM) */}
-          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5">
-            <label className="text-slate-800 text-xs font-bold block uppercase tracking-wider">
-              Syarat Pembayaran Pembelian (Akun Lawan Jurnal):
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <label
-                className={`p-2.5 rounded-xl border flex flex-col gap-1 cursor-pointer transition-all ${
-                  paymentTerms === 'TEMPO_HUTANG'
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-500'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs">Tempo / Kredit</span>
-                  <input
-                    type="radio"
-                    name="receiptPaymentTerms"
-                    checked={paymentTerms === 'TEMPO_HUTANG'}
-                    onChange={() => setPaymentTerms('TEMPO_HUTANG')}
-                    className="accent-indigo-600"
-                  />
-                </div>
-                <span className="text-[10px] text-slate-500 font-mono">Cr. Hutang Dagang (2-1000)</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Jumlah Masuk (Unit)
               </label>
-
-              <label
-                className={`p-2.5 rounded-xl border flex flex-col gap-1 cursor-pointer transition-all ${
-                  paymentTerms === 'TUNAI_KAS'
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-500'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs">Tunai Kas Laci</span>
-                  <input
-                    type="radio"
-                    name="receiptPaymentTerms"
-                    checked={paymentTerms === 'TUNAI_KAS'}
-                    onChange={() => setPaymentTerms('TUNAI_KAS')}
-                    className="accent-indigo-600"
-                  />
-                </div>
-                <span className="text-[10px] text-slate-500 font-mono">Cr. Kas Toko (1-1000)</span>
-              </label>
-
-              <label
-                className={`p-2.5 rounded-xl border flex flex-col gap-1 cursor-pointer transition-all ${
-                  paymentTerms === 'TUNAI_BANK'
-                    ? 'border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-500'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs">Transfer Bank BCA</span>
-                  <input
-                    type="radio"
-                    name="receiptPaymentTerms"
-                    checked={paymentTerms === 'TUNAI_BANK'}
-                    onChange={() => setPaymentTerms('TUNAI_BANK')}
-                    className="accent-indigo-600"
-                  />
-                </div>
-                <span className="text-[10px] text-slate-500 font-mono">Cr. Bank BCA (1-1001)</span>
-              </label>
+              <input
+                type="number"
+                min="1"
+                value={incomingQty}
+                onChange={(e) => setIncomingQty(Math.max(1, Number(e.target.value)))}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm font-bold focus:outline-hidden focus:border-emerald-500"
+              />
             </div>
 
-            {paymentTerms === 'TEMPO_HUTANG' && (
-              <div className="pt-2 border-t border-slate-200 flex items-center justify-between gap-3 text-xs">
-                <span className="font-bold text-slate-600">Tanggal Jatuh Tempo Pembayaran:</span>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  required={paymentTerms === 'TEMPO_HUTANG'}
-                  className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-mono font-bold text-indigo-900 bg-white"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Date, Operator, and Notes */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Harga Modal Beli (HPP) / Unit
+              </label>
+              <input
+                type="text"
+                value={formatRupiah(unitCost)}
+                onChange={(e) => setUnitCost(parseRupiahInput(e.target.value))}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-emerald-400 font-bold text-sm"
+              />
+            </div>
 
             <div>
-              <label className="text-slate-700 text-xs font-bold block mb-1">
-                Tanggal Kedatangan Fisik:
+              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Tanggal Penerimaan
               </label>
               <input
                 type="date"
                 value={receiptDate}
                 onChange={(e) => setReceiptDate(e.target.value)}
-                required
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="text-slate-700 text-xs font-bold block mb-1">
-                Petugas Penerima Gudang:
-              </label>
-              <input
-                type="text"
-                value={operator}
-                onChange={(e) => setOperator(e.target.value)}
-                placeholder="Gudang - Bambang"
-                required
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm"
               />
             </div>
           </div>
 
+          <div className="p-4 bg-slate-850 border border-slate-800 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <DollarSign className="w-4 h-4 text-emerald-400" /> Syarat Pembayaran Pengadaan
+              </label>
+              <span className="text-xs text-slate-400">Total Faktur: <b className="text-emerald-400">{formatRupiah(totalReceiptValue)}</b></span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentTerms('TEMPO_HUTANG')}
+                className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
+                  paymentTerms === 'TEMPO_HUTANG'
+                    ? 'bg-amber-600/20 border-amber-500 text-amber-300 shadow-xs'
+                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                }`}
+              >
+                Tempo / Hutang Dagang
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentTerms('TUNAI_KAS')}
+                className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
+                  paymentTerms === 'TUNAI_KAS'
+                    ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300 shadow-xs'
+                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                }`}
+              >
+                Tunai Kas Toko Laci
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentTerms('TUNAI_BANK')}
+                className={`py-2 px-3 rounded-lg border text-xs font-bold transition-all ${
+                  paymentTerms === 'TUNAI_BANK'
+                    ? 'bg-blue-600/20 border-blue-500 text-blue-300 shadow-xs'
+                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                }`}
+              >
+                Transfer Bank BCA
+              </button>
+            </div>
+
+            {paymentTerms === 'TEMPO_HUTANG' && (
+              <div className="pt-2 flex items-center gap-3 text-xs">
+                <span className="text-slate-400 shrink-0 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-amber-400" /> Jatuh Tempo Pembayaran:
+                </span>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-xs"
+                />
+              </div>
+            )}
+          </div>
+
           <div>
-            <label className="text-slate-700 text-xs font-bold block mb-1">
-              Catatan Penerimaan / Berita Acara:
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Catatan Penerimaan (Opsional)
             </label>
             <input
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Kondisi ban baik, pembungkus rapi, barcode terbaca jelas."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none"
+              placeholder="e.g. Diterima dalam kondisi prima & segel utuh"
+              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm focus:outline-hidden focus:border-emerald-500"
             />
           </div>
 
-          {/* Actions */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+              className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs flex items-center gap-1.5"
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-lg shadow-emerald-900/30 flex items-center gap-2"
             >
-              <ArrowDownLeft className="w-4 h-4" />
-              <span>Posting Penerimaan Barang</span>
+              <ArrowDownLeft className="w-4 h-4" /> Simpan Penerimaan Barang
             </button>
           </div>
         </form>

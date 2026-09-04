@@ -19,10 +19,12 @@ import {
  */
 export const generateProductSku = (
   brand: string,
-  width: number | string,
-  ratio: string,
-  ring: string,
-  motif: string
+  width: number | string = 185,
+  ratio: string = '65',
+  ring: string = 'R15',
+  motif: string = 'STD',
+  category: string = 'BAN_BARU',
+  pcd: string = '4X100'
 ): string => {
   const brandMap: Record<string, string> = {
     Bridgestone: 'BRI',
@@ -31,9 +33,23 @@ export const generateProductSku = (
     Forceum: 'FOR',
     Hankook: 'HNK',
     GTRadial: 'GTR',
+    HSR: 'HSR',
+    Enkei: 'ENK',
+    Swallow: 'SWL',
   };
 
   const brandCode = brandMap[brand] || brand.substring(0, 3).toUpperCase();
+  if (category === 'VELG') {
+    const cleanRing = String(ring).replace('R', '');
+    const cleanPcd = pcd.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    return `VLG-${brandCode}-R${cleanRing}-${cleanPcd}`;
+  }
+
+  if (category === 'BAN_DALAM') {
+    const cleanSize = String(ratio || ring).replace(/[^a-zA-Z0-9]/g, '');
+    return `BND-${brandCode}-${cleanSize}`;
+  }
+
   const cleanWidth = String(width).replace(/[^0-9]/g, '');
   const cleanRatio = String(ratio).replace(/[^0-9]/g, '');
   const cleanRing = String(ring).replace(/[^0-9]/g, '');
@@ -181,15 +197,21 @@ export const createProductWithInitialStock = (
   const existingBarcodes = existingProducts.map((p) => p.barcode).filter(Boolean);
   const sku = input.product_code?.trim() || generateProductSku(
     input.brand,
-    input.size_width,
-    input.size_ratio,
-    input.ring,
-    input.motif
+    input.size_width || 185,
+    input.size_ratio || '65',
+    input.ring || 'R15',
+    input.motif || '-',
+    input.category || 'BAN_BARU',
+    input.pcd || '4X100'
   );
   const barcode = input.barcode?.trim() || generateBarcodeEan13(existingBarcodes);
 
-  const newId = `tire-${Date.now()}-${Math.floor(Math.random() * 100)}`;
-  const productSize = `${input.size_width}/${input.size_ratio} ${input.ring}`;
+  const newId = `${input.category === 'VELG' ? 'velg' : input.category === 'BAN_DALAM' ? 'tube' : 'tire'}-${Date.now()}-${Math.floor(Math.random() * 100)}`;
+  const productSize = input.category === 'VELG'
+    ? `${input.brand} ${input.ring || 'R15'} ${input.pcd || ''}`
+    : input.category === 'BAN_DALAM'
+    ? `${input.size_width || ''}/${input.size_ratio || ''}`
+    : `${input.size_width || 185}/${input.size_ratio || 65} ${input.ring || 'R15'}`;
   const initialStock = Number(input.initial_stock) || 0;
   const cost = Number(input.product_cost) || 0;
   const price = Number(input.product_price) || 0;
@@ -237,17 +259,21 @@ export const createProductWithInitialStock = (
     };
   }
 
-  const brandColorMap: Record<TireBrand, string> = {
+  const brandColorMap: Record<string, string> = {
     Bridgestone: 'from-blue-900 to-slate-900',
     Accelera: 'from-cyan-900 to-slate-900',
     Dunlop: 'from-yellow-900 to-slate-900',
     Forceum: 'from-red-900 to-slate-900',
     Hankook: 'from-orange-900 to-slate-900',
     GTRadial: 'from-emerald-900 to-slate-900',
+    HSR: 'from-amber-800 to-zinc-900',
+    Enkei: 'from-slate-700 to-zinc-950',
+    Swallow: 'from-sky-800 to-zinc-900',
   };
 
   const product: TireProduct = {
     id: newId,
+    category: input.category || 'BAN_BARU',
     brand: input.brand,
     product_name: input.product_name,
     name: input.product_name,
@@ -255,13 +281,18 @@ export const createProductWithInitialStock = (
     barcode: barcode,
     product_size: productSize,
     size: productSize,
-    size_width: Number(input.size_width),
-    size_ratio: String(input.size_ratio),
+    size_width: input.size_width ? Number(input.size_width) : undefined,
+    size_ratio: input.size_ratio ? String(input.size_ratio) : undefined,
     ring: input.ring,
-    motif: input.motif,
-    pattern: input.motif,
+    motif: input.motif || '-',
+    pattern: input.motif || '-',
     product_year: input.product_year,
     condition_code: 'BARU',
+    pcd: input.pcd,
+    rim_width: input.rim_width ? Number(input.rim_width) : undefined,
+    offset_et: input.offset_et ? Number(input.offset_et) : undefined,
+    color_finish: input.color_finish,
+    valve_type: input.valve_type,
     product_quantity: initialStock,
     stock: initialStock,
     product_stock_alert: minStock,
