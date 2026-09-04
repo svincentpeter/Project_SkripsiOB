@@ -241,7 +241,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
   const cashTenderedVal = parseRupiahInput(cashTenderedInput);
   const changeAmount = paymentMethod === 'TUNAI' ? Math.max(0, cashTenderedVal - netPayable) : 0;
-  const isPaymentSufficient = paymentMethod === 'TUNAI' ? cashTenderedVal >= netPayable : true;
 
   const handleCheckoutSale = (isBon: boolean = false) => {
     if (cart.length === 0) return;
@@ -322,13 +321,15 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const activeBookingsCount = bookings.filter((b) => b.status === 'ACTIVE').length;
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 overflow-hidden select-none">
-      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-800 bg-slate-950/80">
-        <div className="p-4 border-b border-slate-800 bg-slate-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] bg-[#F8FAFC] text-slate-800 overflow-hidden select-none font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* Left Column: Catalog */}
+      <div className="flex-1 flex flex-col min-w-0 border-r border-slate-200 bg-white">
+        {/* Search & Top Action Bar */}
+        <div className="p-4 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
               onClick={onExitToBackoffice}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              className="p-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors shadow-2xs"
               title="Kembali ke Backoffice"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -341,7 +342,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari Ban, Velg, Ban Dalam, Jasa (F2)..."
-                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-white focus:outline-hidden focus:border-blue-500"
+                className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:border-blue-500 shadow-2xs"
               />
             </div>
           </div>
@@ -349,29 +350,30 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowBookingListDrawer(true)}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-950/80 border border-purple-800/60 text-purple-300 hover:bg-purple-900/80 text-xs font-bold transition-all"
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 text-xs font-bold transition-all shadow-2xs"
             >
-              <Bookmark className="w-4 h-4 text-purple-400" />
+              <Bookmark className="w-4 h-4 text-purple-600" />
               <span>Booking DP</span>
               {activeBookingsCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-purple-500 text-white text-[10px] font-black flex items-center justify-center">
+                <span className="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-black flex items-center justify-center">
                   {activeBookingsCount}
                 </span>
               )}
             </button>
 
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-850 border border-slate-800 text-xs text-slate-400">
-              <Banknote className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Kas Laci: <b className="text-white">{formatRupiah(cashInDrawer)}</b></span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-600 shadow-2xs">
+              <Banknote className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Kas Laci: <b className="text-slate-900">{formatRupiah(cashInDrawer)}</b></span>
             </div>
           </div>
         </div>
 
-        <div className="px-4 py-2.5 bg-slate-900/40 border-b border-slate-800 flex flex-wrap items-center gap-2 overflow-x-auto">
+        {/* Category Tabs */}
+        <div className="px-4 py-2.5 bg-white border-b border-slate-200 flex flex-wrap items-center gap-2 overflow-x-auto">
           <button
             onClick={() => setCatalogTab('ALL')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              catalogTab === 'ALL' ? 'bg-blue-600 text-white' : 'bg-slate-850 text-slate-400 hover:text-white'
+              catalogTab === 'ALL' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:text-slate-900'
             }`}
           >
             Semua Katalog
@@ -379,7 +381,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           <button
             onClick={() => setCatalogTab('BAN_BARU')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              catalogTab === 'BAN_BARU' ? 'bg-blue-600 text-white' : 'bg-slate-850 text-slate-400 hover:text-white'
+              catalogTab === 'BAN_BARU' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:text-slate-900'
             }`}
           >
             <Disc className="w-3.5 h-3.5" />
@@ -388,7 +390,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           <button
             onClick={() => setCatalogTab('VELG')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              catalogTab === 'VELG' ? 'bg-amber-600 text-white' : 'bg-slate-850 text-slate-400 hover:text-white'
+              catalogTab === 'VELG' ? 'bg-amber-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:text-slate-900'
             }`}
           >
             <CircleDot className="w-3.5 h-3.5" />
@@ -397,7 +399,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           <button
             onClick={() => setCatalogTab('BAN_DALAM')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              catalogTab === 'BAN_DALAM' ? 'bg-emerald-600 text-white' : 'bg-slate-850 text-slate-400 hover:text-white'
+              catalogTab === 'BAN_DALAM' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:text-slate-900'
             }`}
           >
             <Package className="w-3.5 h-3.5" />
@@ -406,7 +408,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           <button
             onClick={() => setCatalogTab('SERVICES')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              catalogTab === 'SERVICES' ? 'bg-cyan-600 text-white' : 'bg-slate-850 text-slate-400 hover:text-white'
+              catalogTab === 'SERVICES' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:text-slate-900'
             }`}
           >
             <Wrench className="w-3.5 h-3.5" />
@@ -414,7 +416,8 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3.5">
+        {/* Product Cards Grid */}
+        <div className="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3.5 bg-[#F8FAFC]">
           {filteredProducts.map((p) => {
             const stockQty = p.stock || p.product_quantity || 0;
             const isOutOfStock = stockQty <= 0;
@@ -423,46 +426,46 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               <div
                 key={p.id}
                 onClick={() => !isOutOfStock && handleAddToCart(p)}
-                className={`bg-slate-900 border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between transition-all group ${
+                className={`bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between transition-all shadow-xs group ${
                   isOutOfStock
                     ? 'opacity-50 cursor-not-allowed'
-                    : 'hover:border-blue-500/60 hover:shadow-lg hover:shadow-blue-950/20 cursor-pointer active:scale-98'
+                    : 'hover:border-blue-500 hover:shadow-md cursor-pointer active:scale-98'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
                       p.category === 'BAN_BARU'
-                        ? 'bg-blue-950 text-blue-400 border border-blue-800/40'
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
                         : p.category === 'VELG'
-                        ? 'bg-amber-950 text-amber-400 border border-amber-800/40'
-                        : 'bg-emerald-950 text-emerald-400 border border-emerald-800/40'
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                     }`}>
                       {(p.category || 'BAN_BARU').replace('_', ' ')}
                     </span>
                     <span className={`text-[11px] font-bold ${
-                      isOutOfStock ? 'text-red-400' : stockQty < 5 ? 'text-amber-400' : 'text-slate-400'
+                      isOutOfStock ? 'text-red-600' : stockQty < 5 ? 'text-amber-600' : 'text-slate-500'
                     }`}>
                       Stok: {stockQty}
                     </span>
                   </div>
 
-                  <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-2">
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
                     {p.product_name}
                   </h3>
 
-                  <div className="text-[11px] text-slate-400 mt-1">
+                  <div className="text-[11px] text-slate-500 mt-1">
                     {p.category === 'BAN_BARU' && `${p.product_size || ''} | ${p.motif || ''}`}
                     {p.category === 'VELG' && `${p.ring || ''} | PCD ${p.pcd || ''} | ${p.color_finish || ''}`}
                     {p.category === 'BAN_DALAM' && `${p.product_size || p.size_ratio || ''} | ${p.valve_type || ''}`}
                   </div>
                 </div>
 
-                <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-extrabold text-emerald-400">
+                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs sm:text-sm font-extrabold text-emerald-600">
                     {formatRupiah(p.product_price || p.price || 0)}
                   </span>
-                  <span className="p-1.5 rounded-lg bg-slate-800 group-hover:bg-blue-600 text-slate-400 group-hover:text-white transition-all">
+                  <span className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-blue-600 text-slate-600 group-hover:text-white transition-all">
                     <Plus className="w-3.5 h-3.5" />
                   </span>
                 </div>
@@ -474,30 +477,30 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <div
               key={srv.id}
               onClick={() => handleAddServiceToCart(srv)}
-              className="bg-slate-900 border border-slate-800 hover:border-cyan-500/60 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all hover:shadow-lg hover:shadow-cyan-950/20 active:scale-98 group"
+              className="bg-white border border-slate-200 hover:border-cyan-500 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all shadow-xs hover:shadow-md active:scale-98 group"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-cyan-950 text-cyan-400 border border-cyan-800/40 flex items-center gap-1">
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-700 border border-cyan-200 flex items-center gap-1">
                     <Wrench className="w-3 h-3" /> JASA
                   </span>
-                  <span className="text-[10px] font-mono text-slate-500">{srv.service_code}</span>
+                  <span className="text-[10px] font-mono text-slate-400">{srv.service_code}</span>
                 </div>
 
-                <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-400 transition-colors line-clamp-2">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-cyan-600 transition-colors line-clamp-2">
                   {srv.service_name}
                 </h3>
 
                 {srv.description && (
-                  <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{srv.description}</p>
+                  <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{srv.description}</p>
                 )}
               </div>
 
-              <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between">
-                <span className="text-xs sm:text-sm font-extrabold text-emerald-400">
+              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs sm:text-sm font-extrabold text-emerald-600">
                   {formatRupiah(srv.standard_price)}
                 </span>
-                <span className="p-1.5 rounded-lg bg-slate-800 group-hover:bg-cyan-600 text-slate-400 group-hover:text-white transition-all">
+                <span className="p-1.5 rounded-lg bg-slate-100 group-hover:bg-cyan-600 text-slate-600 group-hover:text-white transition-all">
                   <Plus className="w-3.5 h-3.5" />
                 </span>
               </div>
@@ -506,12 +509,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         </div>
       </div>
 
-      <div className="w-full lg:w-[420px] xl:w-[460px] flex flex-col bg-slate-900 border-t lg:border-t-0 border-slate-800 shadow-2xl h-full">
-        <div className="p-4 border-b border-slate-800 bg-slate-850 space-y-3">
+      {/* Right Column: Cart Panel */}
+      <div className="w-full lg:w-[420px] xl:w-[460px] flex flex-col bg-white border-t lg:border-t-0 border-slate-200 shadow-xl h-full">
+        {/* Customer / Vehicle Bar */}
+        <div className="p-4 border-b border-slate-200 bg-slate-50/70 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-white uppercase tracking-wider">Informasi Kendaraan & Pelanggan</span>
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Informasi Kendaraan & Pelanggan</span>
             {appliedDpAmount > 0 && (
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-800/50">
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200">
                 DP Terpasang: {formatRupiah(appliedDpAmount)}
               </span>
             )}
@@ -523,31 +528,32 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="Nama Pelanggan"
-              className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 shadow-2xs"
             />
             <input
               type="text"
               value={vehiclePlate}
               onChange={(e) => setVehiclePlate(e.target.value)}
               placeholder="Plat Nomor"
-              className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono"
+              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-mono shadow-2xs"
             />
             <input
               type="text"
               value={vehicleModel}
               onChange={(e) => setVehicleModel(e.target.value)}
               placeholder="Model Mobil"
-              className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"
+              className="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 shadow-2xs"
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+        {/* Cart Items List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2.5 bg-[#F8FAFC]">
           {cart.length === 0 ? (
-            <div className="py-16 text-center text-slate-500 space-y-2">
-              <Store className="w-10 h-10 mx-auto text-slate-700" />
-              <p className="text-xs font-semibold text-slate-400">Keranjang Kasir Kosong</p>
-              <p className="text-[11px] text-slate-600">Klik produk / layanan dari katalog untuk menambahkan.</p>
+            <div className="py-16 text-center text-slate-400 space-y-2">
+              <Store className="w-10 h-10 mx-auto text-slate-300" />
+              <p className="text-xs font-semibold text-slate-600">Keranjang Kasir Kosong</p>
+              <p className="text-[11px] text-slate-400">Klik produk / layanan dari katalog untuk menambahkan.</p>
             </div>
           ) : (
             cart.map((item, idx) => {
@@ -562,37 +568,37 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               return (
                 <div
                   key={idx}
-                  className="bg-slate-850 border border-slate-800 hover:border-slate-700 rounded-xl p-3 flex flex-col gap-2 transition-all"
+                  className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 flex flex-col gap-2 transition-all shadow-xs"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className={`text-[9px] font-black uppercase px-1.5 py-0.2 rounded-xs ${
                           item.item_type === 'SERVICE'
-                            ? 'bg-cyan-950 text-cyan-400'
+                            ? 'bg-cyan-50 text-cyan-700'
                             : item.product?.category === 'VELG'
-                            ? 'bg-amber-950 text-amber-400'
+                            ? 'bg-amber-50 text-amber-700'
                             : item.product?.category === 'BAN_DALAM'
-                            ? 'bg-emerald-950 text-emerald-400'
-                            : 'bg-blue-950 text-blue-400'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-blue-50 text-blue-700'
                         }`}>
                           {item.item_type === 'SERVICE' ? 'JASA' : (item.product?.category || 'BAN_BARU').replace('_', ' ')}
                         </span>
-                        <h4 className="text-xs font-bold text-white truncate">{displayName}</h4>
+                        <h4 className="text-xs font-bold text-slate-900 truncate">{displayName}</h4>
                       </div>
 
-                      <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+                      <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
                         <span>{formatRupiah(activePrice)}</span>
                         {item.discount_per_item > 0 && (
-                          <span className="text-amber-400 font-semibold">Disc: -{formatRupiah(item.discount_per_item)}</span>
+                          <span className="text-amber-600 font-semibold">Disc: -{formatRupiah(item.discount_per_item)}</span>
                         )}
                         {item.custom_price && (
-                          <span className="text-blue-400 text-[10px] font-semibold">(Custom)</span>
+                          <span className="text-blue-600 text-[10px] font-semibold">(Custom)</span>
                         )}
                       </div>
 
                       {item.note && (
-                        <div className="text-[10px] text-slate-400 italic mt-0.5">Catatan: {item.note}</div>
+                        <div className="text-[10px] text-slate-500 italic mt-0.5">Catatan: {item.note}</div>
                       )}
                     </div>
 
@@ -600,34 +606,34 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                       type="button"
                       onClick={() => setEditLineIndex(idx)}
                       title="Edit Detail Baris (Harga/Diskon/Catatan)"
-                      className="p-1 rounded-md text-slate-400 hover:text-amber-400 hover:bg-slate-800"
+                      className="p-1 rounded-md text-slate-400 hover:text-amber-600 hover:bg-slate-100"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-800/60">
+                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleUpdateCartQty(idx, -1)}
-                        className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300"
+                        className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="text-xs font-extrabold text-white w-6 text-center">{item.qty}</span>
+                      <span className="text-xs font-extrabold text-slate-900 w-6 text-center">{item.qty}</span>
                       <button
                         onClick={() => handleUpdateCartQty(idx, 1)}
-                        className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300"
+                        className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700"
                       >
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-emerald-400">{formatRupiah(lineTotal)}</span>
+                      <span className="text-xs font-black text-emerald-600">{formatRupiah(lineTotal)}</span>
                       <button
                         onClick={() => handleRemoveFromCart(idx)}
-                        className="p-1 rounded-md text-slate-500 hover:text-red-400 hover:bg-slate-800"
+                        className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-slate-100"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -639,27 +645,28 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           )}
         </div>
 
-        <div className="p-4 bg-slate-850 border-t border-slate-800 space-y-3">
+        {/* Payment / Summary Footer */}
+        <div className="p-4 bg-white border-t border-slate-200 space-y-3">
           <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between text-slate-400">
+            <div className="flex justify-between text-slate-600">
               <span>Subtotal Kotor:</span>
-              <span className="font-semibold text-white">{formatRupiah(totals.subtotal)}</span>
+              <span className="font-semibold text-slate-900">{formatRupiah(totals.subtotal)}</span>
             </div>
             {totals.discount > 0 && (
-              <div className="flex justify-between text-amber-400">
+              <div className="flex justify-between text-amber-600">
                 <span>Potongan Diskon:</span>
                 <span className="font-semibold">-{formatRupiah(totals.discount)}</span>
               </div>
             )}
             {appliedDpAmount > 0 && (
-              <div className="flex justify-between text-purple-400 font-bold">
+              <div className="flex justify-between text-purple-700 font-bold">
                 <span>DP Booking Sudah Dibayar:</span>
                 <span>-{formatRupiah(appliedDpAmount)}</span>
               </div>
             )}
-            <div className="flex justify-between text-sm font-extrabold pt-1 border-t border-slate-800">
-              <span className="text-white">Total Tagihan Bersih:</span>
-              <span className="text-emerald-400 text-base">{formatRupiah(netPayable)}</span>
+            <div className="flex justify-between text-sm font-extrabold pt-1 border-t border-slate-100">
+              <span className="text-slate-900">Total Tagihan Bersih:</span>
+              <span className="text-emerald-600 text-base">{formatRupiah(netPayable)}</span>
             </div>
           </div>
 
@@ -668,7 +675,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               type="button"
               onClick={() => setPaymentMethod('TUNAI')}
               className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
-                paymentMethod === 'TUNAI' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-800 text-slate-400'
+                paymentMethod === 'TUNAI' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               Tunai
@@ -677,7 +684,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               type="button"
               onClick={() => setPaymentMethod('TRANSFER_BCA')}
               className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
-                paymentMethod === 'TRANSFER_BCA' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-800 text-slate-400'
+                paymentMethod === 'TRANSFER_BCA' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               Transfer BCA
@@ -686,7 +693,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               type="button"
               onClick={() => setPaymentMethod('QRIS')}
               className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
-                paymentMethod === 'QRIS' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-800 text-slate-400'
+                paymentMethod === 'QRIS' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               QRIS
@@ -701,20 +708,20 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                   value={cashTenderedInput ? formatRupiah(parseRupiahInput(cashTenderedInput)) : ''}
                   onChange={(e) => setCashTenderedInput(e.target.value)}
                   placeholder="Uang Tunai Diterima (Rp)"
-                  className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs font-bold focus:outline-hidden focus:border-emerald-500"
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 text-xs font-bold focus:outline-hidden focus:border-emerald-500 shadow-2xs"
                 />
                 <button
                   type="button"
                   onClick={() => setCashTenderedInput(String(netPayable))}
-                  className="px-2.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-emerald-400"
+                  className="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-emerald-700 border border-slate-200"
                 >
                   Uang Pas
                 </button>
               </div>
               {cashTenderedVal > 0 && (
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-400">Kembalian:</span>
-                  <span className={changeAmount >= 0 ? 'text-blue-400' : 'text-red-400'}>
+                  <span className="text-slate-500">Kembalian:</span>
+                  <span className={changeAmount >= 0 ? 'text-blue-600' : 'text-red-600'}>
                     {formatRupiah(changeAmount)}
                   </span>
                 </div>
@@ -727,7 +734,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               type="button"
               onClick={() => setShowBookingDpModal(true)}
               disabled={cart.length === 0}
-              className="py-2.5 px-3 rounded-xl bg-purple-950/90 border border-purple-800/80 text-purple-300 hover:bg-purple-900 text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5"
+              className="py-2.5 px-3 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
               <Bookmark className="w-4 h-4" /> Simpan Booking DP
             </button>
@@ -736,7 +743,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               type="button"
               onClick={() => handleCheckoutSale(true)}
               disabled={cart.length === 0}
-              className="py-2.5 px-3 rounded-xl bg-amber-950/90 border border-amber-800/80 text-amber-300 hover:bg-amber-900 text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5"
+              className="py-2.5 px-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
               <CreditCard className="w-4 h-4" /> Bayar Sbg BON
             </button>
@@ -746,7 +753,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             type="button"
             onClick={() => handleCheckoutSale(false)}
             disabled={cart.length === 0 || (paymentMethod === 'TUNAI' && cashTenderedVal < netPayable)}
-            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-98 transition-all"
+            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-98 transition-all"
           >
             <Printer className="w-4 h-4" /> Selesaikan & Cetak Struk
           </button>

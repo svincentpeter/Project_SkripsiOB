@@ -19,7 +19,8 @@ import {
   Disc,
   CircleDot,
   Wrench,
-  DollarSign
+  DollarSign,
+  Boxes
 } from 'lucide-react';
 import { 
   CreateProductInput, 
@@ -179,18 +180,19 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const uniqueRings = Array.from(new Set(products.filter(p => (p.category || 'BAN_BARU') === activeTab).map(p => p.ring))).filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-6 rounded-3xl shadow-xl backdrop-blur-md">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 p-4 sm:p-6 lg:p-8 space-y-6 font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-xs">
         <div>
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-600/20 text-blue-400 rounded-2xl border border-blue-500/30">
-              <Package className="w-6 h-6" />
+            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
+              <Boxes className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
                 Pusat Inventori & Master Data Cabang 3
               </h1>
-              <p className="text-xs sm:text-sm text-slate-400">
+              <p className="text-xs sm:text-sm text-slate-500">
                 Katalog Ban Baru, Velg, Ban Dalam, Master Layanan Bengkel, dan Distributor Resmi.
               </p>
             </div>
@@ -200,21 +202,21 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={() => handleOpenRestock()}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-emerald-900/30 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95"
           >
             <Truck className="w-4 h-4" />
             <span>Penerimaan Barang</span>
           </button>
           <button
             onClick={() => setShowOpnameModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-amber-900/30 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95"
           >
             <ClipboardList className="w-4 h-4" />
             <span>Stock Opname</span>
           </button>
           <button
             onClick={handleOpenCreateProduct}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs sm:text-sm font-bold shadow-lg shadow-blue-900/30 transition-all active:scale-95"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>Tambah Master Produk</span>
@@ -222,32 +224,34 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         </div>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl">
-          <span className="text-xs text-slate-400 font-semibold block mb-1">Total Unit Fisik Gudang</span>
-          <span className="text-2xl font-black text-white">{valuation.totalPcs} <span className="text-xs text-slate-400 font-normal">Unit</span></span>
+        <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
+          <span className="text-xs text-slate-500 font-semibold block mb-1">Total Unit Fisik Gudang</span>
+          <span className="text-2xl font-extrabold text-slate-900">{valuation.totalPcs} <span className="text-xs text-slate-400 font-normal">Unit</span></span>
         </div>
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl">
-          <span className="text-xs text-slate-400 font-semibold block mb-1">Total Nilai HPP Persediaan</span>
-          <span className="text-2xl font-black text-emerald-400">{formatRupiah(valuation.totalValuationHpp)}</span>
+        <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
+          <span className="text-xs text-slate-500 font-semibold block mb-1">Total Nilai HPP Persediaan</span>
+          <span className="text-2xl font-extrabold text-emerald-600">{formatRupiah(valuation.totalValuationHpp)}</span>
         </div>
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl">
-          <span className="text-xs text-slate-400 font-semibold block mb-1">Peringatan Stok Kritis</span>
-          <span className="text-2xl font-black text-amber-400">{valuation.lowStockCount} <span className="text-xs text-slate-400 font-normal">SKU</span></span>
+        <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
+          <span className="text-xs text-slate-500 font-semibold block mb-1">Peringatan Stok Kritis</span>
+          <span className="text-2xl font-extrabold text-amber-600">{valuation.lowStockCount} <span className="text-xs text-slate-400 font-normal">SKU</span></span>
         </div>
-        <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl">
-          <span className="text-xs text-slate-400 font-semibold block mb-1">Stok Habis / Kosong</span>
-          <span className="text-2xl font-black text-red-400">{valuation.outOfStockCount} <span className="text-xs text-slate-400 font-normal">SKU</span></span>
+        <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs">
+          <span className="text-xs text-slate-500 font-semibold block mb-1">Stok Habis / Kosong</span>
+          <span className="text-2xl font-extrabold text-red-600">{valuation.outOfStockCount} <span className="text-xs text-slate-400 font-normal">SKU</span></span>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+      {/* Category Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
         <button
           onClick={() => setActiveTab('BAN_BARU')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'BAN_BARU'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-900/40'
-              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-850'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <Disc className="w-4 h-4" />
@@ -258,8 +262,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           onClick={() => setActiveTab('VELG')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'VELG'
-              ? 'bg-amber-600 text-white shadow-md shadow-amber-900/40'
-              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-850'
+              ? 'bg-amber-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <CircleDot className="w-4 h-4" />
@@ -270,8 +274,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           onClick={() => setActiveTab('BAN_DALAM')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'BAN_DALAM'
-              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/40'
-              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-850'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <Package className="w-4 h-4" />
@@ -282,8 +286,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           onClick={() => setActiveTab('SERVICES')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'SERVICES'
-              ? 'bg-cyan-600 text-white shadow-md shadow-cyan-900/40'
-              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-850'
+              ? 'bg-cyan-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <Wrench className="w-4 h-4" />
@@ -294,8 +298,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           onClick={() => setActiveTab('SUPPLIERS')}
           className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
             activeTab === 'SUPPLIERS'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/40'
-              : 'bg-slate-900 text-slate-400 hover:text-white hover:bg-slate-850'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 border border-slate-200 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <Truck className="w-4 h-4" />
@@ -303,7 +307,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80">
+      {/* Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
         <div className="relative w-full sm:w-96">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -317,7 +322,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 ? 'Cari nama distributor, kontak, telepon...'
                 : 'Cari SKU, Barcode, Merek, Ukuran, PCD...'
             }
-            className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-4 py-2 text-white text-xs sm:text-sm focus:outline-hidden focus:border-blue-500"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-slate-800 text-xs sm:text-sm focus:outline-hidden focus:border-blue-500"
           />
         </div>
 
@@ -326,7 +331,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
             <select
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-hidden"
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 text-xs focus:outline-hidden"
             >
               <option value="ALL">Semua Merek</option>
               {uniqueBrands.map((b) => (
@@ -338,7 +343,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
               <select
                 value={selectedRing}
                 onChange={(e) => setSelectedRing(e.target.value)}
-                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-hidden"
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 text-xs focus:outline-hidden"
               >
                 <option value="ALL">Semua Ring</option>
                 {uniqueRings.map((r) => (
@@ -350,7 +355,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
             <select
               value={stockFilter}
               onChange={(e) => setStockFilter(e.target.value as any)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white text-xs focus:outline-hidden"
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 text-xs focus:outline-hidden"
             >
               <option value="ALL">Semua Status Stok</option>
               <option value="LOW">Stok Kritis (&lt; Min)</option>
@@ -367,7 +372,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
               setServiceToEdit(null);
               setShowServiceModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold"
           >
             <Plus className="w-4 h-4" /> Tambah Jasa Baru
           </button>
@@ -380,18 +385,19 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
               setSupplierToEdit(null);
               setShowSupplierModal(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold"
           >
             <Plus className="w-4 h-4" /> Tambah Distributor
           </button>
         )}
       </div>
 
+      {/* Main Table View */}
       {(activeTab === 'BAN_BARU' || activeTab === 'VELG' || activeTab === 'BAN_DALAM') && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800">
+              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3.5 px-4">Nama Produk & SKU</th>
                   <th className="py-3.5 px-4">Merek / Spesifikasi</th>
@@ -402,10 +408,10 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   <th className="py-3.5 px-4 text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-slate-100 text-slate-700">
                 {filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-slate-500">
+                    <td colSpan={7} className="text-center py-12 text-slate-400">
                       Tidak ada data produk ditemukan pada kategori ini.
                     </td>
                   </tr>
@@ -417,18 +423,18 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                     const isOut = currentStock <= 0;
 
                     return (
-                      <tr key={p.id} className="hover:bg-slate-850/50 transition-colors">
+                      <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-3.5 px-4">
-                          <div className="font-bold text-white text-sm">{p.product_name}</div>
-                          <div className="text-[11px] font-mono text-slate-400 flex items-center gap-2 mt-0.5">
-                            <span className="text-blue-400">{p.product_code}</span>
+                          <div className="font-bold text-slate-900 text-sm">{p.product_name}</div>
+                          <div className="text-[11px] font-mono text-slate-500 flex items-center gap-2 mt-0.5">
+                            <span className="text-blue-600 font-semibold">{p.product_code}</span>
                             <span>•</span>
-                            <span className="text-slate-500">EAN: {p.barcode}</span>
+                            <span className="text-slate-400">EAN: {p.barcode}</span>
                           </div>
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="font-semibold text-slate-200">{p.brand}</div>
-                          <div className="text-xs text-slate-400">
+                          <div className="font-semibold text-slate-800">{p.brand}</div>
+                          <div className="text-xs text-slate-500">
                             {p.category === 'BAN_BARU' && `${p.product_size || ''} | DOT ${p.product_year || '-'}`}
                             {p.category === 'VELG' && `${p.ring || ''} | PCD ${p.pcd || ''} | Lebar ${p.rim_width || ''} | ET ${p.offset_et || ''}`}
                             {p.category === 'BAN_DALAM' && `${p.product_size || p.size_ratio || ''} | Valve ${p.valve_type || ''}`}
@@ -437,22 +443,22 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                         <td className="py-3.5 px-4 text-center">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
                             isOut
-                              ? 'bg-red-950/80 text-red-400 border border-red-800/50'
+                              ? 'bg-red-50 text-red-600 border border-red-200'
                               : isLow
-                              ? 'bg-amber-950/80 text-amber-400 border border-amber-800/50'
-                              : 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/50'
+                              ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                              : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                           }`}>
                             {currentStock} Unit
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 text-right font-medium text-slate-400">
+                        <td className="py-3.5 px-4 text-right font-medium text-slate-600">
                           {formatRupiah(p.product_cost || p.cost_price || 0)}
                         </td>
-                        <td className="py-3.5 px-4 text-right font-bold text-emerald-400">
+                        <td className="py-3.5 px-4 text-right font-bold text-emerald-600">
                           {formatRupiah(p.product_price || p.price || 0)}
                         </td>
                         <td className="py-3.5 px-4 text-center">
-                          <span className="text-xs font-mono bg-slate-800 px-2 py-1 rounded-md text-slate-300">
+                          <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded-md text-slate-700">
                             {p.batches?.length || 0} Batch
                           </span>
                         </td>
@@ -461,31 +467,31 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                             <button
                               onClick={() => setSelectedTireForCard(p)}
                               title="Lihat Kartu Stok Mutasi"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-cyan-600 hover:bg-slate-100 transition-colors"
                             >
-                              <History className="w-4 h-4 text-cyan-400" />
+                              <History className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleOpenRestock(p)}
                               title="Restock / Penerimaan Barang"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
                             >
-                              <Truck className="w-4 h-4 text-emerald-400" />
+                              <Truck className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleOpenEditProduct(p)}
                               title="Edit Master Produk"
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-slate-100 transition-colors"
                             >
-                              <Edit3 className="w-4 h-4 text-amber-400" />
+                              <Edit3 className="w-4 h-4" />
                             </button>
                             {onDeleteOrDeactivateProduct && (
                               <button
                                 onClick={() => onDeleteOrDeactivateProduct(p.id)}
                                 title={p.is_active === false ? 'Aktifkan Produk' : 'Nonaktifkan / Hapus'}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-slate-100 transition-colors"
                               >
-                                <Power className="w-4 h-4 text-red-400" />
+                                <Power className="w-4 h-4" />
                               </button>
                             )}
                           </div>
@@ -500,11 +506,12 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         </div>
       )}
 
+      {/* Services Table */}
       {activeTab === 'SERVICES' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800">
+              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3.5 px-4">Nama Layanan / Jasa</th>
                   <th className="py-3.5 px-4">Kategori Layanan</th>
@@ -515,39 +522,39 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   <th className="py-3.5 px-4 text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-slate-100 text-slate-700">
                 {filteredServices.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-slate-500">
+                    <td colSpan={7} className="text-center py-12 text-slate-400">
                       Tidak ada master jasa & layanan ditemukan.
                     </td>
                   </tr>
                 ) : (
                   filteredServices.map((srv) => (
-                    <tr key={srv.id} className="hover:bg-slate-850/50 transition-colors">
+                    <tr key={srv.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-white text-sm">{srv.service_name}</div>
-                        {srv.description && <div className="text-xs text-slate-400 mt-0.5">{srv.description}</div>}
+                        <div className="font-bold text-slate-900 text-sm">{srv.service_name}</div>
+                        {srv.description && <div className="text-xs text-slate-500 mt-0.5">{srv.description}</div>}
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-950 text-cyan-400 border border-cyan-800/50">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200">
                           {srv.category}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 font-mono text-xs text-slate-400">
+                      <td className="py-3.5 px-4 font-mono text-xs text-slate-600">
                         {srv.service_code}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-bold text-emerald-400">
+                      <td className="py-3.5 px-4 text-right font-bold text-emerald-600">
                         {formatRupiah(srv.standard_price)}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-medium text-slate-400">
+                      <td className="py-3.5 px-4 text-right font-medium text-slate-600">
                         {formatRupiah(srv.cost_price || 0)}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
                           srv.is_active !== false
-                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/40'
-                            : 'bg-slate-800 text-slate-500'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-slate-100 text-slate-500'
                         }`}>
                           {srv.is_active !== false ? 'Aktif' : 'Nonaktif'}
                         </span>
@@ -560,14 +567,14 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                               setServiceToEdit(srv);
                               setShowServiceModal(true);
                             }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-slate-100 transition-colors"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           {onToggleService && (
                             <button
                               onClick={() => onToggleService(srv.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-slate-100 transition-colors"
                             >
                               <Power className="w-4 h-4" />
                             </button>
@@ -583,11 +590,12 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         </div>
       )}
 
+      {/* Suppliers Table */}
       {activeTab === 'SUPPLIERS' && (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-850 text-slate-400 font-semibold border-b border-slate-800">
+              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="py-3.5 px-4">Nama Distributor & Kode</th>
                   <th className="py-3.5 px-4">Kontak PIC & Telepon</th>
@@ -598,40 +606,40 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   <th className="py-3.5 px-4 text-center">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-slate-100 text-slate-700">
                 {filteredSuppliers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-slate-500">
+                    <td colSpan={7} className="text-center py-12 text-slate-400">
                       Tidak ada master distributor ditemukan.
                     </td>
                   </tr>
                 ) : (
                   filteredSuppliers.map((sup) => (
-                    <tr key={sup.id} className="hover:bg-slate-850/50 transition-colors">
+                    <tr key={sup.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-white text-sm">{sup.supplier_name}</div>
-                        <div className="font-mono text-xs text-indigo-400 mt-0.5">{sup.supplier_code}</div>
+                        <div className="font-bold text-slate-900 text-sm">{sup.supplier_name}</div>
+                        <div className="font-mono text-xs text-indigo-600 mt-0.5">{sup.supplier_code}</div>
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="font-medium text-slate-200">{sup.contact_person}</div>
-                        <div className="text-xs text-slate-400 mt-0.5">{sup.phone}</div>
+                        <div className="font-medium text-slate-800">{sup.contact_person}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{sup.phone}</div>
                       </td>
-                      <td className="py-3.5 px-4 text-xs text-slate-400">
+                      <td className="py-3.5 px-4 text-xs text-slate-600">
                         {sup.email || '-'}
                       </td>
-                      <td className="py-3.5 px-4 text-xs text-slate-300 max-w-xs truncate">
+                      <td className="py-3.5 px-4 text-xs text-slate-600 max-w-xs truncate">
                         {sup.address}
                       </td>
                       <td className="py-3.5 px-4 text-center">
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-950 text-purple-300 border border-purple-800/40">
+                        <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
                           {sup.payment_terms_days || 30} Hari
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
                           sup.is_active !== false
-                            ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/40'
-                            : 'bg-slate-800 text-slate-500'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-slate-100 text-slate-500'
                         }`}>
                           {sup.is_active !== false ? 'Aktif' : 'Nonaktif'}
                         </span>
@@ -644,14 +652,14 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                               setSupplierToEdit(sup);
                               setShowSupplierModal(true);
                             }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-slate-100 transition-colors"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           {onToggleSupplier && (
                             <button
                               onClick={() => onToggleSupplier(sup.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-red-600 hover:bg-slate-100 transition-colors"
                             >
                               <Power className="w-4 h-4" />
                             </button>
@@ -669,11 +677,10 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
       {selectedTireForCard && (
         <StockCardDrawer
-          isOpen={true}
-          tire={selectedTireForCard}
+          product={selectedTireForCard}
           mutations={mutations}
           onClose={() => setSelectedTireForCard(null)}
-          onRestock={() => {
+          onOpenRestock={() => {
             const t = selectedTireForCard;
             setSelectedTireForCard(null);
             handleOpenRestock(t);
