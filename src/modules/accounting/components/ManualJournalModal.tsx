@@ -82,19 +82,19 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="bg-slate-900 px-6 py-4 flex items-center justify-between text-white border-b border-slate-800">
+        <div className="bg-slate-50 px-6 py-4 flex items-center justify-between text-slate-900 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
               <Scale className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight">Input Jurnal Penyesuaian / Memorial Manual</h2>
-              <p className="text-xs text-slate-400">Pencatatan berpasangan SAK EMKM (Wajib Debit = Kredit)</p>
+              <h2 className="text-base font-bold text-slate-900 tracking-tight">Input Jurnal Penyesuaian / Memorial Manual</h2>
+              <p className="text-xs text-slate-500">Pencatatan berpasangan SAK EMKM (Wajib Debit = Kredit)</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

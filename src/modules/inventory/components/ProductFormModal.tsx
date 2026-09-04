@@ -224,30 +224,30 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const currentBrandOptions = category === 'VELG' ? BRANDS_VELG : category === 'BAN_DALAM' ? BRANDS_TUBE : BRANDS_BAN;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-850">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto font-['Plus_Jakarta_Sans',sans-serif]">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-xl ${mode === 'CREATE' ? 'bg-blue-600/20 text-blue-400' : 'bg-amber-600/20 text-amber-400'}`}>
+            <div className={`p-2.5 rounded-xl ${mode === 'CREATE' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-amber-50 text-amber-600 border border-amber-100'} shadow-2xs`}>
               {mode === 'CREATE' ? <Plus className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">
+              <h2 className="text-lg font-bold text-slate-900">
                 {mode === 'CREATE' ? 'Tambah Master Produk Baru' : 'Edit Data Master Produk'}
               </h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 {mode === 'CREATE' ? 'Pilih kategori (Ban Baru, Velg, atau Ban Dalam) dan isi spesifikasi teknis.' : `Mengubah informasi: ${productToEdit?.product_name}`}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto bg-white">
           {errorMsg && (
-            <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-xl flex items-center gap-3 text-red-400 text-sm">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 text-sm">
               <AlertTriangle className="w-5 h-5 shrink-0" />
               <span>{errorMsg}</span>
             </div>
@@ -255,7 +255,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
           {mode === 'CREATE' && (
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                 Kategori Produk
               </label>
               <div className="grid grid-cols-3 gap-3">
@@ -264,8 +264,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   onClick={() => { setCategory('BAN_BARU'); setBrand('Bridgestone'); }}
                   className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
                     category === 'BAN_BARU'
-                      ? 'bg-blue-600/20 border-blue-500 text-blue-400 shadow-md shadow-blue-900/30'
-                      : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:bg-slate-800'
+                      ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-xs font-bold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <Disc className="w-4 h-4" />
@@ -276,8 +276,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   onClick={() => { setCategory('VELG'); setBrand('HSR'); }}
                   className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
                     category === 'VELG'
-                      ? 'bg-amber-600/20 border-amber-500 text-amber-400 shadow-md shadow-amber-900/30'
-                      : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:bg-slate-800'
+                      ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-xs font-bold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <CircleDot className="w-4 h-4" />
@@ -288,8 +288,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                   onClick={() => { setCategory('BAN_DALAM'); setBrand('GTRadial'); }}
                   className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
                     category === 'BAN_DALAM'
-                      ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400 shadow-md shadow-emerald-900/30'
-                      : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:bg-slate-800'
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-xs font-bold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <Package className="w-4 h-4" />
@@ -301,11 +301,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Merek / Pabrikan</label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Merek / Pabrikan</label>
               <select
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-hidden focus:border-blue-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 shadow-2xs"
               >
                 {currentBrandOptions.map((b) => (
                   <option key={b} value={b}>{b}</option>
@@ -314,58 +314,58 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nama Pola / Motif / Model</label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Nama Pola / Motif / Model</label>
               <input
                 type="text"
                 value={motif}
                 onChange={(e) => setMotif(e.target.value)}
                 placeholder={category === 'VELG' ? 'e.g. Myth01 / RPF1' : category === 'BAN_DALAM' ? 'e.g. Butyl Heavy Duty' : 'e.g. Turanza T005A'}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-hidden focus:border-blue-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 shadow-2xs"
               />
             </div>
           </div>
 
           {category === 'BAN_BARU' && (
-            <div className="p-4 bg-slate-850 border border-slate-700/60 rounded-xl space-y-4">
-              <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+              <h3 className="text-xs font-bold text-blue-700 uppercase tracking-wider flex items-center gap-2">
                 <Disc className="w-4 h-4" /> Spesifikasi Ban Baru
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Lebar (mm)</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">Lebar (mm)</label>
                   <input
                     type="number"
                     value={sizeWidth}
                     onChange={(e) => setSizeWidth(Number(e.target.value))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Rasio (%)</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">Rasio (%)</label>
                   <input
                     type="text"
                     value={sizeRatio}
                     onChange={(e) => setSizeRatio(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Diameter Ring</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">Diameter Ring</label>
                   <select
                     value={ring}
                     onChange={(e) => setRing(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   >
                     {RINGS.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Tahun DOT</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">Tahun DOT</label>
                   <input
                     type="number"
                     value={productYear}
                     onChange={(e) => setProductYear(Number(e.target.value))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   />
                 </div>
               </div>
@@ -373,88 +373,88 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           )}
 
           {category === 'VELG' && (
-            <div className="p-4 bg-slate-850 border border-slate-700/60 rounded-xl space-y-4">
-              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+              <h3 className="text-xs font-bold text-amber-700 uppercase tracking-wider flex items-center gap-2">
                 <CircleDot className="w-4 h-4" /> Spesifikasi Velg Mobil
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Diameter Ring</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">Diameter Ring</label>
                   <select
                     value={ring}
                     onChange={(e) => setRing(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   >
                     {RINGS.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">PCD Lubang Baut</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">PCD Lubang Baut</label>
                   <input
                     type="text"
                     value={pcd}
                     onChange={(e) => setPcd(e.target.value)}
                     placeholder="e.g. 4x100 / 5x114.3"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Lebar Velg (Inch)</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">Lebar Velg (Inch)</label>
                   <input
                     type="number"
                     step="0.5"
                     value={rimWidth}
                     onChange={(e) => setRimWidth(Number(e.target.value))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Offset / ET</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">Offset / ET</label>
                   <input
                     type="number"
                     value={offsetEt}
                     onChange={(e) => setOffsetEt(Number(e.target.value))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1">Warna / Finishing</label>
+                <label className="block text-[11px] text-slate-500 mb-1">Warna / Finishing</label>
                 <input
                   type="text"
                   value={colorFinish}
                   onChange={(e) => setColorFinish(e.target.value)}
                   placeholder="e.g. Semi Matte Bronze / Silver Machined"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                  className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                 />
               </div>
             </div>
           )}
 
           {category === 'BAN_DALAM' && (
-            <div className="p-4 bg-slate-850 border border-slate-700/60 rounded-xl space-y-4">
-              <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+              <h3 className="text-xs font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-2">
                 <Package className="w-4 h-4" /> Spesifikasi Ban Dalam
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Ukuran / Kompatibilitas</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">Ukuran / Kompatibilitas</label>
                   <input
                     type="text"
                     value={sizeRatio}
                     onChange={(e) => setSizeRatio(e.target.value)}
                     placeholder="e.g. 175/185-14 / 7.50-16"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] text-slate-400 mb-1">Tipe Pentil (Valve)</label>
+                  <label className="block text-[11px] text-slate-500 mb-1">Tipe Pentil (Valve)</label>
                   <input
                     type="text"
                     value={valveType}
                     onChange={(e) => setValveType(e.target.value)}
                     placeholder="e.g. TR13 / TR218A"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                   />
                 </div>
               </div>
@@ -462,33 +462,33 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nama Lengkap Tampilan</label>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Nama Lengkap Tampilan</label>
             <input
               type="text"
               value={productName}
               onChange={(e) => setProductName(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-medium text-sm focus:outline-hidden focus:border-blue-500"
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-bold text-sm focus:outline-none focus:border-blue-500 shadow-2xs"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kode SKU</label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Kode SKU</label>
               <input
                 type="text"
                 value={productCode}
                 onChange={(e) => setProductCode(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-mono text-xs focus:outline-hidden focus:border-blue-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-mono text-xs focus:outline-none focus:border-blue-500 shadow-2xs"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Barcode EAN-13</label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Barcode EAN-13</label>
               <div className="relative">
                 <input
                   type="text"
                   value={barcode}
                   onChange={(e) => setBarcode(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-mono text-xs focus:outline-hidden focus:border-blue-500 pr-10"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-mono text-xs focus:outline-none focus:border-blue-500 pr-10 shadow-2xs"
                 />
                 <button
                   type="button"
@@ -497,7 +497,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     setBarcode(generateBarcodeEan13(existingBarcodes));
                   }}
                   title="Generate Barcode Baru"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-white"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-700"
                 >
                   <Barcode className="w-4 h-4" />
                 </button>
@@ -507,66 +507,66 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Harga Modal / HPP (Rp)</label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Harga Modal / HPP (Rp)</label>
               <input
                 type="text"
                 value={formatRupiah(costPrice)}
                 onChange={(e) => setCostPrice(parseRupiahInput(e.target.value))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm font-semibold"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-semibold shadow-2xs"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Harga Jual Retail (Rp)</label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Harga Jual Retail (Rp)</label>
               <input
                 type="text"
                 value={formatRupiah(sellingPrice)}
                 onChange={(e) => setSellingPrice(parseRupiahInput(e.target.value))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-emerald-400 text-sm font-bold"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-emerald-600 text-sm font-extrabold shadow-2xs"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Batas Peringatan Stok</label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Batas Peringatan Stok</label>
               <input
                 type="number"
                 value={stockAlert}
                 onChange={(e) => setStockAlert(Number(e.target.value))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white text-sm"
+                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm shadow-2xs"
               />
             </div>
           </div>
 
           {mode === 'CREATE' && (
-            <div className="pt-4 border-t border-slate-800">
+            <div className="pt-4 border-t border-slate-100">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={hasInitialStock}
                   onChange={(e) => setHasInitialStock(e.target.checked)}
-                  className="w-4 h-4 rounded-sm border-slate-700 bg-slate-800 text-blue-600 focus:ring-blue-500"
+                  className="w-4 h-4 rounded-sm border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm font-semibold text-slate-300">
+                <span className="text-sm font-semibold text-slate-700">
                   Input Stok Awal Sekarang (Otomatis membentuk batch FIFO & Jurnal Persediaan)
                 </span>
               </label>
 
               {hasInitialStock && (
-                <div className="mt-4 p-4 bg-slate-850 border border-slate-700/80 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1">Jumlah Unit Masuk</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Jumlah Unit Masuk</label>
                     <input
                       type="number"
                       value={initialQty}
                       onChange={(e) => setInitialQty(Number(e.target.value))}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1">Distributor / Supplier Pengadaan</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Distributor / Supplier Pengadaan</label>
                     <input
                       type="text"
                       value={supplierName}
                       onChange={(e) => setSupplierName(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm shadow-2xs"
                     />
                   </div>
                 </div>
@@ -574,17 +574,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 text-sm font-semibold"
+              className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold shadow-2xs"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-900/30 flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
               {mode === 'CREATE' ? 'Simpan Master Produk' : 'Perbarui Produk'}
