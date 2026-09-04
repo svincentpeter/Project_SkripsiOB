@@ -324,10 +324,11 @@ export const calculateDynamicSakEmkmFinancials = (
 
   // A. ELEMEN LABA RUGI (INCOME STATEMENT)
   const revRow = findRow('4-1000');
+  const srvRevRow = findRow('4-1001');
   const discRow = findRow('4-9000');
   const hppRow = findRow('5-1000');
 
-  const grossSales = revRow?.credit_balance ?? 0;
+  const grossSales = (revRow?.credit_balance ?? 0) + (srvRevRow?.credit_balance ?? 0);
   const discounts = discRow?.debit_balance ?? 0;
   const netSales = Math.max(0, grossSales - discounts);
 

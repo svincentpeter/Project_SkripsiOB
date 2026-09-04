@@ -438,7 +438,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                         ? 'bg-amber-950 text-amber-400 border border-amber-800/40'
                         : 'bg-emerald-950 text-emerald-400 border border-emerald-800/40'
                     }`}>
-                      {p.category.replace('_', ' ')}
+                      {(p.category || 'BAN_BARU').replace('_', ' ')}
                     </span>
                     <span className={`text-[11px] font-bold ${
                       isOutOfStock ? 'text-red-400' : stockQty < 5 ? 'text-amber-400' : 'text-slate-400'
@@ -576,7 +576,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                             ? 'bg-emerald-950 text-emerald-400'
                             : 'bg-blue-950 text-blue-400'
                         }`}>
-                          {item.item_type === 'SERVICE' ? 'JASA' : item.product?.category?.replace('_', ' ')}
+                          {item.item_type === 'SERVICE' ? 'JASA' : (item.product?.category || 'BAN_BARU').replace('_', ' ')}
                         </span>
                         <h4 className="text-xs font-bold text-white truncate">{displayName}</h4>
                       </div>

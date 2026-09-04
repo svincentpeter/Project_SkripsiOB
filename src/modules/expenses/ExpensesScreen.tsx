@@ -31,13 +31,13 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
   cashInDrawer,
 }) => {
   const categories: ExpenseCategory[] = [
-    'Listrik & Air (PLN/PDAM)',
-    'Gaji & Uang Makan Montir',
-    'Sewa Lahan & Bangunan',
-    'Transport & Pengiriman Ban',
     'ATK & Keperluan Bengkel',
     'Pemeliharaan Mesin Spooring & Balancing',
     'Konsumsi & Lembur Karyawan',
+    'Transport & Pengiriman Ban',
+    'Listrik & Air (PLN/PDAM)',
+    'Gaji & Uang Makan Montir',
+    'Sewa Lahan & Bangunan',
     'Pajak & Retribusi Daerah',
   ];
 
@@ -56,31 +56,34 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
   const numericAmount = typeof nominalInput === 'number' ? nominalInput : parseRupiahInput(String(nominalInput));
 
   // Auto Journal Preview Calculation
-  let expenseAccountCode = '6-1006';
-  let expenseAccountName = 'Beban ATK & Perlengkapan Bengkel';
+  let expenseAccountCode = '6-1005';
+  let expenseAccountName = 'Beban Perlengkapan & ATK Bengkel';
 
-  if (category.includes('Listrik')) {
-    expenseAccountCode = '6-1002';
-    expenseAccountName = 'Beban Listrik, Air & Utilitas';
-  } else if (category.includes('Gaji')) {
-    expenseAccountCode = '6-1003';
-    expenseAccountName = 'Beban Gaji & Uang Makan Montir';
-  } else if (category.includes('Sewa')) {
-    expenseAccountCode = '6-1004';
-    expenseAccountName = 'Beban Sewa Lahan Toko';
-  } else if (category.includes('Transport')) {
-    expenseAccountCode = '6-1005';
-    expenseAccountName = 'Beban Transport & Pengiriman Ban';
-  } else if (category.includes('Pemeliharaan')) {
-    expenseAccountCode = '6-1007';
-    expenseAccountName = 'Beban Pemeliharaan Mesin Spooring';
+  if (category.includes('Pemeliharaan')) {
+    expenseAccountCode = '6-1006';
+    expenseAccountName = 'Beban Perawatan Mesin Spooring & Balancing';
   } else if (category.includes('Konsumsi')) {
-    expenseAccountCode = '6-1008';
+    expenseAccountCode = '6-1007';
     expenseAccountName = 'Beban Konsumsi & Lembur Karyawan';
+  } else if (category.includes('Transport')) {
+    expenseAccountCode = '6-1004';
+    expenseAccountName = 'Beban Transportasi & Pengiriman Ban';
+  } else if (category.includes('Listrik')) {
+    expenseAccountCode = '6-1001';
+    expenseAccountName = 'Beban Listrik, Air & Internet';
+  } else if (category.includes('Gaji')) {
+    expenseAccountCode = '6-1000';
+    expenseAccountName = 'Beban Gaji & Uang Makan Karyawan';
+  } else if (category.includes('Sewa')) {
+    expenseAccountCode = '6-1003';
+    expenseAccountName = 'Beban Sewa Bangunan Toko';
+  } else if (category.includes('Pajak')) {
+    expenseAccountCode = '6-1008';
+    expenseAccountName = 'Beban Pajak & Retribusi Daerah';
   }
 
   const isCash = cashSource.includes('Laci');
-  const creditAccountCode = isCash ? '1-1001' : '1-1002';
+  const creditAccountCode = isCash ? '1-1000' : '1-1001';
   const creditAccountName = isCash ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3';
 
   // File Upload Handlers (Supports Drag & Drop and File Input)

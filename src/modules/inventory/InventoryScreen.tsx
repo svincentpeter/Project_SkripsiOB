@@ -109,7 +109,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const filteredProducts = isEmptyState
     ? []
     : products.filter((p) => {
-        if (p.category !== activeTab) return false;
+        const itemCat = p.category || 'BAN_BARU';
+        if (itemCat !== activeTab) return false;
         const matchesBrand = selectedBrand === 'ALL' || p.brand === selectedBrand;
         const matchesRing = selectedRing === 'ALL' || p.ring === selectedRing;
         
@@ -174,8 +175,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
     setShowGoodsReceiptModal(true);
   };
 
-  const uniqueBrands = Array.from(new Set(products.filter(p => p.category === activeTab).map(p => p.brand))).filter(Boolean);
-  const uniqueRings = Array.from(new Set(products.filter(p => p.category === activeTab).map(p => p.ring))).filter(Boolean);
+  const uniqueBrands = Array.from(new Set(products.filter(p => (p.category || 'BAN_BARU') === activeTab).map(p => p.brand))).filter(Boolean);
+  const uniqueRings = Array.from(new Set(products.filter(p => (p.category || 'BAN_BARU') === activeTab).map(p => p.ring))).filter(Boolean);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 space-y-6">
@@ -250,7 +251,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           }`}
         >
           <Disc className="w-4 h-4" />
-          <span>Ban Baru ({products.filter(p => p.category === 'BAN_BARU').length})</span>
+          <span>Ban Baru ({products.filter(p => (p.category || 'BAN_BARU') === 'BAN_BARU').length})</span>
         </button>
 
         <button

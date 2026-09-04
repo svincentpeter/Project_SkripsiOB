@@ -171,34 +171,18 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         </div>
 
         {/* Right Toolbar: Quick Action Buttons Majestic Style */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => alert('Fitur Ekspor Laporan Excel/PDF sedang disiapkan.')}
-            className="w-9 h-9 rounded-md bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 flex items-center justify-center transition-colors shadow-2xs"
-            title="Download Excel / PDF"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-          
-          <button
-            onClick={() => alert('Riwayat sinkronisasi batch FIFO aktif per 3 September 2026.')}
-            className="w-9 h-9 rounded-md bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 flex items-center justify-center transition-colors shadow-2xs"
-            title="Riwayat Waktu"
-          >
-            <Clock className="w-4 h-4" />
-          </button>
-
+        <div className="flex items-center gap-2.5">
           <button
             onClick={onNavigateToInventory}
-            className="w-9 h-9 rounded-md bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 flex items-center justify-center transition-colors shadow-2xs"
-            title="Tambah Stok Baru / PO"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-blue-600 hover:border-blue-400 text-xs font-bold transition-all shadow-xs"
           >
-            <Plus className="w-4 h-4" />
+            <Boxes className="w-4 h-4 text-blue-600" />
+            <span>Inventori & Master</span>
           </button>
 
           <button
             onClick={onNavigateToPos}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-md text-xs font-bold transition-all shadow-xs flex items-center gap-2"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/20 flex items-center gap-2"
           >
             <ShoppingCart className="w-3.5 h-3.5" />
             <span>Buka Kasir (POS)</span>

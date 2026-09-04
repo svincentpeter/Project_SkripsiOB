@@ -319,11 +319,72 @@ export default function App() {
 
     // 3. Generate Double-Entry Accounting Journal
     const newJournal = generateSalesJournal(newTx, journals.length + 1);
+
+    const isPaidWithDp = newTx.notes && newTx.notes.includes('Pelunasan DP Booking');
+    if (isPaidWithDp) {
+      const matchDp = newTx.notes?.match(/Rp\s*([\d.,]+)/);
+      const dpVal = matchDp ? parseInt(matchDp[1].replace(/[^0-9]/g, ''), 10) : 0;
+      if (dpVal > 0) {
+        const netCashPaid = Math.max(0, newTx.grand_total - dpVal);
+        newJournal.lines = [
+          {
+            account_code: newTx.payment_method === 'TUNAI' ? '1-1000' : '1-1001',
+            account_name: newTx.payment_method === 'TUNAI' ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3',
+            debit: netCashPaid,
+            credit: 0,
+            note: `Pelunasan sisa tagihan ${newTx.payment_method}`,
+          },
+          {
+            account_code: '2-1000',
+            account_name: 'Hutang Dagang & Uang Muka Pelanggan',
+            debit: dpVal,
+            credit: 0,
+            note: `Pengakuan uang muka DP yang sudah masuk sebelumnya`,
+          },
+          ...(newTx.total_discount > 0
+            ? [
+                {
+                  account_code: '4-9000',
+                  account_name: 'Potongan Diskon Penjualan',
+                  debit: newTx.total_discount,
+                  credit: 0,
+                  note: `Diskon kasir`,
+                },
+              ]
+            : []),
+          {
+            account_code: '4-1000',
+            account_name: 'Pendapatan Penjualan Ban Baru',
+            debit: 0,
+            credit: newTx.subtotal,
+            note: `Omzet penjualan kotor`,
+          },
+          {
+            account_code: '5-1000',
+            account_name: 'Harga Pokok Penjualan (HPP) Ban Baru',
+            debit: newTx.total_cost_hpp,
+            credit: 0,
+            note: `Beban pokok penjualan FIFO`,
+          },
+          {
+            account_code: '1-2000',
+            account_name: 'Persediaan Ban Baru Cabang 3',
+            debit: 0,
+            credit: newTx.total_cost_hpp,
+            note: `Pengurangan persediaan gudang`,
+          },
+        ];
+      }
+    }
+
     setJournals((prev) => [newJournal, ...prev]);
 
     // 4. Update Cash in Drawer if paid in Cash
     if (newTx.payment_method === 'TUNAI') {
-      setCashInDrawer((prev) => prev + newTx.grand_total);
+      const matchDp = newTx.notes?.match(/Rp\s*([\d.,]+)/);
+      const dpVal = (isPaidWithDp && matchDp) ? parseInt(matchDp[1].replace(/[^0-9]/g, ''), 10) : 0;
+      const actualCashIn = isPaidWithDp ? Math.max(0, newTx.grand_total - dpVal) : newTx.grand_total;
+      setCashInDrawer((prev) => prev + actualCashIn);
     }
 
     // 5. Clear cart and redirect to thermal receipt screen
