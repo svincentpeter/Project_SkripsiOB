@@ -47,6 +47,7 @@ import {
   StockCardDrawer, 
   StockOpnameModal 
 } from './components';
+import { useToast } from '../../shared/components';
 
 interface InventoryScreenProps {
   products: ProductItem[];
@@ -83,6 +84,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   onToggleSupplier,
   isEmptyState = false,
 }) => {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'BAN_BARU' | 'VELG' | 'BAN_DALAM' | 'SERVICES' | 'SUPPLIERS'>('BAN_BARU');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');

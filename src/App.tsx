@@ -61,13 +61,49 @@ import { ExpensesScreen } from './modules/expenses';
 import { GeneralLedgerScreen } from './modules/accounting';
 import { FinancialStatementsScreen } from './modules/accounting';
 import { SettingsScreen } from './modules/settings';
+import { ToastProvider, useToast, AppNotification } from './shared/components';
 import { WireframeGuideModal } from './shared/components/WireframeGuideModal';
 import { HeaderNavbar } from './shared/components/HeaderNavbar';
 import { Loader2 } from 'lucide-react';
 
 export default function App() {
-  // Navigation
+  return (
+    <ToastProvider>
+      <MainAppContent />
+    </ToastProvider>
+  );
+}
+
+function MainAppContent() {
+  const toast = useToast();
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
+
+  const [notifications, setNotifications] = useState<AppNotification[]>([
+    {
+      id: 'notif-1',
+      type: 'STOCK_LOW',
+      title: 'Stok Kritis: Accelera PHI-R',
+      description: 'Sisa stok tinggal 3 unit (di bawah ambang batas minimum 5 unit). Segera buat PO restock.',
+      timestamp: '10 mnt lalu',
+      isRead: false,
+    },
+    {
+      id: 'notif-2',
+      type: 'BOOKING_NEW',
+      title: 'Booking DP Baru',
+      description: 'Pak Denny Sumargo (CR-V) membayar DP Rp 1.000.000 untuk 4 ban Turanza + Spooring.',
+      timestamp: '1 jam lalu',
+      isRead: false,
+    },
+    {
+      id: 'notif-3',
+      type: 'DEBT_DUE',
+      title: 'Jatuh Tempo Hutang Supplier',
+      description: 'Faktur PT Bridgestone Tire Indonesia (Rp 9.500.000) jatuh tempo dalam 11 hari.',
+      timestamp: '3 jam lalu',
+      isRead: false,
+    },
+  ]);
 
   // Core Data persistent in LocalStorage
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
@@ -407,20 +443,19 @@ export default function App() {
     setCart([]);
     setCurrentReceiptTx(newTx);
     setActiveScreen('receipt');
+    toast.success('Transaksi Kasir Berhasil!', `Nota ${newTx.invoice_number} berhasil diproses dan struk thermal siap dicetak.`);
   };
 
-  // Handle Expense Add
   const handleAddExpense = (newExpense: ExpenseRecord) => {
     setExpenses((prev) => [newExpense, ...prev]);
 
-    // Auto generate Journal
     const newJournal = generateExpenseJournal(newExpense, journals.length + 1);
     setJournals((prev) => [newJournal, ...prev]);
 
-    // If source is cash laci, deduct from drawer
     if (newExpense.cash_source.includes('Laci')) {
       setCashInDrawer((prev) => Math.max(0, prev - newExpense.amount));
     }
+    toast.success('Beban Toko Disimpan', `Pengeluaran ${newExpense.category} sebesar Rp ${newExpense.amount.toLocaleString()} telah dibukukan.`);
   };
 
   // Handle Inventory Stock Opname adjustment
@@ -716,6 +751,13 @@ export default function App() {
             cashInDrawer={cashInDrawer}
             lowStockCount={lowStockCount}
             cartCount={cartTotalQty}
+            notifications={notifications}
+            onMarkNotificationRead={(id) => {
+              setNotifications((prev) =>
+                prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+              );
+            }}
+            onClearNotifications={() => setNotifications([])}
             onOpenWireframeModal={() => setShowWireframeModal(true)}
             onResetData={handleResetData}
             currentTimeStr={timeString}

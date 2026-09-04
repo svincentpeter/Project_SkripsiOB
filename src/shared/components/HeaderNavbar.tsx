@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { ActiveScreen } from '../types';
 import { formatRupiah } from '../utils/formatters';
+import { NotificationBellDropdown } from './NotificationBellDropdown';
 
 interface HeaderNavbarProps {
   activeScreen: ActiveScreen;
@@ -26,6 +27,9 @@ interface HeaderNavbarProps {
   cashInDrawer: number;
   lowStockCount: number;
   cartCount: number;
+  notifications?: any[];
+  onMarkNotificationRead?: (id: string) => void;
+  onClearNotifications?: () => void;
   onOpenWireframeModal: () => void;
   onResetData: () => void;
   currentTimeStr: string;
@@ -37,6 +41,9 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   cashInDrawer,
   lowStockCount,
   cartCount,
+  notifications = [],
+  onMarkNotificationRead,
+  onClearNotifications,
   onOpenWireframeModal,
   onResetData,
   currentTimeStr,
@@ -122,6 +129,15 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
         </div>
 
         <div className="flex items-center gap-3 sm:gap-4 shrink-0 text-xs">
+          {/* Notification Bell with Minimalist Dropdown */}
+          <NotificationBellDropdown
+            notifications={notifications}
+            onMarkAsRead={(id) => onMarkNotificationRead?.(id)}
+            onClearAll={() => onClearNotifications?.()}
+            onNavigateTo={(screen) => setActiveScreen(screen as ActiveScreen)}
+          />
+
+          {/* Saldo Kas Laci Kasir */}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono shadow-2xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-emerald-700 text-[11px] font-medium">Kas Laci:</span>

@@ -44,6 +44,7 @@ import {
   BookingListDrawer, 
   CartLineEditModal 
 } from './components';
+import { useToast } from '../../shared/components';
 
 interface PosScreenProps {
   products: ProductItem[];
@@ -77,6 +78,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   onExitToBackoffice,
   isEmptyState = false,
 }) => {
+  const toast = useToast();
   const [catalogTab, setCatalogTab] = useState<'ALL' | 'BAN_BARU' | 'VELG' | 'BAN_DALAM' | 'SERVICES'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRing, setSelectedRing] = useState<string>('ALL');
@@ -307,6 +309,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     onSaveBooking?.(bookingRecord);
     setShowBookingDpModal(false);
     setCart([]);
+    toast.info('Booking DP Tersimpan', `Pesanan ${bookingRecord.customer_name} berhasil disimpan dengan DP Rp ${bookingRecord.dp_amount.toLocaleString()}.`);
   };
 
   const handleConvertBookingToCart = (booking: SalesBookingRecord) => {
