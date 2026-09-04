@@ -123,8 +123,32 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
   const totalBrandTires = Object.values(brandCountMap).reduce((a, b) => a + b, 0) || 1;
 
+  const daysOrder = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const now = new Date();
+  
+  const last7DaysData = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toISOString().split('T')[0];
+    const dayLabel = daysOrder[d.getDay()];
+    const dateLabel = `${d.getDate()} ${['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][d.getMonth()]}`;
+    
+    const dayTransactions = transactions.filter((t) => t.date === dateStr && t.status !== 'VOID');
+    const omzet = dayTransactions.reduce((acc, t) => acc + (t.total_amount ?? t.grand_total), 0);
+    const hpp = dayTransactions.reduce((acc, t) => acc + (t.total_hpp ?? t.total_cost_hpp), 0);
+    const qty = dayTransactions.reduce((acc, t) => acc + t.items.reduce((s, item) => s + item.qty, 0), 0);
+
+    return {
+      date: dateLabel,
+      day: i === 6 ? `${dayLabel} (Hari Ini)` : dayLabel,
+      omzet,
+      hpp,
+      qty,
+    };
+  });
+
   // Chart Geometry Calculations for 7-day Trend SVG
-  const maxVal = Math.max(...DAILY_TREND_DATA.map((d) => d.omzet), 30000000);
+  const maxVal = Math.max(...last7DaysData.map((d) => d.omzet), 10000000);
   const chartHeight = 160;
   const chartWidth = 540;
   const paddingX = 35;
@@ -132,14 +156,14 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
   const usableWidth = chartWidth - paddingX * 2;
   const usableHeight = chartHeight - paddingY * 2;
 
-  const pointsOmzet = DAILY_TREND_DATA.map((d, i) => {
-    const x = paddingX + (i / (DAILY_TREND_DATA.length - 1)) * usableWidth;
+  const pointsOmzet = last7DaysData.map((d, i) => {
+    const x = paddingX + (i / (last7DaysData.length - 1)) * usableWidth;
     const y = chartHeight - paddingY - (d.omzet / maxVal) * usableHeight;
     return `${x},${y}`;
   }).join(' ');
 
-  const pointsHpp = DAILY_TREND_DATA.map((d, i) => {
-    const x = paddingX + (i / (DAILY_TREND_DATA.length - 1)) * usableWidth;
+  const pointsHpp = last7DaysData.map((d, i) => {
+    const x = paddingX + (i / (last7DaysData.length - 1)) * usableWidth;
     const y = chartHeight - paddingY - (d.hpp / maxVal) * usableHeight;
     return `${x},${y}`;
   }).join(' ');
@@ -685,8 +709,8 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
               />
 
               {/* Data points & tooltips */}
-              {DAILY_TREND_DATA.map((d, i) => {
-                const x = paddingX + (i / (DAILY_TREND_DATA.length - 1)) * usableWidth;
+              {last7DaysData.map((d, i) => {
+                const x = paddingX + (i / (last7DaysData.length - 1)) * usableWidth;
                 const yOmzet = chartHeight - paddingY - (d.omzet / maxVal) * usableHeight;
                 const isHovered = hoveredDayIdx === i;
 
@@ -712,7 +736,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                       fill={isHovered ? '#1e293b' : '#64748b'}
                       fontWeight={isHovered ? 'bold' : 'normal'}
                     >
-                      {d.date.split('-').slice(1).join('/')}
+                      {d.date}
                     </text>
 
                     {/* Tooltip on Hover */}
@@ -723,16 +747,16 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                           y={yOmzet - 34}
                           width="90"
                           height="24"
-                          rx="4"
-                          fill="#0f172a"
-                          opacity="0.95"
+                          rx="6"
+                          fill="#1e293b"
+                          className="shadow-lg"
                         />
                         <text
                           x={x}
                           y={yOmzet - 18}
                           textAnchor="middle"
                           fill="#ffffff"
-                          fontSize="9"
+                          fontSize="9.5"
                           fontWeight="bold"
                           fontFamily="monospace"
                         >
