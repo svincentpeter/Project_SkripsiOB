@@ -49,5 +49,16 @@ Route::prefix('v1')->group(function () {
     Route::post('expenses', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'store']);
     Route::get('expenses/{id}', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'show']);
     Route::post('expenses/{id}/void', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'void']);
+
+    // SAK EMKM Accounting Hub & Reports
+    Route::prefix('accounting')->group(function () {
+        Route::get('journals', [\App\Http\Controllers\Api\v1\AccountingReportController::class, 'journals']);
+        Route::post('journals/manual', [\App\Http\Controllers\Api\v1\AccountingReportController::class, 'createManualJournal']);
+        Route::get('general-ledger', [\App\Http\Controllers\Api\v1\AccountingReportController::class, 'generalLedger']);
+        Route::get('trial-balance', [\App\Http\Controllers\Api\v1\AccountingReportController::class, 'trialBalance']);
+        Route::get('financial-statements', [\App\Http\Controllers\Api\v1\AccountingReportController::class, 'financialStatements']);
+        Route::get('accounts-payable', [\App\Http\Controllers\Api\v1\AccountingReportController::class, 'accountsPayable']);
+        Route::post('accounts-payable/pay', [\App\Http\Controllers\Api\v1\AccountingReportController::class, 'payDebt']);
+    });
 });
 
