@@ -12,9 +12,9 @@ import {
   TrialBalanceResult, 
   TrialBalanceRow 
 } from '../shared/types';
-import { generateSalesJournal, generateExpenseJournal } from '../shared/utils/formatters';
+import { generateSalesJournal, generateExpenseJournal, EXPENSE_CATEGORY_CONFIG } from '../shared/utils/formatters';
 
-export { generateSalesJournal, generateExpenseJournal };
+export { generateSalesJournal, generateExpenseJournal, EXPENSE_CATEGORY_CONFIG };
 
 // ==============================================================================
 // 1. CHART OF ACCOUNTS (COA) BAKU SAK EMKM OMAH BAN CABANG 3
@@ -178,6 +178,87 @@ export const generateManualJournal = (
       credit: Number(l.credit) || 0,
       note: l.note || input.description,
     })),
+  };
+};
+
+// ==============================================================================
+// 4B. GENERATOR NOMOR URUT BUKTI KAS KELUAR (BKK) & JURNAL PEMBALIK (VOID)
+// ==============================================================================
+export const generateBkkNumber = (
+  existingExpenses: ExpenseRecord[],
+  dateStr: string = new Date().toISOString().substring(0, 10)
+): string => {
+  const cleanDate = dateStr.slice(0, 7).replace('-', ''); // e.g. "202609"
+  const prefix = `BKK-${cleanDate}-`;
+
+  let maxSeq = 0;
+  existingExpenses.forEach((exp) => {
+    const numStr = exp.bkk_number || exp.expense_number || exp.reference || '';
+    if (numStr.startsWith(prefix)) {
+      const seqPart = parseInt(numStr.replace(prefix, ''), 10);
+      if (!isNaN(seqPart) && seqPart > maxSeq) {
+        maxSeq = seqPart;
+      }
+    } else if (numStr.includes(`-${cleanDate}-`)) {
+      const parts = numStr.split('-');
+      const lastPart = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(lastPart) && lastPart > maxSeq) {
+        maxSeq = lastPart;
+      }
+    }
+  });
+
+  const nextSeq = String(maxSeq + 1).padStart(4, '0');
+  return `${prefix}${nextSeq}`;
+};
+
+export const generateVoidExpenseJournal = (
+  expense: ExpenseRecord,
+  voidReason: string,
+  voidedBy: string,
+  journalCounter: number
+): JournalEntry => {
+  const cleanDate = (expense.date || new Date().toISOString().substring(0, 10)).replace(/-/g, '').slice(0, 6);
+  const journalNumber = `JU-${cleanDate}-${String(journalCounter).padStart(4, '0')}`;
+  const refDoc = `BATAL-${expense.bkk_number || expense.expense_number || expense.reference}`;
+
+  const categoryMapping = EXPENSE_CATEGORY_CONFIG[expense.category] || {
+    account_code: expense.category_code || '6-1005',
+    account_name: 'Beban Perlengkapan & Operasional Bengkel',
+    category: expense.category,
+    description: expense.description,
+  };
+
+  const isCash = expense.cash_source.includes('Laci') || expense.payment_method === 'Cash';
+  const cashAccountCode = isCash ? '1-1000' : '1-1001';
+  const cashAccountName = isCash ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3';
+
+  return {
+    id: `jnl-void-exp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    journal_number: journalNumber,
+    reference_number: journalNumber,
+    date: new Date().toISOString().substring(0, 10),
+    ref_doc: refDoc,
+    description: `[JURNAL PEMBALIK] Pembatalan Biaya ${expense.expense_number} - ${expense.category}. Alasan: ${voidReason} (Otorisasi: ${voidedBy})`,
+    status: 'POSTED',
+    total_debit: expense.amount,
+    total_credit: expense.amount,
+    lines: [
+      {
+        account_code: cashAccountCode,
+        account_name: cashAccountName,
+        debit: expense.amount,
+        credit: 0,
+        note: `Pembalikan dana ke ${cashAccountName} atas pembatalan ${expense.expense_number}`,
+      },
+      {
+        account_code: categoryMapping.account_code,
+        account_name: categoryMapping.account_name,
+        debit: 0,
+        credit: expense.amount,
+        note: `Kredit koreksi pembatalan beban: ${expense.description}`,
+      },
+    ],
   };
 };
 

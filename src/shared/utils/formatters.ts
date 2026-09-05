@@ -1,4 +1,4 @@
-import { CartItem, ExpenseRecord, JournalEntry, PosTransaction } from '../types';
+import { CartItem, ExpenseCategory, ExpenseCategoryMapping, ExpenseRecord, JournalEntry, PosTransaction } from '../types';
 
 export const formatRupiah = (value: number): string => {
   return new Intl.NumberFormat('id-ID', {
@@ -202,39 +202,83 @@ export const generateSalesJournal = (transaction: PosTransaction, journalIdCount
   };
 };
 
+export const EXPENSE_CATEGORY_CONFIG: Record<ExpenseCategory, ExpenseCategoryMapping> = {
+  'Listrik & Air (PLN/PDAM)': {
+    category: 'Listrik & Air (PLN/PDAM)',
+    account_code: '6-1001',
+    account_name: 'Beban Listrik, Air & Internet',
+    description: 'Tagihan PLN pasca/prabayar, PDAM, dan internet bengkel',
+    budget_monthly_limit: 2500000,
+    default_cash_source: 'Rekening Bank BCA (Cabang 3)',
+  },
+  'Gaji & Uang Makan Montir': {
+    category: 'Gaji & Uang Makan Montir',
+    account_code: '6-1000',
+    account_name: 'Beban Gaji & Uang Makan Karyawan',
+    description: 'Uang makan mingguan, insentif, dan gaji teknisi/montir',
+    budget_monthly_limit: 8000000,
+    default_cash_source: 'Kas Tunai Laci Kasir',
+  },
+  'Sewa Lahan & Bangunan': {
+    category: 'Sewa Lahan & Bangunan',
+    account_code: '6-1003',
+    account_name: 'Beban Sewa Bangunan Toko',
+    description: 'Biaya sewa ruko atau tanah operasional Omah Ban Cabang 3',
+    budget_monthly_limit: 5000000,
+    default_cash_source: 'Rekening Bank BCA (Cabang 3)',
+  },
+  'Transport & Pengiriman Ban': {
+    category: 'Transport & Pengiriman Ban',
+    account_code: '6-1004',
+    account_name: 'Beban Transportasi & Pengiriman Ban',
+    description: 'BBM mobil pickup operasional, tol, dan ongkos kirim ban antar cabang',
+    budget_monthly_limit: 1500000,
+    default_cash_source: 'Kas Tunai Laci Kasir',
+  },
+  'ATK & Keperluan Bengkel': {
+    category: 'ATK & Keperluan Bengkel',
+    account_code: '6-1005',
+    account_name: 'Beban Perlengkapan & ATK Toko',
+    description: 'Kertas struk kasir, timbel timah, pentil karet, sabun cuci velg',
+    budget_monthly_limit: 1000000,
+    default_cash_source: 'Kas Tunai Laci Kasir',
+  },
+  'Pemeliharaan Mesin Spooring & Balancing': {
+    category: 'Pemeliharaan Mesin Spooring & Balancing',
+    account_code: '6-1006',
+    account_name: 'Beban Perawatan Mesin Spooring & Balancing',
+    description: 'Kalibrasi kamera 3D HawkEye, ganti oli kompresor angin, servis hidrolik',
+    budget_monthly_limit: 2000000,
+    default_cash_source: 'Rekening Bank BCA (Cabang 3)',
+  },
+  'Konsumsi & Lembur Karyawan': {
+    category: 'Konsumsi & Lembur Karyawan',
+    account_code: '6-1007',
+    account_name: 'Beban Konsumsi & Lembur Karyawan',
+    description: 'Air galon, kopi tamu/karyawan, snack, dan konsumsi lembur ganti ban',
+    budget_monthly_limit: 1200000,
+    default_cash_source: 'Kas Tunai Laci Kasir',
+  },
+  'Pajak & Retribusi Daerah': {
+    category: 'Pajak & Retribusi Daerah',
+    account_code: '6-1008',
+    account_name: 'Beban Pajak & Retribusi Daerah',
+    description: 'Pajak reklame papan nama toko, retribusi sampah, dan iuran lingkungan',
+    budget_monthly_limit: 800000,
+    default_cash_source: 'Kas Tunai Laci Kasir',
+  },
+};
+
 // Auto-generate double-entry journal for expense record (COA project-skripsi_ob)
 export const generateExpenseJournal = (expense: ExpenseRecord, journalIdCounter: number): JournalEntry => {
-  const journalNumber = `JU-202609-${String(journalIdCounter).padStart(4, '0')}`;
-  const refDoc = expense.reference || expense.expense_number;
+  const cleanDate = (expense.date || new Date().toISOString().substring(0, 10)).replace(/-/g, '').slice(0, 6);
+  const journalNumber = `JU-${cleanDate}-${String(journalIdCounter).padStart(4, '0')}`;
+  const refDoc = expense.bkk_number || expense.expense_number || expense.reference;
   
-  let expenseAccountCode = '6-1005';
-  let expenseAccountName = 'Beban Perlengkapan & Operasional Bengkel';
-
-  if (expense.category.includes('Listrik')) {
-    expenseAccountCode = '6-1001';
-    expenseAccountName = 'Beban Listrik, Air & Internet';
-  } else if (expense.category.includes('Gaji')) {
-    expenseAccountCode = '6-1000';
-    expenseAccountName = 'Beban Gaji & Uang Makan Karyawan';
-  } else if (expense.category.includes('Sewa')) {
-    expenseAccountCode = '6-1003';
-    expenseAccountName = 'Beban Sewa Bangunan Toko';
-  } else if (expense.category.includes('Transport')) {
-    expenseAccountCode = '6-1004';
-    expenseAccountName = 'Beban Transportasi & Pengiriman Ban';
-  } else if (expense.category.includes('ATK') || expense.category.includes('Bengkel')) {
-    expenseAccountCode = '6-1005';
-    expenseAccountName = 'Beban Perlengkapan & ATK Toko';
-  } else if (expense.category.includes('Pemeliharaan')) {
-    expenseAccountCode = '6-1006';
-    expenseAccountName = 'Beban Perawatan Mesin Spooring & Balancing';
-  } else if (expense.category.includes('Konsumsi')) {
-    expenseAccountCode = '6-1007';
-    expenseAccountName = 'Beban Konsumsi & Lembur Karyawan';
-  } else if (expense.category.includes('Pajak')) {
-    expenseAccountCode = '6-1008';
-    expenseAccountName = 'Beban Pajak & Retribusi Daerah';
-  }
+  const mapping = EXPENSE_CATEGORY_CONFIG[expense.category] || {
+    account_code: expense.category_code || '6-1005',
+    account_name: 'Beban Perlengkapan & Operasional Bengkel',
+  };
 
   const isCash = expense.cash_source.includes('Laci') || expense.payment_method === 'Cash';
   const creditAccountCode = isCash ? '1-1000' : '1-1001';
@@ -252,8 +296,8 @@ export const generateExpenseJournal = (expense: ExpenseRecord, journalIdCounter:
     total_credit: expense.amount,
     lines: [
       {
-        account_code: expenseAccountCode,
-        account_name: expenseAccountName,
+        account_code: mapping.account_code,
+        account_name: mapping.account_name,
         debit: expense.amount,
         credit: 0,
         note: `Biaya: ${expense.description}`,
