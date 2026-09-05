@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
   Edit3, 
@@ -258,7 +258,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                 Kategori Produk
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => { setCategory('BAN_BARU'); setBrand('Bridgestone'); }}

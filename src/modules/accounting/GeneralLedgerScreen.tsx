@@ -80,7 +80,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
         {/* Quick Trigger Button for Manual Journal */}
         <button
           onClick={() => setIsManualModalOpen(true)}
-          className="px-3.5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-2 shadow-xs transition-colors"
+          className="px-4 py-2.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-2 shadow-xs transition-all active:scale-95"
         >
           <Plus className="w-4 h-4" />
           <span>Input Jurnal Penyesuaian</span>
@@ -88,19 +88,19 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
       </div>
 
       {/* 5-Tab Navigation Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-slate-200 text-xs font-bold scrollbar-none">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-200 text-xs font-bold scrollbar-none">
         <button
           onClick={() => setActiveTab('journals')}
           className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'journals'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'text-slate-700 bg-white border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
           }`}
         >
           <BookOpen className="w-4 h-4" />
           <span>1. Jurnal Umum & Penyesuaian</span>
           <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-            activeTab === 'journals' ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-200 text-slate-600'
+            activeTab === 'journals' ? 'bg-blue-800 text-blue-100' : 'bg-slate-100 text-slate-700 font-bold border border-slate-200'
           }`}>
             {journals.length}
           </span>
@@ -110,14 +110,14 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
           onClick={() => setActiveTab('ledger')}
           className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'ledger'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'text-slate-700 bg-white border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
           }`}
         >
           <BookMarked className="w-4 h-4" />
           <span>2. Buku Besar (General Ledger)</span>
           <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-            activeTab === 'ledger' ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-200 text-slate-600'
+            activeTab === 'ledger' ? 'bg-blue-800 text-blue-100' : 'bg-slate-100 text-slate-700 font-bold border border-slate-200'
           }`}>
             21 Akun
           </span>
@@ -127,8 +127,8 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
           onClick={() => setActiveTab('trial-balance')}
           className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'trial-balance'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'text-slate-700 bg-white border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
           }`}
         >
           <Scale className="w-4 h-4" />
@@ -139,15 +139,15 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
           onClick={() => setActiveTab('payables')}
           className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'payables'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'text-slate-700 bg-white border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
           }`}
         >
           <CreditCard className="w-4 h-4" />
           <span>4. Buku Pembantu Hutang (AP)</span>
           {unpaidDebtCount > 0 && (
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-              activeTab === 'payables' ? 'bg-amber-500 text-white' : 'bg-amber-100 text-amber-800'
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+              activeTab === 'payables' ? 'bg-amber-500 text-slate-900' : 'bg-amber-100 text-amber-900 border border-amber-300'
             }`}>
               {unpaidDebtCount}
             </span>
@@ -158,8 +158,8 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
           onClick={() => setActiveTab('reports')}
           className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'reports'
-              ? 'bg-indigo-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'text-slate-700 bg-white border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
           }`}
         >
           <FileText className="w-4 h-4" />

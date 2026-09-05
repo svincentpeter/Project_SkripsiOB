@@ -98,9 +98,9 @@ Terima kasih atas kunjungan Anda!`;
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row h-[calc(100vh-105px)] overflow-hidden bg-[#F8FAFC] text-slate-900">
+    <div className="flex-1 flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-105px)] overflow-y-auto lg:overflow-hidden bg-[#F8FAFC] text-slate-900">
       {/* Left Sidebar: Recent Invoices List for quick re-print */}
-      <aside className="w-full lg:w-72 bg-white border-r border-slate-200 p-4 flex flex-col gap-3 overflow-y-auto custom-scrollbar no-print shadow-2xs">
+      <aside className="w-full lg:w-72 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 p-3 sm:p-4 flex flex-col gap-2.5 sm:gap-3 max-h-48 lg:max-h-none overflow-y-auto custom-scrollbar no-print shadow-2xs shrink-0">
         <div className="flex items-center justify-between">
           <h3 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">
             Riwayat Struk Terkini

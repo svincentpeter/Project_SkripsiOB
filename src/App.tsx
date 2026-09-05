@@ -65,6 +65,7 @@ import { SettingsScreen } from './modules/settings';
 import { ToastProvider, useToast, AppNotification } from './shared/components';
 import { WireframeGuideModal } from './shared/components/WireframeGuideModal';
 import { HeaderNavbar } from './shared/components/HeaderNavbar';
+import { apiClient, productApi, posApi, expenseApi, inventoryApi } from './services/api';
 import { Loader2 } from 'lucide-react';
 
 export default function App() {
@@ -78,6 +79,8 @@ export default function App() {
 function MainAppContent() {
   const toast = useToast();
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
+  const [backendStatus, setBackendStatus] = useState<'connected' | 'offline' | 'checking'>('checking');
+  const [databaseName, setDatabaseName] = useState<string>('project-skripsi_ob');
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
     {
@@ -255,6 +258,35 @@ function MainAppContent() {
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Synchronize state with Laravel REST API backend on mount
+  useEffect(() => {
+    let isMounted = true;
+    const syncBackend = async () => {
+      try {
+        const health = await apiClient.get<{ status: string; database: string; database_status: string }>('/health');
+        if (health.status === 'healthy' && health.database_status === 'connected' && isMounted) {
+          setBackendStatus('connected');
+          if (health.database) setDatabaseName(health.database);
+          console.log('[Laravel Backend] Terhubung ke MySQL:', health.database);
+
+          // Fetch fresh products from backend MySQL
+          const apiProds = await productApi.list().catch(() => null);
+          if (apiProds && apiProds.length > 0 && isMounted) {
+            setProducts(apiProds);
+          }
+        } else if (isMounted) {
+          setBackendStatus('offline');
+        }
+      } catch {
+        if (isMounted) {
+          setBackendStatus('offline');
+        }
+      }
+    };
+    syncBackend();
+    return () => { isMounted = false; };
   }, []);
 
   useEffect(() => {
@@ -445,6 +477,36 @@ function MainAppContent() {
     setCurrentReceiptTx(newTx);
     setActiveScreen('receipt');
     toast.success('Transaksi Kasir Berhasil!', `Nota ${newTx.invoice_number} berhasil diproses dan struk thermal siap dicetak.`);
+
+    // 6. Asynchronously synchronize with Laravel Backend API
+    posApi.checkout({
+      customer_name: newTx.customer_name,
+      vehicle_plate: newTx.vehicle_plate,
+      cashier_name: newTx.cashier_name,
+      payment_method: newTx.payment_method,
+      paid_amount: newTx.paid_amount || newTx.grand_total,
+      discount_amount: newTx.total_discount || 0,
+      tax_amount: newTx.tax_amount || 0,
+      notes: newTx.notes,
+      items: newTx.items.map((i) => {
+        const unitPrice = i.custom_price ?? i.product?.product_price ?? i.product?.price ?? 0;
+        return {
+          product_id: i.product?.id ? parseInt(String(i.product.id), 10) || null : null,
+          type: i.item_type || 'PRODUCT',
+          name: i.custom_name_override || i.product?.product_name || i.product?.name || 'Item',
+          quantity: i.qty,
+          unit_price: unitPrice,
+          sub_total: unitPrice * i.qty,
+          discount_amount: (i.discount_per_item || 0) * i.qty,
+        };
+      }),
+    }).then((res) => {
+      if (res?.data?.journal_entry_number) {
+        console.log('[Laravel Backend] POS Checkout dibukukan ke MySQL:', res.data.journal_entry_number);
+      }
+    }).catch((err) => {
+      console.warn('[Laravel Backend] Gagal sinkronisasi POS ke backend:', err);
+    });
   };
 
   const handleAddExpense = (newExpense: ExpenseRecord) => {
@@ -826,6 +888,8 @@ function MainAppContent() {
             onOpenWireframeModal={() => setShowWireframeModal(true)}
             onResetData={handleResetData}
             currentTimeStr={timeString}
+            backendStatus={backendStatus}
+            databaseName={databaseName}
           />
 
           <main className="flex-1 flex flex-col relative overflow-hidden bg-[#F8FAFC]">
