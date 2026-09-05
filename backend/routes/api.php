@@ -26,5 +26,11 @@ Route::prefix('v1')->group(function () {
             'timestamp' => now()->toIso8601String(),
         ]);
     });
+
+    // Master Data Endpoints
+    Route::apiResource('products', \App\Http\Controllers\Api\v1\ProductController::class);
+    Route::apiResource('services', \App\Http\Controllers\Api\v1\ServiceMasterController::class);
+    Route::apiResource('suppliers', \App\Http\Controllers\Api\v1\SupplierController::class);
+    Route::get('accounts', [\App\Http\Controllers\Api\v1\AccountController::class, 'index']);
 });
 
