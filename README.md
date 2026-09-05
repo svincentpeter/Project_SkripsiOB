@@ -160,39 +160,51 @@ Project_SkripsiOB/
 
 ---
 
-## 🚀 5. Cara Menjalankan Proyek Secara Lokal
+## 🚀 5. Cara Menjalankan Proyek Secara Lokal (Full-Stack)
 
 ### Prasyarat:
-- **Node.js** (Versi 18 atau yang lebih baru)
-- **NPM** atau **Yarn**
+- **Laragon** (PHP 8.2/8.3, MySQL 8.0, Apache/Nginx)
+- **Composer** (v2.4+)
+- **Node.js** (Versi 18 atau yang lebih baru) & **NPM**
 
-### Langkah Instalasi:
+---
 
-1. **Clone repository ini:**
+### Langkah Menjalankan:
+
+#### A. Konfigurasi Database MySQL Laragon
+1. Pastikan service **MySQL** di Laragon sudah aktif.
+2. Basis data proyek ini menggunakan database **`project-skripsi_ob`**.
+
+#### B. Menjalankan Backend Laravel REST API
+1. Masuk ke direktori `backend`:
    ```bash
-   git clone https://github.com/svincentpeter/Project_SkripsiOB.git
-   cd Project_SkripsiOB
+   cd backend
+   ```
+2. Jalankan migrasi dan seeder COA SAK EMKM:
+   ```bash
+   php artisan migrate
+   php artisan db:seed --class=AccountCoaSeeder
+   ```
+3. Jalankan server backend:
+   ```bash
+   php artisan serve --port=8000
+   ```
+   Backend API akan melayani request di `http://127.0.0.1:8000/api/v1`.
+4. Untuk menjalankan pengujian otomatis (*Unit & Feature Tests*):
+   ```bash
+   php artisan test
    ```
 
-2. **Pasang seluruh dependensi:**
+#### C. Menjalankan Frontend React 19 SPA
+1. Buka terminal baru di root folder `Project_SkripsiOB`:
    ```bash
    npm install
-   ```
-
-3. **Jalankan aplikasi dalam mode pengembangan (*development*):**
-   ```bash
    npm run dev
    ```
-   Aplikasi akan berjalan secara lokal di `http://localhost:3000` (atau port yang tertera pada terminal).
-
-4. **Pemeriksaan Linter & TypeScript:**
+2. Buka peramban di `http://localhost:3000`. Indikator status **MySQL Live** akan menyala hijau di navbar atas saat backend Laravel aktif.
+3. Pemeriksaan Linter & TypeScript:
    ```bash
    npm run lint
-   ```
-
-5. **Membangun versi produksi (*build*):**
-   ```bash
-   npm run build
    ```
 
 ---
