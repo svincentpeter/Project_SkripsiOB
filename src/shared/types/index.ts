@@ -191,24 +191,42 @@ export type ExpenseCategory =
 
 export type CashSource = 'Kas Tunai Laci Kasir' | 'Rekening Bank BCA (Cabang 3)';
 
+export type ExpenseStatus = 'ACTIVE' | 'VOID';
+
 export interface ExpenseRecord {
   id: string;
   reference: string;
-  expense_number: string; // e.g. "BIAYA-OB3-202609-001"
+  expense_number: string; // e.g. "BKK-202609-0001"
+  bkk_number?: string;
   date: string;
   category: ExpenseCategory;
   category_id?: number;
+  category_code?: string; // e.g. "6-1001"
   amount: number;
   cash_source: CashSource;
   payment_method?: string;
   bank_name?: string;
   paid_to: string;
   description: string;
-  receipt_image?: string; // base64 or preview
+  receipt_image?: string; // compressed base64 (< 150KB)
   attachment_path?: string;
   approved_by: string;
   journal_id?: string;
+  status?: ExpenseStatus; // 'ACTIVE' | 'VOID', defaults to 'ACTIVE'
+  void_reason?: string;
+  voided_at?: string;
+  voided_by?: string;
+  reversal_journal_id?: string;
   created_at: string;
+}
+
+export interface ExpenseCategoryMapping {
+  category: ExpenseCategory;
+  account_code: string;
+  account_name: string;
+  description: string;
+  budget_monthly_limit?: number;
+  default_cash_source?: CashSource;
 }
 
 export interface JournalLine {
