@@ -218,7 +218,7 @@ export const ExpenseDetailModal: React.FC<ExpenseDetailModalProps> = ({
                   value={voidReason}
                   onChange={(e) => setVoidReason(e.target.value)}
                   placeholder="Misal: Salah input nominal / barang retur / nota ganda..."
-                  className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-slate-900 text-xs focus-ring"
+                  className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-slate-900 text-xs focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
 
@@ -228,7 +228,8 @@ export const ExpenseDetailModal: React.FC<ExpenseDetailModalProps> = ({
                   type="text"
                   value={voidedBy}
                   onChange={(e) => setVoidedBy(e.target.value)}
-                  className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-slate-900 text-xs focus-ring"
+                  placeholder="Nama manajer atau supervisor pengesah pembatalan..."
+                  className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-slate-900 text-xs focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
 
