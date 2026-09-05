@@ -42,5 +42,12 @@ Route::prefix('v1')->group(function () {
     Route::post('inventory/restock', [\App\Http\Controllers\Api\v1\InventoryController::class, 'restock']);
     Route::get('inventory/stock-movements', [\App\Http\Controllers\Api\v1\InventoryController::class, 'stockMovements']);
     Route::post('inventory/stock-opname', [\App\Http\Controllers\Api\v1\InventoryController::class, 'stockOpname']);
+
+    // Expense Management (BKK) & Void Reversal
+    Route::get('expense-categories', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'categories']);
+    Route::get('expenses', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'index']);
+    Route::post('expenses', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'store']);
+    Route::get('expenses/{id}', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'show']);
+    Route::post('expenses/{id}/void', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'void']);
 });
 
