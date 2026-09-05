@@ -32,5 +32,15 @@ Route::prefix('v1')->group(function () {
     Route::apiResource('services', \App\Http\Controllers\Api\v1\ServiceMasterController::class);
     Route::apiResource('suppliers', \App\Http\Controllers\Api\v1\SupplierController::class);
     Route::get('accounts', [\App\Http\Controllers\Api\v1\AccountController::class, 'index']);
+
+    // POS Kiosk & Transactions
+    Route::post('pos/checkout', [\App\Http\Controllers\Api\v1\PosController::class, 'checkout']);
+    Route::get('pos/transactions', [\App\Http\Controllers\Api\v1\PosController::class, 'index']);
+    Route::get('pos/transactions/{id}', [\App\Http\Controllers\Api\v1\PosController::class, 'show']);
+
+    // Inventory Restock, Movements & Opname
+    Route::post('inventory/restock', [\App\Http\Controllers\Api\v1\InventoryController::class, 'restock']);
+    Route::get('inventory/stock-movements', [\App\Http\Controllers\Api\v1\InventoryController::class, 'stockMovements']);
+    Route::post('inventory/stock-opname', [\App\Http\Controllers\Api\v1\InventoryController::class, 'stockOpname']);
 });
 
