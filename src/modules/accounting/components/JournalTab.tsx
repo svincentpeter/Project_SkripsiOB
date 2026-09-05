@@ -89,49 +89,8 @@ export const JournalTab: React.FC<JournalTabProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Top Banner KPI strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Total Akumulasi Debit</span>
-            <span className="text-lg font-black font-mono text-indigo-700">{formatRupiah(totalDebit)}</span>
-          </div>
-          <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <ArrowUpRight className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Total Akumulasi Kredit</span>
-            <span className="text-lg font-black font-mono text-emerald-700">{formatRupiah(totalCredit)}</span>
-          </div>
-          <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <ArrowDownRight className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Status Keseimbangan</span>
-            {isBalanced ? (
-              <span className="inline-flex items-center gap-1.5 text-sm font-black text-emerald-700">
-                <CheckCircle2 className="w-4 h-4" /> SEIMBANG (0 Selisih)
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-sm font-black text-amber-700">
-                <AlertCircle className="w-4 h-4" /> SELISIH: {formatRupiah(balanceDiff)}
-              </span>
-            )}
-          </div>
-          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isBalanced ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-            <Layers className="w-5 h-5" />
-          </div>
-        </div>
-      </div>
-
-      {/* Main Card (Bungkus Bersih Sesuai Standar) */}
+    <div className="w-full">
+      {/* Main Unified Card ("Terbungkus Rapi") */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
         {/* Card Header & Controls */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -160,6 +119,47 @@ export const JournalTab: React.FC<JournalTabProps> = ({
               <Plus className="w-4 h-4" />
               <span>Jurnal Penyesuaian</span>
             </button>
+          </div>
+        </div>
+
+        {/* Quick Metrics Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Akumulasi Debit</span>
+              <span className="text-base sm:text-lg font-black font-mono text-indigo-700">{formatRupiah(totalDebit)}</span>
+            </div>
+            <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
+              <ArrowUpRight className="w-4 h-4" />
+            </div>
+          </div>
+
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Akumulasi Kredit</span>
+              <span className="text-base sm:text-lg font-black font-mono text-emerald-700">{formatRupiah(totalCredit)}</span>
+            </div>
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+              <ArrowDownRight className="w-4 h-4" />
+            </div>
+          </div>
+
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Status Keseimbangan</span>
+              {isBalanced ? (
+                <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> SEIMBANG (0 Selisih)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs font-black text-amber-700">
+                  <AlertCircle className="w-3.5 h-3.5" /> SELISIH: {formatRupiah(balanceDiff)}
+                </span>
+              )}
+            </div>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isBalanced ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+              <Layers className="w-4 h-4" />
+            </div>
           </div>
         </div>
 

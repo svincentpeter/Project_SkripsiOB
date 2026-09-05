@@ -60,51 +60,8 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Account Info & 4 Metric Strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Saldo Awal</span>
-          <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
-            {formatRupiah(ledgerData.initial_balance)}
-          </span>
-          <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
-            Saldo Normal: <strong className="text-slate-800">{selectedAccountMeta.normal_balance}</strong>
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Mutasi Debit</span>
-          <span className="text-base sm:text-lg font-black font-mono text-blue-700 block mt-0.5">
-            {formatRupiah(ledgerData.total_debit)}
-          </span>
-          <span className="text-[10px] text-blue-700 font-medium mt-0.5 block">
-            +{ledgerData.transactions.filter((t) => t.debit > 0).length} transaksi debit
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Mutasi Kredit</span>
-          <span className="text-base sm:text-lg font-black font-mono text-emerald-700 block mt-0.5">
-            {formatRupiah(ledgerData.total_credit)}
-          </span>
-          <span className="text-[10px] text-emerald-700 font-medium mt-0.5 block">
-            +{ledgerData.transactions.filter((t) => t.credit > 0).length} transaksi kredit
-          </span>
-        </div>
-
-        <div className="bg-white border-2 border-blue-600 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Saldo Akhir Berjalan</span>
-          <span className="text-lg sm:text-xl font-black font-mono text-blue-800 block mt-0.5">
-            {formatRupiah(ledgerData.ending_balance)}
-          </span>
-          <span className="text-[10px] text-slate-600 font-bold mt-0.5 block">
-            Posisi: {selectedAccountMeta.account_type}
-          </span>
-        </div>
-      </div>
-
-      {/* Main Card (Bungkus Bersih Sesuai Standar) */}
+    <div className="w-full">
+      {/* Main Unified Card ("Terbungkus Rapi") */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
         {/* Card Header & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -128,6 +85,50 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Account Info & 4 Metric Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Saldo Awal</span>
+            <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
+              {formatRupiah(ledgerData.initial_balance)}
+            </span>
+            <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
+              Saldo Normal: <strong className="text-slate-800">{selectedAccountMeta.normal_balance}</strong>
+            </span>
+          </div>
+
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Mutasi Debit</span>
+            <span className="text-base sm:text-lg font-black font-mono text-blue-700 block mt-0.5">
+              {formatRupiah(ledgerData.total_debit)}
+            </span>
+            <span className="text-[10px] text-blue-700 font-medium mt-0.5 block">
+              +{ledgerData.transactions.filter((t) => t.debit > 0).length} transaksi debit
+            </span>
+          </div>
+
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Mutasi Kredit</span>
+            <span className="text-base sm:text-lg font-black font-mono text-emerald-700 block mt-0.5">
+              {formatRupiah(ledgerData.total_credit)}
+            </span>
+            <span className="text-[10px] text-emerald-700 font-medium mt-0.5 block">
+              +{ledgerData.transactions.filter((t) => t.credit > 0).length} transaksi kredit
+            </span>
+          </div>
+
+          <div className="bg-blue-50/60 border border-blue-200 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Saldo Akhir Berjalan</span>
+            <span className="text-base sm:text-lg font-black font-mono text-blue-800 block mt-0.5">
+              {formatRupiah(ledgerData.ending_balance)}
+            </span>
+            <span className="text-[10px] text-blue-700 font-bold mt-0.5 block">
+              Posisi: {selectedAccountMeta.account_type}
+            </span>
+          </div>
+        </div>
+
 
         {/* Account Selection Toolbar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 text-xs">

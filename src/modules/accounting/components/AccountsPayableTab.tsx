@@ -73,51 +73,8 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      {/* 4 KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Total Faktur Tagihan</span>
-          <span className="text-lg font-black font-mono text-slate-900 block mt-1">
-            {formatRupiah(totalInvoiced)}
-          </span>
-          <span className="text-[11px] text-slate-600 font-medium mt-0.5 block">
-            {invoices.length} faktur distributor
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Sudah Dilunasi</span>
-          <span className="text-lg font-black font-mono text-emerald-700 block mt-1">
-            {formatRupiah(totalPaid)}
-          </span>
-          <span className="text-[11px] text-emerald-700 font-medium mt-0.5 block">
-            Terbayar via Kas & Bank
-          </span>
-        </div>
-
-        <div className="bg-white border-2 border-amber-500 rounded-xl p-3.5 shadow-xs">
-          <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block">Sisa Hutang Dagang (2-1000)</span>
-          <span className="text-xl font-black font-mono text-amber-800 block mt-1">
-            {formatRupiah(totalRemainingDebt)}
-          </span>
-          <span className="text-[11px] text-slate-700 font-bold mt-0.5 block">
-            Kewajiban aktif lancar
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs">
-          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Faktur Belum Lunas</span>
-          <span className="text-lg font-black font-mono text-slate-900 block mt-1">
-            {unpaidCount} <span className="text-xs font-semibold text-slate-500">tagihan</span>
-          </span>
-          <span className="text-[11px] text-amber-800 font-bold mt-0.5 block">
-            Perlu diperhatikan jatuh temponya
-          </span>
-        </div>
-      </div>
-
-      {/* Main Card (Bungkus Bersih Sesuai Standar) */}
+    <div className="w-full">
+      {/* Main Unified Card ("Terbungkus Rapi") */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
         {/* Card Header & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -141,6 +98,50 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
             </button>
           </div>
         </div>
+
+        {/* 4 KPI Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Faktur Tagihan</span>
+            <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
+              {formatRupiah(totalInvoiced)}
+            </span>
+            <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
+              {invoices.length} faktur distributor
+            </span>
+          </div>
+
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Sudah Dilunasi</span>
+            <span className="text-base sm:text-lg font-black font-mono text-emerald-700 block mt-0.5">
+              {formatRupiah(totalPaid)}
+            </span>
+            <span className="text-[10px] text-emerald-700 font-medium mt-0.5 block">
+              Terbayar via Kas & Bank
+            </span>
+          </div>
+
+          <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">Sisa Hutang Dagang (2-1000)</span>
+            <span className="text-base sm:text-lg font-black font-mono text-amber-900 block mt-0.5">
+              {formatRupiah(totalRemainingDebt)}
+            </span>
+            <span className="text-[10px] text-amber-800 font-bold mt-0.5 block">
+              Kewajiban aktif lancar
+            </span>
+          </div>
+
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Faktur Belum Lunas</span>
+            <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
+              {unpaidCount} <span className="text-xs font-semibold text-slate-500">tagihan</span>
+            </span>
+            <span className="text-[10px] text-amber-800 font-bold mt-0.5 block">
+              Perlu diperhatikan jatuh temponya
+            </span>
+          </div>
+        </div>
+
 
         {/* Filter and Search Bar */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 text-xs">
@@ -183,80 +184,78 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
           </div>
         </div>
 
-        {/* Invoices Table */}
+        {/* Invoices Table (Zero Scroll) */}
         <div className="w-full overflow-hidden rounded-xl border border-slate-200">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse">
-              <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
-                <tr>
-                  <th className="py-2.5 px-3 w-36">No. Faktur</th>
-                  <th className="py-2.5 px-3">Distributor Ban</th>
-                  <th className="py-2.5 px-3 w-28">Tanggal</th>
-                  <th className="py-2.5 px-3 w-28">Jatuh Tempo</th>
-                  <th className="py-2.5 px-3 w-32 text-right">Total Tagihan</th>
-                  <th className="py-2.5 px-3 w-32 text-right">Sudah Dibayar</th>
-                  <th className="py-2.5 px-3 w-32 text-right bg-amber-50/50">Sisa Hutang</th>
-                  <th className="py-2.5 px-3 w-28 text-center">Status</th>
-                  <th className="py-2.5 px-3 w-24 text-center">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-mono">
-                {filteredInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-2 px-3 font-bold text-indigo-700 text-xs">{inv.invoice_number}</td>
-                    <td className="py-2 px-3 font-sans">
-                      <span className="font-bold text-slate-900 block text-xs">{inv.supplier_name}</span>
-                      {inv.notes && <span className="text-[10px] text-slate-400 block">{inv.notes}</span>}
-                    </td>
-                    <td className="py-2 px-3 font-sans text-slate-600 text-xs">{formatDateIndo(inv.date)}</td>
-                    <td className="py-2 px-3 font-sans text-slate-600 text-xs">
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        {formatDateIndo(inv.due_date)}
+          <table className="table-fixed w-full text-xs text-left border-collapse">
+            <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
+              <tr>
+                <th className="py-2.5 px-3 w-[14%]">No. Faktur</th>
+                <th className="py-2.5 px-3 w-[19%]">Distributor Ban</th>
+                <th className="py-2.5 px-3 w-[10%]">Tanggal</th>
+                <th className="py-2.5 px-3 w-[11%]">Jatuh Tempo</th>
+                <th className="py-2.5 px-3 w-[12%] text-right">Total Tagihan</th>
+                <th className="py-2.5 px-3 w-[11%] text-right">Sudah Dibayar</th>
+                <th className="py-2.5 px-3 w-[11%] text-right bg-amber-50/50">Sisa Hutang</th>
+                <th className="py-2.5 px-3 w-[6%] text-center">Status</th>
+                <th className="py-2.5 px-3 w-[6%] text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-mono">
+              {filteredInvoices.map((inv) => (
+                <tr key={inv.id} className="hover:bg-slate-50/70 transition-colors">
+                  <td className="py-2 px-3 font-bold text-indigo-700 text-xs truncate" title={inv.invoice_number}>{inv.invoice_number}</td>
+                  <td className="py-2 px-3 font-sans truncate" title={inv.supplier_name}>
+                    <span className="font-bold text-slate-900 block text-xs truncate">{inv.supplier_name}</span>
+                    {inv.notes && <span className="text-[10px] text-slate-400 block truncate">{inv.notes}</span>}
+                  </td>
+                  <td className="py-2 px-3 font-sans text-slate-600 text-xs truncate">{formatDateIndo(inv.date)}</td>
+                  <td className="py-2 px-3 font-sans text-slate-600 text-xs truncate">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{formatDateIndo(inv.due_date)}</span>
+                    </span>
+                  </td>
+                  <td className="py-2 px-3 text-right font-bold text-slate-800 text-xs truncate">
+                    {formatRupiah(inv.total_amount)}
+                  </td>
+                  <td className="py-2 px-3 text-right font-bold text-emerald-700 text-xs truncate">
+                    {formatRupiah(inv.paid_amount)}
+                  </td>
+                  <td className="py-2 px-3 text-right font-black text-amber-800 bg-amber-50/30 text-xs truncate">
+                    {formatRupiah(inv.remaining_amount)}
+                  </td>
+                  <td className="py-2 px-3 text-center font-sans">
+                    {inv.status === 'LUNAS' ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        <CheckCircle2 className="w-3 h-3" /> Lunas
                       </span>
-                    </td>
-                    <td className="py-2 px-3 text-right font-bold text-slate-800 text-xs">
-                      {formatRupiah(inv.total_amount)}
-                    </td>
-                    <td className="py-2 px-3 text-right font-bold text-emerald-700 text-xs">
-                      {formatRupiah(inv.paid_amount)}
-                    </td>
-                    <td className="py-2 px-3 text-right font-black text-amber-800 bg-amber-50/30 text-xs">
-                      {formatRupiah(inv.remaining_amount)}
-                    </td>
-                    <td className="py-2 px-3 text-center font-sans">
-                      {inv.status === 'LUNAS' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                          <CheckCircle2 className="w-3 h-3" /> Lunas
-                        </span>
-                      ) : inv.status === 'SEBAGIAN' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
-                          Sebagian
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                          Belum Lunas
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 px-3 text-center font-sans">
-                      {inv.remaining_amount > 0 ? (
-                        <button
-                          onClick={() => setSelectedInvoiceForPay(inv)}
-                          className="px-2.5 py-1 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-colors flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                        >
-                          <CreditCard className="w-3.5 h-3.5" />
-                          <span>Bayar</span>
-                        </button>
-                      ) : (
-                        <span className="text-slate-400 text-xs">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    ) : inv.status === 'SEBAGIAN' ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                        Sebagian
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                        Belum
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 px-3 text-center font-sans">
+                    {inv.remaining_amount > 0 ? (
+                      <button
+                        onClick={() => setSelectedInvoiceForPay(inv)}
+                        className="px-2 py-1 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-colors flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                      >
+                        <CreditCard className="w-3 h-3" />
+                        <span>Bayar</span>
+                      </button>
+                    ) : (
+                      <span className="text-slate-400 text-xs">-</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         {/* Card Footer Summary */}

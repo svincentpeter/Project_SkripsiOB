@@ -108,68 +108,8 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
   };
 
   return (
-    <div className="w-full space-y-4">
-      {/* Top Quick Metrics Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            Total Beban Bulan Ini
-          </span>
-          <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
-            {formatRupiah(totalActiveAmount)}
-          </span>
-          <span className="text-[10px] text-slate-400 block mt-0.5">
-            {activeExpenses.length} transaksi aktif
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
-            <Wallet className="w-3 h-3 text-amber-600" />
-            Kas Laci Toko
-          </span>
-          <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
-            {formatRupiah(cashAmount)}
-          </span>
-          <span className="text-[10px] text-slate-400 block mt-0.5">
-            Pengeluaran tunai kasir
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
-            <Building2 className="w-3 h-3 text-blue-600" />
-            Bank BCA Cabang 3
-          </span>
-          <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
-            {formatRupiah(bankAmount)}
-          </span>
-          <span className="text-[10px] text-slate-400 block mt-0.5">
-            Transfer operasional & mesin
-          </span>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            Status Pembukuan
-          </span>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-              {activeExpenses.length} Aktif
-            </span>
-            {voidExpenses.length > 0 && (
-              <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
-                {voidExpenses.length} Void
-              </span>
-            )}
-          </div>
-          <span className="text-[10px] text-slate-400 block mt-0.5">
-            Standar SAK EMKM Terpadu
-          </span>
-        </div>
-      </div>
-
-      {/* Main Table Card (No Horizontal Scrollbar) */}
+    <div className="w-full">
+      {/* Main Unified Table Card ("Terbungkus Rapi") */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
         {/* Table Top Controls & Action CTA */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
@@ -187,7 +127,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             <button
               type="button"
               onClick={handleExportCsv}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200"
               title="Unduh data dalam format CSV"
             >
               <Download className="w-3.5 h-3.5" />
@@ -204,6 +144,66 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                 <span>Catat Pengeluaran Baru</span>
               </button>
             )}
+          </div>
+        </div>
+
+        {/* Quick Metrics Strip */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Total Beban Bulan Ini
+            </span>
+            <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
+              {formatRupiah(totalActiveAmount)}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              {activeExpenses.length} transaksi aktif
+            </span>
+          </div>
+
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+              <Wallet className="w-3 h-3 text-amber-600" />
+              Kas Laci Toko
+            </span>
+            <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
+              {formatRupiah(cashAmount)}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              Pengeluaran tunai kasir
+            </span>
+          </div>
+
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+              <Building2 className="w-3 h-3 text-blue-600" />
+              Bank BCA Cabang 3
+            </span>
+            <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
+              {formatRupiah(bankAmount)}
+            </span>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              Transfer operasional & mesin
+            </span>
+          </div>
+
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+              Status Pembukuan
+            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                {activeExpenses.length} Aktif
+              </span>
+              {voidExpenses.length > 0 && (
+                <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
+                  {voidExpenses.length} Void
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              Standar SAK EMKM Terpadu
+            </span>
           </div>
         </div>
 

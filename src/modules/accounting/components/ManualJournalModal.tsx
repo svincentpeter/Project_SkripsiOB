@@ -125,7 +125,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
                 onChange={(e) => setRefDoc(e.target.value)}
                 placeholder="Contoh: MEM-202609-01"
                 required
-                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-mono"
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-mono placeholder:text-slate-400 placeholder:font-light"
               />
             </div>
           </div>
@@ -140,7 +140,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Contoh: Penyesuaian penyusutan mesin bengkel bulan September 2026"
               required
-              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+              className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none placeholder:text-slate-400 placeholder:font-light"
             />
           </div>
 
@@ -198,7 +198,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
                               if (val > 0) handleUpdateLine(idx, 'credit', 0);
                             }}
                             placeholder="0"
-                            className="w-full p-1.5 text-xs text-right font-mono border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500"
+                            className="w-full p-1.5 text-xs text-right font-mono border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-400 placeholder:font-light"
                           />
                         </td>
                         <td className="p-2 text-right">
@@ -211,7 +211,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
                               if (val > 0) handleUpdateLine(idx, 'debit', 0);
                             }}
                             placeholder="0"
-                            className="w-full p-1.5 text-xs text-right font-mono border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500"
+                            className="w-full p-1.5 text-xs text-right font-mono border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-400 placeholder:font-light"
                           />
                         </td>
                         <td className="p-2">
@@ -219,8 +219,8 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
                             type="text"
                             value={line.note}
                             onChange={(e) => handleUpdateLine(idx, 'note', e.target.value)}
-                            placeholder="Catatan baris"
-                            className="w-full p-1.5 text-xs border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500"
+                            placeholder="Catatan baris (opsional)"
+                            className="w-full p-1.5 text-xs border border-slate-200 rounded-md focus:ring-1 focus:ring-indigo-500 placeholder:text-slate-400 placeholder:font-light"
                           />
                         </td>
                         <td className="p-2 text-center">
