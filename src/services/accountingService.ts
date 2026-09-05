@@ -8,6 +8,8 @@ import {
   LedgerTransaction, 
   ManualJournalInput, 
   PosTransaction, 
+  ReceivableInvoice,
+  ReceivablePaymentInput,
   TireProduct, 
   TrialBalanceResult, 
   TrialBalanceRow 
@@ -263,12 +265,15 @@ export const generateVoidExpenseJournal = (
 };
 
 // ==============================================================================
-// 5. KALKULATOR BUKU BESAR (GENERAL LEDGER PER AKUN)
+// ==============================================================================
+// 5. KALKULATOR BUKU BESAR (GENERAL LEDGER PER AKUN) DENGAN FILTER PERIODE
 // ==============================================================================
 export const calculateAccountLedger = (
   journals: JournalEntry[],
   accountCode: string,
-  initialBalance: number = 0
+  initialBalance: number = 0,
+  startDate?: string,
+  endDate?: string
 ): LedgerAccountSummary => {
   const accountMeta = getAccountByCode(accountCode) || {
     account_code: accountCode,
@@ -282,36 +287,59 @@ export const calculateAccountLedger = (
     .filter((j) => j.status === 'POSTED')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  let runningBalance = initialBalance;
+  let runningInitialBalance = initialBalance;
   let totalDebit = 0;
   let totalCredit = 0;
   const transactions: LedgerTransaction[] = [];
 
+  // Hitung akumulasi sebelum startDate sebagai Saldo Awal Periode
   sortedJournals.forEach((j) => {
     const matchingLines = j.lines.filter((l) => l.account_code === accountCode);
-    matchingLines.forEach((line, idx) => {
-      totalDebit += line.debit;
-      totalCredit += line.credit;
-
-      if (accountMeta.normal_balance === 'DEBIT') {
-        runningBalance = runningBalance + line.debit - line.credit;
-      } else {
-        runningBalance = runningBalance + line.credit - line.debit;
-      }
-
-      transactions.push({
-        id: `${j.id}-${idx}`,
-        journal_id: j.id,
-        journal_number: j.journal_number,
-        date: j.date,
-        ref_doc: j.ref_doc,
-        description: j.description,
-        debit: line.debit,
-        credit: line.credit,
-        running_balance: runningBalance,
-        note: line.note,
+    
+    if (startDate && j.date < startDate) {
+      matchingLines.forEach((line) => {
+        if (accountMeta.normal_balance === 'DEBIT') {
+          runningInitialBalance += (line.debit - line.credit);
+        } else {
+          runningInitialBalance += (line.credit - line.debit);
+        }
       });
-    });
+    }
+  });
+
+  let runningBalance = runningInitialBalance;
+
+  // Proses transaksi yang berada dalam rentang startDate s/d endDate
+  sortedJournals.forEach((j) => {
+    const isAfterStart = !startDate || j.date >= startDate;
+    const isBeforeEnd = !endDate || j.date <= endDate;
+
+    if (isAfterStart && isBeforeEnd) {
+      const matchingLines = j.lines.filter((l) => l.account_code === accountCode);
+      matchingLines.forEach((line, idx) => {
+        totalDebit += line.debit;
+        totalCredit += line.credit;
+
+        if (accountMeta.normal_balance === 'DEBIT') {
+          runningBalance = runningBalance + line.debit - line.credit;
+        } else {
+          runningBalance = runningBalance + line.credit - line.debit;
+        }
+
+        transactions.push({
+          id: `${j.id}-${idx}`,
+          journal_id: j.id,
+          journal_number: j.journal_number,
+          date: j.date,
+          ref_doc: j.ref_doc,
+          description: j.description,
+          debit: line.debit,
+          credit: line.credit,
+          running_balance: runningBalance,
+          note: line.note,
+        });
+      });
+    }
   });
 
   return {
@@ -319,11 +347,201 @@ export const calculateAccountLedger = (
     account_name: accountMeta.account_name,
     account_type: accountMeta.account_type,
     normal_balance: accountMeta.normal_balance,
-    initial_balance: initialBalance,
+    initial_balance: runningInitialBalance,
     total_debit: totalDebit,
     total_credit: totalCredit,
     ending_balance: runningBalance,
     transactions,
+  };
+};
+
+// ==============================================================================
+// 5B. GENERATOR JURNAL PENUTUP OTOMATIS (PERIOD CLOSING ENTRIES)
+// ==============================================================================
+export const generateClosingJournal = (
+  journals: JournalEntry[],
+  initialBalances: Record<string, number> = {},
+  periodMonth: string, // e.g. "2026-09"
+  closedBy: string,
+  journalCounter: number
+): { journal: JournalEntry; netIncome: number } => {
+  const cleanPeriod = periodMonth.replace(/-/g, '');
+  const journalNumber = `JC-${cleanPeriod}-${String(journalCounter).padStart(4, '0')}`;
+  const trialBalance = calculateTrialBalance(journals, initialBalances);
+  
+  const lines: JournalEntry['lines'] = [];
+  let totalDebit = 0;
+  let totalCredit = 0;
+
+  // 1. Tutup akun Pendapatan (Kredit normal di-debit ke nol)
+  const revenueAccounts = trialBalance.rows.filter(
+    (r) => r.account_code.startsWith('4-') && r.credit_balance > 0
+  );
+  revenueAccounts.forEach((rev) => {
+    lines.push({
+      account_code: rev.account_code,
+      account_name: rev.account_name,
+      debit: rev.credit_balance,
+      credit: 0,
+      note: `Penutupan pendapatan ${rev.account_name} ke Laba Ditahan`,
+    });
+    totalDebit += rev.credit_balance;
+  });
+
+  // Tutup kontra-pendapatan (Potongan diskon 4-9000 debit di-kredit ke nol)
+  const contraRevenueAccounts = trialBalance.rows.filter(
+    (r) => r.account_code.startsWith('4-') && r.debit_balance > 0
+  );
+  contraRevenueAccounts.forEach((cr) => {
+    lines.push({
+      account_code: cr.account_code,
+      account_name: cr.account_name,
+      debit: 0,
+      credit: cr.debit_balance,
+      note: `Penutupan potongan diskon ${cr.account_name}`,
+    });
+    totalCredit += cr.debit_balance;
+  });
+
+  // 2. Tutup akun HPP & Beban Operasional (Debit normal di-kredit ke nol)
+  const expenseAccounts = trialBalance.rows.filter(
+    (r) => (r.account_code.startsWith('5-') || r.account_code.startsWith('6-')) && r.debit_balance > 0
+  );
+  expenseAccounts.forEach((exp) => {
+    lines.push({
+      account_code: exp.account_code,
+      account_name: exp.account_name,
+      debit: 0,
+      credit: exp.debit_balance,
+      note: `Penutupan ${exp.account_name} ke Laba Ditahan`,
+    });
+    totalCredit += exp.debit_balance;
+  });
+
+  // 3. Selisih ditutup ke 3-2000 (Laba Ditahan Cabang 3)
+  const netIncome = totalDebit - totalCredit;
+  if (netIncome > 0) {
+    // Laba Bersih -> Kreditkan ke Laba Ditahan
+    lines.push({
+      account_code: '3-2000',
+      account_name: 'Laba Ditahan Cabang 3',
+      debit: 0,
+      credit: netIncome,
+      note: `Posting perolehan laba bersih periode ${periodMonth} ke Laba Ditahan`,
+    });
+    totalCredit += netIncome;
+  } else if (netIncome < 0) {
+    // Defisit Rugi Bersih -> Debitkan dari Laba Ditahan
+    const netLoss = Math.abs(netIncome);
+    lines.push({
+      account_code: '3-2000',
+      account_name: 'Laba Ditahan Cabang 3',
+      debit: netLoss,
+      credit: 0,
+      note: `Penyesuaian defisit rugi bersih periode ${periodMonth} dari Laba Ditahan`,
+    });
+    totalDebit += netLoss;
+  }
+
+  const closingEntry: JournalEntry = {
+    id: `jnl-close-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    journal_number: journalNumber,
+    reference_number: journalNumber,
+    date: new Date().toISOString().substring(0, 10),
+    ref_doc: `TUTUP-${periodMonth}`,
+    description: `[JURNAL PENUTUP] Penutupan seluruh akun nominal periode ${periodMonth} ke Laba Ditahan (Otorisasi: ${closedBy})`,
+    status: 'POSTED',
+    total_debit: totalDebit,
+    total_credit: totalCredit,
+    lines,
+  };
+
+  return {
+    journal: closingEntry,
+    netIncome,
+  };
+};
+
+// ==============================================================================
+// 5C. GENERATOR JURNAL PEMBALIK / KOREKSI STORNO (REVERSING ENTRY)
+// ==============================================================================
+export const generateReversingJournal = (
+  originalJournal: JournalEntry,
+  reason: string,
+  reversedBy: string,
+  journalCounter: number
+): JournalEntry => {
+  const dateStr = new Date().toISOString().substring(0, 10);
+  const cleanDate = dateStr.replace(/-/g, '').slice(0, 6);
+  const journalNumber = `JU-${cleanDate}-${String(journalCounter).padStart(4, '0')}`;
+
+  const lines = originalJournal.lines.map((l) => ({
+    account_code: l.account_code,
+    account_name: l.account_name,
+    debit: l.credit,
+    credit: l.debit,
+    note: `[KOREKSI PEMBALIK] Pembalikan pos ${l.account_name} dari ${originalJournal.journal_number}`,
+  }));
+
+  const totalDebit = lines.reduce((acc, l) => acc + l.debit, 0);
+  const totalCredit = lines.reduce((acc, l) => acc + l.credit, 0);
+
+  return {
+    id: `jnl-rev-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    journal_number: journalNumber,
+    reference_number: journalNumber,
+    date: dateStr,
+    ref_doc: `REV-${originalJournal.journal_number}`,
+    description: `[JURNAL PEMBALIK / KOREKSI] Pembalikan jurnal ${originalJournal.journal_number} (${originalJournal.ref_doc}). Alasan: ${reason} (Otorisasi: ${reversedBy})`,
+    status: 'POSTED',
+    total_debit: totalDebit,
+    total_credit: totalCredit,
+    lines,
+  };
+};
+
+// ==============================================================================
+// 5D. GENERATOR JURNAL PENERIMAAN PEMBAYARAN PIUTANG PELANGGAN (AR)
+// ==============================================================================
+export const generateReceivablePaymentJournal = (
+  payment: ReceivablePaymentInput,
+  customerName: string,
+  invoiceRef: string,
+  journalCounter: number
+): JournalEntry => {
+  const dateStr = payment.payment_date || new Date().toISOString().substring(0, 10);
+  const cleanDate = dateStr.replace(/-/g, '').slice(0, 6);
+  const journalNumber = `JU-${cleanDate}-${String(journalCounter).padStart(4, '0')}`;
+  const isCash = payment.destination_account_code === '1-1000';
+  const debitCode = isCash ? '1-1000' : '1-1001';
+  const debitName = isCash ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3';
+
+  return {
+    id: `jnl-rec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    journal_number: journalNumber,
+    reference_number: journalNumber,
+    date: dateStr,
+    ref_doc: invoiceRef,
+    description: `Penerimaan Pembayaran Piutang Pelanggan ${customerName} (${invoiceRef})`,
+    status: 'POSTED',
+    total_debit: payment.amount,
+    total_credit: payment.amount,
+    lines: [
+      {
+        account_code: debitCode,
+        account_name: debitName,
+        debit: payment.amount,
+        credit: 0,
+        note: `Penerimaan kas masuk via ${debitName} dari ${customerName}`,
+      },
+      {
+        account_code: '1-1002',
+        account_name: 'Piutang Dagang (AR)',
+        debit: 0,
+        credit: payment.amount,
+        note: `Pelunasan piutang faktur ${invoiceRef}`,
+      },
+    ],
   };
 };
 

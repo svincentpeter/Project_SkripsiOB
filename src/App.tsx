@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
+  AccountingPeriodInfo,
   ActiveScreen, 
   CartItem, 
   CreateProductInput, 
@@ -11,6 +12,8 @@ import {
   PayableInvoice, 
   PosTransaction, 
   ProductItem, 
+  ReceivableInvoice,
+  ReceivablePaymentInput,
   SalesBookingRecord, 
   ServiceMasterItem, 
   StockMutation, 
@@ -25,7 +28,9 @@ import {
   INITIAL_EXPENSES, 
   INITIAL_JOURNALS, 
   INITIAL_PAYABLE_INVOICES, 
+  INITIAL_PERIOD_INFO,
   INITIAL_PRODUCTS, 
+  INITIAL_RECEIVABLES,
   INITIAL_SERVICES, 
   INITIAL_STOCK_MUTATIONS, 
   INITIAL_STORE_SETTINGS, 
@@ -37,7 +42,10 @@ import {
   generatePurchaseJournal, 
   generateDebtPaymentJournal, 
   generateManualJournal,
-  generateVoidExpenseJournal
+  generateVoidExpenseJournal,
+  generateClosingJournal,
+  generateReversingJournal,
+  generateReceivablePaymentJournal
 } from './services/accountingService';
 import { 
   canSafelyDeleteProduct, 
@@ -218,6 +226,24 @@ function MainAppContent() {
     }
   });
 
+  const [receivableInvoices, setReceivableInvoices] = useState<ReceivableInvoice[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_receivable_invoices');
+      return saved ? JSON.parse(saved) : INITIAL_RECEIVABLES;
+    } catch {
+      return INITIAL_RECEIVABLES;
+    }
+  });
+
+  const [periodInfo, setPeriodInfo] = useState<AccountingPeriodInfo>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_period_info');
+      return saved ? JSON.parse(saved) : INITIAL_PERIOD_INFO;
+    } catch {
+      return INITIAL_PERIOD_INFO;
+    }
+  });
+
   // Active Cart in POS
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
@@ -341,6 +367,14 @@ function MainAppContent() {
   useEffect(() => {
     localStorage.setItem('ob3_account_balances', JSON.stringify(accountBalances));
   }, [accountBalances]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_receivable_invoices', JSON.stringify(receivableInvoices));
+  }, [receivableInvoices]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_period_info', JSON.stringify(periodInfo));
+  }, [periodInfo]);
 
   // Handle Sales Completion from POS Screen
   const handleCompleteSale = (newTx: PosTransaction) => {
@@ -727,6 +761,92 @@ function MainAppContent() {
     });
   };
 
+  // Handle Pay Receivable (Penerimaan Kas dari Piutang Pelanggan Tempo)
+  const handlePayReceivable = (paymentInput: ReceivablePaymentInput) => {
+    const targetInv = receivableInvoices.find((i) => i.id === paymentInput.receivable_invoice_id);
+    if (!targetInv) return;
+
+    // 1. Auto-generate Double-Entry Receivable Payment Journal
+    const newJournal = generateReceivablePaymentJournal(
+      paymentInput,
+      targetInv.customer_name,
+      targetInv.invoice_number,
+      journals.length + 1
+    );
+    setJournals((prev) => [newJournal, ...prev]);
+
+    // 2. Add to cash drawer if paid cash
+    if (paymentInput.destination_account_code === '1-1000') {
+      setCashInDrawer((prev) => prev + paymentInput.amount);
+    }
+
+    // 3. Update receivable invoice status & amounts
+    setReceivableInvoices((prev) =>
+      prev.map((inv) => {
+        if (inv.id === paymentInput.receivable_invoice_id) {
+          const newPaid = inv.paid_amount + paymentInput.amount;
+          const newRemaining = Math.max(0, inv.total_amount - newPaid);
+          const newStatus = newRemaining === 0 ? 'LUNAS' : 'SEBAGIAN';
+          return {
+            ...inv,
+            paid_amount: newPaid,
+            remaining_amount: newRemaining,
+            status: newStatus,
+          };
+        }
+        return inv;
+      })
+    );
+
+    toast.success(
+      'Pembayaran Piutang Diterima',
+      `${formatRupiah(paymentInput.amount)} dari ${targetInv.customer_name} telah masuk ke pembukuan.`
+    );
+  };
+
+  // Handle Close Period (Jurnal Penutup Otomatis SAK EMKM)
+  const handleClosePeriod = (closedBy: string, notes: string) => {
+    const closingResult = generateClosingJournal(
+      journals,
+      accountBalances,
+      periodInfo.period_id,
+      closedBy,
+      journals.length + 1
+    );
+
+    setJournals((prev) => [closingResult.journal, ...prev]);
+    setPeriodInfo((prev) => ({
+      ...prev,
+      status: 'CLOSED',
+      closed_at: new Date().toISOString(),
+      closed_by: closedBy,
+      closing_journal_id: closingResult.journal.id,
+      net_income_transferred: closingResult.netIncome,
+    }));
+
+    toast.success(
+      'Tutup Buku Berhasil Diproses',
+      `Jurnal penutup ${closingResult.journal.journal_number} berhasil diposting. Laba bersih ${formatRupiah(closingResult.netIncome)} dialihkan ke Laba Ditahan.`
+    );
+  };
+
+  // Handle Reversing Journal (Koreksi Storno)
+  const handleReverseJournal = (originalJournal: JournalEntry, reason: string, reversedBy: string) => {
+    const reversingJournal = generateReversingJournal(
+      originalJournal,
+      reason,
+      reversedBy,
+      journals.length + 1
+    );
+
+    setJournals((prev) => [reversingJournal, ...prev]);
+
+    toast.info(
+      'Jurnal Pembalik Diposting',
+      `Koreksi storno ${reversingJournal.journal_number} dibuat untuk ${originalJournal.journal_number}.`
+    );
+  };
+
   // Handle Safe Delete or Deactivate Product
   const handleDeleteOrDeactivateProduct = (productId: string) => {
     const targetProduct = products.find((p) => p.id === productId);
@@ -948,10 +1068,15 @@ function MainAppContent() {
                 journals={journals}
                 initialBalances={accountBalances}
                 payableInvoices={payableInvoices}
+                receivableInvoices={receivableInvoices}
+                periodInfo={periodInfo}
                 products={products}
                 cashInDrawer={cashInDrawer}
                 onAddManualJournal={handleAddManualJournal}
                 onPayDebt={handlePayDebt}
+                onPayReceivable={handlePayReceivable}
+                onClosePeriod={handleClosePeriod}
+                onReverseJournal={handleReverseJournal}
                 isEmptyState={isEmptyState}
               />
             )}

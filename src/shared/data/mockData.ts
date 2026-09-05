@@ -1,4 +1,18 @@
-import { ExpenseRecord, ItemCategory, JournalEntry, PayableInvoice, PosTransaction, ProductItem, SalesBookingRecord, ServiceMasterItem, StockMutation, StoreSettings, SupplierItem } from '../types';
+import { 
+  AccountingPeriodInfo,
+  ExpenseRecord, 
+  ItemCategory, 
+  JournalEntry, 
+  PayableInvoice, 
+  PosTransaction, 
+  ProductItem, 
+  ReceivableInvoice,
+  SalesBookingRecord, 
+  ServiceMasterItem, 
+  StockMutation, 
+  StoreSettings, 
+  SupplierItem 
+} from '../types';
 
 export const INITIAL_PRODUCTS: ProductItem[] = [
   {
@@ -1281,3 +1295,53 @@ export const INITIAL_ACCOUNT_BALANCES: Record<string, number> = {
   '6-1008': 0,
 };
 
+export const INITIAL_RECEIVABLES: ReceivableInvoice[] = [
+  {
+    id: 'rec-inv-01',
+    invoice_number: 'OB3-INV-202608-089',
+    customer_name: 'CV Sumber Makmur Ekspedisi',
+    customer_phone: '0812-8899-7711',
+    vehicle_plate: 'B 9482 BXT (Isuzu Giga)',
+    date: '2026-08-25',
+    due_date: '2026-09-25',
+    total_amount: 1200000,
+    paid_amount: 0,
+    remaining_amount: 1200000,
+    status: 'BELUM_LUNAS',
+    notes: 'Penggantian 2 pcs ban Bridgestone R15 armada box - tempo 30 hari',
+  },
+  {
+    id: 'rec-inv-02',
+    invoice_number: 'OB3-INV-202608-112',
+    customer_name: 'Pak Denny Sumargo (Rental Mobil BSD)',
+    customer_phone: '0813-1122-3344',
+    vehicle_plate: 'B 1088 RNT (Innova Reborn)',
+    date: '2026-08-30',
+    due_date: '2026-09-14',
+    total_amount: 2500000,
+    paid_amount: 1000000,
+    remaining_amount: 1500000,
+    status: 'SEBAGIAN',
+    notes: 'Paket 4 Ban Turanza + Spooring 3D (Sudah DP Rp 1.000.000)',
+  },
+  {
+    id: 'rec-inv-03',
+    invoice_number: 'OB3-INV-202607-045',
+    customer_name: 'PT Lintas Logistik Serpong',
+    customer_phone: '021-5378899',
+    vehicle_plate: 'B 9012 KTX (Gran Max)',
+    date: '2026-07-20',
+    due_date: '2026-08-20',
+    total_amount: 3600000,
+    paid_amount: 3600000,
+    remaining_amount: 0,
+    status: 'LUNAS',
+    notes: 'Pelunasan faktur 4 ban komersial via transfer BCA',
+  },
+];
+
+export const INITIAL_PERIOD_INFO: AccountingPeriodInfo = {
+  period_id: '2026-09',
+  period_name: 'September 2026',
+  status: 'OPEN',
+};

@@ -442,3 +442,37 @@ export interface TrialBalanceResult {
   difference: number;
 }
 
+export interface ReceivableInvoice {
+  id: string;
+  invoice_number: string;
+  customer_name: string;
+  customer_phone?: string;
+  vehicle_plate?: string;
+  date: string;
+  due_date: string;
+  total_amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  status: 'BELUM_LUNAS' | 'SEBAGIAN' | 'LUNAS';
+  notes?: string;
+}
+
+export interface ReceivablePaymentInput {
+  receivable_invoice_id: string;
+  payment_date: string;
+  amount: number;
+  destination_account_code: '1-1000' | '1-1001';
+  notes?: string;
+  operator?: string;
+}
+
+export interface AccountingPeriodInfo {
+  period_id: string;
+  period_name: string;
+  status: 'OPEN' | 'CLOSED';
+  closed_at?: string;
+  closed_by?: string;
+  closing_journal_id?: string;
+  net_income_transferred?: number;
+}
+
