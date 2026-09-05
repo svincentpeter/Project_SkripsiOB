@@ -32,11 +32,12 @@ import {
   INITIAL_SUPPLIERS, 
   INITIAL_TRANSACTIONS 
 } from './shared/data/mockData';
-import { generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
+import { formatRupiah, generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
 import { 
   generatePurchaseJournal, 
   generateDebtPaymentJournal, 
-  generateManualJournal 
+  generateManualJournal,
+  generateVoidExpenseJournal
 } from './services/accountingService';
 import { 
   canSafelyDeleteProduct, 
@@ -447,15 +448,79 @@ function MainAppContent() {
   };
 
   const handleAddExpense = (newExpense: ExpenseRecord) => {
-    setExpenses((prev) => [newExpense, ...prev]);
-
+    // 1. Generate journal first
     const newJournal = generateExpenseJournal(newExpense, journals.length + 1);
+    
+    // 2. Attach journal_id to expense record
+    const expenseWithJournal: ExpenseRecord = {
+      ...newExpense,
+      journal_id: newJournal.id,
+      status: 'ACTIVE',
+    };
+
+    setExpenses((prev) => [expenseWithJournal, ...prev]);
     setJournals((prev) => [newJournal, ...prev]);
 
+    // 3. Deduct from Cash Drawer or Bank BCA
     if (newExpense.cash_source.includes('Laci')) {
       setCashInDrawer((prev) => Math.max(0, prev - newExpense.amount));
+    } else if (newExpense.cash_source.includes('BCA')) {
+      setAccountBalances((prev) => ({
+        ...prev,
+        '1-1001': Math.max(0, (prev['1-1001'] || 0) - newExpense.amount),
+      }));
     }
-    toast.success('Beban Toko Disimpan', `Pengeluaran ${newExpense.category} sebesar Rp ${newExpense.amount.toLocaleString()} telah dibukukan.`);
+
+    toast.success(
+      'Beban Toko Disimpan',
+      `Pengeluaran ${newExpense.bkk_number || newExpense.expense_number} (${newExpense.category}) sebesar ${formatRupiah(newExpense.amount)} telah dibukukan.`
+    );
+  };
+
+  const handleVoidExpense = (targetExpense: ExpenseRecord, voidReason: string, voidedBy: string) => {
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    // 1. Generate Reversal Journal (Jurnal Pembalik)
+    const reversalJournal = generateVoidExpenseJournal(
+      targetExpense,
+      voidReason,
+      voidedBy,
+      journals.length + 1
+    );
+
+    // 2. Update status of expense in state
+    setExpenses((prev) =>
+      prev.map((exp) =>
+        exp.id === targetExpense.id
+          ? {
+              ...exp,
+              status: 'VOID',
+              void_reason: voidReason,
+              voided_by: voidedBy,
+              voided_at: timestamp,
+              reversal_journal_id: reversalJournal.id,
+            }
+          : exp
+      )
+    );
+
+    // 3. Post reversal journal to journals ledger
+    setJournals((prev) => [reversalJournal, ...prev]);
+
+    // 4. Restore funds to drawer or Bank BCA
+    if (targetExpense.cash_source.includes('Laci')) {
+      setCashInDrawer((prev) => prev + targetExpense.amount);
+    } else if (targetExpense.cash_source.includes('BCA')) {
+      setAccountBalances((prev) => ({
+        ...prev,
+        '1-1001': (prev['1-1001'] || 0) + targetExpense.amount,
+      }));
+    }
+
+    toast.warning(
+      'Pengeluaran Dibatalkan (VOID)',
+      `Bukti ${targetExpense.bkk_number || targetExpense.expense_number} telah dibatalkan dan jurnal pembalik telah diterbitkan.`
+    );
   };
 
   // Handle Inventory Stock Opname adjustment
@@ -715,7 +780,7 @@ function MainAppContent() {
   const cartTotalQty = cart.reduce((acc, c) => acc + c.qty, 0);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
+    <div className={`${activeScreen === 'pos' ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]`}>
       {isLoading && (
         <div className="fixed inset-0 z-50 bg-white/85 backdrop-blur-sm flex flex-col items-center justify-center text-indigo-600 gap-3 select-none">
           <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
@@ -809,6 +874,8 @@ function MainAppContent() {
                 expenses={expenses}
                 onAddExpense={handleAddExpense}
                 cashInDrawer={cashInDrawer}
+                bankBalance={accountBalances['1-1001'] || 35000000}
+                onVoidExpense={handleVoidExpense}
               />
             )}
 
