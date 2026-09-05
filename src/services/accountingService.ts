@@ -1,4 +1,5 @@
 import { 
+  CashFlowStatementResult,
   ChartOfAccount, 
   DebtPaymentInput, 
   ExpenseRecord, 
@@ -546,26 +547,42 @@ export const generateReceivablePaymentJournal = (
 };
 
 // ==============================================================================
-// 6. KALKULATOR NERACA SALDO (TRIAL BALANCE)
+// 6. KALKULATOR NERACA SALDO (TRIAL BALANCE) DENGAN FILTER PERIODE
 // ==============================================================================
 export const calculateTrialBalance = (
   journals: JournalEntry[],
-  initialBalances: Record<string, number> = {}
+  initialBalances: Record<string, number> = {},
+  startDate?: string,
+  endDate?: string
 ): TrialBalanceResult => {
   const postedJournals = journals.filter((j) => j.status === 'POSTED');
 
   const rows: TrialBalanceRow[] = SAK_EMKM_COA.map((account) => {
-    const initial = initialBalances[account.account_code] || 0;
+    let initial = initialBalances[account.account_code] || 0;
     let sumDebit = 0;
     let sumCredit = 0;
 
     postedJournals.forEach((j) => {
-      j.lines.forEach((l) => {
-        if (l.account_code === account.account_code) {
+      const matchingLines = j.lines.filter((l) => l.account_code === account.account_code);
+      if (matchingLines.length === 0) return;
+
+      // Akun riil (1, 2, 3) sebelum startDate diakumulasi ke Saldo Awal
+      if (startDate && j.date < startDate) {
+        if (!account.account_code.startsWith('4-') && !account.account_code.startsWith('5-') && !account.account_code.startsWith('6-')) {
+          matchingLines.forEach((l) => {
+            if (account.normal_balance === 'DEBIT') {
+              initial += (l.debit - l.credit);
+            } else {
+              initial += (l.credit - l.debit);
+            }
+          });
+        }
+      } else if ((!startDate || j.date >= startDate) && (!endDate || j.date <= endDate)) {
+        matchingLines.forEach((l) => {
           sumDebit += l.debit;
           sumCredit += l.credit;
-        }
-      });
+        });
+      }
     });
 
     let debitBalance = 0;
@@ -616,9 +633,11 @@ export const calculateTrialBalance = (
 export const calculateDynamicSakEmkmFinancials = (
   journals: JournalEntry[],
   initialBalances: Record<string, number> = {},
-  products: TireProduct[] = []
+  products: TireProduct[] = [],
+  startDate?: string,
+  endDate?: string
 ) => {
-  const trialBalance = calculateTrialBalance(journals, initialBalances);
+  const trialBalance = calculateTrialBalance(journals, initialBalances, startDate, endDate);
   const findRow = (code: string) => trialBalance.rows.find((r) => r.account_code === code);
 
   // A. ELEMEN LABA RUGI (INCOME STATEMENT)
@@ -653,6 +672,8 @@ export const calculateDynamicSakEmkmFinancials = (
   });
 
   const netIncome = grossProfit - totalExpenses;
+  const netProfitMargin = netSales > 0 ? (netIncome / netSales) * 100 : 0;
+  const grossProfitMargin = netSales > 0 ? (grossProfit / netSales) * 100 : 0;
 
   // B. ELEMEN POSISI KEUANGAN (NERACA / BALANCE SHEET)
   // 1. Aset Lancar
@@ -661,6 +682,7 @@ export const calculateDynamicSakEmkmFinancials = (
   const piutangDagang = findRow('1-1002')?.debit_balance ?? 0;
   const persediaanBuku = findRow('1-2000')?.debit_balance ?? 0;
   const totalCurrentAssets = kasLaci + bankBca + piutangDagang + persediaanBuku;
+  const liquidCash = kasLaci + bankBca;
 
   // 2. Aset Tetap
   const peralatanMesin = findRow('1-3000')?.debit_balance ?? 0;
@@ -690,18 +712,25 @@ export const calculateDynamicSakEmkmFinancials = (
     return acc + qty * cost;
   }, 0);
 
+  // Rasio Likuiditas Ringkas untuk Owner
+  const currentRatio = totalLiabilities > 0 ? (totalCurrentAssets / totalLiabilities) : 999;
+  const isLiquiditySafe = currentRatio >= 1.5;
+
   return {
     grossSales,
     discounts,
     netSales,
     totalHpp,
     grossProfit,
+    grossProfitMargin,
     expenseBreakdown,
     totalExpenses,
     netIncome,
+    netProfitMargin,
     // Neraca
     kasLaci,
     bankBca,
+    liquidCash,
     piutangDagang,
     persediaanBuku,
     totalCurrentAssets,
@@ -719,6 +748,136 @@ export const calculateDynamicSakEmkmFinancials = (
     totalLiabilitiesAndEquity,
     isBalanceSheetBalanced,
     totalInventoryPhysical,
+    currentRatio,
+    isLiquiditySafe,
+  };
+};
+
+// ==============================================================================
+// 8. KALKULATOR LAPORAN ARUS KAS RINGKAS SAK EMKM (STATEMENT OF CASH FLOWS)
+// ==============================================================================
+export const calculateCashFlowStatement = (
+  journals: JournalEntry[],
+  initialBalances: Record<string, number> = {},
+  startDate?: string,
+  endDate?: string
+): CashFlowStatementResult => {
+  const postedJournals = journals.filter((j) => {
+    if (j.status !== 'POSTED') return false;
+    if (startDate && j.date < startDate) return false;
+    if (endDate && j.date > endDate) return false;
+    return true;
+  });
+
+  // Hitung saldo awal kas & bank sebelum startDate
+  let beginningCashDrawer = initialBalances['1-1000'] || 0;
+  let beginningBankBca = initialBalances['1-1001'] || 0;
+
+  if (startDate) {
+    journals
+      .filter((j) => j.status === 'POSTED' && j.date < startDate)
+      .forEach((j) => {
+        j.lines.forEach((l) => {
+          if (l.account_code === '1-1000') {
+            beginningCashDrawer += (l.debit - l.credit);
+          } else if (l.account_code === '1-1001') {
+            beginningBankBca += (l.debit - l.credit);
+          }
+        });
+      });
+  }
+
+  const beginningCash = beginningCashDrawer + beginningBankBca;
+
+  // Komponen Arus Kas
+  let cashFromSales = 0;
+  let cashFromReceivables = 0;
+  let cashPaidForExpenses = 0;
+  let cashPaidForInventory = 0;
+  let cashPaidForFixedAssets = 0;
+  let cashPaidForPayables = 0;
+  let cashFromCapital = 0;
+
+  let netCashDrawerChange = 0;
+  let netBankBcaChange = 0;
+
+  postedJournals.forEach((j) => {
+    const cashLines = j.lines.filter((l) => l.account_code === '1-1000' || l.account_code === '1-1001');
+    if (cashLines.length === 0) return;
+
+    cashLines.forEach((cl) => {
+      if (cl.account_code === '1-1000') {
+        netCashDrawerChange += (cl.debit - cl.credit);
+      } else {
+        netBankBcaChange += (cl.debit - cl.credit);
+      }
+    });
+
+    // Klasifikasikan pos pendamping dalam jurnal
+    const nonCashLines = j.lines.filter((l) => l.account_code !== '1-1000' && l.account_code !== '1-1001');
+
+    nonCashLines.forEach((ncl) => {
+      // 1. Operasi - Penerimaan Penjualan Tunai
+      if (ncl.account_code.startsWith('4-')) {
+        cashFromSales += ncl.credit;
+      }
+      // 1. Operasi - Pelunasan Piutang Pelanggan (AR)
+      else if (ncl.account_code === '1-1002') {
+        cashFromReceivables += ncl.credit;
+      }
+      // 1. Operasi - Pembayaran Beban Operasional Usaha
+      else if (ncl.account_code.startsWith('6-')) {
+        cashPaidForExpenses += ncl.debit;
+      }
+      // 1. Operasi - Pembelian Persediaan Ban Baru Tunai
+      else if (ncl.account_code === '1-2000' && ncl.debit > 0) {
+        cashPaidForInventory += ncl.debit;
+      }
+      // 2. Investasi - Pembelian Peralatan Bengkel / Mesin Spooring
+      else if (ncl.account_code === '1-3000' && ncl.debit > 0) {
+        cashPaidForFixedAssets += ncl.debit;
+      }
+      // 3. Pendanaan - Pembayaran Hutang Supplier Distributor Ban
+      else if (ncl.account_code === '2-1000' && ncl.debit > 0) {
+        cashPaidForPayables += ncl.debit;
+      }
+      // 3. Pendanaan - Setoran Modal Pemilik
+      else if (ncl.account_code === '3-1000' && ncl.credit > 0) {
+        cashFromCapital += ncl.credit;
+      }
+    });
+  });
+
+  const totalOperatingInflows = cashFromSales + cashFromReceivables;
+  const totalOperatingOutflows = cashPaidForExpenses + cashPaidForInventory;
+  const netOperatingCashFlow = totalOperatingInflows - totalOperatingOutflows;
+
+  const netInvestingCashFlow = -cashPaidForFixedAssets;
+  const netFinancingCashFlow = cashFromCapital - cashPaidForPayables;
+
+  const netCashFlow = netOperatingCashFlow + netInvestingCashFlow + netFinancingCashFlow;
+  const endingCash = beginningCash + netCashFlow;
+  const cashDrawerEnding = beginningCashDrawer + netCashDrawerChange;
+  const bankBcaEnding = beginningBankBca + netBankBcaChange;
+
+  return {
+    cashFromSales,
+    cashFromReceivables,
+    totalOperatingInflows,
+    cashPaidForExpenses,
+    cashPaidForInventory,
+    totalOperatingOutflows,
+    netOperatingCashFlow,
+    cashPaidForFixedAssets,
+    netInvestingCashFlow,
+    cashPaidForPayables,
+    cashFromCapital,
+    netFinancingCashFlow,
+    netCashFlow,
+    beginningCash,
+    endingCash,
+    cashDrawerEnding,
+    bankBcaEnding,
   };
 };
 

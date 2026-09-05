@@ -10,11 +10,17 @@ import {
   CheckCircle2, 
   AlertCircle,
   HelpCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Banknote,
+  ShieldCheck,
+  Wallet,
+  Sparkles
 } from 'lucide-react';
 import { JournalEntry, TireProduct } from '../../../shared/types';
-import { calculateDynamicSakEmkmFinancials } from '../../../services/accountingService';
+import { calculateDynamicSakEmkmFinancials, calculateCashFlowStatement } from '../../../services/accountingService';
 import { formatRupiah } from '../../../shared/utils/formatters';
+import { CashFlowStatementTab } from './CashFlowStatementTab';
+import { FinancialStatementsPrintModal } from './FinancialStatementsPrintModal';
 
 interface SakEmkmReportTabProps {
   journals: JournalEntry[];
@@ -22,24 +28,54 @@ interface SakEmkmReportTabProps {
   products: TireProduct[];
 }
 
+type PeriodType = 'THIS_MONTH' | 'LAST_MONTH' | 'ALL';
+
 export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
   journals,
   initialBalances,
   products,
 }) => {
-  const [activeReportSubTab, setActiveReportSubTab] = useState<'income' | 'balance' | 'calk'>('income');
-  const [periodMonth, setPeriodMonth] = useState('September 2026');
+  const [activeReportSubTab, setActiveReportSubTab] = useState<'income' | 'balance' | 'cashflow' | 'calk'>('income');
+  const [periodType, setPeriodType] = useState<PeriodType>('THIS_MONTH');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
-  const financials = calculateDynamicSakEmkmFinancials(journals, initialBalances, products);
+  // Compute effective start and end dates based on filter
+  let effectiveStartDate: string | undefined = undefined;
+  let effectiveEndDate: string | undefined = undefined;
+  let periodLabel = 'September 2026';
 
-  // Print Document (Clean A4)
-  const handlePrint = () => {
-    window.print();
-  };
+  if (periodType === 'THIS_MONTH') {
+    effectiveStartDate = '2026-09-01';
+    effectiveEndDate = '2026-09-30';
+    periodLabel = 'Bulan Ini (September 2026)';
+  } else if (periodType === 'LAST_MONTH') {
+    effectiveStartDate = '2026-08-01';
+    effectiveEndDate = '2026-08-31';
+    periodLabel = 'Bulan Lalu (Agustus 2026)';
+  } else if (periodType === 'ALL') {
+    effectiveStartDate = undefined;
+    effectiveEndDate = undefined;
+    periodLabel = 'Semua Periode Akuntansi';
+  }
+
+  const financials = calculateDynamicSakEmkmFinancials(
+    journals, 
+    initialBalances, 
+    products, 
+    effectiveStartDate, 
+    effectiveEndDate
+  );
+
+  const cashFlow = calculateCashFlowStatement(
+    journals, 
+    initialBalances, 
+    effectiveStartDate, 
+    effectiveEndDate
+  );
 
   // Export Financials to CSV
   const handleExportCsv = () => {
-    let csv = `LAPORAN KEUANGAN SAK EMKM OMAH BAN CABANG 3\nPeriode: ${periodMonth}\n\n`;
+    let csv = `LAPORAN KEUANGAN EKSEKUTIF SAK EMKM OMAH BAN CABANG 3\nPeriode: ${periodLabel}\n\n`;
     csv += '=== 1. LAPORAN LABA RUGI ===\n';
     csv += 'Komponen Akuntansi,Nominal (Rp)\n';
     csv += `Penjualan Bruto Ban Baru,${financials.grossSales}\n`;
@@ -49,7 +85,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
     csv += `LABA BRUTO (GROSS PROFIT),${financials.grossProfit}\n\n`;
 
     csv += 'Rincian Beban Operasional Usaha:\n';
-    financials.expenseBreakdown.forEach((exp) => {
+    financials.expenseBreakdown.forEach((exp: any) => {
       csv += `"${exp.code} - ${exp.name}",${exp.amount}\n`;
     });
     csv += `TOTAL BEBAN OPERASIONAL,${financials.totalExpenses}\n`;
@@ -74,80 +110,177 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
     csv += `Ekuitas - Laba Ditahan,${financials.labaDitahan}\n`;
     csv += `Ekuitas - Laba Periode Berjalan,${financials.currentNetIncome}\n`;
     csv += `TOTAL EKUITAS,${financials.totalEquity}\n`;
-    csv += `TOTAL LIABILITAS & EKUITAS,${financials.totalLiabilitiesAndEquity}\n`;
+    csv += `TOTAL LIABILITAS & EKUITAS,${financials.totalLiabilitiesAndEquity}\n\n`;
+
+    csv += '=== 3. LAPORAN ARUS KAS RINGKAS ===\n';
+    csv += `Arus Kas Operasional,${cashFlow.netOperatingCashFlow}\n`;
+    csv += `Arus Kas Investasi,${cashFlow.netInvestingCashFlow}\n`;
+    csv += `Arus Kas Pendanaan,${cashFlow.netFinancingCashFlow}\n`;
+    csv += `Kenaikan Kas Bersih,${cashFlow.netCashFlow}\n`;
+    csv += `Saldo Kas Awal,${cashFlow.beginningCash}\n`;
+    csv += `Saldo Kas Akhir,${cashFlow.endingCash}\n`;
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Laporan_Keuangan_SAK_EMKM_OB3_${periodMonth.replace(' ', '_')}.csv`);
+    link.setAttribute('download', `Laporan_Keuangan_Eksekutif_OB3_${periodLabel.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 md:p-7 shadow-xs space-y-5">
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
+      {/* 4 Executive KPI Cards for Owner (Simpel & Informatif) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
+          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Omzet Bersih Penjualan</span>
+          <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
+            {formatRupiah(financials.netSales)}
+          </span>
+          <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
+            Bruto: {formatRupiah(financials.grossSales)} (setelah diskon)
+          </span>
+        </div>
+
+        <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5">
+          <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Laba Bersih (Net Profit)</span>
+          <span className="text-base sm:text-lg font-black font-mono text-emerald-800 block mt-0.5">
+            {formatRupiah(financials.netIncome)}
+          </span>
+          <span className="text-[10px] text-emerald-700 font-bold mt-0.5 block">
+            Margin Bersih: {financials.netProfitMargin.toFixed(1)}% dari omzet
+          </span>
+        </div>
+
+        <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3.5">
+          <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Uang Kas & Bank Tersedia</span>
+          <span className="text-base sm:text-lg font-black font-mono text-blue-800 block mt-0.5">
+            {formatRupiah(financials.liquidCash)}
+          </span>
+          <span className="text-[10px] text-blue-700 font-medium mt-0.5 block">
+            Kas Laci ({formatRupiah(financials.kasLaci)}) + BCA
+          </span>
+        </div>
+
+        <div className="bg-slate-900 text-white rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Kondisi Keuangan</span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-black text-emerald-400 mt-1">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>SEHAT & SEIMBANG</span>
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-300 font-medium block mt-1">
+            Likuiditas: {financials.isLiquiditySafe ? 'Aman (Aset > Hutang)' : 'Waspada'}
+          </span>
+        </div>
+      </div>
+
       {/* Report Top Bar with Sub-tabs and Actions */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-        {/* Sub-Tab Navigation */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-none w-full sm:w-auto">
+        {/* Sub-Tab Navigation (4 Tabs) */}
+        <div className="flex items-center gap-1.5 bg-slate-100/90 p-1.5 rounded-xl overflow-x-auto scrollbar-none w-full sm:w-auto text-xs font-bold">
           <button
             onClick={() => setActiveReportSubTab('income')}
-            className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`shrink-0 px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               activeReportSubTab === 'income'
-                ? 'bg-white text-indigo-700 shadow-xs'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <TrendingUp className="w-3.5 h-3.5" />
-            <span>Laba Rugi</span>
+            <span>1. Laba Rugi</span>
           </button>
+
           <button
             onClick={() => setActiveReportSubTab('balance')}
-            className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`shrink-0 px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               activeReportSubTab === 'balance'
-                ? 'bg-white text-indigo-700 shadow-xs'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Scale className="w-3.5 h-3.5" />
-            <span>Posisi Keuangan (Neraca)</span>
+            <span>2. Posisi Keuangan (Neraca)</span>
           </button>
+
+          <button
+            onClick={() => setActiveReportSubTab('cashflow')}
+            className={`shrink-0 px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+              activeReportSubTab === 'cashflow'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Banknote className="w-3.5 h-3.5" />
+            <span>3. Arus Kas (Cash Flow)</span>
+          </button>
+
           <button
             onClick={() => setActiveReportSubTab('calk')}
-            className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`shrink-0 px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
               activeReportSubTab === 'calk'
-                ? 'bg-white text-indigo-700 shadow-xs'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>CALK</span>
+            <span>4. Catatan (CALK)</span>
           </button>
         </div>
 
         {/* Actions: Period Selector, Print, Export */}
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>{periodMonth}</span>
+          {/* Period Filter Buttons */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
+            <button
+              onClick={() => setPeriodType('THIS_MONTH')}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                periodType === 'THIS_MONTH'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Bulan Ini
+            </button>
+            <button
+              onClick={() => setPeriodType('LAST_MONTH')}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                periodType === 'LAST_MONTH'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Bulan Lalu
+            </button>
+            <button
+              onClick={() => setPeriodType('ALL')}
+              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                periodType === 'ALL'
+                  ? 'bg-white text-blue-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Semua
+            </button>
           </div>
 
           <button
             onClick={handleExportCsv}
-            className="flex-1 sm:flex-none justify-center px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
+            className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             <span>Ekspor CSV</span>
           </button>
 
           <button
-            onClick={handlePrint}
-            className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="px-3.5 py-1.5 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Cetak A4</span>
+            <span>Cetak Lembar Resmi</span>
           </button>
         </div>
       </div>
@@ -155,94 +288,95 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
       {/* Main Report Body */}
       <div>
         {/* Formal Report Header */}
-        <div className="text-center border-b border-slate-200 pb-5 mb-6">
+        <div className="text-center border-b border-slate-200 pb-4 mb-5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider mb-2">
-            <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-            Omah Ban Cabang 3 — Bengkel & Toko Ban
+            <Building2 className="w-3.5 h-3.5 text-blue-700" />
+            Omah Ban BSD Cabang 3 — Bengkel & Toko Ban
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             {activeReportSubTab === 'income' && 'LAPORAN LABA RUGI'}
             {activeReportSubTab === 'balance' && 'LAPORAN POSISI KEUANGAN (NERACA)'}
+            {activeReportSubTab === 'cashflow' && 'LAPORAN ARUS KAS (STATEMENT OF CASH FLOWS)'}
             {activeReportSubTab === 'calk' && 'CATATAN ATAS LAPORAN KEUANGAN (CALK)'}
-          </h1>
+          </h2>
           <p className="text-xs text-slate-500 mt-1 font-medium">
-            Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM) • Periode {periodMonth}
+            Standar SAK EMKM • {periodLabel}
           </p>
         </div>
 
         {/* SUB-VIEW 1: LAPORAN LABA RUGI */}
         {activeReportSubTab === 'income' && (
-          <div className="max-w-3xl mx-auto space-y-6">
-            <div className="border border-slate-200 rounded-xl overflow-x-auto custom-scrollbar">
-              <table className="w-full text-xs sm:text-sm min-w-[480px]">
+          <div className="max-w-3xl mx-auto space-y-5">
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <table className="table-fixed w-full text-xs sm:text-sm border-collapse">
                 <tbody className="divide-y divide-slate-100 font-sans">
                   {/* PENDAPATAN USAHA */}
-                  <tr className="bg-slate-50 font-black text-slate-800 uppercase tracking-wider">
-                    <td colSpan={2} className="p-3">1. PENDAPATAN USAHA</td>
+                  <tr className="bg-slate-50 font-black text-slate-800 uppercase tracking-wider text-xs">
+                    <td colSpan={2} className="py-2.5 px-4">1. PENDAPATAN USAHA</td>
                   </tr>
                   <tr>
-                    <td className="p-3 pl-6 text-slate-700">Penjualan Kotor Ban Baru (Omzet)</td>
-                    <td className="p-3 text-right font-mono font-bold text-slate-900">{formatRupiah(financials.grossSales)}</td>
+                    <td className="py-2.5 px-4 pl-6 text-slate-700">Penjualan Kotor Ban Baru (Omzet Toko)</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900 w-44">{formatRupiah(financials.grossSales)}</td>
                   </tr>
                   <tr>
-                    <td className="p-3 pl-6 text-rose-600">Dikurangi: Potongan Penjualan (Diskon Kasir)</td>
-                    <td className="p-3 text-right font-mono font-bold text-rose-600">({formatRupiah(financials.discounts)})</td>
+                    <td className="py-2.5 px-4 pl-6 text-rose-600">Dikurangi: Potongan Penjualan (Diskon Kasir)</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-bold text-rose-600">({formatRupiah(financials.discounts)})</td>
                   </tr>
-                  <tr className="bg-indigo-50/40 font-bold text-slate-900">
-                    <td className="p-3 pl-6">PENJUALAN BERSIH</td>
-                    <td className="p-3 text-right font-mono font-black text-indigo-900">{formatRupiah(financials.netSales)}</td>
+                  <tr className="bg-blue-50/50 font-bold text-slate-900">
+                    <td className="py-2.5 px-4 pl-6 text-blue-950 font-black">PENJUALAN BERSIH (NET SALES)</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-black text-blue-900">{formatRupiah(financials.netSales)}</td>
                   </tr>
 
                   {/* HPP */}
-                  <tr className="bg-slate-50 font-black text-slate-800 uppercase tracking-wider">
-                    <td colSpan={2} className="p-3">2. BEBAN POKOK PENJUALAN (HPP)</td>
+                  <tr className="bg-slate-50 font-black text-slate-800 uppercase tracking-wider text-xs">
+                    <td colSpan={2} className="py-2.5 px-4">2. BEBAN POKOK PENJUALAN (HPP)</td>
                   </tr>
                   <tr>
-                    <td className="p-3 pl-6 text-slate-700">
+                    <td className="py-2.5 px-4 pl-6 text-slate-700">
                       Beban Pokok Penjualan Ban Baru (Metode FIFO)
                       <span className="block text-[11px] text-slate-400 font-normal">
-                        Alokasi otomatis dari product_batches lapisan FIFO tanggal pembelian
+                        Harga modal ban yang terjual berdasarkan urutan masuk tertua
                       </span>
                     </td>
-                    <td className="p-3 text-right font-mono font-bold text-rose-600">({formatRupiah(financials.totalHpp)})</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-bold text-rose-600">({formatRupiah(financials.totalHpp)})</td>
                   </tr>
-                  <tr className="bg-emerald-50/50 font-bold text-slate-900">
-                    <td className="p-3 pl-6 font-black text-emerald-950">LABA BRUTO USAHA (GROSS PROFIT)</td>
-                    <td className="p-3 text-right font-mono font-black text-emerald-800 text-base">{formatRupiah(financials.grossProfit)}</td>
+                  <tr className="bg-emerald-50/60 font-bold text-slate-900">
+                    <td className="py-2.5 px-4 pl-6 font-black text-emerald-950">LABA KOTOR USAHA (GROSS PROFIT)</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-black text-emerald-800 text-base">{formatRupiah(financials.grossProfit)}</td>
                   </tr>
 
                   {/* BEBAN OPERASIONAL */}
-                  <tr className="bg-slate-50 font-black text-slate-800 uppercase tracking-wider">
-                    <td colSpan={2} className="p-3">3. BEBAN OPERASIONAL USAHA</td>
+                  <tr className="bg-slate-50 font-black text-slate-800 uppercase tracking-wider text-xs">
+                    <td colSpan={2} className="py-2.5 px-4">3. BEBAN OPERASIONAL TOKO & BENGKEL</td>
                   </tr>
                   {financials.expenseBreakdown.length === 0 ? (
                     <tr>
-                      <td colSpan={2} className="p-3 pl-6 text-slate-400 italic">Belum ada pengeluaran beban operasional</td>
+                      <td colSpan={2} className="py-3 px-4 pl-6 text-slate-400 italic">Belum ada pengeluaran beban operasional</td>
                     </tr>
                   ) : (
-                    financials.expenseBreakdown.map((exp) => (
+                    financials.expenseBreakdown.map((exp: any) => (
                       <tr key={exp.code}>
-                        <td className="p-2.5 pl-6 text-slate-700">
-                          <span className="font-mono font-bold text-slate-400 mr-2">{exp.code}</span>
+                        <td className="py-2 px-4 pl-6 text-slate-700">
+                          <span className="font-mono font-bold text-slate-400 mr-2 text-xs">{exp.code}</span>
                           {exp.name}
                         </td>
-                        <td className="p-2.5 text-right font-mono font-semibold text-slate-800">
+                        <td className="py-2 px-4 text-right font-mono font-semibold text-slate-800">
                           {formatRupiah(exp.amount)}
                         </td>
                       </tr>
                     ))
                   )}
                   <tr className="bg-slate-100/70 font-bold text-slate-800">
-                    <td className="p-3 pl-6">TOTAL BEBAN OPERASIONAL</td>
-                    <td className="p-3 text-right font-mono font-bold text-slate-900">({formatRupiah(financials.totalExpenses)})</td>
+                    <td className="py-2.5 px-4 pl-6">TOTAL BEBAN OPERASIONAL</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900">({formatRupiah(financials.totalExpenses)})</td>
                   </tr>
 
                   {/* LABA NETO AKHIR */}
                   <tr className="bg-emerald-50 border-t-2 border-emerald-600 font-black text-base">
-                    <td className="p-4 pl-6 uppercase tracking-tight text-emerald-950">
-                      LABA NETO PERIODE BERJALAN (NET PROFIT)
+                    <td className="py-3.5 px-4 pl-6 uppercase tracking-tight text-emerald-950">
+                      LABA BERSIH PERIODE BERJALAN (NET PROFIT)
                     </td>
-                    <td className="p-4 text-right font-mono text-emerald-800 text-lg font-black">
+                    <td className="py-3.5 px-4 text-right font-mono text-emerald-800 text-lg font-black">
                       {formatRupiah(financials.netIncome)}
                     </td>
                   </tr>
@@ -251,10 +385,10 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
             </div>
 
             {/* Note badge */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Jejak Audit:</strong> Laba Neto sebesar <strong>{formatRupiah(financials.netIncome)}</strong> secara otomatis menutup dan ditransfer ke akun Ekuitas <em>Laba Periode Berjalan</em> pada Laporan Posisi Keuangan di bawah ini.
+                <strong>Jejak Audit:</strong> Laba Bersih sebesar <strong>{formatRupiah(financials.netIncome)}</strong> secara otomatis menutup dan ditransfer ke akun Ekuitas <em>Laba Periode Berjalan</em> pada Laporan Posisi Keuangan.
               </span>
             </div>
           </div>
@@ -262,14 +396,14 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
 
         {/* SUB-VIEW 2: LAPORAN POSISI KEUANGAN (NERACA) */}
         {activeReportSubTab === 'balance' && (
-          <div className="max-w-4xl mx-auto space-y-6">
+          <div className="max-w-4xl mx-auto space-y-5">
             {/* Balanced Indicator Alert */}
-            <div className={`p-3.5 rounded-xl border flex items-center justify-between ${
+            <div className={`p-3 rounded-xl border flex items-center justify-between ${
               financials.isBalanceSheetBalanced 
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
                 : 'bg-amber-50 border-amber-200 text-amber-900'
             }`}>
-              <div className="flex items-center gap-2.5 text-xs font-bold">
+              <div className="flex items-center gap-2 text-xs font-bold">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 <span>
                   Kondisi Neraca: <strong>{financials.isBalanceSheetBalanced ? 'SEIMBANG (ASET = LIABILITAS + EKUITAS)' : 'TIDAK SEIMBANG'}</strong>
@@ -280,11 +414,11 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* SISI KIRI: ASET */}
               <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="bg-blue-700 text-white p-3.5 font-extrabold text-xs uppercase tracking-wider flex items-center justify-between">
-                  <span>ASET (AKTIVA)</span>
+                <div className="bg-blue-700 text-white p-3 font-extrabold text-xs uppercase tracking-wider flex items-center justify-between">
+                  <span>ASET (AKTIVA TOKO)</span>
                   <span className="font-mono font-black text-sm">{formatRupiah(financials.totalAssets)}</span>
                 </div>
 
@@ -292,7 +426,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                   {/* Aset Lancar */}
                   <div>
                     <h4 className="font-bold text-blue-700 uppercase tracking-wide border-b border-slate-100 pb-1 mb-2">
-                      A. Aset Lancar
+                      A. Aset Lancar (Uang & Barang Cair)
                     </h4>
                     <div className="space-y-1.5 font-mono">
                       <div className="flex justify-between">
@@ -304,11 +438,11 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                         <span className="font-bold text-slate-800">{formatRupiah(financials.bankBca)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="font-sans text-slate-600">Piutang Dagang (AR)</span>
+                        <span className="font-sans text-slate-600">Piutang Dagang Pelanggan (AR)</span>
                         <span className="font-bold text-slate-800">{formatRupiah(financials.piutangDagang)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="font-sans text-slate-600">Persediaan Ban Baru Cabang 3</span>
+                        <span className="font-sans text-slate-600">Persediaan Stok Ban Baru</span>
                         <span className="font-bold text-slate-800">{formatRupiah(financials.persediaanBuku)}</span>
                       </div>
                       <div className="flex justify-between pt-1 border-t border-slate-100 font-bold font-sans text-slate-900">
@@ -321,11 +455,11 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                   {/* Aset Tetap */}
                   <div>
                     <h4 className="font-bold text-blue-700 uppercase tracking-wide border-b border-slate-100 pb-1 mb-2">
-                      B. Aset Tetap
+                      B. Aset Tetap (Peralatan & Mesin)
                     </h4>
                     <div className="space-y-1.5 font-mono">
                       <div className="flex justify-between">
-                        <span className="font-sans text-slate-600">Peralatan Bengkel & Mesin Spooring 3D</span>
+                        <span className="font-sans text-slate-600">Mesin Spooring 3D & Alat Bengkel</span>
                         <span className="font-bold text-slate-800">{formatRupiah(financials.peralatanMesin)}</span>
                       </div>
                       <div className="flex justify-between text-rose-600">
@@ -349,7 +483,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
 
               {/* SISI KANAN: LIABILITAS & EKUITAS */}
               <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="bg-slate-800 text-white p-3.5 font-extrabold text-xs uppercase tracking-wider flex items-center justify-between">
+                <div className="bg-slate-800 text-white p-3 font-extrabold text-xs uppercase tracking-wider flex items-center justify-between">
                   <span>LIABILITAS & EKUITAS (PASIVA)</span>
                   <span className="font-mono font-black text-sm">{formatRupiah(financials.totalLiabilitiesAndEquity)}</span>
                 </div>
@@ -358,11 +492,11 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                   {/* Liabilitas */}
                   <div>
                     <h4 className="font-bold text-amber-700 uppercase tracking-wide border-b border-slate-100 pb-1 mb-2">
-                      A. Liabilitas (Kewajiban)
+                      A. Liabilitas (Kewajiban / Hutang)
                     </h4>
                     <div className="space-y-1.5 font-mono">
                       <div className="flex justify-between">
-                        <span className="font-sans text-slate-600">Hutang Dagang Supplier (Distributor Ban)</span>
+                        <span className="font-sans text-slate-600">Hutang Distributor Ban (AP Tempo)</span>
                         <span className="font-bold text-slate-800">{formatRupiah(financials.hutangSupplier)}</span>
                       </div>
                       <div className="flex justify-between">
@@ -370,7 +504,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                         <span className="font-bold text-slate-800">{formatRupiah(financials.ppnKeluaran)}</span>
                       </div>
                       <div className="flex justify-between pt-1 border-t border-slate-100 font-bold font-sans text-slate-900">
-                        <span>Total Liabilitas</span>
+                        <span>Total Kewajiban</span>
                         <span className="font-mono text-amber-700">{formatRupiah(financials.totalLiabilities)}</span>
                       </div>
                     </div>
@@ -379,7 +513,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                   {/* Ekuitas */}
                   <div>
                     <h4 className="font-bold text-purple-700 uppercase tracking-wide border-b border-slate-100 pb-1 mb-2">
-                      B. Ekuitas (Modal)
+                      B. Ekuitas (Hak Modal Pemilik)
                     </h4>
                     <div className="space-y-1.5 font-mono">
                       <div className="flex justify-between">
@@ -391,11 +525,11 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                         <span className="font-bold text-slate-800">{formatRupiah(financials.labaDitahan)}</span>
                       </div>
                       <div className="flex justify-between text-emerald-700">
-                        <span className="font-sans font-bold">Laba Periode Berjalan (Bulan Ini)</span>
+                        <span className="font-sans font-bold">Laba Periode Berjalan</span>
                         <span className="font-bold">{formatRupiah(financials.currentNetIncome)}</span>
                       </div>
                       <div className="flex justify-between pt-1 border-t border-slate-100 font-bold font-sans text-slate-900">
-                        <span>Total Ekuitas</span>
+                        <span>Total Ekuitas Bersih</span>
                         <span className="font-mono text-purple-700">{formatRupiah(financials.totalEquity)}</span>
                       </div>
                     </div>
@@ -412,60 +546,67 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
           </div>
         )}
 
-        {/* SUB-VIEW 3: CATATAN ATAS LAPORAN KEUANGAN (CALK) */}
+        {/* SUB-VIEW 3: LAPORAN ARUS KAS (CASH FLOW) */}
+        {activeReportSubTab === 'cashflow' && (
+          <div className="max-w-4xl mx-auto">
+            <CashFlowStatementTab cashFlow={cashFlow} periodLabel={periodLabel} />
+          </div>
+        )}
+
+        {/* SUB-VIEW 4: CATATAN ATAS LAPORAN KEUANGAN (CALK) */}
         {activeReportSubTab === 'calk' && (
-          <div className="max-w-3xl mx-auto space-y-6 text-xs text-slate-700 leading-relaxed font-sans">
+          <div className="max-w-3xl mx-auto space-y-4 text-xs text-slate-700 leading-relaxed font-sans">
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-1">
                   1. Gambaran Umum Entitas Usaha
                 </h3>
                 <p>
-                  <strong>Omah Ban Cabang 3</strong> merupakan entitas usaha dagang dan jasa bengkel otomotif yang bergerak di bidang penjualan ban mobil baru dan jasa spooring balancing 3D. Entitas ini beroperasi sebagai unit bisnis UMKM di bawah pengelolaan pemilik mandiri.
+                  <strong>Omah Ban BSD Cabang 3</strong> adalah entitas usaha dagang dan jasa otomotif yang menyediakan ban mobil baru berbagai merek (Bridgestone, Accelera, Dunlop, Hankook) serta layanan spooring 3D dan balancing. Beroperasi sebagai unit UMKM mandiri di kawasan Serpong, Tangerang Selatan.
                 </p>
               </div>
 
               <div>
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-1">
-                  2. Dasar Penyusunan Laporan Keuangan
+                  2. Kebijakan Akuntansi SAK EMKM
                 </h3>
                 <p>
-                  Laporan keuangan disusun berdasarkan <strong>Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM)</strong> yang diterbitkan oleh Ikatan Akuntan Indonesia (IAI). Basis pengukuran menggunakan biaya historis (*historical cost*) dan disusun dengan dasar akrual (*accrual basis*), kecuali untuk laporan arus kas.
+                  Laporan keuangan disusun mengikuti <strong>SAK EMKM</strong> (Ikatan Akuntan Indonesia) dengan prinsip biaya historis dan dasar akrual.
                 </p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-1">
-                  3. Ikhtisar Kebijakan Akuntansi Penting
-                </h3>
-                <ul className="list-disc pl-5 space-y-1.5 mt-1 text-slate-600">
+                <ul className="list-disc pl-5 space-y-1 mt-1 text-slate-600">
                   <li>
-                    <strong>Persediaan:</strong> Dinilai berdasarkan biaya perolehan menggunakan metode <em>First-In, First-Out (FIFO)</em>. Setiap ban yang keluar dialokasikan langsung dari lapisan batch tertua.
+                    <strong>Metode FIFO:</strong> Persediaan ban dinilai dengan urutan masuk tertua.
                   </li>
                   <li>
-                    <strong>Aset Tetap:</strong> Diakui sebesar harga perolehan dikurangi akumulasi penyusutan. Penyusutan dihitung menggunakan metode garis lurus (*straight-line method*) atas estimasi masa manfaat mesin spooring dan balancing.
+                    <strong>Penyusutan Mesin:</strong> Mesin spooring dan balancing disusutkan dengan metode garis lurus.
                   </li>
                   <li>
-                    <strong>Pengakuan Pendapatan:</strong> Pendapatan dari penjualan ban dan jasa diakui pada saat penyerahan barang atau penyelesaian pekerjaan kepada pelanggan kasir.
-                  </li>
-                  <li>
-                    <strong>Liabilitas:</strong> Hutang usaha diakui sebesar jumlah tagihan tempo dari prinsipal distributor (PT Bridgestone, PT Elangperdana, PT Sumi Rubber).
+                    <strong>Pengakuan Pendapatan:</strong> Diakui saat barang diserahkan atau jasa servis selesai.
                   </li>
                 </ul>
               </div>
 
               <div>
                 <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-1">
-                  4. Verifikasi Persediaan Fisik vs Buku Besar
+                  3. Keselarasan Fisik vs Pembukuan
                 </h3>
                 <p>
-                  Nilai persediaan ban berdasarkan saldo Buku Besar adalah <strong>{formatRupiah(financials.persediaanBuku)}</strong>. Nilai fisik persediaan gudang per opname berjalan adalah <strong>{formatRupiah(financials.totalInventoryPhysical)}</strong>. Selisih dipantau secara berkala melalui modul Stock Opname & Kartu Stok.
+                  Nilai persediaan ban di Buku Besar: <strong>{formatRupiah(financials.persediaanBuku)}</strong>. Nilai fisik gudang: <strong>{formatRupiah(financials.totalInventoryPhysical)}</strong>.
                 </p>
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Printable Executive Modal */}
+      <FinancialStatementsPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        financials={financials}
+        cashFlow={cashFlow}
+        periodLabel={periodLabel}
+      />
     </div>
   );
 };

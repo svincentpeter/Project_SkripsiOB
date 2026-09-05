@@ -1077,6 +1077,7 @@ function MainAppContent() {
                 onPayReceivable={handlePayReceivable}
                 onClosePeriod={handleClosePeriod}
                 onReverseJournal={handleReverseJournal}
+                onNavigateToFinancials={() => setActiveScreen('financials')}
                 isEmptyState={isEmptyState}
               />
             )}

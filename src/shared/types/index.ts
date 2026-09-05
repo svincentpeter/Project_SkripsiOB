@@ -476,3 +476,23 @@ export interface AccountingPeriodInfo {
   net_income_transferred?: number;
 }
 
+export interface CashFlowStatementResult {
+  cashFromSales: number;
+  cashFromReceivables: number;
+  totalOperatingInflows: number;
+  cashPaidForExpenses: number;
+  cashPaidForInventory: number;
+  totalOperatingOutflows: number;
+  netOperatingCashFlow: number;
+  cashPaidForFixedAssets: number;
+  netInvestingCashFlow: number;
+  cashPaidForPayables: number;
+  cashFromCapital: number;
+  netFinancingCashFlow: number;
+  netCashFlow: number;
+  beginningCash: number;
+  endingCash: number;
+  cashDrawerEnding: number;
+  bankBcaEnding: number;
+}
+

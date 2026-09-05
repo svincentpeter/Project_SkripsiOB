@@ -11,7 +11,10 @@ import {
   Building2,
   Calendar,
   Lock,
-  CheckCircle2
+  CheckCircle2,
+  ExternalLink,
+  ArrowUpRight,
+  TrendingUp
 } from 'lucide-react';
 import { 
   AccountingPeriodInfo,
@@ -29,6 +32,12 @@ import {
   INITIAL_RECEIVABLES,
   INITIAL_PERIOD_INFO
 } from '../../shared/data/mockData';
+import { 
+  calculateDynamicSakEmkmFinancials 
+} from '../../services/accountingService';
+import { 
+  formatRupiah 
+} from '../../shared/utils/formatters';
 import { 
   JournalTab, 
   GeneralLedgerTab, 
@@ -55,6 +64,7 @@ interface GeneralLedgerScreenProps {
   onPayReceivable?: (input: ReceivablePaymentInput) => void;
   onClosePeriod?: (closedBy: string, notes: string) => void;
   onReverseJournal?: (journal: JournalEntry, reason: string, reversedBy: string) => void;
+  onNavigateToFinancials?: () => void;
   initialTab?: AccountingTabKey;
   isEmptyState?: boolean;
 }
@@ -72,15 +82,19 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   onPayReceivable,
   onClosePeriod,
   onReverseJournal,
+  onNavigateToFinancials,
   initialTab = 'journals',
   isEmptyState = false,
 }) => {
   const [activeTab, setActiveTab] = useState<AccountingTabKey>(initialTab);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
+  const [showInlineReport, setShowInlineReport] = useState(false);
 
   const unpaidDebtCount = payableInvoices.filter((i) => i.status !== 'LUNAS').length;
   const unpaidReceivableCount = receivableInvoices.filter((i) => i.status !== 'LUNAS').length;
+
+  const quickFinancials = calculateDynamicSakEmkmFinancials(journals, initialBalances, products);
 
   return (
     <div className="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar bg-[#F8FAFC] text-slate-900 space-y-5">
@@ -90,7 +104,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
               <ShieldCheck className="w-4 h-4 text-blue-700" />
-              <span>Sistem Informasi Akuntansi (SIA) • SAK EMKM Standar</span>
+              <span>Buku Kerja Akuntansi Internal • SAK EMKM Standar</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
               <span>Buku Besar & Siklus Akuntansi</span>
@@ -99,11 +113,23 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
               </span>
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Siklus akuntansi lengkap: Jurnal Transaksi, Buku Besar, Neraca Saldo, Buku Pembantu AP/AR, Jurnal Penutup, dan Laporan Keuangan.
+              Pencatatan teknis double-entry harian: Jurnal Transaksi, Buku Besar per Akun, Neraca Saldo, dan Buku Pembantu AP/AR.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Direct Link to Executive Financial Statements if provided */}
+            {onNavigateToFinancials && (
+              <button
+                onClick={onNavigateToFinancials}
+                className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
+                title="Buka Laporan Keuangan Eksekutif Resmi"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
+                <span>Laporan Eksekutif</span>
+              </button>
+            )}
+
             {/* Period Status Badge & Closing Action */}
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
               <div className="flex items-center gap-1.5 text-slate-600 font-medium">
@@ -239,7 +265,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
             }`}
           >
             <FileText className="w-4 h-4" />
-            <span>6. Laporan SAK EMKM</span>
+            <span>6. Ikhtisar Eksekutif</span>
           </button>
         </div>
       </div>
@@ -265,7 +291,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
           <TrialBalanceTab
             journals={journals}
             initialBalances={initialBalances}
-            onNavigateToReports={() => setActiveTab('reports')}
+            onNavigateToReports={onNavigateToFinancials || (() => setActiveTab('reports'))}
           />
         )}
 
@@ -289,11 +315,85 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
         )}
 
         {activeTab === 'reports' && (
-          <SakEmkmReportTab
-            journals={journals}
-            initialBalances={initialBalances}
-            products={products}
-          />
+          <div className="space-y-4">
+            {/* Executive Handoff Card (Resolves Duplicate/Kembar) */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <span className="text-xs font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1.5 mb-1">
+                    <ShieldCheck className="w-4 h-4 text-blue-600" />
+                    <span>Laporan Keuangan Eksekutif Resmi</span>
+                  </span>
+                  <h3 className="text-lg font-black text-slate-900">
+                    Pusat Laporan Eksekutif SAK EMKM Omah Ban BSD
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Laporan Keuangan Resmi (Laba Rugi, Posisi Neraca, Arus Kas & Lembar Cetak Pengesahan) kini dipusatkan di modul tersendiri untuk kenyamanan pemilik usaha.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {onNavigateToFinancials && (
+                    <button
+                      onClick={onNavigateToFinancials}
+                      className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Buka Laporan Keuangan Eksekutif</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowInlineReport(!showInlineReport)}
+                    className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors border border-slate-200 cursor-pointer"
+                  >
+                    {showInlineReport ? 'Sembunyikan Pratinjau' : 'Tampilkan Pratinjau Cepat'}
+                  </button>
+                </div>
+              </div>
+
+              {/* 3 Executive Metric Preview Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Omzet Bersih Berjalan</span>
+                  <span className="text-base font-black font-mono text-slate-900 block mt-0.5">
+                    {formatRupiah(quickFinancials.netSales)}
+                  </span>
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">
+                    Penjualan ban & jasa servis
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Laba Bersih Berjalan</span>
+                  <span className="text-base font-black font-mono text-emerald-800 block mt-0.5">
+                    {formatRupiah(quickFinancials.netIncome)}
+                  </span>
+                  <span className="text-[10px] text-emerald-700 mt-0.5 block">
+                    Margin: {quickFinancials.netProfitMargin.toFixed(1)}% dari omzet
+                  </span>
+                </div>
+
+                <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl">
+                  <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Uang Kas & Bank Siap Pakai</span>
+                  <span className="text-base font-black font-mono text-blue-800 block mt-0.5">
+                    {formatRupiah(quickFinancials.liquidCash)}
+                  </span>
+                  <span className="text-[10px] text-blue-700 mt-0.5 block">
+                    Kas Laci Kasir + Saldo Bank BCA
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Inline Full Report View when toggled or fallback */}
+            {(showInlineReport || !onNavigateToFinancials) && (
+              <SakEmkmReportTab
+                journals={journals}
+                initialBalances={initialBalances}
+                products={products}
+              />
+            )}
+          </div>
         )}
       </div>
 
