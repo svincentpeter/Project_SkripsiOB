@@ -1,21 +1,17 @@
 import React, { useState } from 'react';
 import { 
   Search, 
-  Filter, 
   Download, 
   Eye, 
   Printer, 
   Plus, 
-  Calendar, 
   ChevronLeft, 
   ChevronRight, 
   Wallet, 
   Building2, 
   Image as ImageIcon,
-  CheckCircle2,
   AlertCircle,
-  FileSpreadsheet,
-  TrendingDown
+  FileSpreadsheet
 } from 'lucide-react';
 import { ExpenseCategory, ExpenseRecord } from '../../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
@@ -39,7 +35,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
   const [sourceFilter, setSourceFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'VOID'>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 10;
+  const rowsPerPage = 8;
 
   const categories = Object.keys(EXPENSE_CATEGORY_CONFIG) as ExpenseCategory[];
 
@@ -61,7 +57,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
     const desc = (exp.description || '').toLowerCase();
     const paid = (exp.paid_to || '').toLowerCase();
     const cat = (exp.category || '').toLowerCase();
-    const code = (exp.category_code || '').toLowerCase();
+    const code = (exp.category_code || EXPENSE_CATEGORY_CONFIG[exp.category]?.account_code || '').toLowerCase();
 
     const matchesSearch = !q || bkk.includes(q) || desc.includes(q) || paid.includes(q) || cat.includes(q) || code.includes(q);
     const matchesCategory = categoryFilter === 'ALL' || exp.category === categoryFilter;
@@ -95,7 +91,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
     let csv = 'No BKK,Tanggal,Kategori,Kode Akun,Nominal,Sumber Dana,Penerima,Keterangan,Otorisasi,Status,Alasan Void\n';
     filteredExpenses.forEach((exp) => {
       const bkk = exp.bkk_number || exp.expense_number;
-      const code = exp.category_code || '6-xxxx';
+      const code = exp.category_code || EXPENSE_CATEGORY_CONFIG[exp.category]?.account_code || '6-1005';
       const status = exp.status === 'VOID' ? 'VOID' : 'ACTIVE';
       const reason = exp.void_reason ? exp.void_reason.replace(/"/g, '""') : '';
       csv += `"${bkk}","${exp.date}","${exp.category}","${code}",${exp.amount},"${exp.cash_source}","${exp.paid_to}","${exp.description.replace(/"/g, '""')}","${exp.approved_by}","${status}","${reason}"\n`;
@@ -112,7 +108,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="w-full space-y-4">
       {/* Top Quick Metrics Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs">
@@ -136,7 +132,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             {formatRupiah(cashAmount)}
           </span>
           <span className="text-[10px] text-slate-400 block mt-0.5">
-            Pengeluaran tunai montir / ATK
+            Pengeluaran tunai kasir
           </span>
         </div>
 
@@ -149,7 +145,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             {formatRupiah(bankAmount)}
           </span>
           <span className="text-[10px] text-slate-400 block mt-0.5">
-            Transfer PLN / sewa / mesin
+            Transfer operasional & mesin
           </span>
         </div>
 
@@ -168,13 +164,13 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             )}
           </div>
           <span className="text-[10px] text-slate-400 block mt-0.5">
-            Terposting ke Buku Besar SAK EMKM
+            Standar SAK EMKM Terpadu
           </span>
         </div>
       </div>
 
-      {/* Main Table Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+      {/* Main Table Card (No Horizontal Scrollbar) */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
         {/* Table Top Controls & Action CTA */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
@@ -183,7 +179,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
               <span>Buku Riwayat Pengeluaran Kas (BKK)</span>
             </h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Daftar seluruh voucher kas keluar dengan kode akun buku besar SAK EMKM.
+              Daftar seluruh bukti kas keluar dengan penomoran baku dan akun buku besar SAK EMKM.
             </p>
           </div>
 
@@ -257,7 +253,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
               }}
               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring"
             >
-              <option value="ALL">Semua Sumber Pembayaran</option>
+              <option value="ALL">Semua Sumber Kas</option>
               <option value="CASH">Kas Tunai Laci Kasir</option>
               <option value="BANK">Rekening Bank BCA</option>
             </select>
@@ -280,25 +276,23 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
           </div>
         </div>
 
-        {/* Main Table */}
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-left text-xs border-collapse">
+        {/* Optimized Table - Fit 100% Width (NO HORIZONTAL SCROLL) */}
+        <div className="w-full overflow-hidden rounded-xl border border-slate-200">
+          <table className="w-full table-fixed text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
-                <th className="py-2.5 px-3.5 whitespace-nowrap">No. BKK / Tanggal</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap">Kategori & Akun COA</th>
-                <th className="py-2.5 px-3.5">Uraian Pengeluaran & Penerima</th>
-                <th className="py-2.5 px-3.5 whitespace-nowrap">Sumber Kas</th>
-                <th className="py-2.5 px-3.5 text-right whitespace-nowrap">Nominal (Rp)</th>
-                <th className="py-2.5 px-3.5 text-center whitespace-nowrap">Nota Fisik</th>
-                <th className="py-2.5 px-3.5 text-center whitespace-nowrap">Status</th>
-                <th className="py-2.5 px-3.5 text-center whitespace-nowrap">Aksi</th>
+              <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
+                <th className="py-2.5 px-3 w-[18%]">No. BKK / Tanggal</th>
+                <th className="py-2.5 px-3 w-[22%]">Beban & Akun COA</th>
+                <th className="py-2.5 px-3 w-[29%]">Uraian & Penerima</th>
+                <th className="py-2.5 px-3 w-[13%]">Sumber Kas</th>
+                <th className="py-2.5 px-3 w-[12%] text-right">Nominal</th>
+                <th className="py-2.5 px-3 w-[6%] text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-800">
               {paginatedExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
                     <AlertCircle className="w-8 h-8 mx-auto text-slate-300 mb-2" />
                     <p className="font-medium text-xs">Tidak ada data biaya yang sesuai dengan kriteria pencarian.</p>
                   </td>
@@ -306,6 +300,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
               ) : (
                 paginatedExpenses.map((exp) => {
                   const isVoid = exp.status === 'VOID';
+                  const accountCode = exp.category_code || EXPENSE_CATEGORY_CONFIG[exp.category]?.account_code || '6-1005';
                   return (
                     <tr 
                       key={exp.id} 
@@ -313,92 +308,91 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                         isVoid ? 'bg-rose-50/30' : ''
                       }`}
                     >
-                      {/* No. BKK / Tanggal */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap">
-                        <span className={`font-mono font-bold block ${isVoid ? 'line-through text-slate-400' : 'text-blue-700'}`}>
+                      {/* Col 1: No. BKK / Tanggal */}
+                      <td className="py-2 px-3 overflow-hidden">
+                        <span className={`font-mono font-bold text-xs truncate block ${
+                          isVoid ? 'line-through text-slate-400' : 'text-blue-700'
+                        }`} title={exp.bkk_number || exp.expense_number}>
                           {exp.bkk_number || exp.expense_number}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-medium">
+                        <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
                           {formatDateIndo(exp.date)}
                         </span>
                       </td>
 
-                      {/* Kategori & Akun COA */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap">
-                        <span className="font-bold text-slate-900 block">{exp.category}</span>
-                        <span className="text-[10px] font-mono text-slate-500 font-semibold">
-                          {exp.category_code || '6-xxxx'}
+                      {/* Col 2: Kategori & Akun COA */}
+                      <td className="py-2 px-3 overflow-hidden">
+                        <span className="font-bold text-slate-900 truncate block" title={exp.category}>
+                          {exp.category}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500 font-semibold block mt-0.5">
+                          Kode: {accountCode}
                         </span>
                       </td>
 
-                      {/* Uraian & Penerima */}
-                      <td className="py-2.5 px-3.5 max-w-sm">
+                      {/* Col 3: Uraian & Penerima */}
+                      <td className="py-2 px-3 overflow-hidden">
                         <p className={`font-medium text-slate-800 truncate ${isVoid ? 'line-through text-slate-400' : ''}`} title={exp.description}>
                           {exp.description}
                         </p>
-                        <span className="text-[10px] text-slate-500 block truncate">
+                        <span className="text-[10px] text-slate-500 truncate block mt-0.5" title={exp.paid_to}>
                           Penerima: <strong className="text-slate-700 font-medium">{exp.paid_to}</strong>
                         </span>
                       </td>
 
-                      {/* Sumber Kas */}
-                      <td className="py-2.5 px-3.5 whitespace-nowrap">
-                        <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                      {/* Col 4: Sumber Kas */}
+                      <td className="py-2 px-3 overflow-hidden">
+                        <span className="flex items-center gap-1.5 font-medium text-slate-700 text-xs truncate">
                           {exp.cash_source.includes('Laci') ? (
-                            <Wallet className="w-3.5 h-3.5 text-amber-600" />
+                            <Wallet className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                           ) : (
-                            <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                            <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                           )}
-                          <span className="truncate max-w-[130px]" title={exp.cash_source}>
+                          <span className="truncate" title={exp.cash_source}>
                             {exp.cash_source.includes('Laci') ? 'Kas Laci' : 'Bank BCA'}
                           </span>
                         </span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">
+                          {exp.payment_method || (exp.cash_source.includes('Laci') ? 'Cash' : 'Transfer')}
+                        </span>
                       </td>
 
-                      {/* Nominal */}
-                      <td className="py-2.5 px-3.5 text-right whitespace-nowrap">
-                        <span className={`font-mono font-black text-sm ${
+                      {/* Col 5: Nominal & Status/Nota */}
+                      <td className="py-2 px-3 text-right overflow-hidden">
+                        <span className={`font-mono font-black text-xs sm:text-sm block ${
                           isVoid ? 'line-through text-slate-400' : 'text-rose-700'
                         }`}>
                           -{formatRupiah(exp.amount)}
                         </span>
+                        <div className="flex items-center justify-end gap-1 mt-0.5">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                            isVoid 
+                              ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}>
+                            {isVoid ? 'VOID' : 'POSTED'}
+                          </span>
+                          {exp.receipt_image && (
+                            <span 
+                              title="Ada lampiran foto nota fisik" 
+                              className="text-[9px] text-blue-700 font-bold flex items-center gap-0.5 bg-blue-50 border border-blue-200 px-1 rounded cursor-pointer"
+                              onClick={() => onViewDetail(exp)}
+                            >
+                              <ImageIcon className="w-2.5 h-2.5" />
+                              <span>Nota</span>
+                            </span>
+                          )}
+                        </div>
                       </td>
 
-                      {/* Bukti Nota */}
-                      <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
-                        {exp.receipt_image ? (
-                          <button
-                            type="button"
-                            onClick={() => onViewDetail(exp)}
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded-md cursor-pointer transition-colors"
-                          >
-                            <ImageIcon className="w-3 h-3" />
-                            <span>Ada</span>
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-slate-400">-</span>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                          isVoid 
-                            ? 'bg-rose-50 text-rose-700 border-rose-200' 
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        }`}>
-                          {isVoid ? 'VOID' : 'POSTED'}
-                        </span>
-                      </td>
-
-                      {/* Aksi */}
-                      <td className="py-2.5 px-3.5 text-center whitespace-nowrap">
+                      {/* Col 6: Aksi */}
+                      <td className="py-2 px-3 text-center overflow-hidden">
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
                             onClick={() => onViewDetail(exp)}
                             className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                            title="Lihat Detail & Nota"
+                            title="Lihat Rincian & Nota"
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -406,7 +400,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                             type="button"
                             onClick={() => onPrintVoucher(exp)}
                             className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                            title="Cetak Bukti Kas Keluar (BKK)"
+                            title="Cetak Bukti Kas Keluar"
                           >
                             <Printer className="w-3.5 h-3.5" />
                           </button>
@@ -431,7 +425,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
               type="button"
               disabled={currentPage === 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-100 transition-colors"
+              className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -442,7 +436,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
               type="button"
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-100 transition-colors"
+              className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-40 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
