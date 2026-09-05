@@ -106,8 +106,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           onClick={() => setActiveSubTab('profile')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
             activeSubTab === 'profile'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
           }`}
         >
           <Store className="w-4 h-4" />
@@ -118,8 +118,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           onClick={() => setActiveSubTab('invoice')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
             activeSubTab === 'invoice'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
           }`}
         >
           <Receipt className="w-4 h-4" />
@@ -130,8 +130,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           onClick={() => setActiveSubTab('payment')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
             activeSubTab === 'payment'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
           }`}
         >
           <CreditCard className="w-4 h-4" />
@@ -142,8 +142,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           onClick={() => setActiveSubTab('accounting')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
             activeSubTab === 'accounting'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              ? 'bg-blue-700 text-white shadow-xs'
+              : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
           }`}
         >
           <Sliders className="w-4 h-4" />
@@ -164,83 +164,91 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nama Brand / Toko</label>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Nama Brand / Toko</label>
                 <input
                   type="text"
                   value={formData.store_name}
                   onChange={(e) => handleChange('store_name', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 font-bold text-sm shadow-2xs"
+                  placeholder="Contoh: Omah Ban BSD"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 font-bold text-sm focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nama Cabang</label>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Nama Cabang</label>
                 <input
                   type="text"
                   value={formData.branch_name}
                   onChange={(e) => handleChange('branch_name', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 font-bold text-sm shadow-2xs"
+                  placeholder="Contoh: Cabang 3 - Tangerang"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 font-bold text-sm focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tagline / Sub-Header</label>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Tagline / Sub-Header</label>
               <input
                 type="text"
                 value={formData.tagline}
                 onChange={(e) => handleChange('tagline', e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs sm:text-sm shadow-2xs"
+                placeholder="Contoh: Pusat Ban & Servis Roda Terpercaya"
+                className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 text-xs sm:text-sm font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nomor Telepon</label>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Nomor Telepon</label>
                 <input
                   type="text"
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs shadow-2xs"
+                  placeholder="Contoh: 021-5371234"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 text-xs font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nomor WhatsApp CS</label>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Nomor WhatsApp CS</label>
                 <input
                   type="text"
                   value={formData.whatsapp}
                   onChange={(e) => handleChange('whatsapp', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs shadow-2xs"
+                  placeholder="Contoh: 0812-3456-7890"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 text-xs font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Email Resmi</label>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Email Resmi</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleChange('email', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs shadow-2xs"
+                  placeholder="Contoh: cabang3@omahban.co.id"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 text-xs font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Alamat Lengkap Toko & Bengkel</label>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Alamat Lengkap Toko & Bengkel</label>
                 <input
                   type="text"
                   value={formData.address}
                   onChange={(e) => handleChange('address', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs shadow-2xs"
+                  placeholder="Contoh: Jl. Raya Serpong No. 88, BSD"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 text-xs font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Kota / Wilayah</label>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">Kota / Wilayah</label>
                 <input
                   type="text"
                   value={formData.city}
                   onChange={(e) => handleChange('city', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs shadow-2xs"
+                  placeholder="Contoh: Tangerang Selatan"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 text-xs font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
             </div>
@@ -400,7 +408,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   type="text"
                   value={formData.bank_name}
                   onChange={(e) => handleChange('bank_name', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs"
+                  placeholder="Contoh: Bank Central Asia (BCA)"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
               <div>
@@ -409,7 +418,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   type="text"
                   value={formData.bank_account_number}
                   onChange={(e) => handleChange('bank_account_number', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 font-mono text-xs font-bold shadow-2xs"
+                  placeholder="Contoh: 8830-1234-56"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 font-mono text-xs font-bold shadow-2xs placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
               <div>
@@ -418,7 +428,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   type="text"
                   value={formData.bank_account_holder}
                   onChange={(e) => handleChange('bank_account_holder', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs"
+                  placeholder="Contoh: PT Omah Ban Indonesia"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
             </div>
@@ -430,7 +441,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   type="text"
                   value={formData.qris_merchant_name}
                   onChange={(e) => handleChange('qris_merchant_name', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs"
+                  placeholder="Contoh: Omah Ban Cabang 3"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
               <div>
@@ -439,7 +451,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   type="text"
                   value={formData.qris_nmid}
                   onChange={(e) => handleChange('qris_nmid', e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 font-mono text-xs shadow-2xs"
+                  placeholder="Contoh: ID1020030040050"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 font-mono text-xs shadow-2xs placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
             </div>

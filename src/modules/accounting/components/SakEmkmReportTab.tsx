@@ -87,73 +87,73 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 md:p-7 shadow-xs space-y-5">
       {/* Report Top Bar with Sub-tabs and Actions */}
-      <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
         {/* Sub-Tab Navigation */}
-        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg">
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-none w-full sm:w-auto">
           <button
             onClick={() => setActiveReportSubTab('income')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeReportSubTab === 'income'
                 ? 'bg-white text-indigo-700 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <TrendingUp className="w-3.5 h-3.5" />
-            Laporan Laba Rugi
+            <span>Laba Rugi</span>
           </button>
           <button
             onClick={() => setActiveReportSubTab('balance')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeReportSubTab === 'balance'
                 ? 'bg-white text-indigo-700 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Scale className="w-3.5 h-3.5" />
-            Posisi Keuangan (Neraca)
+            <span>Posisi Keuangan (Neraca)</span>
           </button>
           <button
             onClick={() => setActiveReportSubTab('calk')}
-            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeReportSubTab === 'calk'
                 ? 'bg-white text-indigo-700 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            Catatan Laporan (CALK)
+            <span>CALK</span>
           </button>
         </div>
 
         {/* Actions: Period Selector, Print, Export */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <span>{periodMonth}</span>
           </div>
 
           <button
             onClick={handleExportCsv}
-            className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200"
+            className="flex-1 sm:flex-none justify-center px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
-            Ekspor CSV
+            <span>Ekspor CSV</span>
           </button>
 
           <button
             onClick={handlePrint}
-            className="px-3.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
+            className="flex-1 sm:flex-none justify-center px-4 py-2 text-xs font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
-            Cetak Standar A4
+            <span>Cetak A4</span>
           </button>
         </div>
       </div>
 
-      {/* Main Report Container */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
+      {/* Main Report Body */}
+      <div>
         {/* Formal Report Header */}
         <div className="text-center border-b border-slate-200 pb-5 mb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider mb-2">
@@ -173,8 +173,8 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
         {/* SUB-VIEW 1: LAPORAN LABA RUGI */}
         {activeReportSubTab === 'income' && (
           <div className="max-w-3xl mx-auto space-y-6">
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <table className="w-full text-xs sm:text-sm">
+            <div className="border border-slate-200 rounded-xl overflow-x-auto custom-scrollbar">
+              <table className="w-full text-xs sm:text-sm min-w-[480px]">
                 <tbody className="divide-y divide-slate-100 font-sans">
                   {/* PENDAPATAN USAHA */}
                   <tr className="bg-slate-50 font-black text-slate-800 uppercase tracking-wider">
@@ -238,11 +238,11 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                   </tr>
 
                   {/* LABA NETO AKHIR */}
-                  <tr className="bg-slate-900 text-white font-black text-base">
-                    <td className="p-4 pl-6 uppercase tracking-tight">
+                  <tr className="bg-emerald-50 border-t-2 border-emerald-600 font-black text-base">
+                    <td className="p-4 pl-6 uppercase tracking-tight text-emerald-950">
                       LABA NETO PERIODE BERJALAN (NET PROFIT)
                     </td>
-                    <td className="p-4 text-right font-mono text-emerald-400 text-lg">
+                    <td className="p-4 text-right font-mono text-emerald-800 text-lg font-black">
                       {formatRupiah(financials.netIncome)}
                     </td>
                   </tr>
@@ -283,15 +283,15 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* SISI KIRI: ASET */}
               <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="bg-slate-900 text-white p-3 font-bold text-xs uppercase tracking-wider flex items-center justify-between">
+                <div className="bg-blue-700 text-white p-3.5 font-extrabold text-xs uppercase tracking-wider flex items-center justify-between">
                   <span>ASET (AKTIVA)</span>
-                  <span className="font-mono">{formatRupiah(financials.totalAssets)}</span>
+                  <span className="font-mono font-black text-sm">{formatRupiah(financials.totalAssets)}</span>
                 </div>
 
                 <div className="p-4 space-y-4 text-xs">
                   {/* Aset Lancar */}
                   <div>
-                    <h4 className="font-bold text-indigo-700 uppercase tracking-wide border-b border-slate-100 pb-1 mb-2">
+                    <h4 className="font-bold text-blue-700 uppercase tracking-wide border-b border-slate-100 pb-1 mb-2">
                       A. Aset Lancar
                     </h4>
                     <div className="space-y-1.5 font-mono">
@@ -313,14 +313,14 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                       </div>
                       <div className="flex justify-between pt-1 border-t border-slate-100 font-bold font-sans text-slate-900">
                         <span>Total Aset Lancar</span>
-                        <span className="font-mono text-indigo-700">{formatRupiah(financials.totalCurrentAssets)}</span>
+                        <span className="font-mono text-blue-700 font-bold">{formatRupiah(financials.totalCurrentAssets)}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Aset Tetap */}
                   <div>
-                    <h4 className="font-bold text-indigo-700 uppercase tracking-wide border-b border-slate-100 pb-1 mb-2">
+                    <h4 className="font-bold text-blue-700 uppercase tracking-wide border-b border-slate-100 pb-1 mb-2">
                       B. Aset Tetap
                     </h4>
                     <div className="space-y-1.5 font-mono">
@@ -334,7 +334,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                       </div>
                       <div className="flex justify-between pt-1 border-t border-slate-100 font-bold font-sans text-slate-900">
                         <span>Nilai Buku Aset Tetap</span>
-                        <span className="font-mono text-indigo-700">{formatRupiah(financials.netFixedAssets)}</span>
+                        <span className="font-mono text-blue-700 font-bold">{formatRupiah(financials.netFixedAssets)}</span>
                       </div>
                     </div>
                   </div>
@@ -342,16 +342,16 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                   {/* Grand Total Assets */}
                   <div className="pt-3 border-t-2 border-slate-200 flex justify-between items-center text-sm font-black text-slate-900">
                     <span className="uppercase">TOTAL ASET</span>
-                    <span className="font-mono text-indigo-900 text-base">{formatRupiah(financials.totalAssets)}</span>
+                    <span className="font-mono text-blue-900 text-base">{formatRupiah(financials.totalAssets)}</span>
                   </div>
                 </div>
               </div>
 
               {/* SISI KANAN: LIABILITAS & EKUITAS */}
               <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <div className="bg-slate-900 text-white p-3 font-bold text-xs uppercase tracking-wider flex items-center justify-between">
+                <div className="bg-slate-800 text-white p-3.5 font-extrabold text-xs uppercase tracking-wider flex items-center justify-between">
                   <span>LIABILITAS & EKUITAS (PASIVA)</span>
-                  <span className="font-mono">{formatRupiah(financials.totalLiabilitiesAndEquity)}</span>
+                  <span className="font-mono font-black text-sm">{formatRupiah(financials.totalLiabilitiesAndEquity)}</span>
                 </div>
 
                 <div className="p-4 space-y-4 text-xs">
