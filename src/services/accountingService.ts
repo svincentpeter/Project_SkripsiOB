@@ -31,9 +31,11 @@ export const SAK_EMKM_COA: ChartOfAccount[] = [
   { account_code: '1-3999', account_name: 'Akumulasi Penyusutan Mesin', account_type: 'ASSET', normal_balance: 'CREDIT', category_name: 'Kontra Aset Tetap' },
   { account_code: '2-1000', account_name: 'Hutang Dagang Supplier (AP)', account_type: 'LIABILITY', normal_balance: 'CREDIT', category_name: 'Liabilitas Lancar' },
   { account_code: '2-1003', account_name: 'PPN Keluaran (11%)', account_type: 'LIABILITY', normal_balance: 'CREDIT', category_name: 'Liabilitas Lancar' },
+  { account_code: '2-1004', account_name: 'Uang Muka Penjualan (Titipan DP Konsumen)', account_type: 'LIABILITY', normal_balance: 'CREDIT', category_name: 'Liabilitas Lancar' },
   { account_code: '3-1000', account_name: 'Modal Disetor Pemilik', account_type: 'EQUITY', normal_balance: 'CREDIT', category_name: 'Ekuitas' },
   { account_code: '3-2000', account_name: 'Laba Ditahan Cabang 3', account_type: 'EQUITY', normal_balance: 'CREDIT', category_name: 'Ekuitas' },
   { account_code: '4-1000', account_name: 'Pendapatan Penjualan Ban Baru', account_type: 'REVENUE', normal_balance: 'CREDIT', category_name: 'Pendapatan Usaha' },
+  { account_code: '4-1001', account_name: 'Pendapatan Jasa Servis Roda Mobil', account_type: 'REVENUE', normal_balance: 'CREDIT', category_name: 'Pendapatan Usaha' },
   { account_code: '4-9000', account_name: 'Potongan Diskon Penjualan', account_type: 'REVENUE', normal_balance: 'DEBIT', category_name: 'Kontra Pendapatan' },
   { account_code: '5-1000', account_name: 'Harga Pokok Penjualan (HPP) Ban Baru', account_type: 'EXPENSE', normal_balance: 'DEBIT', category_name: 'Harga Pokok Penjualan' },
   { account_code: '6-1000', account_name: 'Beban Gaji & Uang Makan Karyawan', account_type: 'EXPENSE', normal_balance: 'DEBIT', category_name: 'Beban Operasional' },
@@ -260,6 +262,97 @@ export const generateVoidExpenseJournal = (
         debit: 0,
         credit: expense.amount,
         note: `Kredit koreksi pembatalan beban: ${expense.description}`,
+      },
+    ],
+  };
+};
+
+export const generateVoidSalesJournal = (
+  transaction: PosTransaction,
+  voidReason: string,
+  voidedBy: string,
+  journalCounter: number
+): JournalEntry => {
+  const cleanDate = (transaction.date || new Date().toISOString().substring(0, 10)).replace(/-/g, '').slice(0, 6);
+  const journalNumber = `JU-${cleanDate}-${String(journalCounter).padStart(4, '0')}`;
+  const refDoc = `BATAL-${transaction.reference || transaction.invoice_number}`;
+  const isCash = transaction.payment_method === 'TUNAI';
+  const cashAccountCode = isCash ? '1-1000' : '1-1001';
+  const cashAccountName = isCash ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3';
+
+  const taxAmt = transaction.tax_amount || 0;
+  const discountAmt = transaction.total_discount || 0;
+  const hppAmt = transaction.total_cost_hpp || 0;
+
+  const totalDebit = transaction.subtotal + (taxAmt > 0 ? taxAmt : 0) + hppAmt;
+  const totalCredit = transaction.grand_total + (discountAmt > 0 ? discountAmt : 0) + hppAmt;
+
+  return {
+    id: `jnl-void-pos-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    journal_number: journalNumber,
+    reference_number: journalNumber,
+    date: new Date().toISOString().substring(0, 10),
+    ref_doc: refDoc,
+    description: `[JURNAL PEMBALIK] Pembatalan Transaksi Penjualan ${transaction.invoice_number} - Pelanggan: ${transaction.customer_name || 'Umum'} (${transaction.vehicle_plate || 'Tanpa Plat'}). Alasan: ${voidReason} (Otorisasi: ${voidedBy})`,
+    status: 'POSTED',
+    total_debit: totalDebit,
+    total_credit: totalCredit,
+    lines: [
+      // 1. Debit Pendapatan Penjualan Ban Baru (membalik omzet)
+      {
+        account_code: '4-1000',
+        account_name: 'Pendapatan Penjualan Ban Baru',
+        debit: transaction.subtotal,
+        credit: 0,
+        note: `Koreksi pembatalan omzet penjualan - ${refDoc}`,
+      },
+      // 2. Debit PPN Keluaran (jika sebelumnya ada pemungutan PPN)
+      ...(taxAmt > 0
+        ? [
+            {
+              account_code: '2-1003',
+              account_name: 'PPN Keluaran (11%)',
+              debit: taxAmt,
+              credit: 0,
+              note: `Pembatalan PPN Keluaran 11% - ${refDoc}`,
+            },
+          ]
+        : []),
+      // 3. Kredit Kas / Bank (karena uang dikembalikan ke pelanggan)
+      {
+        account_code: cashAccountCode,
+        account_name: cashAccountName,
+        debit: 0,
+        credit: transaction.grand_total,
+        note: `Pengembalian dana ${transaction.payment_method} ke pelanggan - ${refDoc}`,
+      },
+      // 4. Kredit Potongan Diskon Penjualan (jika sebelumnya ada diskon)
+      ...(discountAmt > 0
+        ? [
+            {
+              account_code: '4-9000',
+              account_name: 'Potongan Diskon Penjualan',
+              debit: 0,
+              credit: discountAmt,
+              note: `Koreksi diskon penjualan - ${refDoc}`,
+            },
+          ]
+        : []),
+      // 5. Debit Persediaan Ban Baru (mengembalikan saldo aset barang dagang gudang)
+      {
+        account_code: '1-2000',
+        account_name: 'Persediaan Ban Baru Cabang 3',
+        debit: hppAmt,
+        credit: 0,
+        note: `Pengembalian fisik & aset stok ban ke gudang - ${refDoc}`,
+      },
+      // 6. Kredit HPP Ban Baru (meniadakan beban pokok penjualan)
+      {
+        account_code: '5-1000',
+        account_name: 'Harga Pokok Penjualan (HPP) Ban Baru',
+        debit: 0,
+        credit: hppAmt,
+        note: `Pembalikan beban pokok penjualan - ${refDoc}`,
       },
     ],
   };
@@ -694,7 +787,8 @@ export const calculateDynamicSakEmkmFinancials = (
   // 3. Liabilitas
   const hutangSupplier = findRow('2-1000')?.credit_balance ?? 0;
   const ppnKeluaran = findRow('2-1003')?.credit_balance ?? 0;
-  const totalLiabilities = hutangSupplier + ppnKeluaran;
+  const uangMukaDp = findRow('2-1004')?.credit_balance ?? 0;
+  const totalLiabilities = hutangSupplier + ppnKeluaran + uangMukaDp;
 
   // 4. Ekuitas
   const modalPemilik = findRow('3-1000')?.credit_balance ?? 0;

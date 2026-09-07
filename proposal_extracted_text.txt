@@ -1,0 +1,451 @@
+PERANCANGAN SISTEM POINT OF SALE DAN SISTEM INFORMASI AKUNTANSI BERBASIS WEBSITE DENGAN METODE RAPID APPLICATION DEVELOPMENT PADA TOKO BAN DAN VELG OMAH BAN CABANG 3
+
+Disusun Oleh:
+
+CATHERINE WONG
+
+23.G4.0007
+
+PROGRAM STUDI AKUNTANSI
+
+FAKULTAS EKONOMI DAN BISNIS
+
+UNIVERSITAS KATOLIK SOEGIJAPRANATA
+
+SEMARANG
+
+2026DAFTAR ISI
+
+DAFTAR ISIi
+
+BAB I PENDAHULUAN1
+
+1.1.Latar Belakang1
+
+1.2.Rumusan Masalah3
+
+1.3.Tujuan Penelitian4
+
+1.4.Manfaat Penelitian4
+
+1.4.1.Manfaat Teoritis4
+
+1.4.2.Manfaat Praktis5
+
+BAB II TINJAUAN PUSTAKA8
+
+2.1.Sistem Informasi8
+
+2.2.Sistem Informasi Akuntansi (SIA)8
+
+2.3.Laporan Keuangan10
+
+2.4.Website11
+
+2.5.Point of Sale (POS)11
+
+2.6.Rapid Application Development12
+
+2.7.Framework Laravel13
+
+2.8.Database MySQL13
+
+BAB III METODE PENELITIAN14
+
+3.1.Rasionalitas Pemilihan Jenis Penelitian14
+
+3.2.Objek dan Subjek Penelitian14
+
+3.2.1.Objek Penelitian14
+
+3.2.2.Subjek Penelitian15
+
+3.3.Metode Pengumpulan Data15
+
+3.3.1.Jenis dan Sumber Data15
+
+3.3.2.Teknik Pengumpulan Data16
+
+3.4.Metode Analisis Data17
+
+3.5.Metode Pengembangan Sistem18
+
+3.5.1.Requirement Planning18
+
+3.5.2.User Design19
+
+3.5.3.Construction19
+
+3.5.4.Cutover / Implementation20
+
+3.6.Pengujian dan Evaluasi Sistem20
+
+DAFTAR PUSTAKA21
+
+BAB I
+
+PENDAHULUAN
+
+Latar Belakang
+
+Pada usaha toko ban, velg, dan bengkel mobil, meja kasir merupakan pusat dari seluruh aktivitas pelayanan dan operasional harian. Di meja kasir inilah terjadi transaksi langsung dengan pelanggan, mulai dari penjualan ban dan velg mobil, hingga ongkos jasa servis kendaraan. Selain menghitung total tagihan dan menerima pembayaran, kasir juga bertugas mencetak bukti transaksi berupa struk belanja. Penggunaan aplikasi kasir digital atau Point of Sale (POS) saat ini menjadi kebutuhan yang sangat penting bagi pelaku Usaha Mikro, Kecil, dan Menengah (UMKM) agar proses transaksi di meja kasir berjalan lebih cepat, antrean pelanggan tidak menumpuk, dan setiap penjualan dapat tercatat secara tertib (Apriani et al., 2025; Farina & Opti, 2023; Fitriani et al., 2023).
+
+Namun, fungsi aplikasi kasir sebenarnya tidak boleh berhenti hanya sampai struk belanja selesai dicetak. Menurut Romney dan Steinbart (2018), data transaksi yang dicatat di kasir merupakan sumber data utama bagi Sistem Informasi Akuntansi (SIA), yaitu sistem yang bertugas mengolah transaksi keuangan menjadi laporan yang berguna bagi pemilik usaha untuk memantau perkembangan usahanya. Apabila aplikasi kasir tidak terhubung langsung dengan sistem pembukuan, data penjualan yang ada di kasir harus disalin dan dihitung ulang secara manual untuk membuat laporan keuangan. Oleh sebab itu, menghubungkan aplikasi kasir secara langsung dengan pembukuan keuangan toko merupakan langkah penting agar setiap transaksi penjualan di kasir dapat langsung memperbarui catatan jurnal, buku besar, dan persediaan barang secara otomatis tanpa perlu pencatatan manual berulang kali (Hall, 2013; Husodo et al., 2025; Jufri et al., 2024).
+
+Toko Ban dan Velg Omah Ban merupakan salah satu usaha UMKM di Kota Semarang yang bergerak di bidang perdagangan ban, velg, serta jasa perawatan roda kendaraan roda empat. Aktivitas perdagangan di toko ini meliputi penjualan ban mobil baru dari berbagai merek distributor resmi seperti Bridgestone, Dunlop, Accelera dan sebagainya, penjualan ban bekas, serta penjualan berbagai model velg mobil. Saat ini, Toko Omah Ban telah memiliki dua cabang yang sudah aktif beroperasi, yaitu Cabang 1 dan Cabang 2. Aktivitas transaksi harian pada Cabang 1 dan Cabang 2 berlangsung cukup ramai, di mana kasir harus melayani pelanggan secara cepat dan menerima pembayaran melalui berbagai metode, seperti uang tunai, transfer bank, QRIS, dan mesin gesek kartu EDC. Seiring dengan perkembangan usahanya, Owner Toko Omah Ban merencanakan ekspansi bisnis dengan membuka cabang baru, yaitu Omah Ban Cabang 3 (OB3) yang dijadwalkan akan resmi dibuka pada bulan Oktober 2026. Berbeda dengan cabang sebelumnya yang juga menjual ban bekas, Omah Ban Cabang 3 dirancang dengan konsep yang hanya berfokus pada penjualan ban mobil baru dari berbagai merek distributor resmi, penjualan velg baru, serta penyediaan layanan jasa perawatan roda.
+
+Berdasarkan hasil observasi dan wawancara mendalam dengan pemilik Toko Omah Ban mengenai operasional yang berjalan di Cabang 1 dan Cabang 2, sistem kasir yang ada saat ini memang sudah memadai untuk melayani transaksi kasir harian. Namun, sistem kasir tersebut belum terhubung sama sekali dengan sistem pembukuan keuangan toko. Akibatnya, setiap kali toko selesai beroperasi di malam hari Owner harus meluangkan waktu sekitar 1 hingga 2 jam hanya untuk mencocokkan nota rekap penjualan harian atau nota global dengan tumpukan nota fisik satu per satu. Proses mencocokkan nota secara manual ini menyita banyak waktu dan rawan terjadi salah hitung, terutama saat memisahkan setoran uang tunai di laci kasir dengan penerimaan non-tunai melalui QRIS, EDC, dan transfer bank. Pengalaman dua cabang sebelumnya menjadi bahan evaluasi agar kendala pencatatan tidak terulang di Cabang 3.
+
+Tantangan pencatatan menjadi semakin penting untuk diantisipasi pada Cabang 3 karena toko ini berfokus khusus pada penjualan ban baru dan velg baru. Pengadaan ban baru dari distributor resmi didatangkan secara berkala dalam beberapa kali pengiriman atau batch dengan tingkat harga beli perolehan yang dapat berubah-ubah sewaktu-waktu tergantung kondisi pasar. Selama ini, sistem kasir yang berjalan di cabang sebelumnya belum menerapkan metode alokasi biaya First-In, First-Out (FIFO), yaitu metode di mana ban yang dibeli lebih awal akan dihitung keluar lebih dahulu saat terjadi transaksi penjualan. Tanpa adanya metode FIFO otomatis yang menyatu dengan kasir, pemilik toko tidak dapat mengetahui secara pasti berapa harga modal asli atas ban yang terjual pada setiap transaksi, sehingga perhitungan keuntungan bersih menjadi kurang akurat dan nilai sisa persediaan pada neraca berpotensi tidak mencerminkan kondisi riil. Selain itu, pengecekan kesesuaian fisik stok di toko membutuhkan kartu stok mutasi otomatis agar proses stock opname dapat berjalan efisien.
+
+Selain masalah transaksi kasir dan persediaan, operasional cabang baru ini nantinya juga akan memiliki pengeluaran kas rutin untuk menunjang kegiatan bengkel, seperti upah montir dan teknisi, pembayaran listrik PLN, air PDAM, sewa bangunan toko, ongkos angkut barang, perlengkapan bengkel seperti timbel balancing dan pentil, hingga biaya perawatan berkala mesin spooring 3D. Di cabang sebelumnya, pengeluaran semacam ini kerap diambil langsung dari kas toko tanpa pembukuan berpasangan yang rapi, sehingga saldo uang kas di laci kasir sering tidak seimbang dengan hasil penjualan harian. Di sisi lain, pembelian ban baru dalam jumlah besar dari distributor resmi umumnya menggunakan sistem tempo atau kredit, yang jika hanya disimpan dalam bentuk nota kertas terpisah akan menimbulkan risiko kelalaian jatuh tempo. Oleh karena itu, Cabang 3 memerlukan modul pengeluaran dan Buku Pembantu Utang yang terstruktur.
+
+Mengingat Omah Ban Cabang 3 baru akan resmi dibuka pada bulan Oktober 2026, pemilik toko membutuhkan sebuah sistem yang sudah langsung tertata rapi sesuai Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM). Toko membutuhkan sistem yang dapat secara otomatis menyajikan Laporan Laba Rugi dengan perhitungan modal ban FIFO, Laporan Posisi Keuangan atau Neraca yang seimbang antara aset dengan hutang dan modal, serta Catatan Atas Laporan Keuangan (CALK) yang memadai (Ikatan Akuntan Indonesia, 2016). Dengan adanya sistem yang terintegrasi, pemilik toko dapat langsung memantau perkembangan keuangan, mengontrol arus kas, dan mengambil keputusan bisnis secara tepat waktu. Hubungan antara hasil evaluasi operasional, kebutuhan sistem, serta solusi yang dirancang disajikan pada Tabel 1.1 berikut.
+
+Tabel 1. 1 Hubungan Masalah Lapangan, Kebutuhan Sistem, dan Solusi
+
+Kondisi Lapangan dan Evaluasi Cabang 1 & 2
+
+Kebutuhan Khusus Omah Ban Cabang 3
+
+Solusi Sistem Informasi Terintegrasi
+
+Aplikasi kasir di cabang sebelumnya belum terhubung ke pembukuan; rekonsiliasi nota fisik harian membutuhkan 1 sampai 2 jam setiap malam.
+
+Cabang 3 membutuhkan sistem kasir yang langsung terhubung ke jurnal dan buku besar agar tidak ada lagi proses rekap nota manual di malam hari.
+
+Modul Kasir Point of Sale (POS) dengan pencatatan transaksi otomatis, cetak struk thermal 80mm, dan multi-pembayaran (Tunai, Transfer Bank, QRIS, EDC).
+
+Pengadaan ban datang dalam kelompok batch distributor dengan harga fluktuatif, dan sistem kasir lama belum menghitung modal secara otomatis.
+
+Cabang 3 yang berfokus pada ban baru dan velg baru membutuhkan kepastian harga modal per unit dan nilai sisa stok fisik yang akurat.
+
+Modul Manajemen Inventori dan Alokasi FIFO (First-In, First-Out) untuk menghitung modal ban dari batch tertua secara otomatis dan kartu stok mutasi.
+
+Pengeluaran operasional bengkel di cabang lama diambil langsung dari kas toko tanpa pembukuan berpasangan.
+
+Cabang 3 membutuhkan pencatatan biaya bengkel yang tertib agar pengeluaran kas terkontrol dan saldo kas laci kasir tetap sinkron.
+
+Modul Pengeluaran Biaya (Expenses) untuk mencatat beban bengkel sesuai kode akun standar SAK EMKM, memilih sumber dana (kas laci atau bank), dan jurnal otomatis.
+
+Pembelian ban secara tempo (kredit) dari distributor di cabang lama hanya dicatat pada tumpukan berkas nota kertas.
+
+Cabang 3 membutuhkan pengawasan tagihan faktur distributor yang jelas agar tidak terlambat membayar kewajiban jatuh tempo.
+
+Modul Buku Pembantu Hutang Supplier (Accounts Payable) yang mencatat rincian faktur tempo distributor, tanggal jatuh tempo, dan formulir pembayaran hutang.
+
+Cabang lama belum memiliki pembukuan akuntansi terintegrasi yang menghasilkan laporan keuangan standar secara berkala.
+
+Cabang 3 membutuhkan laporan keuangan yang tersusun otomatis sejak hari pertama operasional resmi toko dibuka.
+
+Pusat Akuntansi SAK EMKM Terpadu yang secara otomatis menyusun Jurnal Umum, Jurnal Penyesuaian (penyusutan mesin), Buku Besar per akun, dan Neraca Saldo seimbang.
+
+Pemilik toko kesulitan memantau perkembangan keuangan dan posisi persediaan ban secara cepat dan real-time.
+
+Pemilik toko membutuhkan pemantauan transaksi harian dan stok kritis secara langsung dari satu tempat.
+
+Modul Laporan Keuangan Otomatis SAK EMKM (Laba Rugi modal FIFO, Neraca Aset seimbang dengan Hutang dan Modal, CALK) serta Dashboard Ringkasan Bisnis Pemilik.
+
+Sumber: Peneliti (2026)
+
+Menjawab kebutuhan persiapan pembukaan cabang baru tersebut, solusi yang dirancang dalam penelitian ini adalah membangun Sistem Point of Sale (POS) dan Sistem Informasi Akuntansi (SIA) Berbasis Website yang Saling Terintegrasi Sesuai Standar SAK EMKM khusus untuk Omah Ban Cabang 3. Sistem ini dirancang dari awal untuk menyatukan fungsi kasir di bagian depan dengan pembukuan keuangan di bagian belakang. Ketika kasir memproses penjualan ban baru, velg baru, atau jasa servis di antarmuka kasir POS, sistem secara otomatis menghitung diskon, memotong persediaan ban berdasarkan harga pokok batch tertua menggunakan metode FIFO, mencetak struk belanja thermal 80mm, menyesuaikan saldo kas di laci kasir atau rekening bank, serta langsung mencatat transaksi tersebut ke dalam jurnal umum dan buku besar. Platform website dipilih agar pemilik toko dapat memantau operasional toko kapan saja melalui komputer maupun ponsel, data tersimpan aman secara terpusat, dan terdapat pembagian hak akses pengguna antara kasir, bagian gudang, dan pemilik toko (Husodo et al., 2025; Sommerville, 2016).
+
+Sistem ini dibangun menggunakan metode Rapid Application Development (RAD) yang cocok digunakan sebagai pendekatan pengembangan sistem. Metode RAD memungkinkan pembuatan sistem dilakukan secara cepat dan bertahap melalui perancangan prototipe awal yang dapat langsung diperlihatkan, disimulasikan, dan dievaluasi bersama Owner (Apriani et al., 2025; Husodo et al., 2025).
+
+Berdasarkan latar belakang dan solusi yang diajukan, penelitian ini memfokuskan pembahasannya pada judul  "Perancangan Sistem Point of Sale (POS) dan Sistem Informasi Akuntansi Berbasis Website dengan Metode Rapid Application Development pada Toko Ban dan Velg Omah Ban Cabang 3". Melalui perancangan sistem ini, diharapkan Toko Omah Ban Cabang 3 telah memiliki fondasi sistem kasir dan pembukuan yang matang, sehingga terbebas dari kendala rekonsiliasi manual, memiliki perhitungan modal persediaan yang akurat, serta dapat menghasilkan laporan keuangan standar SAK EMKM secara otomatis.
+
+Rumusan Masalah
+
+Berdasarkan uraian latar belakang yang telah dipaparkan di atas, rumusan masalah dalam penelitian ini adalah sebagai berikut:
+
+Bagaimana alur transaksi operasional yang berjalan pada Toko Ban dan Velg Omah Ban berdasarkan evaluasi cabang yang ada, serta bagaimana merumuskan kebutuhan sistem kasir dan akuntansi untuk Omah Ban Cabang 3?
+
+Bagaimana merancang arsitektur Sistem Point of Sale (POS) dan Sistem Informasi Akuntansi (SIA) berbasis website yang saling terhubung dengan menerapkan perhitungan modal ban baru metode FIFO dan pembukuan berstandar SAK EMKM khusus untuk Omah Ban Cabang 3?
+
+Bagaimana mengimplementasikan dan menguji sistem terpadu tersebut menggunakan metode Rapid Application Development (RAD), agar menghasilkan aplikasi kasir yang siap pakai serta menyajikan laporan keuangan yang akurat dan otomatis bagi pemilik toko?
+
+Tujuan Penelitian
+
+Sejalan dengan rumusan masalah tersebut, tujuan yang hendak dicapai dalam penelitian ini adalah:
+
+Menganalisis alur transaksi operasional pada Toko Ban dan Velg Omah Ban guna merumuskan kebutuhan spesifik kasir, pengelolaan persediaan ban baru dan velg, serta pelaporan keuangan pemilik toko.
+
+Merancang sistem informasi berbasis website yang menyatukan fungsi kasir Point of Sale (POS) dengan pembukuan akuntansi berstandar SAK EMKM, dilengkapi perhitungan modal persediaan metode FIFO, pencatatan biaya operasional bengkel, dan buku pembantu hutang distributor untuk Omah Ban Cabang 3.
+
+Membangun dan menguji prototipe sistem menggunakan tahapan Rapid Application Development (RAD) guna memastikan bahwa sistem telah siap beroperasi secara optimal dan mampu mengolah data transaksi kasir menjadi laporan keuangan resmi secara otomatis.
+
+Manfaat Penelitian
+
+Manfaat Teoritis
+
+Secara teoritis, penelitian ini diharapkan dapat menambah wawasan dan referensi ilmiah dalam bidang Sistem Informasi Akuntansi, khususnya mengenai perancangan sistem kasir Point of Sale (POS) yang terintegrasi langsung dengan pembukuan akuntansi standar SAK EMKM pada usaha perdagangan ban baru, velg, dan jasa servis roda mobil. Selain itu, penelitian ini juga dapat menjadi rujukan ilmiah mengenai penerapan metode Rapid Application Development (RAD) dalam merancang sistem informasi terpadu.
+
+Manfaat Praktis
+
+Secara praktis, hasil penelitian ini diharapkan dapat memberikan manfaat nyata dalam operasional harian Toko Ban dan Velg Omah Ban Cabang 3. Bagi Owner, sistem ini memberikan kesiapan operasional, memudahkan pemantauan keuangan secara jelas dan real-time, mengontrol saldo kas kasir dan rekening bank, memonitor jatuh tempo hutang distributor, serta menyajikan laporan keuangan lengkap standar SAK EMKM seperti Laporan Laba Rugi dan Neraca secara otomatis tanpa perlu menunggu rekapitulasi manual. Bagi kasir toko, sistem ini menyediakan sarana pelayanan transaksi yang cepat dan praktis melalui antarmuka kasir, mempermudah kalkulasi diskon dan berbagai metode pembayaran, mencetak struk belanja secara instan, serta mencegah terjadinya kebiasaan mencocokkan nota manual yang melelahkan di akhir jam kerja.
+
+Bagi staf bagian persediaan atau gudang, sistem ini mempermudah pencatatan pasokan ban baru dan velg dari distributor, menyediakan kartu stok mutasi otomatis, menghitung modal persediaan secara objektif dengan metode FIFO, serta memfasilitasi pemeriksaan fisik stok barang di toko. Sementara bagi peneliti dan kalangan akademisi, penelitian ini menjadi sarana penerapan terpadu antara ilmu akuntansi keuangan, akuntansi biaya persediaan, dan pengembangan perangkat lunak berbasis website untuk merancang solusi sistem yang siap guna pada dunia usaha nyata.
+
+BAB II
+
+TINJAUAN PUSTAKA
+
+Bab ini membahas teori dan konsep yang digunakan sebagai landasan dalam penelitian perancangan sistem pada Toko Ban dan Velg Omah Ban Cabang 3. Pembahasan difokuskan pada penjelasan definisi dan fungsi dari masing-masing konsep serta teknologi yang diterapkan, meliputi sistem informasi, sistem informasi akuntansi, laporan keuangan berstandar SAK EMKM beserta metode persediaan FIFO, website, Point of Sale (POS), Rapid Application Development (RAD), framework Laravel, dan database MySQL. Uraian ini disusun secara sederhana dan terarah agar sesuai dengan batasan sistem yang dibangun.
+
+Sistem Informasi
+
+Sistem informasi merupakan sekumpulan komponen yang saling terhubung untuk mengumpulkan, mengolah, menyimpan, dan menyajikan data menjadi informasi yang berguna guna mendukung pengambilan keputusan dan pengendalian dalam suatu organisasi (Laudon & Laudon, 2020; O'Brien & Marakas, 2011). Sistem informasi bekerja melalui tahapan masukan berupa data mentah, proses pengolahan, keluaran berupa informasi yang bermanfaat, serta umpan balik untuk mengevaluasi kinerja sistem (Bertalanffy, 1950).
+
+Dalam penelitian ini, sistem informasi digunakan untuk menghubungkan aktivitas pelayanan di meja kasir dan area bengkel dengan aktivitas pembukuan pemilik toko. Penerapan sistem informasi berfungsi untuk menyatukan pencatatan yang sebelumnya terpisah, sehingga data transaksi penjualan dan pengeluaran dapat langsung mengalir secara otomatis ke bagian persediaan dan laporan keuangan toko tanpa perlu disalin berulang kali secara manual (Hall, 2013).
+
+Sistem Informasi Akuntansi (SIA)
+
+Sistem Informasi Akuntansi (SIA) merupakan bagian dari sistem informasi yang bertugas mengumpulkan, mencatat, dan mengolah data transaksi keuangan menjadi informasi akuntansi yang bermanfaat bagi pemilik usaha dalam menilai perkembangan bisnisnya (Romney & Steinbart, 2018). SIA mencakup pengelolaan data transaksi penjualan, pengadaan persediaan, pencatatan beban operasional, serta pemantauan posisi kas dan utang usaha.
+
+Selain mengolah transaksi, SIA juga menerapkan pengendalian internal berupa pembagian hak akses pengguna untuk menjaga keamanan data dan aset toko (Hall, 2013). Dalam penelitian ini, SIA digunakan untuk mengelola siklus pendapatan dari transaksi kasir dan siklus pengeluaran untuk beban operasional bengkel seperti upah montir, listrik, air, sewa toko, serta biaya perawatan mesin spooring. Dengan adanya SIA, seluruh pencatatan transaksi langsung diproses menjadi jurnal umum dan buku besar secara otomatis, sehingga pemilik toko dapat memantau keuangan usaha secara transparan dan bebas dari kendala rekap nota manual di malam hari.
+
+Laporan Keuangan
+
+Laporan keuangan merupakan hasil akhir dari proses akuntansi yang menggambarkan posisi keuangan dan hasil usaha suatu entitas pada periode tertentu (Ikatan Akuntan Indonesia, 2016). Berdasarkan Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM), laporan keuangan untuk UMKM sekurang-kurangnya terdiri atas tiga jenis laporan, yaitu Laporan Posisi Keuangan (Neraca), Laporan Laba Rugi, dan Catatan atas Laporan Keuangan (CALK). Laporan posisi keuangan disusun berdasarkan persamaan dasar akuntansi yaitu Aset sama dengan Liabilitas ditambah Ekuitas. Sedangkan laporan laba rugi menyajikan perbandingan antara pendapatan usaha dikurangi Harga Pokok Penjualan (HPP) dan beban-beban operasional.
+
+Dalam penelitian ini, perancangan modul laporan keuangan difokuskan untuk menghasilkan Laporan Posisi Keuangan yang seimbang, Laporan Laba Rugi yang akurat, serta CALK yang informatif bagi pemilik toko. Terkait dengan pengelolaan persediaan ban baru dari distributor resmi, sistem menerapkan metode alokasi biaya First-In, First-Out (FIFO) sesuai ketentuan SAK EMKM Bab 10. Metode FIFO mengasumsikan bahwa barang yang dibeli lebih awal akan dihitung keluar lebih dahulu saat terjadi penjualan di kasir. Hal ini memastikan bahwa Harga Pokok Penjualan dihitung secara tepat berdasarkan harga modal kelompok pasokan (batch) tertua, dan nilai saldo persediaan pada neraca mencerminkan harga pasar terkini. Selain itu, sistem juga menyediakan modul Buku Pembantu Utang Supplier untuk mencatat dan mengawasi jatuh tempo pembayaran faktur ban tempo dari distributor resmi (Romney & Steinbart, 2018).
+
+Website
+
+Website merupakan media berbasis jaringan yang memungkinkan suatu sistem aplikasi dijalankan pada peladen (server) dan dapat diakses oleh pengguna melalui peramban web (browser) tanpa perlu memasang aplikasi secara rumit pada masing-masing perangkat (Sommerville, 2016). Sistem berbasis website memiliki keunggulan dalam fleksibilitas akses lintas perangkat dan penyimpanan data yang terpusat.
+
+Dalam konteks Toko Omah Ban Cabang 3, platform website dipilih agar sistem dapat diakses secara fleksibel sesuai peran pengguna. Kasir dapat mengoperasikan antarmuka penjualan melalui komputer di meja kasir, staf gudang dapat memeriksa stok ban melalui tablet di bengkel, dan pemilik toko dapat memantau transaksi penjualan harian serta memeriksa laporan keuangan kapan saja melalui ponsel maupun laptop. Selain itu, platform website memfasilitasi pembagian hak akses pengguna secara tegas antara kasir, staf gudang, dan pemilik toko guna menjaga keamanan data pembukuan (Hall, 2013).
+
+Point of Sale (POS)
+
+Point of Sale (POS) adalah sistem kasir yang digunakan untuk melayani transaksi penjualan langsung dengan pelanggan, mulai dari pemilihan produk atau jasa servis, penghitungan total tagihan dan diskon, penerimaan pembayaran, hingga penerbitan bukti transaksi berupa struk belanja (Apriani et al., 2025).
+
+Dalam penelitian ini, POS dirancang sebagai subsistem di bagian depan yang terhubung langsung dengan sistem akuntansi di bagian belakang. Modul POS kasir Omah Ban Cabang 3 dilengkapi antarmuka penjualan, pencatatan identitas nomor plat mobil pelanggan yang diservis, pencetakan struk belanja thermal 80mm, serta penerimaan berbagai metode pembayaran seperti uang tunai di laci kasir, transfer bank, QRIS, dan mesin gesek kartu EDC. Setiap kali kasir menyelesaikan transaksi penjualan, data POS secara otomatis membentuk ayat jurnal penjualan, memotong stok ban dengan alokasi harga pokok FIFO, dan memperbarui buku besar tanpa perlu dicatat ulang secara manual.
+
+Rapid Application Development
+
+Rapid Application Development (RAD) adalah metode pengembangan perangkat lunak yang menekankan kecepatan pembangunan aplikasi melalui pembuatan prototipe interaktif, siklus pengulangan, serta pelibatan aktif pengguna dalam memberikan evaluasi secara bertahap (Sommerville, 2016). Metode ini dijalankan melalui empat tahapan utama, yaitu tahap perencanaan kebutuhan (requirement planning), tahap desain antarmuka pengguna (user design), tahap pembangunan sistem (construction), dan tahap penerapan serta pengujian (cutover).
+
+Metode RAD dipilih karena Toko Ban dan Velg Omah Ban Cabang 3 baru akan resmi dibuka pada bulan Oktober 2026. Melalui pendekatan prototipe RAD, sistem kasir POS dan fitur akuntansi SAK EMKM dapat dirancang, disimulasikan, dan disempurnakan bersama pemilik toko dan staf. Dengan demikian, seluruh fungsi sistem telah matang, sesuai dengan alur kerja operasional, dan siap menyajikan laporan keuangan secara otomatis.
+
+Framework Laravel
+
+Framework Laravel merupakan sebuah kerangka kerja pengembangan aplikasi website berbasis bahasa pemrograman PHP yang menerapkan arsitektur Model-View-Controller (MVC) (Sommerville, 2016). Pola arsitektur MVC memisahkan kode program menjadi tiga bagian fungsi yang teratur, yaitu Model untuk mengelola logika data akuntansi dan basis data, View untuk mengatur tampilan antarmuka visual kasir dan laporan keuangan, serta Controller untuk menghubungkan aksi pengguna dengan pemrosesan data.
+
+Dalam penelitian ini, framework Laravel digunakan untuk mempercepat proses pengkodean perangkat lunak dan menjaga struktur sistem tetap teratur. Selain itu, Laravel menyediakan fitur keamanan bawaan yang andal, seperti perlindungan terhadap serangan data dan validasi masukan formulir transaksi, sehingga data keuangan toko tersimpan dengan aman dan terlindung dari risiko kerusakan data (Sommerville, 2016).
+
+Database MySQL
+
+MySQL adalah sistem manajemen basis data relasional (Relational Database Management System / RDBMS) berbasis SQL yang digunakan untuk menyimpan, mengelola, dan mengorganisasikan data transaksi ke dalam tabel-tabel yang saling berhubungan melalui kunci relasi (O'Brien & Marakas, 2011). MySQL mendukung integritas data transaksi yang tinggi melalui prinsip keutuhan (atomicity) dan konsistensi (consistency), yang memastikan bahwa seluruh proses pencatatan kasir dan penjurnalan debit kredit tersimpan secara seimbang dan tidak terpotong di tengah jalan.
+
+Di dalam sistem Toko Ban dan Velg Omah Ban Cabang 3, basis data MySQL berfungsi sebagai tempat penyimpanan data terpusat untuk menghubungkan tabel master ban dan velg, tabel kelompok pengiriman (batch) distributor, tabel jasa servis bengkel, tabel transaksi penjualan kasir, tabel pengeluaran biaya bengkel, serta tabel jurnal umum dan akun SAK EMKM. Dengan adanya basis data relasional ini, pencarian data persediaan menjadi cepat dan penyusunan laporan keuangan dapat dilakukan secara otomatis dan konsisten.
+
+BAB III
+
+METODE PENELITIAN
+
+Rasionalitas Pemilihan Jenis Penelitian
+
+Penelitian ini menggunakan pendekatan kualitatif dengan metode studi kasus (case study). Pendekatan kualitatif dipilih karena penelitian ini bertujuan untuk memahami secara mendalam alur operasional pelayanan kasir, alur pengerjaan jasa bengkel, serta kendala pembukuan manual yang dialami oleh entitas usaha di lapangan (Creswell & Poth, 2018). Penelitian ini tidak ditujukan untuk menguji hipotesis atau hubungan antarvariabel secara statistik, melainkan untuk menggali fenomena nyata mengenai pencatatan transaksi harian dan menggunakan pemahaman tersebut sebagai landasan perancangan sistem informasi yang sesuai dengan kebutuhan pengguna.
+
+Metode studi kasus diterapkan karena penelitian ini berfokus pada satu unit entitas usaha secara mendalam, yaitu Toko Ban dan Velg Omah Ban. Menurut Yin (2018), studi kasus sangat tepat digunakan untuk menjawab pertanyaan penelitian yang berfokus pada "bagaimana", khususnya bagaimana alur transaksi operasional berjalan, bagaimana merumuskan kebutuhan sistem kasir dan akuntansi, serta bagaimana merancang dan menguji sistem informasi terpadu tersebut. Melalui pendekatan studi kasus, peneliti dapat menangkap konteks spesifik toko, seperti dinamika transaksi cepat di meja kasir, pengadaan ban baru secara bertahap dari distributor resmi dengan harga fluktuatif, dan kebutuhan pelaporan keuangan berstandar SAK EMKM.
+
+Penelitian ini memadukan analisis deskriptif kualitatif untuk mengidentifikasi masalah dan kebutuhan lapangan dengan metode rekayasa perangkat lunak Rapid Application Development (RAD). Dengan integrasi ini, data empiris yang diperoleh dari wawancara, observasi, dan dokumentasi diterjemahkan secara langsung ke dalam bentuk prototipe antarmuka kasir dan modul akuntansi yang disimulasikan bersama pemilik toko sebelum diterapkan secara definitif (Sommerville, 2016).
+
+Objek dan Subjek Penelitian
+
+Objek Penelitian
+
+Objek dalam penelitian ini adalah Toko Ban dan Velg Omah Ban Cabang 3 (OB3) yang berlokasi di Kabupaten Magelang. Omah Ban Cabang 3 merupakan unit usaha baru yang akan resmi dibuka pada bulan Oktober 2026. Penelitian ini berfokus pada perancangan sistem informasi kasir POS dan SIA. Evaluasi mendalam terhadap alur operasional di Cabang 1 dan Cabang 2 untuk mengatasi kendala pencatatan nota manual harian yang dilakukan setiap malam, hal ini ditunjukkan oleh belum adanya perhitungan modal ban berbasis FIFO secara otomatis dan pencatatan utang serta biaya bengkel sesuai standar SAK EMKM.
+
+Subjek Penelitian
+
+Subjek penelitian merupakan pihak-pihak yang terlibat langsung dalam aktivitas operasional, pengelolaan persediaan, pencatatan transaksi kasir, dan pengambilan keputusan keuangan di Toko Ban dan Velg Omah Ban. Pemilihan informan dilakukan secara purposif (purposive sampling), yaitu memilih individu yang memiliki wewenang, pengalaman langsung, dan pemahaman mendalam mengenai proses bisnis toko sehingga dapat memberikan data yang relevan bagi perancangan sistem (Creswell & Poth, 2018).
+
+Tabel 3.1 Daftar Informan Penelitian
+
+No
+
+Informan
+
+Posisi / Jabatan
+
+Peran dan Kontribusi dalam Penelitian
+
+1
+
+Informan 1
+
+Pemilik Toko (Owner)
+
+Memberikan informasi mengenai arah kebijakan usaha, evaluasi operasional cabang sebelumnya, kendala rekonsiliasi nota harian di malam hari, kebutuhan Laporan Keuangan SAK EMKM (Laba Rugi modal FIFO, Neraca seimbang, CALK), pemantauan saldo kas laci dan rekening bank, serta mengevaluasi prototipe sistem.
+
+2
+
+Informan 2
+
+Petugas Kasir (Cashier)
+
+Menjelaskan alur transaksi langsung dengan pelanggan di meja kasir, penerapan berbagai metode pembayaran (tunai, transfer bank, QRIS, mesin EDC), serta memberikan masukan terhadap desain antarmuka POS.
+
+3
+
+Informan 3
+
+Staf Gudang
+
+Menjelaskan proses penerimaan ban baru dari distributor resmi (goods receipt), pencatatan nomor batch dan harga perolehan, alur pengeluaran ban ke area bengkel, serta prosedur pemeriksaan fisik barang (stock opname).
+
+Sumber: Peneliti (2026)
+
+Ketiga informan di atas dipilih karena mewakili seluruh dimensi operasional toko yang akan didukung oleh sistem informasi. Pemilik toko memegang wewenang tertinggi dalam persetujuan pengeluaran beban operasional bengkel, pemantauan laba bersih, dan pengawasan utang tempo distributor. Kasir merupakan pengguna utama antarmuka penjualan di bagian depan yang membutuhkan proses pelayanan cepat, pencatatan identitas nomor plat mobil pelanggan dan pencetakan struk instan. Sementara admin gudang bertanggung jawab atas mutasi barang fisik yang menjadi dasar keakuratan perhitungan alokasi persediaan metode FIFO di dalam sistem.
+
+Metode Pengumpulan Data
+
+Jenis dan Sumber Data
+
+Penelitian ini menggunakan dua jenis data, yaitu data primer dan data sekunder. Data primer merupakan data yang diperoleh secara langsung dari sumber pertama di lapangan melalui wawancara mendalam dengan informan dan observasi langsung terhadap alur pelayanan kasir serta kegiatan bengkel di toko. Data primer mencakup penjelasan mengenai alur penjualan ban baru, cara penanganan pembayaran multi-metode, kebiasaan pencatatan pengeluaran bengkel, serta keluhan mengenai proses rekapitulasi nota fisik yang melelahkan di akhir jam kerja (Creswell & Poth, 2018).
+
+Data sekunder merupakan data pendukung yang diperoleh secara tidak langsung dari dokumen-dokumen operasional toko dan kepustakaan ilmiah yang relevan. Data sekunder mencakup berkas nota penjualan tunai, nota rekap penjualan harian atau nota global, nota kuning bengkel, faktur pembelian tempo dari distributor resmi, bukti kuitansi pembayaran beban listrik dan perlengkapan bengkel, buku Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM), serta literatur ilmiah mengenai sistem informasi akuntansi dan rekayasa perangkat lunak (Miles et al., 2014).
+
+Teknik Pengumpulan Data
+
+Pengumpulan data dalam penelitian ini dilakukan melalui tiga teknik utama yang saling melengkapi, yaitu wawancara, observasi, dan dokumentasi:
+
+Wawancara: Wawancara dilakukan secara tatap muka dengan pemilik toko, petugas kasir, dan staf gudang menggunakan teknik wawancara. Teknik ini memungkinkan peneliti untuk memperoleh informasi mendalam namun tetap fleksibel. Topik wawancara mencakup alur pelayanan kasir harian, tata cara pemberian diskon, pencatatan nomor plat kendaraan yang diservis, kendala pemisahan setoran uang tunai dengan penerimaan non-tunai, fluktuasi harga beli ban dari distributor, pembayaran beban bengkel dari kas laci, serta format laporan keuangan yang dibutuhkan oleh pemilik toko menjelang pembukaan Cabang 3.
+
+Observasi: Observasi dilakukan dengan mengamati secara langsung aktivitas pelayanan dan proses kerja di Toko Ban dan Velg Omah Ban. Peneliti mengamati bagaimana kasir melayani konsumen yang membeli ban baru dan memesan jasa, cara kasir mencatat identitas kendaraan, proses verifikasi bukti transfer dan pembayaran EDC, serta bagaimana pemilik toko dan Owner meluangkan waktu di malam hari saat toko tutup untuk mencocokkan tumpukan nota fisik satu per satu. Observasi ini memberikan pemahaman faktual mengenai alur kerja riil yang harus diotomatisasi oleh sistem baru.
+
+Dokumentasi: Dokumentasi dilakukan dengan mengumpulkan, memeriksa, dan menganalisis berkas-berkas bukti transaksi fisik yang digunakan dalam operasional toko. Dokumen yang dikumpulkan meliputi lembaran nota kasir, faktur tempo distributor ban resmi, catatan mutasi stok manual, serta catatan pengeluaran kas harian. Analisis dokumentasi ini bertujuan untuk memetakan parameter data apa saja yang wajib dimasukkan ke dalam basis data sistem, seperti ukuran ring ban, kode distributor, nomor nota unik, tarif jasa servis, dan bagan akun akuntansi standar SAK EMKM .
+
+Metode Analisis Data
+
+Analisis data dalam penelitian ini dilakukan menggunakan analisis deskriptif kualitatif model Miles, Huberman, dan Saldaña (2014). Model ini terdiri atas tiga alur kegiatan yang berlangsung secara bersamaan dan berkesinambungan, yaitu reduksi data (data reduction), penyajian data (data display), serta penarikan kesimpulan dan verifikasi (conclusion drawing and verification).
+
+Reduksi data merupakan proses memilih, menyederhanakan, memfokuskan, dan mentransformasikan data mentah yang diperoleh dari rekaman wawancara, catatan observasi lapangan, dan dokumen transaksi. Peneliti mengelompokkan data ke dalam tema-tema pokok, seperti alur pelayanan kasir POS, alur pengadaan ban baru bertahap (batch), alur pengeluaran biaya bengkel, dan kebutuhan laporan keuangan SAK EMKM. Informasi yang tidak relevan dengan perancangan sistem disisihkan, sehingga tersisa intisari permasalahan operasional yang menjadi dasar perumusan kebutuhan sistem.
+
+Tabel 3.2 Contoh Analisis Kebutuhan Sistem Informasi Omah Ban Cabang 3
+
+Kondisi Lapangan dan Temuan Masalah
+
+Dampak Operasional dan Risiko Finansial
+
+Kebutuhan Solusi Sistem Informasi Terpadu
+
+di cabang sebelumnya Owner  mencatat transaksi kasir secara terpisah dari pembukuan, sehingga pencocokan nota fisik dilakukan manual setiap malam.
+
+Menyita waktu yang cukup lama setelah toko tutup, menimbulkan pekerjaan tambahan dan rawan salah hitung setoran kas dengan penerimaan non-tunai.
+
+Modul Kasir Point of Sale (POS) dengan pencatatan nomor plat mobil, cetak struk thermal 80mm, multi-metode pembayaran, dan otomasi ayat jurnal umum.
+
+Pengadaan ban baru dari distributor resmi datang dalam beberapa batch dengan harga fluktuatif, namun sistem kasir lama belum menghitung modal ban secara otomatis.
+
+Pemilik toko kesulitan mengetahui harga pokok asli atas ban yang terjual, laba kotor tidak akurat, dan nilai persediaan pada neraca berpotensi terdistorsi.
+
+Modul Manajemen Persediaan dengan Mesin Alokasi Biaya FIFO (First-In, First-Out) otomatis per batch, kartu stok mutasi, dan formulir penyesuaian fisik (stock opname).
+
+Biaya harian bengkel (upah teknisi, listrik, sewa, timbel, dan perawatan mesin spooring) diambil langsung dari kas toko tanpa pembukuan berpasangan.
+
+Saldo fisik uang tunai di laci kasir sering tidak seimbang dengan hasil penjualan dan beban operasional tidak tercatat tertib di laporan laba rugi.
+
+Modul Pengeluaran Biaya (Expenses) untuk mencatat beban bengkel sesuai kode akun SAK EMKM dengan pemilihan sumber dana (kas laci atau rekening bank).
+
+Pembelian ban baru tempo kredit 30 hari dari distributor resmi hanya dicatat dalam tumpukan berkas nota kertas terpisah.
+
+Risiko kelalaian pembayaran jatuh tempo yang dapat mengganggu hubungan kemitraan dengan distributor resmi.
+
+Modul Buku Pembantu Utang Supplier (Accounts Payable) untuk mengawasi faktur tempo, tanggal jatuh tempo, dan riwayat pembayaran cicilan kas.
+
+Cabang lama belum memiliki sistem pembukuan terintegrasi yang menghasilkan laporan keuangan standar secara berkala.
+
+Owner kesulitan memantau kondisi keuangan riil, posisi ekuitas, dan laba bersih usaha secara objektif.
+
+Pusat Akuntansi SAK EMKM Terpadu yang menyajikan Jurnal Umum, Buku Besar, Neraca Saldo, Laporan Laba Rugi modal FIFO, Laporan Posisi Keuangan (Neraca), dan CALK.
+
+Sumber: Peneliti (2026)
+
+Penarikan kesimpulan dan verifikasi dilakukan dengan menginterpretasikan pola kebutuhan sistem pada Tabel 3.2. Peneliti menggunakan teknik triangulasi sumber dan metode (Miles et al., 2014) melalui pembandingan hasil wawancara, verifikasi bukti nota, dan konfirmasi alur kerja sistem kepada pemilik toko untuk memastikan ketepatan rumusan kebutuhan.
+
+Metode Pengembangan Sistem
+
+Penelitian ini menggunakan metode Rapid Application Development (RAD) sebagai pendekatan perangkat lunak dalam membangun sistem terpadu POS dan SIA berbasis website pada Toko Ban dan Velg Omah Ban Cabang 3. Metode RAD dipilih karena memiliki siklus pembangunan yang cepat, berbasis pembuatan prototipe interaktif (working prototype), dan melibatkan calon pengguna secara intensif dalam setiap tahapan pengembangan (Sommerville, 2016; Husodo et al., 2024).
+
+Requirement Planning
+
+Tahap perencanaan kebutuhan dilakukan dengan menggabungkan hasil observasi operasional, wawancara, dan dokumen guna menetapkan batasan ruang lingkup serta spesifikasi fungsional sistem informasi. Pada tahap ini, peneliti bersama pemilik toko mendefinisikan seluruh fungsi yang harus dibangun di dalam sistem baru Omah Ban Cabang 3.
+
+Kebutuhan fungsional yang ditetapkan meliputi antarmuka kasir POS dengan kategori ban baru dan jasa servis, pencatatan identitas nomor plat mobil, kalkulasi diskon, penerimaan multi-metode pembayaran (tunai laci kasir, transfer bank, QRIS, dan mesin EDC), pencetakan struk belanja thermal 80mm, pencatatan penerimaan ban baru per batch distributor, alokasi harga modal ban metode FIFO otomatis, pencatatan beban operasional bengkel, buku pembantu utang supplier tempo, serta penyusunan otomatis jurnal umum berpasangan, buku besar, neraca saldo, Laporan Laba Rugi, Laporan Posisi Keuangan (Neraca), dan CALK berstandar SAK EMKM (Husodo et al., 2024).
+
+User Design
+
+Tahap desain pengguna merupakan proses penerjemahan kebutuhan fungsional ke dalam model perancangan sistem dan antarmuka visual yang dilakukan secara interaktif bersama calon pengguna. Peneliti menyusun diagram alir sistem (flowchart), diagram hubungan antarentitas (Entity Relationship Diagram / ERD), serta prototipe antarmuka pengguna (user interface prototype).
+
+Dalam tahapan ini, pemilik toko, kasir, dan staf gudang dilibatkan secara langsung untuk melihat, mencoba, dan memberikan masukan terhadap rancangan tampilan layar kasir POS, formulir penerimaan barang masuk distributor, formulir penginputan beban bengkel, serta tata letak penyajian laporan keuangan. Masukan pengguna langsung digunakan oleh peneliti untuk memperbaiki tata letak tombol, menyederhanakan alur pembayaran kasir, dan memastikan bahwa antarmuka sistem mudah dioperasikan oleh staf toko (Sommerville, 2016).
+
+Construction
+
+Tahap konstruksi merupakan tahap penulisan baris kode program dan penyusunan struktur basis data relasional berdasarkan desain prototipe yang telah disetujui pada tahapan sebelumnya. Sistem dibangun berbasis website menggunakan arsitektur Model-View-Controller (MVC) dengan bahasa pemrograman web modern dan basis data relasional MySQL.
+
+Pada tahapan konstruksi ini, peneliti menanamkan logika akuntansi penting ke dalam baris kode program, yang meliputi pemotongan kuantitas dari batch pembelian tertua secara otomatis saat penjualan kasir (mesin alokasi FIFO), pembentukan ayat jurnal umum debit dan kredit secara otomatis pada setiap transaksi penjualan dan pengeluaran kas, kalkulasi saldo berjalan buku besar, serta penyusunan formula neraca saldo seimbang (balanced trial balance) yang menjadi sumber data bagi Laporan Laba Rugi, Laporan Posisi Keuangan, dan CALK (Apriani et al., 2025; Husodo et al., 2024).
+
+Cutover / Implementation
+
+Tahap peralihan merupakan tahap finalisasi di mana perangkat lunak yang telah dibangun diuji secara menyeluruh sebelum diterapkan pada operasional toko. Peneliti melakukan pengujian fungsionalitas sistem, simulasi transaksi penjualan dan pengadaan barang secara komprehensif.
+
+Melalui tahapan ini, kestabilan sistem dipastikan, data awal saldo kas dan master ban baru distributor dimasukkan ke dalam basis data, dan seluruh pengguna dipastikan telah memahami cara pengoperasian sistem. Dengan demikian, seluruh operasional kasir dan pembukuan keuangan SAK EMKM telah siap berjalan secara optimal (Sommerville, 2016).
+
+Pengujian dan Evaluasi Sistem
+
+Pengujian sistem dilakukan menggunakan metode pengujian fungsionalitas Black-Box Testing. Pengujian Black-Box Testing berfokus pada pengujian fungsi luar perangkat lunak tanpa harus memeriksa struktur internal kode program (Sommerville, 2016). Pengujian ini dilakukan dengan memberikan sejumlah skenario masukan data (input) pada masing-masing modul sistem, kemudian memverifikasi apakah keluaran (output) yang dihasilkan telah sesuai dengan hasil yang diharapkan berdasarkan kaidah operasional dan logika akuntansi.
+
+Skenario pengujian Black-Box Testing mencakup pengujian modul kasir POS (kecepatan pencarian ban, kalkulasi diskon, multi-metode pembayaran tunai dan non-tunai, serta pencetakan struk thermal 80mm), pengujian mesin alokasi biaya FIFO (pemotongan kuantitas batch tertua dan pencatatan nilai HPP), pengujian modul beban kas bengkel, pengujian buku pembantu utang distributor, pengujian otomasi jurnal umum berpasangan, serta pengujian keseimbangan debit dan kredit pada Neraca Saldo dan Laporan Posisi Keuangan.
+
+Evaluasi sistem dilakukan melalui penelaahan umpan balik pengguna (user acceptance feedback) setelah pengujian fungsional selesai dilakukan. Evaluasi ini melibatkan pemilik toko, calon kasir, dan staf gudang dengan menilai empat aspek utama, yaitu kemudahan pengoperasian antarmuka kasir layar sentuh (usability), kesesuaian modul dengan alur transaksi nyata di bengkel, kecepatan sistem dalam memproses transaksi kasir, serta keandalan dan kelengkapan informasi keuangan yang disajikan pada laporan keuangan SAK EMKM.
+
+DAFTAR PUSTAKA
+
+Apriani, R., Haerani, R., Nugroho, P. A., & Farisi, I. (2025). Development of a web-based point of sale application using the Laravel framework. JURTEKSI (Jurnal Teknologi dan Sistem Informasi), 11(3), 549–556. https://doi.org/10.33330/jurteksi.v11i3.3918
+
+Bertalanffy, L. von. (1950). An outline of general system theory. The British Journal for the Philosophy of Science, 1(2), 134–165. https://doi.org/10.1093/bjps/I.2.134
+
+Creswell, J. W., & Poth, C. N. (2018). Qualitative inquiry and research design: Choosing among five approaches (4th ed.). SAGE Publications.
+
+Delvia, N., Nugroho, A. C., & Koeswoyo, G. F. (2024). Development of a web-based school budget planning and revenue accounting information system using Agile method. SISFORMA: Journal of Information Systems, 11(2), 120–126. https://doi.org/10.24167/sisforma.v11i2.11116
+
+Farina, K., & Opti, S. (2023). Pengaruh pemanfaatan sistem informasi akuntansi dan penggunaan teknologi informasi terhadap kinerja UMKM. Jesya, 6(1), 704–713. https://doi.org/10.36778/jesya.v6i1.1007
+
+Fitriani, F. S., Harahap, R. D., & Nurlaila. (2023). Perkembangan UMKM di Indonesia: Peran pemahaman akuntansi, teknologi informasi dan sistem informasi akuntansi. Owner: Riset dan Jurnal Akuntansi, 7(3), 2518–2527. https://doi.org/10.33395/owner.v7i3.1427
+
+Haerani, R., Nugroho, P. A., & Ansor, A. S. (2024). Implementation of the FAST method in a web-based inventory information system. JURTEKSI (Jurnal Teknologi dan Sistem Informasi), 10(3), 483–490. https://doi.org/10.3330/jurteksi.v10i3.3089
+
+Hall, J. A. (2013). Accounting information systems (8th ed.). South-Western Cengage Learning.
+
+Hanifah, R. U., Rizkiana, C., Agusrina, Y., Sulistyawati, A. I., & Santoso, A. (2024). Implikasi peran financial technology dalam meningkatkan efektivitas Sistem Informasi Akuntansi. Owner: Riset dan Jurnal Akuntansi, 8(1), 355–362. https://doi.org/10.33395/owner.v8i1.1792
+
+Husodo, C., Nugroho, A. C., & Widjaja, A. A. (2024). Implementation of web based accounting information system using Rapid Application Development (RAD). SISFORMA: Journal of Information Systems, 11(2), 91–101. https://doi.org/10.24167/sisforma.v11i2.4579
+
+Ikatan Akuntan Indonesia. (2016). Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah. Ikatan Akuntan Indonesia.
+
+Itsnaini, F. M., Setiawan, D., & Aryani, Y. A. (2024). Determinant implementation of accounting digitalization in MSMEs. The Asian Journal of Technology Management, 17(1), 1–13. https://doi.org/10.12695/ajtm.2024.17.1.1
+
+Jufri, A., Hadiwibowo, I., Safitri, N., & Dewi, V. A. K. (2024). The influence of accounting information systems and HR competence on the performance of MSMEs mediated by e-commerce. Jurnal Riset Akuntansi dan Keuangan, 12(2), 979–996. https://doi.org/10.17509/jrak.v12i2.70044
+
+Khusnah, M., Gernowo, R., & Surarso, B. (2025). Implementasi e-commerce dengan sistem informasi rekomendasi menggunakan metode collaborative filtering untuk pengembangan penjualan pada UMKM. Jurnal Sistem Informasi Bisnis, 15(1), 134–141. https://doi.org/10.14710/vol15iss1pp134-141
+
+Krisnata, F. A., Nugroho, A. C., & Koeswoyo, G. F. (2024). Application of Agile method in web-based accounting information system innovation to support decision making at Canisius Foundation Surakarta Branch. SISFORMA: Journal of Information Systems, 11(2), 127–134. https://doi.org/10.24167/sisforma.v11i2.11119
+
+Laudon, K. C., & Laudon, J. P. (2020). Management information systems: Managing the digital firm (16th ed.). Pearson.
+
+Miles, M. B., Huberman, A. M., & Saldaña, J. (2014). Qualitative data analysis: A methods sourcebook (3rd ed.). SAGE Publications.
+
+O’Brien, J. A., & Marakas, G. M. (2011). Management information systems (10th ed.). McGraw-Hill/Irwin.
+
+Romney, M. B., & Steinbart, P. J. (2018). Accounting information systems (14th ed.). Pearson.
+
+Salsabila, M., Nasution, Y. S. J., & Hasibuan, N. A. (2024). Penerapan sistem informasi akuntansi berbasis mobile bagi peningkatan kinerja UMKM. Keberlanjutan: Jurnal Manajemen dan Jurnal Akuntansi, 9(1), 49–60. https://doi.org/10.32493/keberlanjutan.v9i1.y2024.p49-60
+
+Sommerville, I. (2016). Software engineering (10th ed.). Pearson.
+
+Susetyo, A., Suliyanto, S., Susilowati, D., Herwiyanti, E., & Lestari, P. (2024). Sistem Informasi Akuntansi Manajemen, orientasi pasar dan kinerja UMKM: Peran mediasi kemampuan inovasi. Owner: Riset dan Jurnal Akuntansi, 8(3), 3018–3027. https://doi.org/10.33395/owner.v8i3.2135
+
+Yin, R. K. (2018). Case study research and applications: Design and methods (6th ed.). SAGE Publications.

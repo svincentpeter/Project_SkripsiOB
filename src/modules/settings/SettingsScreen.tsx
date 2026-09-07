@@ -19,19 +19,26 @@ import {
   Eye,
   FileText
 } from 'lucide-react';
-import { StoreSettings } from '../../shared/types';
-import { INITIAL_STORE_SETTINGS } from '../../shared/data/mockData';
+import { RolePermissionsConfig, StoreSettings, UserSession } from '../../shared/types';
+import { DEFAULT_ROLE_PERMISSIONS, DEFAULT_USERS, INITIAL_STORE_SETTINGS } from '../../shared/data/mockData';
+import { RolePermissionsTab } from './components/RolePermissionsTab';
 
 interface SettingsScreenProps {
   settings: StoreSettings;
   onSaveSettings: (newSettings: StoreSettings) => void;
+  currentUser?: UserSession;
+  currentPermissions?: RolePermissionsConfig;
+  onSavePermissions?: (newConfig: RolePermissionsConfig) => void;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   settings,
   onSaveSettings,
+  currentUser = DEFAULT_USERS[0],
+  currentPermissions = DEFAULT_ROLE_PERMISSIONS,
+  onSavePermissions,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'invoice' | 'payment' | 'accounting'>('profile');
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'invoice' | 'payment' | 'accounting' | 'roles'>('profile');
   const [formData, setFormData] = useState<StoreSettings>({ ...settings });
   const [saveSuccessToast, setSaveSuccessToast] = useState(false);
 
@@ -149,10 +156,31 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <Sliders className="w-4 h-4" />
           <span>Preferensi SAK EMKM</span>
         </button>
+
+        {currentUser.role === 'OWNER' && (
+          <button
+            onClick={() => setActiveSubTab('roles')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeSubTab === 'roles'
+                ? 'bg-blue-700 text-white shadow-xs'
+                : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span>Wewenang & Hak Akses (RBAC)</span>
+          </button>
+        )}
       </div>
 
-      {/* Tab Content Form */}
-      <form onSubmit={handleSave} className="space-y-6">
+      {activeSubTab === 'roles' ? (
+        <RolePermissionsTab
+          currentUser={currentUser}
+          currentPermissions={currentPermissions}
+          onSavePermissions={onSavePermissions || (() => {})}
+        />
+      ) : (
+        /* Tab Content Form */
+        <form onSubmit={handleSave} className="space-y-6">
         
         {/* SUBTAB 1: PROFIL TOKO & CABANG */}
         {activeSubTab === 'profile' && (
@@ -500,6 +528,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 };

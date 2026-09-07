@@ -31,6 +31,9 @@ export const calculateCartTotals = (
   const grandTotal = taxableAmount + tax;
 
   const totalHpp = cart.reduce((acc, item) => {
+    if (item.custom_hpp !== undefined) {
+      return acc + item.custom_hpp * item.qty;
+    }
     if (item.item_type === 'SERVICE') {
       return acc + (item.service?.cost_price || 0) * item.qty;
     }

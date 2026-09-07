@@ -24,10 +24,13 @@ import {
   Edit3,
   CreditCard,
   ArrowRight,
-  ShoppingCart
+  ShoppingCart,
+  Droplets,
+  Sparkles
 } from 'lucide-react';
 import { 
   CartItem, 
+  ParkedTransaction,
   PaymentMethod, 
   PosTransaction, 
   ProductItem, 
@@ -44,7 +47,10 @@ import {
 import { 
   BookingDpModal, 
   BookingListDrawer, 
-  CartLineEditModal 
+  CartLineEditModal,
+  ParkedOrdersDrawer,
+  CheckoutModal,
+  ManualItemForm
 } from './components';
 import { useToast } from '../../shared/components';
 
@@ -52,11 +58,14 @@ interface PosScreenProps {
   products: ProductItem[];
   services?: ServiceMasterItem[];
   bookings?: SalesBookingRecord[];
+  parkedOrders?: ParkedTransaction[];
   cart: CartItem[];
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
   onCompleteSale: (transaction: PosTransaction) => void;
   onSaveBooking?: (booking: SalesBookingRecord) => void;
   onConvertBooking?: (bookingId: string) => void;
+  onSaveParkedOrder?: (order: ParkedTransaction) => void;
+  onDeleteParkedOrder?: (orderId: string) => void;
   cashierName: string;
   cashInDrawer: number;
   timeString: string;
@@ -69,11 +78,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   products,
   services = [],
   bookings = [],
+  parkedOrders = [],
   cart,
   setCart,
   onCompleteSale,
   onSaveBooking,
   onConvertBooking,
+  onSaveParkedOrder,
+  onDeleteParkedOrder,
   cashierName,
   cashInDrawer,
   timeString,
@@ -82,7 +94,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 }) => {
   const toast = useToast();
   const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
-  const [catalogTab, setCatalogTab] = useState<'ALL' | 'BAN_BARU' | 'VELG' | 'BAN_DALAM' | 'SERVICES'>('ALL');
+  const [catalogTab, setCatalogTab] = useState<'BAN_BARU' | 'VELG' | 'OLI_PELUMAS' | 'BAN_DALAM' | 'SERVICES' | 'MANUAL'>('BAN_BARU');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRing, setSelectedRing] = useState<string>('ALL');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
@@ -99,6 +111,12 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [editLineIndex, setEditLineIndex] = useState<number | null>(null);
   const [showBookingDpModal, setShowBookingDpModal] = useState<boolean>(false);
   const [showBookingListDrawer, setShowBookingListDrawer] = useState<boolean>(false);
+  const [showParkedDrawer, setShowParkedDrawer] = useState<boolean>(false);
+  const [printTransaction, setPrintTransaction] = useState<PosTransaction | null>(null);
+
+  const [cartMode, setCartMode] = useState<'REGULAR' | 'BON' | 'DP'>('REGULAR');
+  const [showCheckoutModal, setShowCheckoutModal] = useState<boolean>(false);
+  const [checkoutInitialTag, setCheckoutInitialTag] = useState<'REGULAR' | 'BON'>('REGULAR');
 
   const [activeBookingSourceId, setActiveBookingSourceId] = useState<string | null>(null);
   const [appliedDpAmount, setAppliedDpAmount] = useState<number>(0);
@@ -116,10 +134,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const filteredProducts = isEmptyState
+  const filteredProducts = isEmptyState || catalogTab === 'SERVICES' || catalogTab === 'MANUAL'
     ? []
     : products.filter((prod) => {
-        if (catalogTab !== 'ALL' && prod.category !== catalogTab) return false;
+        if (prod.category !== catalogTab) return false;
 
         const q = searchQuery.toLowerCase().trim();
         const matchesQuery =
@@ -137,10 +155,9 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         return matchesQuery && matchesRing && matchesBrand && prod.is_active !== false;
       });
 
-  const filteredServices = isEmptyState
+  const filteredServices = isEmptyState || catalogTab !== 'SERVICES'
     ? []
     : services.filter((srv) => {
-        if (catalogTab !== 'ALL' && catalogTab !== 'SERVICES') return false;
         const q = searchQuery.toLowerCase().trim();
         const matchesQuery =
           !q ||
@@ -150,6 +167,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
         return matchesQuery && srv.is_active !== false;
       });
+
+  const handleAddToCartManual = (item: CartItem) => {
+    setCart((prevCart) => [...prevCart, item]);
+  };
 
   const handleAddToCart = (product: ProductItem) => {
     const stockAvailable = product.stock || product.product_quantity || 0;
@@ -247,9 +268,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const cashTenderedVal = parseRupiahInput(cashTenderedInput);
   const changeAmount = paymentMethod === 'TUNAI' ? Math.max(0, cashTenderedVal - netPayable) : 0;
 
-  const handleCheckoutSale = (isBon: boolean = false) => {
+  const handleCheckoutSale = (
+    isBon: boolean = false,
+    overrideMethod?: PaymentMethod,
+    overrideCash?: number,
+    overrideNotes?: string
+  ) => {
     if (cart.length === 0) return;
-    if (!isBon && paymentMethod === 'TUNAI' && cashTenderedVal < netPayable) return;
+    const finalMethod = overrideMethod || paymentMethod;
+    const finalCash = overrideCash !== undefined ? overrideCash : cashTenderedVal;
+    if (!isBon && finalMethod === 'TUNAI' && finalCash < netPayable) return;
 
     const invoiceNo = generateInvoiceNumber();
     const transaction = createPosTransactionRecord(
@@ -258,13 +286,17 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       customerName,
       vehiclePlate,
       vehicleModel,
-      paymentMethod,
-      isBon ? 0 : paymentMethod === 'TUNAI' ? cashTenderedVal : netPayable,
+      finalMethod,
+      isBon ? 0 : finalMethod === 'TUNAI' ? finalCash : netPayable,
       cashierName,
       applyTax ? 11 : 0,
       manualDiscount,
       isBon
     );
+
+    if (overrideNotes) {
+      transaction.notes = `${transaction.notes ? transaction.notes + ' | ' : ''}${overrideNotes}`;
+    }
 
     if (appliedDpAmount > 0) {
       transaction.notes = `${transaction.notes ? transaction.notes + ' | ' : ''}Pelunasan DP Booking Rp ${appliedDpAmount.toLocaleString()}`;
@@ -280,6 +312,25 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     setManualDiscount(0);
     setAppliedDpAmount(0);
     setActiveBookingSourceId(null);
+  };
+
+  const handleOpenCheckout = (initialTag: 'REGULAR' | 'BON' = 'REGULAR') => {
+    if (cart.length === 0) {
+      toast.warning('Keranjang Kosong', 'Tambahkan produk atau jasa ke keranjang terlebih dahulu.');
+      return;
+    }
+    setCheckoutInitialTag(initialTag);
+    setShowCheckoutModal(true);
+  };
+
+  const handleConfirmCheckoutFromModal = (
+    isBon: boolean,
+    pm: PaymentMethod,
+    cashTendered: number,
+    notes?: string
+  ) => {
+    handleCheckoutSale(isBon, pm, cashTendered, notes);
+    setShowCheckoutModal(false);
   };
 
   const handleSaveBookingFromModal = (
@@ -322,6 +373,93 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     setVehicleModel(booking.vehicle_model);
     setAppliedDpAmount(booking.dp_amount);
     setActiveBookingSourceId(booking.id);
+  };
+
+  const handleParkCurrentCart = () => {
+    if (cart.length === 0) {
+      toast.warning('Keranjang Kosong', 'Tambahkan item ke keranjang terlebih dahulu sebelum menahan nota.');
+      return;
+    }
+
+    const newParked: ParkedTransaction = {
+      id: `park-${Date.now()}`,
+      reference: `PARK-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`,
+      customer_name: customerName.trim() || 'Pelanggan Walk-In',
+      vehicle_plate: vehiclePlate.trim() || 'TANPA PLAT',
+      vehicle_model: vehicleModel.trim() || '-',
+      items: [...cart],
+      subtotal: totals.subtotal,
+      total_discount: totals.discount,
+      grand_total: totals.grandTotal,
+      created_at: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+    };
+
+    onSaveParkedOrder?.(newParked);
+    setCart([]);
+    toast.info(
+      'Nota Berhasil Ditahan',
+      `Nota mobil ${newParked.vehicle_plate} (${newParked.customer_name}) telah disimpan di antrian tahan.`
+    );
+  };
+
+  const handleResumeParkedOrder = (order: ParkedTransaction) => {
+    if (cart.length > 0) {
+      if (!confirm('Keranjang kasir saat ini masih berisi item. Ganti isi keranjang dengan nota mobil ini?')) {
+        return;
+      }
+    }
+    setCart(order.items);
+    setCustomerName(order.customer_name);
+    setVehiclePlate(order.vehicle_plate);
+    setVehicleModel(order.vehicle_model);
+    onDeleteParkedOrder?.(order.id);
+    setShowParkedDrawer(false);
+    toast.success('Antrian Dipanggil', `Nota mobil ${order.vehicle_plate} dimuat kembali ke keranjang kasir.`);
+  };
+
+  const handlePrintCurrentCartNota = () => {
+    if (cart.length === 0) {
+      toast.warning('Keranjang Kosong', 'Tambahkan item ke keranjang terlebih dahulu sebelum mencetak nota.');
+      return;
+    }
+    const invoiceNo = generateInvoiceNumber();
+    const tempTx = createPosTransactionRecord(
+      invoiceNo,
+      cart,
+      customerName,
+      vehiclePlate,
+      vehicleModel,
+      paymentMethod,
+      netPayable,
+      cashierName,
+      applyTax ? 11 : 0,
+      manualDiscount,
+      false
+    );
+    setPrintTransaction(tempTx);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const handlePrintParkedOrder = (order: ParkedTransaction) => {
+    const tempTx = createPosTransactionRecord(
+      generateInvoiceNumber(),
+      order.items,
+      order.customer_name,
+      order.vehicle_plate,
+      order.vehicle_model,
+      'TUNAI',
+      order.grand_total,
+      cashierName,
+      0,
+      order.total_discount,
+      false
+    );
+    setPrintTransaction(tempTx);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   const activeBookingsCount = bookings.filter((b) => b.status === 'ACTIVE').length;
@@ -389,6 +527,21 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
+              onClick={() => setShowParkedDrawer(true)}
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Lihat antrian nota yang sedang ditahan (Parked Orders)"
+            >
+              <Clock className="w-4 h-4 text-amber-700" />
+              <span>Antrian Tahan</span>
+              {parkedOrders.length > 0 && (
+                <span className="w-5 h-5 rounded-full bg-amber-700 text-white text-[10px] font-black flex items-center justify-center">
+                  {parkedOrders.length}
+                </span>
+              )}
+            </button>
+
+            <button
               onClick={() => setShowBookingListDrawer(true)}
               className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 border border-purple-300 text-purple-800 hover:bg-purple-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
             >
@@ -408,17 +561,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           </div>
         </div>
 
-        {/* Category Tabs */}
+        {/* Category Tabs (Separate category tabs + Input Manual persis ProjectOmahBan) */}
         <div className="px-3 py-2 bg-white border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
           <button
-            onClick={() => setCatalogTab('ALL')}
-            className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              catalogTab === 'ALL' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
-            }`}
-          >
-            Semua Katalog
-          </button>
-          <button
+            type="button"
             onClick={() => setCatalogTab('BAN_BARU')}
             className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               catalogTab === 'BAN_BARU' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
@@ -428,6 +574,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <span>Ban Baru</span>
           </button>
           <button
+            type="button"
             onClick={() => setCatalogTab('VELG')}
             className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               catalogTab === 'VELG' ? 'bg-amber-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
@@ -437,6 +584,17 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <span>Velg Mobil</span>
           </button>
           <button
+            type="button"
+            onClick={() => setCatalogTab('OLI_PELUMAS')}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              catalogTab === 'OLI_PELUMAS' ? 'bg-orange-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
+            }`}
+          >
+            <Droplets className="w-3.5 h-3.5" />
+            <span>Oli & Pelumas</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setCatalogTab('BAN_DALAM')}
             className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               catalogTab === 'BAN_DALAM' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
@@ -446,6 +604,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <span>Ban Dalam</span>
           </button>
           <button
+            type="button"
             onClick={() => setCatalogTab('SERVICES')}
             className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               catalogTab === 'SERVICES' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
@@ -454,99 +613,120 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <Wrench className="w-3.5 h-3.5" />
             <span>Jasa & Layanan</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setCatalogTab('MANUAL')}
+            className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              catalogTab === 'MANUAL'
+                ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-400/30'
+                : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+            <span>✍️ Input Manual</span>
+          </button>
         </div>
 
-        {/* Product Cards Grid */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-3.5 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 bg-slate-50 custom-scrollbar">
-          {filteredProducts.map((p) => {
-            const stockQty = p.stock || p.product_quantity || 0;
-            const isOutOfStock = stockQty <= 0;
+        {/* Product Cards Grid OR Manual Item Form */}
+        {catalogTab === 'MANUAL' ? (
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 bg-slate-50 custom-scrollbar">
+            <ManualItemForm onAddToCart={handleAddToCartManual} />
+          </div>
+        ) : (
+          <div className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-3.5 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 bg-slate-50 custom-scrollbar">
+            {catalogTab !== 'SERVICES' && filteredProducts.map((p) => {
+              const stockQty = p.stock || p.product_quantity || 0;
+              const isOutOfStock = stockQty <= 0;
 
-            return (
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => !isOutOfStock && handleAddToCart(p)}
+                  className={`bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between transition-all shadow-xs group ${
+                    isOutOfStock
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:border-blue-500 hover:shadow-md cursor-pointer active:scale-98'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                        p.category === 'BAN_BARU'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : p.category === 'VELG'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : p.category === 'OLI_PELUMAS'
+                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}>
+                        {p.category === 'OLI_PELUMAS' ? 'OLI & PELUMAS' : (p.category || 'BAN_BARU').replace('_', ' ')}
+                      </span>
+                      <span className={`text-[11px] font-bold ${
+                        isOutOfStock ? 'text-rose-700 font-extrabold' : stockQty < 5 ? 'text-amber-700 font-extrabold' : 'text-slate-600'
+                      }`}>
+                        Stok: {stockQty} unit
+                      </span>
+                    </div>
+
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+                      {p.product_name}
+                    </h3>
+
+                    <div className="text-xs text-slate-600 mt-1 font-medium">
+                      {p.category === 'BAN_BARU' && `${p.product_size || ''} | ${p.motif || ''}`}
+                      {p.category === 'VELG' && `${p.ring || ''} | PCD ${p.pcd || ''} | ${p.color_finish || ''}`}
+                      {p.category === 'OLI_PELUMAS' && `${p.product_size || ''} • ${p.motif || ''}`}
+                      {p.category === 'BAN_DALAM' && `${p.product_size || p.size_ratio || ''} | ${p.valve_type || ''}`}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono">
+                      {formatRupiah(p.product_price || p.price || 0)}
+                    </span>
+                    <span className="p-1.5 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-700 group-hover:text-white transition-all shadow-2xs">
+                      <Plus className="w-4 h-4" />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {catalogTab === 'SERVICES' && filteredServices.map((srv) => (
               <div
-                key={p.id}
-                onClick={() => !isOutOfStock && handleAddToCart(p)}
-                className={`bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between transition-all shadow-xs group ${
-                  isOutOfStock
-                    ? 'opacity-50 cursor-not-allowed'
-                    : 'hover:border-blue-500 hover:shadow-md cursor-pointer active:scale-98'
-                }`}
+                key={srv.id}
+                onClick={() => handleAddServiceToCart(srv)}
+                className="bg-white border border-slate-200 hover:border-cyan-500 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all shadow-xs hover:shadow-md active:scale-98 group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                      p.category === 'BAN_BARU'
-                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                        : p.category === 'VELG'
-                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    }`}>
-                      {(p.category || 'BAN_BARU').replace('_', ' ')}
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-800 border border-cyan-300 flex items-center gap-1">
+                      <Wrench className="w-3 h-3 text-cyan-700" /> JASA
                     </span>
-                    <span className={`text-[11px] font-bold ${
-                      isOutOfStock ? 'text-rose-700 font-extrabold' : stockQty < 5 ? 'text-amber-700 font-extrabold' : 'text-slate-600'
-                    }`}>
-                      Stok: {stockQty} unit
-                    </span>
+                    <span className="text-[11px] font-mono text-slate-500 font-semibold">{srv.service_code}</span>
                   </div>
 
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
-                    {p.product_name}
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-cyan-700 transition-colors line-clamp-2">
+                    {srv.service_name}
                   </h3>
 
-                  <div className="text-xs text-slate-600 mt-1 font-medium">
-                    {p.category === 'BAN_BARU' && `${p.product_size || ''} | ${p.motif || ''}`}
-                    {p.category === 'VELG' && `${p.ring || ''} | PCD ${p.pcd || ''} | ${p.color_finish || ''}`}
-                    {p.category === 'BAN_DALAM' && `${p.product_size || p.size_ratio || ''} | ${p.valve_type || ''}`}
-                  </div>
+                  {srv.description && (
+                    <p className="text-xs text-slate-600 mt-1 line-clamp-2">{srv.description}</p>
+                  )}
                 </div>
 
                 <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono">
-                    {formatRupiah(p.product_price || p.price || 0)}
+                    {formatRupiah(srv.standard_price)}
                   </span>
-                  <span className="p-1.5 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-700 group-hover:text-white transition-all shadow-2xs">
+                  <span className="p-1.5 rounded-xl bg-cyan-50 group-hover:bg-cyan-600 text-cyan-700 group-hover:text-white transition-all shadow-2xs">
                     <Plus className="w-4 h-4" />
                   </span>
                 </div>
               </div>
-            );
-          })}
-
-          {filteredServices.map((srv) => (
-            <div
-              key={srv.id}
-              onClick={() => handleAddServiceToCart(srv)}
-              className="bg-white border border-slate-200 hover:border-cyan-500 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all shadow-xs hover:shadow-md active:scale-98 group"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-800 border border-cyan-300 flex items-center gap-1">
-                    <Wrench className="w-3 h-3 text-cyan-700" /> JASA
-                  </span>
-                  <span className="text-[11px] font-mono text-slate-500 font-semibold">{srv.service_code}</span>
-                </div>
-
-                <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-cyan-700 transition-colors line-clamp-2">
-                  {srv.service_name}
-                </h3>
-
-                {srv.description && (
-                  <p className="text-xs text-slate-600 mt-1 line-clamp-2">{srv.description}</p>
-                )}
-              </div>
-
-              <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono">
-                  {formatRupiah(srv.standard_price)}
-                </span>
-                <span className="p-1.5 rounded-xl bg-cyan-50 group-hover:bg-cyan-600 text-cyan-700 group-hover:text-white transition-all shadow-2xs">
-                  <Plus className="w-4 h-4" />
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Floating Mobile Cart Bar (Sticky at bottom of catalog when items are in cart) */}
         {cart.length > 0 && (
@@ -586,6 +766,50 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           <span className="text-xs font-bold text-slate-800">
             Keranjang Kasir ({cart.reduce((s, i) => s + i.qty, 0)} Pcs)
           </span>
+        </div>
+
+        {/* Desktop Header Bar for Cart with Quick Park & Clear buttons (persis Cabang 2) */}
+        <div className="hidden lg:flex items-center justify-between px-3 py-2.5 bg-white border-b border-slate-200 shrink-0">
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4 text-blue-600" />
+            <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">
+              Keranjang Kasir
+            </h2>
+            {cart.length > 0 && (
+              <span className="text-[10px] font-bold rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 font-mono">
+                {cart.reduce((s, i) => s + i.qty, 0)}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={handleParkCurrentCart}
+              disabled={cart.length === 0}
+              className="text-xs px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer shadow-2xs"
+              title="Tahan transaksi ini ke antrian pit servis"
+            >
+              <Clock className="w-3 h-3 text-amber-700" />
+              <span>Tahan (Park)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm('Kosongkan semua item di keranjang kasir?')) {
+                  setCart([]);
+                  setAppliedDpAmount(0);
+                  setActiveBookingSourceId(null);
+                }
+              }}
+              disabled={cart.length === 0}
+              className="text-xs px-2 py-1 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              title="Kosongkan Keranjang"
+            >
+              Kosongkan
+            </button>
+          </div>
         </div>
 
         {/* Customer / Vehicle Bar */}
@@ -664,11 +888,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                             ? 'bg-cyan-50 text-cyan-800 border border-cyan-200'
                             : item.product?.category === 'VELG'
                             ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : item.product?.category === 'OLI_PELUMAS'
+                            ? 'bg-orange-50 text-orange-800 border border-orange-200'
                             : item.product?.category === 'BAN_DALAM'
                             ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                             : 'bg-blue-50 text-blue-800 border border-blue-200'
                         }`}>
-                          {item.item_type === 'SERVICE' ? 'JASA' : (item.product?.category || 'BAN_BARU').replace('_', ' ')}
+                          {item.item_type === 'SERVICE' ? 'JASA' : item.product?.category === 'OLI_PELUMAS' ? 'OLI' : (item.product?.category || 'BAN_BARU').replace('_', ' ')}
                         </span>
                         <h4 className="text-xs font-bold text-slate-900 truncate">{displayName}</h4>
                       </div>
@@ -732,8 +958,9 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           )}
         </div>
 
-        {/* Payment / Summary Footer */}
-        <div className="p-3.5 bg-white border-t border-slate-200 space-y-2.5 shrink-0">
+        {/* Payment & Action Footer */}
+        <div className="p-3.5 bg-white border-t border-slate-200 space-y-3 shrink-0">
+          {/* Ringkasan Subtotal, Diskon & Total Tagihan */}
           <div className="space-y-1 text-xs">
             <div className="flex justify-between text-slate-600">
               <span className="font-medium">Subtotal Kotor:</span>
@@ -747,103 +974,107 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             )}
             {appliedDpAmount > 0 && (
               <div className="flex justify-between text-purple-800 font-bold">
-                <span>DP Booking Sudah Dibayar:</span>
+                <span>DP Booking Terpasang:</span>
                 <span className="font-mono">-{formatRupiah(appliedDpAmount)}</span>
               </div>
             )}
-            <div className="flex justify-between text-sm font-extrabold pt-1.5 border-t border-slate-200">
+            <div className="flex justify-between items-center text-sm font-extrabold pt-2 border-t border-slate-200">
               <span className="text-slate-900">Total Tagihan Bersih:</span>
               <span className="text-emerald-700 text-lg font-mono font-black">{formatRupiah(netPayable)}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* Mode Switcher Tabs (Reguler / BON / DP) persis Cabang 2 */}
+          <div className="flex gap-1.5 rounded-xl bg-slate-100 p-1 text-xs">
             <button
               type="button"
-              onClick={() => setPaymentMethod('TUNAI')}
-              className={`py-1.5 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                paymentMethod === 'TUNAI' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              onClick={() => setCartMode('REGULAR')}
+              className={`flex-1 rounded-lg py-1.5 font-bold transition-all cursor-pointer ${
+                cartMode === 'REGULAR'
+                  ? 'bg-white shadow-xs text-emerald-800'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Tunai
+              Reguler (Lunas)
             </button>
             <button
               type="button"
-              onClick={() => setPaymentMethod('TRANSFER_BCA')}
-              className={`py-1.5 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                paymentMethod === 'TRANSFER_BCA' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              onClick={() => setCartMode('BON')}
+              className={`flex-1 rounded-lg py-1.5 font-bold transition-all cursor-pointer ${
+                cartMode === 'BON'
+                  ? 'bg-white shadow-xs text-amber-800'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Transfer BCA
+              BON (Piutang)
             </button>
             <button
               type="button"
-              onClick={() => setPaymentMethod('QRIS')}
-              className={`py-1.5 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                paymentMethod === 'QRIS' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              onClick={() => setCartMode('DP')}
+              className={`flex-1 rounded-lg py-1.5 font-bold transition-all cursor-pointer ${
+                cartMode === 'DP'
+                  ? 'bg-white shadow-xs text-purple-800'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              QRIS
+              Booking DP
             </button>
           </div>
 
-          {paymentMethod === 'TUNAI' && (
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={cashTenderedInput ? formatRupiah(parseRupiahInput(cashTenderedInput)) : ''}
-                  onChange={(e) => setCashTenderedInput(e.target.value)}
-                  placeholder="Uang Tunai Diterima (Rp)"
-                  className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-slate-900 text-xs font-mono font-bold focus:outline-hidden focus:border-emerald-600 focus:bg-white shadow-2xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => setCashTenderedInput(String(netPayable))}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-emerald-800 border border-slate-300 cursor-pointer"
-                >
-                  Uang Pas
-                </button>
-              </div>
-              {cashTenderedVal > 0 && (
-                <div className="flex justify-between text-xs font-bold pt-0.5">
-                  <span className="text-slate-600">Kembalian:</span>
-                  <span className={`font-mono text-sm ${changeAmount >= 0 ? 'text-blue-700 font-black' : 'text-rose-600'}`}>
-                    {formatRupiah(changeAmount)}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-2 pt-0.5">
-            <button
-              type="button"
-              onClick={() => setShowBookingDpModal(true)}
-              disabled={cart.length === 0}
-              className="py-2 px-2.5 rounded-xl bg-purple-50 border border-purple-300 text-purple-800 hover:bg-purple-100 text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Bookmark className="w-3.5 h-3.5 text-purple-700" /> Simpan Booking DP
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleCheckoutSale(true)}
-              disabled={cart.length === 0}
-              className="py-2 px-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100 text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <CreditCard className="w-3.5 h-3.5 text-amber-700" /> Bayar Sbg BON
-            </button>
-          </div>
-
+          {/* Tombol Aksi 1: Cetak Nota Fisik Langsung (Pra-Bayar untuk Customer/Kantor) */}
           <button
             type="button"
-            onClick={() => handleCheckoutSale(false)}
-            disabled={cart.length === 0 || (paymentMethod === 'TUNAI' && cashTenderedVal < netPayable)}
-            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-98 transition-all cursor-pointer"
+            onClick={handlePrintCurrentCartNota}
+            disabled={cart.length === 0}
+            className="w-full py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-900 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-2xs transition-colors"
+            title="Cetak fisik Nota Penjualan untuk dibawa customer/kantor sebelum bayar"
           >
-            <Printer className="w-4 h-4" /> Selesaikan & Cetak Struk
+            <Printer className="w-4 h-4 text-sky-700" />
+            <span>Cetak Nota Fisik Langsung</span>
           </button>
+
+          {/* Tombol Aksi 2: Proses Utama Sesuai Mode Terpilih */}
+          {cartMode === 'REGULAR' && (
+            <button
+              type="button"
+              onClick={() => handleOpenCheckout('REGULAR')}
+              disabled={cart.length === 0}
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 transition-all cursor-pointer"
+            >
+              <CreditCard className="w-4 h-4" />
+              <span>Proses Pesanan (Bayar) ➔</span>
+            </button>
+          )}
+
+          {cartMode === 'BON' && (
+            <button
+              type="button"
+              onClick={() => handleOpenCheckout('BON')}
+              disabled={cart.length === 0}
+              className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-sm shadow-md shadow-amber-600/20 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 transition-all cursor-pointer"
+            >
+              <CreditCard className="w-4 h-4" />
+              <span>Buat Faktur BON (Piutang) ➔</span>
+            </button>
+          )}
+
+          {cartMode === 'DP' && (
+            <button
+              type="button"
+              onClick={() => {
+                if (cart.length === 0) {
+                  toast.warning('Keranjang Kosong', 'Tambahkan barang terlebih dahulu.');
+                  return;
+                }
+                setShowBookingDpModal(true);
+              }}
+              disabled={cart.length === 0}
+              className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm shadow-md shadow-purple-600/20 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 transition-all cursor-pointer"
+            >
+              <Bookmark className="w-4 h-4" />
+              <span>Simpan Booking DP ➔</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -872,6 +1103,138 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         onClose={() => setShowBookingListDrawer(false)}
         onConvertBooking={handleConvertBookingToCart}
       />
+
+      <ParkedOrdersDrawer
+        isOpen={showParkedDrawer}
+        parkedOrders={parkedOrders}
+        onClose={() => setShowParkedDrawer(false)}
+        onResumeOrder={handleResumeParkedOrder}
+        onDeleteOrder={(id) => onDeleteParkedOrder?.(id)}
+        onPrintOrder={handlePrintParkedOrder}
+      />
+
+      <CheckoutModal
+        isOpen={showCheckoutModal}
+        onClose={() => setShowCheckoutModal(false)}
+        initialTag={checkoutInitialTag}
+        cart={cart}
+        customerName={customerName}
+        vehiclePlate={vehiclePlate}
+        vehicleModel={vehicleModel}
+        totals={totals}
+        appliedDpAmount={appliedDpAmount}
+        netPayable={netPayable}
+        onPrintPhysicalNota={handlePrintCurrentCartNota}
+        onParkCart={handleParkCurrentCart}
+        onConfirmCheckout={handleConfirmCheckoutFromModal}
+      />
+
+      {/* Hidden printable block for instant physical print of official Nota Penjualan */}
+      {printTransaction && (
+        <div
+          id="pos-quick-nota-printable"
+          className="w-full max-w-[300px] bg-white text-slate-900 font-mono text-[11px] p-4 hidden print:block"
+          style={{ width: '80mm' }}
+        >
+          <div className="text-center pb-2 border-b border-dashed border-slate-400 space-y-1">
+            <div className="font-extrabold text-xs tracking-tight text-black whitespace-pre-line">
+              OMAH BAN CABANG 3 (OB3)
+              PUSAT BAN BARU, VELG & SPOORING 3D
+            </div>
+            <div className="text-[9.5px] text-slate-600 leading-tight">
+              Jl. Raya Magelang - Secang Km. 5, Magelang, Jawa Tengah
+            </div>
+            <div className="text-[9.5px] text-slate-600">
+              Telp: (0293) 314-889 / WA: 0812-9988-7722
+            </div>
+            <div className="font-black text-xs pt-1.5 text-black tracking-wide border-t border-slate-300">
+              NOTA PENJUALAN
+            </div>
+          </div>
+
+          <div className="py-2 border-b border-dashed border-slate-400 space-y-1 text-[10px]">
+            <div className="flex justify-between">
+              <span className="text-slate-600">No. Nota:</span>
+              <span className="font-bold text-black">{printTransaction.invoice_number}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600">Waktu:</span>
+              <span className="text-black">{printTransaction.timestamp || printTransaction.date}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600">Kasir:</span>
+              <span className="text-black">{printTransaction.cashier_name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600">Pelanggan:</span>
+              <span className="font-semibold text-black">{printTransaction.customer_name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-600">Kendaraan:</span>
+              <span className="font-bold text-black">{printTransaction.vehicle_plate}</span>
+            </div>
+          </div>
+
+          <div className="py-2 border-b border-dashed border-slate-400">
+            <div className="flex justify-between font-bold text-[10px] text-slate-700 pb-1 mb-1 border-b border-slate-300">
+              <span>ITEM PRODUK / JASA</span>
+              <span>SUBTOTAL</span>
+            </div>
+            <div className="space-y-2">
+              {printTransaction.items.map((item, idx) => {
+                const unitPrice = item.custom_price ?? (item.item_type === 'SERVICE' && item.service ? item.service.standard_price : item.product.product_price);
+                const lineTotal = (unitPrice - (item.discount_per_item || 0)) * item.qty;
+                const name = item.custom_name_override || (item.item_type === 'SERVICE' && item.service ? item.service.service_name : item.product.name);
+
+                return (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-bold text-black text-[11px] leading-snug">
+                      {name}
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span>
+                        {item.qty} pcs x {formatRupiah(unitPrice)}
+                        {item.discount_per_item > 0 && ` (Disc -${formatRupiah(item.discount_per_item)})`}
+                      </span>
+                      <span className="font-bold text-black">{formatRupiah(lineTotal)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="py-2 border-b border-dashed border-slate-400 space-y-1 text-[10.5px]">
+            <div className="flex justify-between text-slate-600">
+              <span>Subtotal:</span>
+              <span>{formatRupiah(printTransaction.subtotal)}</span>
+            </div>
+            {printTransaction.total_discount > 0 && (
+              <div className="flex justify-between text-slate-700">
+                <span>Diskon:</span>
+                <span>-{formatRupiah(printTransaction.total_discount)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-black text-xs pt-1 border-t border-slate-300 text-black">
+              <span>TOTAL TAGIHAN:</span>
+              <span>{formatRupiah(printTransaction.grand_total)}</span>
+            </div>
+          </div>
+
+          <div className="pt-3 pb-2 text-center space-y-2 text-[9px] text-slate-600 leading-tight">
+            <div className="p-1.5 bg-slate-100 rounded border border-slate-200 text-slate-700 font-semibold">
+              ★ KEBIJAKAN GARANSI OMAH BAN ★
+              <div className="font-normal text-[8.5px] mt-0.5 whitespace-pre-line">
+                Garansi resmi pabrik 1 tahun untuk cacat produksi.
+                Gratis Nitrogen & Balancing 2x dalam 6 bulan.
+              </div>
+            </div>
+            <p className="font-bold text-black text-[10px] pt-1">
+              TERIMA KASIH ATAS KUNJUNGAN ANDA!
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

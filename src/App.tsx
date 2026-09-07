@@ -12,17 +12,22 @@ import {
   PayableInvoice, 
   PosTransaction, 
   ProductItem, 
+  ParkedTransaction,
   ReceivableInvoice,
   ReceivablePaymentInput,
+  RolePermissionsConfig,
   SalesBookingRecord, 
   ServiceMasterItem, 
   StockMutation, 
   StoreSettings, 
   SupplierItem, 
   TireProduct, 
-  UpdateProductInput 
+  UpdateProductInput,
+  UserSession 
 } from './shared/types';
 import { 
+  DEFAULT_ROLE_PERMISSIONS,
+  DEFAULT_USERS,
   INITIAL_ACCOUNT_BALANCES, 
   INITIAL_BOOKINGS, 
   INITIAL_EXPENSES, 
@@ -30,19 +35,21 @@ import {
   INITIAL_PAYABLE_INVOICES, 
   INITIAL_PERIOD_INFO,
   INITIAL_PRODUCTS, 
-  INITIAL_RECEIVABLES,
+  INITIAL_RECEIVABLES, 
   INITIAL_SERVICES, 
   INITIAL_STOCK_MUTATIONS, 
   INITIAL_STORE_SETTINGS, 
   INITIAL_SUPPLIERS, 
   INITIAL_TRANSACTIONS 
 } from './shared/data/mockData';
+import { LoginScreen } from './modules/auth';
 import { formatRupiah, generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
 import { 
   generatePurchaseJournal, 
   generateDebtPaymentJournal, 
   generateManualJournal,
   generateVoidExpenseJournal,
+  generateVoidSalesJournal,
   generateClosingJournal,
   generateReversingJournal,
   generateReceivablePaymentJournal
@@ -86,9 +93,76 @@ export default function App() {
 
 function MainAppContent() {
   const toast = useToast();
+
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_user_session');
+      return saved ? JSON.parse(saved) : DEFAULT_USERS[0];
+    } catch {
+      return DEFAULT_USERS[0];
+    }
+  });
+
+  const [rolePermissions, setRolePermissions] = useState<RolePermissionsConfig>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_role_permissions');
+      return saved ? JSON.parse(saved) : DEFAULT_ROLE_PERMISSIONS;
+    } catch {
+      return DEFAULT_ROLE_PERMISSIONS;
+    }
+  });
+
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
   const [backendStatus, setBackendStatus] = useState<'connected' | 'offline' | 'checking'>('checking');
   const [databaseName, setDatabaseName] = useState<string>('project-skripsi_ob');
+
+  // Permission verification
+  const isScreenPermitted = (screen: ActiveScreen): boolean => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'OWNER') return true;
+    const roleConfig = rolePermissions[currentUser.role];
+    if (!roleConfig) return true;
+
+    switch (screen) {
+      case 'dashboard':
+        return !!roleConfig.dashboard;
+      case 'pos':
+        return !!roleConfig.pos;
+      case 'receipt':
+        return !!roleConfig.receipt;
+      case 'inventory':
+        return !!roleConfig.inventory_view;
+      case 'expenses':
+        return !!roleConfig.expenses;
+      case 'ledger':
+        return !!roleConfig.accounting_hub || !!roleConfig.bon_receivable || !!roleConfig.accounts_payable;
+      case 'financials':
+        return !!roleConfig.financial_reports;
+      case 'settings':
+        return !!roleConfig.role_settings;
+      default:
+        return true;
+    }
+  };
+
+  // Auto-redirect if activeScreen is not permitted for current user
+  useEffect(() => {
+    if (currentUser && !isScreenPermitted(activeScreen)) {
+      if (isScreenPermitted('pos')) {
+        setActiveScreen('pos');
+      } else if (isScreenPermitted('inventory')) {
+        setActiveScreen('inventory');
+      } else if (isScreenPermitted('dashboard')) {
+        setActiveScreen('dashboard');
+      } else {
+        setActiveScreen('receipt');
+      }
+    }
+  }, [currentUser, rolePermissions, activeScreen]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_role_permissions', JSON.stringify(rolePermissions));
+  }, [rolePermissions]);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
     {
@@ -171,6 +245,27 @@ function MainAppContent() {
       return INITIAL_TRANSACTIONS;
     }
   });
+
+  const [parkedOrders, setParkedOrders] = useState<ParkedTransaction[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_parked_orders');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('ob3_parked_orders', JSON.stringify(parkedOrders));
+  }, [parkedOrders]);
+
+  const handleSaveParkedOrder = (order: ParkedTransaction) => {
+    setParkedOrders((prev) => [order, ...prev.filter((o) => o.id !== order.id)]);
+  };
+
+  const handleDeleteParkedOrder = (orderId: string) => {
+    setParkedOrders((prev) => prev.filter((o) => o.id !== orderId));
+  };
 
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
     try {
@@ -619,6 +714,108 @@ function MainAppContent() {
     );
   };
 
+  // Handle Void Transaction (Sales Cancellation with SAK EMKM Reversal & Stock Restoral)
+  const handleVoidTransaction = (txId: string, voidReason: string) => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) {
+      toast.error('Gagal Membatalkan', 'Transaksi tidak ditemukan.');
+      return;
+    }
+    if (targetTx.status === 'VOID' || targetTx.is_voided) {
+      toast.warning('Pemberitahuan', 'Transaksi ini sudah pernah dibatalkan.');
+      return;
+    }
+
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const voidedByName = currentUser?.name || 'Kasir Cabang 3';
+
+    // 1. Generate SAK EMKM Reversing Journal
+    const reversalJournal = generateVoidSalesJournal(
+      targetTx,
+      voidReason,
+      voidedByName,
+      journals.length + 1
+    );
+
+    // 2. Update Transaction Status
+    const updatedTx: PosTransaction = {
+      ...targetTx,
+      status: 'VOID',
+      is_voided: true,
+      void_reason: voidReason,
+      voided_at: timestamp,
+      voided_by: voidedByName,
+    };
+
+    setTransactions((prev) =>
+      prev.map((t) => (t.id === txId ? updatedTx : t))
+    );
+    if (currentReceiptTx?.id === txId) {
+      setCurrentReceiptTx(updatedTx);
+    }
+
+    // 3. Post reversal journal to general ledger
+    setJournals((prev) => [reversalJournal, ...prev]);
+
+    // 4. Restore physical tire stock to inventory
+    const restoredProducts = new Set<string>();
+    const newMutations: StockMutation[] = [];
+
+    targetTx.items.forEach((item, idx) => {
+      const prodId = item.product?.id;
+      if (prodId && item.qty > 0) {
+        restoredProducts.add(prodId);
+        newMutations.push({
+          id: `mut-void-${Date.now()}-${idx}`,
+          tire_id: prodId,
+          product_id: prodId,
+          tire_name: item.product.name,
+          product_name: item.product.name,
+          tire_size: item.product.product_size,
+          date: new Date().toISOString().substring(0, 10),
+          ref_doc: targetTx.invoice_number,
+          type: 'MASUK',
+          qty: item.qty,
+          balance: (item.product.product_quantity || 0) + item.qty,
+          notes: `[VOID] Pengembalian stok nota ${targetTx.invoice_number} - Alasan: ${voidReason}`,
+          operator: voidedByName,
+        });
+      }
+    });
+
+    if (restoredProducts.size > 0) {
+      setProducts((prev) =>
+        prev.map((p) => {
+          const matchedItem = targetTx.items.find((i) => i.product?.id === p.id);
+          if (matchedItem) {
+            const newQty = (p.product_quantity || 0) + matchedItem.qty;
+            const newStock = (p.stock || 0) + matchedItem.qty;
+            return {
+              ...p,
+              product_quantity: newQty,
+              stock: newStock,
+            };
+          }
+          return p;
+        })
+      );
+    }
+
+    if (newMutations.length > 0) {
+      setMutations((prev) => [...newMutations, ...prev]);
+    }
+
+    // 5. Restore cash drawer if payment was TUNAI
+    if (targetTx.payment_method === 'TUNAI') {
+      setCashInDrawer((prev) => Math.max(0, prev - targetTx.grand_total));
+    }
+
+    toast.warning(
+      'Transaksi Dibatalkan (VOID)',
+      `Nota ${targetTx.invoice_number} berhasil dibatalkan. Stok ${targetTx.items.reduce((sum, i) => sum + i.qty, 0)} pcs ban dikembalikan dan Jurnal Pembalik telah dibukukan.`
+    );
+  };
+
   // Handle Inventory Stock Opname adjustment
   const handleUpdateProductStock = (updatedProducts: TireProduct[], newMutations: StockMutation[]) => {
     setProducts(updatedProducts);
@@ -950,6 +1147,7 @@ function MainAppContent() {
       setJournals(INITIAL_JOURNALS);
       setPayableInvoices(INITIAL_PAYABLE_INVOICES);
       setAccountBalances(INITIAL_ACCOUNT_BALANCES);
+      setRolePermissions(DEFAULT_ROLE_PERMISSIONS);
       setCashInDrawer(2450000);
       setCart([]);
       setCurrentReceiptTx(null);
@@ -960,6 +1158,19 @@ function MainAppContent() {
 
   const lowStockCount = products.filter((p) => p.stock < 5).length;
   const cartTotalQty = cart.reduce((acc, c) => acc + c.qty, 0);
+
+  // Jika belum login, tampilkan layar Login Omah Ban Cabang 3
+  if (!currentUser) {
+    return (
+      <LoginScreen
+        onLogin={(user) => {
+          setCurrentUser(user);
+          localStorage.setItem('ob3_user_session', JSON.stringify(user));
+          toast.success(`Selamat Datang, ${user.name}!`, `Berhasil masuk sebagai ${user.role} (${user.branch_name}).`);
+        }}
+      />
+    );
+  }
 
   return (
     <div className={`${activeScreen === 'pos' ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]`}>
@@ -978,12 +1189,15 @@ function MainAppContent() {
           products={products}
           services={services}
           bookings={bookings}
+          parkedOrders={parkedOrders}
+          onSaveParkedOrder={handleSaveParkedOrder}
+          onDeleteParkedOrder={handleDeleteParkedOrder}
           cart={cart}
           setCart={setCart}
           onCompleteSale={handleCompleteSale}
           onSaveBooking={handleSaveBooking}
           onConvertBooking={handleConvertBooking}
-          cashierName="Fani A. (Shift Pagi)"
+          cashierName={currentUser.name}
           cashInDrawer={cashInDrawer}
           timeString={timeString}
           onExitToBackoffice={() => setActiveScreen('dashboard')}
@@ -1010,6 +1224,18 @@ function MainAppContent() {
             currentTimeStr={timeString}
             backendStatus={backendStatus}
             databaseName={databaseName}
+            currentUser={currentUser}
+            rolePermissions={rolePermissions}
+            onSwitchUser={(user) => {
+              setCurrentUser(user);
+              localStorage.setItem('ob3_user_session', JSON.stringify(user));
+              toast.info('Beralih Peran', `Kini melihat antarmuka sebagai ${user.name} (${user.role}).`);
+            }}
+            onLogout={() => {
+              setCurrentUser(null);
+              localStorage.removeItem('ob3_user_session');
+              toast.info('Sesi Ditutup', 'Anda telah keluar dari sistem Omah Ban Cabang 3.');
+            }}
           />
 
           <main className="flex-1 flex flex-col relative overflow-hidden bg-[#F8FAFC]">
@@ -1018,8 +1244,10 @@ function MainAppContent() {
                 currentTransaction={currentReceiptTx}
                 transactionsHistory={transactions}
                 storeSettings={storeSettings}
+                currentUser={currentUser}
                 onBackToPos={() => setActiveScreen('pos')}
                 onSelectTransaction={(tx) => setCurrentReceiptTx(tx)}
+                onVoidTransaction={handleVoidTransaction}
               />
             )}
 
@@ -1097,6 +1325,9 @@ function MainAppContent() {
               <SettingsScreen
                 settings={storeSettings}
                 onSaveSettings={(newSet) => setStoreSettings(newSet)}
+                currentUser={currentUser}
+                currentPermissions={rolePermissions}
+                onSavePermissions={(newPerms) => setRolePermissions(newPerms)}
               />
             )}
           </main>

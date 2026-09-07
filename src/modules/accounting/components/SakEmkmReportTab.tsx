@@ -562,7 +562,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                   1. Gambaran Umum Entitas Usaha
                 </h3>
                 <p>
-                  <strong>Omah Ban BSD Cabang 3</strong> adalah entitas usaha dagang dan jasa otomotif yang menyediakan ban mobil baru berbagai merek (Bridgestone, Accelera, Dunlop, Hankook) serta layanan spooring 3D dan balancing. Beroperasi sebagai unit UMKM mandiri di kawasan Serpong, Tangerang Selatan.
+                  <strong>Toko Ban dan Velg Omah Ban Cabang 3</strong> adalah entitas usaha dagang dan jasa otomotif milik <strong>Bapak Agus Subagyo</strong> yang berfokus pada penjualan ban mobil baru berbagai merek resmi (Bridgestone, Dunlop, Accelera, Forceum, Hankook), velg baru, serta penyediaan jasa servis roda mobil (spooring 3D, balancing, dan bongkar pasang ban). Beroperasi sebagai unit UMKM mandiri di <strong>Kabupaten Magelang, Jawa Tengah</strong>. Sistem informasi akuntansi ini dikembangkan oleh <strong>Catherine Wong (NIM: 23.G4.0007)</strong>, Program Studi S1 Akuntansi, Fakultas Ekonomi dan Bisnis, Universitas Katolik Soegijapranata Semarang.
                 </p>
               </div>
 

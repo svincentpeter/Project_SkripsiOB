@@ -209,11 +209,14 @@ Project_SkripsiOB/
 
 ---
 
-## 👨‍💻 Pengembang
+## 👨‍💻 Peneliti & Pemilik Usaha
 
-- **Nama Mahasiswa:** Fani Ardiansyah (Omah Ban Cabang 3)
-- **Program Studi:** Program Ganda (Akuntansi & Sistem Informasi)
-- **Fokus Riset:** *Rancang Bangun Sistem Informasi Akuntansi dan Point of Sale Berbasis FIFO dan SAK EMKM pada Toko Ban*
+- **Nama Peneliti / Pengembang:** Catherine Wong
+- **NIM:** 23.G4.0007
+- **Program Studi:** Program Studi Akuntansi, Fakultas Ekonomi dan Bisnis, Universitas Katolik Soegijapranata Semarang
+- **Pemilik Usaha (Owner):** Agus Subagyo
+- **Objek Penelitian:** Toko Ban dan Velg Omah Ban Cabang 3 (OB3) — Kabupaten Magelang, Jawa Tengah
+- **Fokus Riset:** *Perancangan Sistem Point of Sale (POS) dan Sistem Informasi Akuntansi Berbasis Website dengan Metode Rapid Application Development pada Toko Ban dan Velg Omah Ban Cabang 3*
 
 ---
 

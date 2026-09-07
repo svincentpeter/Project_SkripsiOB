@@ -1,0 +1,1 @@
+export { RolePermissionsTab } from './RolePermissionsTab';

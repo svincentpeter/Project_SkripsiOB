@@ -30,8 +30,8 @@ export const FinancialStatementsScreen: React.FC<FinancialStatementsScreenProps>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
               <span>Laporan Keuangan Eksekutif</span>
-              <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                Omah Ban Cabang 3 BSD
+              <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                Omah Ban Cabang 3 - Magelang
               </span>
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">

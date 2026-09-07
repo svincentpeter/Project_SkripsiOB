@@ -1,4 +1,4 @@
-export type ItemCategory = 'BAN_BARU' | 'VELG' | 'BAN_DALAM';
+export type ItemCategory = 'BAN_BARU' | 'VELG' | 'BAN_DALAM' | 'OLI_PELUMAS';
 export type TireBrand = 'Bridgestone' | 'Accelera' | 'Dunlop' | 'Forceum' | 'Hankook' | 'GTRadial' | 'HSR' | 'Enkei' | 'Rays' | 'Swallow' | 'Kingland' | string;
 export type TireRing = 'R13' | 'R14' | 'R15' | 'R16' | 'R17' | 'R18' | 'R19' | 'R20+' | string;
 
@@ -90,10 +90,12 @@ export interface CartItem {
   qty: number;
   discount_per_item: number;
   custom_price?: number;
+  custom_hpp?: number;
   custom_name_override?: string;
   note?: string;
   override_reason?: string;
   adjusted_by?: string;
+  is_manual?: boolean;
 }
 
 export interface SalesBookingRecord {
@@ -111,6 +113,20 @@ export interface SalesBookingRecord {
   payment_method: PaymentMethod;
   notes?: string;
   status: 'ACTIVE' | 'CONVERTED' | 'EXPIRED' | 'CANCELLED';
+  created_at: string;
+}
+
+export interface ParkedTransaction {
+  id: string;
+  reference: string;
+  customer_name: string;
+  vehicle_plate: string;
+  vehicle_model: string;
+  items: CartItem[];
+  subtotal: number;
+  total_discount: number;
+  grand_total: number;
+  notes?: string;
   created_at: string;
 }
 
@@ -149,6 +165,10 @@ export interface PosTransaction {
   stock_deducted: boolean;
   is_voided?: boolean;
   void_reason?: string;
+  voided_at?: string;
+  voided_by?: string;
+  customer_phone?: string;
+  mechanic_name?: string;
 }
 
 export interface StockMutation {
@@ -495,4 +515,37 @@ export interface CashFlowStatementResult {
   cashDrawerEnding: number;
   bankBcaEnding: number;
 }
+
+export type UserRole = 'OWNER' | 'KASIR' | 'GUDANG';
+
+export type PermissionKey = 
+  | 'dashboard'
+  | 'pos'
+  | 'receipt'
+  | 'booking_dp'
+  | 'bon_receivable'
+  | 'inventory_view'
+  | 'inventory_manage'
+  | 'goods_receipt'
+  | 'stock_opname'
+  | 'expenses'
+  | 'accounts_payable'
+  | 'accounting_hub'
+  | 'financial_reports'
+  | 'role_settings';
+
+export interface UserSession {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  avatar_url?: string;
+  branch_name: string;
+  phone?: string;
+}
+
+export type RolePermissionsConfig = {
+  KASIR: Record<PermissionKey, boolean>;
+  GUDANG: Record<PermissionKey, boolean>;
+};
 

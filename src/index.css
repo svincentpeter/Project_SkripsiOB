@@ -40,10 +40,12 @@
   body * {
     visibility: hidden;
   }
-  #thermal-receipt-printable, #thermal-receipt-printable * {
+  #thermal-receipt-printable, #thermal-receipt-printable *,
+  #a4-invoice-printable, #a4-invoice-printable *,
+  #pos-quick-nota-printable, #pos-quick-nota-printable * {
     visibility: visible;
   }
-  #thermal-receipt-printable {
+  #thermal-receipt-printable, #pos-quick-nota-printable {
     position: absolute;
     left: 0;
     top: 0;
@@ -51,6 +53,20 @@
     max-width: 80mm !important;
     margin: 0 !important;
     padding: 2mm !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    color: black !important;
+  }
+  #a4-invoice-printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 8mm 12mm !important;
     box-shadow: none !important;
     border: none !important;
     background: white !important;
