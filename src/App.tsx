@@ -81,6 +81,36 @@ import { ToastProvider, useToast, AppNotification } from './shared/components';
 import { WireframeGuideModal } from './shared/components/WireframeGuideModal';
 import { HeaderNavbar } from './shared/components/HeaderNavbar';
 import { apiClient, productApi, posApi, expenseApi, inventoryApi } from './services/api';
+import { 
+  isSupabaseConfigured,
+  testSupabaseConnection,
+  fetchProductsFromSupabase,
+  fetchServicesFromSupabase,
+  fetchSuppliersFromSupabase,
+  fetchTransactionsFromSupabase,
+  fetchExpensesFromSupabase,
+  fetchJournalsFromSupabase,
+  fetchStockMutationsFromSupabase,
+  fetchBookingsFromSupabase,
+  fetchPayablesFromSupabase,
+  fetchReceivablesFromSupabase,
+  fetchParkedOrdersFromSupabase,
+  fetchStoreSettingsFromSupabase,
+  insertTransactionToSupabase,
+  updateTransactionStatusInSupabase,
+  upsertParkedOrderToSupabase,
+  deleteParkedOrderFromSupabase,
+  insertExpenseToSupabase,
+  updateExpenseStatusInSupabase,
+  upsertProductToSupabase,
+  deleteProductFromSupabase,
+  insertStockMutationToSupabase,
+  insertJournalToSupabase,
+  upsertBookingToSupabase,
+  upsertPayableToSupabase,
+  upsertReceivableToSupabase,
+  saveStoreSettingsToSupabase,
+} from './services';
 import { Loader2 } from 'lucide-react';
 
 export default function App() {
@@ -113,7 +143,7 @@ function MainAppContent() {
   });
 
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
-  const [backendStatus, setBackendStatus] = useState<'connected' | 'offline' | 'checking'>('checking');
+  const [backendStatus, setBackendStatus] = useState<'supabase' | 'connected' | 'offline' | 'checking'>('checking');
   const [databaseName, setDatabaseName] = useState<string>('project-skripsi_ob');
 
   // Permission verification
@@ -261,10 +291,12 @@ function MainAppContent() {
 
   const handleSaveParkedOrder = (order: ParkedTransaction) => {
     setParkedOrders((prev) => [order, ...prev.filter((o) => o.id !== order.id)]);
+    upsertParkedOrderToSupabase(order);
   };
 
   const handleDeleteParkedOrder = (orderId: string) => {
     setParkedOrders((prev) => prev.filter((o) => o.id !== orderId));
+    deleteParkedOrderFromSupabase(orderId);
   };
 
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
@@ -381,10 +413,70 @@ function MainAppContent() {
     return () => clearInterval(interval);
   }, []);
 
-  // Synchronize state with Laravel REST API backend on mount
+  // Synchronize state with Supabase PostgreSQL Cloud or Laravel REST API on mount
   useEffect(() => {
     let isMounted = true;
     const syncBackend = async () => {
+      // 1. Cek koneksi ke Supabase PostgreSQL Cloud jika kredensial ada
+      if (isSupabaseConfigured()) {
+        try {
+          const sbTest = await testSupabaseConnection();
+          if (sbTest.connected && isMounted) {
+            setBackendStatus('supabase');
+            setDatabaseName('Supabase PostgreSQL');
+            console.log('[Supabase Cloud] Terhubung ke database PostgreSQL Supabase!');
+
+            // Ambil seluruh data toko dari Supabase secara paralel
+            const [
+              sbProds,
+              sbServs,
+              sbSupps,
+              sbTxs,
+              sbExps,
+              sbJournals,
+              sbMuts,
+              sbBookings,
+              sbPayables,
+              sbReceivables,
+              sbParked,
+              sbSettings,
+            ] = await Promise.all([
+              fetchProductsFromSupabase(),
+              fetchServicesFromSupabase(),
+              fetchSuppliersFromSupabase(),
+              fetchTransactionsFromSupabase(),
+              fetchExpensesFromSupabase(),
+              fetchJournalsFromSupabase(),
+              fetchStockMutationsFromSupabase(),
+              fetchBookingsFromSupabase(),
+              fetchPayablesFromSupabase(),
+              fetchReceivablesFromSupabase(),
+              fetchParkedOrdersFromSupabase(),
+              fetchStoreSettingsFromSupabase(),
+            ]);
+
+            if (isMounted) {
+              if (sbProds && sbProds.length > 0) setProducts(sbProds);
+              if (sbServs && sbServs.length > 0) setServices(sbServs);
+              if (sbSupps && sbSupps.length > 0) setSuppliers(sbSupps);
+              if (sbTxs && sbTxs.length > 0) setTransactions(sbTxs);
+              if (sbExps && sbExps.length > 0) setExpenses(sbExps);
+              if (sbJournals && sbJournals.length > 0) setJournals(sbJournals);
+              if (sbMuts && sbMuts.length > 0) setMutations(sbMuts);
+              if (sbBookings && sbBookings.length > 0) setBookings(sbBookings);
+              if (sbPayables && sbPayables.length > 0) setPayableInvoices(sbPayables);
+              if (sbReceivables && sbReceivables.length > 0) setReceivableInvoices(sbReceivables);
+              if (sbParked) setParkedOrders(sbParked);
+              if (sbSettings) setStoreSettings(sbSettings);
+            }
+            return;
+          }
+        } catch (sbErr) {
+          console.warn('[Supabase Cloud] Gagal terhubung ke Supabase:', sbErr);
+        }
+      }
+
+      // 2. Fallback: Coba koneksi ke backend lokal Laravel MySQL jika ada
       try {
         const health = await apiClient.get<{ status: string; database: string; database_status: string }>('/health');
         if (health.status === 'healthy' && health.database_status === 'connected' && isMounted) {
@@ -397,6 +489,7 @@ function MainAppContent() {
           if (apiProds && apiProds.length > 0 && isMounted) {
             setProducts(apiProds);
           }
+          return;
         } else if (isMounted) {
           setBackendStatus('offline');
         }
@@ -636,6 +729,21 @@ function MainAppContent() {
     }).catch((err) => {
       console.warn('[Laravel Backend] Gagal sinkronisasi POS ke backend:', err);
     });
+
+    // 7. Asynchronously synchronize with Supabase PostgreSQL Cloud
+    insertTransactionToSupabase(newTx);
+    insertJournalToSupabase(newJournal);
+    newMutations.forEach((m) => insertStockMutationToSupabase(m));
+    newTx.items.forEach((item) => {
+      if (item.product?.id) {
+        const currentP = products.find((p) => p.id === item.product.id);
+        if (currentP) {
+          const currentQty = currentP.product_quantity ?? currentP.stock;
+          const newStock = Math.max(0, currentQty - item.qty);
+          upsertProductToSupabase({ ...currentP, stock: newStock, product_quantity: newStock });
+        }
+      }
+    });
   };
 
   const handleAddExpense = (newExpense: ExpenseRecord) => {
@@ -661,6 +769,10 @@ function MainAppContent() {
         '1-1001': Math.max(0, (prev['1-1001'] || 0) - newExpense.amount),
       }));
     }
+
+    // 4. Sinkronisasi ke Supabase PostgreSQL Cloud
+    insertExpenseToSupabase(expenseWithJournal);
+    insertJournalToSupabase(newJournal);
 
     toast.success(
       'Beban Toko Disimpan',
@@ -707,6 +819,15 @@ function MainAppContent() {
         '1-1001': (prev['1-1001'] || 0) + targetExpense.amount,
       }));
     }
+
+    // 5. Sinkronisasi ke Supabase PostgreSQL Cloud
+    updateExpenseStatusInSupabase(targetExpense.id, 'VOID', {
+      void_reason: voidReason,
+      voided_by: voidedBy,
+      voided_at: timestamp,
+      reversal_journal_id: reversalJournal.id,
+    });
+    insertJournalToSupabase(reversalJournal);
 
     toast.warning(
       'Pengeluaran Dibatalkan (VOID)',
@@ -810,6 +931,26 @@ function MainAppContent() {
       setCashInDrawer((prev) => Math.max(0, prev - targetTx.grand_total));
     }
 
+    // 6. Sinkronisasi ke Supabase PostgreSQL Cloud
+    updateTransactionStatusInSupabase(txId, 'VOID', {
+      is_voided: true,
+      void_reason: voidReason,
+      voided_at: timestamp,
+      voided_by: voidedByName,
+    });
+    insertJournalToSupabase(reversalJournal);
+    newMutations.forEach((m) => insertStockMutationToSupabase(m));
+    targetTx.items.forEach((item) => {
+      if (item.product?.id) {
+        const currentP = products.find((p) => p.id === item.product.id);
+        if (currentP) {
+          const newQty = (currentP.product_quantity || 0) + item.qty;
+          const newStock = (currentP.stock || 0) + item.qty;
+          upsertProductToSupabase({ ...currentP, product_quantity: newQty, stock: newStock });
+        }
+      }
+    });
+
     toast.warning(
       'Transaksi Dibatalkan (VOID)',
       `Nota ${targetTx.invoice_number} berhasil dibatalkan. Stok ${targetTx.items.reduce((sum, i) => sum + i.qty, 0)} pcs ban dikembalikan dan Jurnal Pembalik telah dibukukan.`
@@ -828,8 +969,10 @@ function MainAppContent() {
   const handleCreateProduct = (input: CreateProductInput) => {
     const { product, mutation } = createProductWithInitialStock(input, products, mutations);
     setProducts((prev) => [product, ...prev]);
+    upsertProductToSupabase(product);
     if (mutation) {
       setMutations((prev) => [mutation, ...prev]);
+      insertStockMutationToSupabase(mutation);
     }
   };
 
@@ -846,7 +989,7 @@ function MainAppContent() {
           const updatedPrice = updates.product_price ?? p.product_price ?? p.price ?? 0;
           const updatedAlert = updates.product_stock_alert ?? p.product_stock_alert ?? p.min_stock ?? 5;
 
-          return {
+          const updatedProd: ProductItem = {
             ...p,
             ...updates,
             name: updatedName,
@@ -861,6 +1004,8 @@ function MainAppContent() {
             product_stock_alert: updatedAlert,
             min_stock: updatedAlert,
           };
+          upsertProductToSupabase(updatedProd);
+          return updatedProd;
         }
         return p;
       })
@@ -876,11 +1021,14 @@ function MainAppContent() {
     const { updatedProduct, mutation } = processGoodsReceipt(targetProduct, input, mutations);
     setProducts((prev) => prev.map((p) => (p.id === input.product_id ? updatedProduct : p)));
     setMutations((prev) => [mutation, ...prev]);
+    upsertProductToSupabase(updatedProduct);
+    insertStockMutationToSupabase(mutation);
 
     // 2. Auto-generate Double-Entry Purchase Journal
     const totalCost = input.incoming_qty * input.unit_cost;
     const newJournal = generatePurchaseJournal(input, totalCost, journals.length + 1);
     setJournals((prev) => [newJournal, ...prev]);
+    insertJournalToSupabase(newJournal);
 
     // 3. Deduct cash drawer if paid cash
     if (input.payment_terms === 'TUNAI_KAS') {
@@ -903,6 +1051,7 @@ function MainAppContent() {
         ref_doc: mutation.ref_doc,
       };
       setPayableInvoices((prev) => [newInvoice, ...prev]);
+      upsertPayableToSupabase(newInvoice);
     }
   };
 
@@ -919,6 +1068,7 @@ function MainAppContent() {
       journals.length + 1
     );
     setJournals((prev) => [newJournal, ...prev]);
+    insertJournalToSupabase(newJournal);
 
     // 2. Deduct from drawer if cash
     if (paymentInput.source_account_code === '1-1000') {
@@ -932,12 +1082,14 @@ function MainAppContent() {
           const newPaid = inv.paid_amount + paymentInput.amount;
           const newRemaining = Math.max(0, inv.total_amount - newPaid);
           const newStatus = newRemaining === 0 ? 'LUNAS' : 'SEBAGIAN';
-          return {
+          const updatedInv: PayableInvoice = {
             ...inv,
             paid_amount: newPaid,
             remaining_amount: newRemaining,
             status: newStatus,
           };
+          upsertPayableToSupabase(updatedInv);
+          return updatedInv;
         }
         return inv;
       })
@@ -948,6 +1100,7 @@ function MainAppContent() {
   const handleAddManualJournal = (input: ManualJournalInput) => {
     const newJournal = generateManualJournal(input, journals.length + 1);
     setJournals((prev) => [newJournal, ...prev]);
+    insertJournalToSupabase(newJournal);
 
     // If affects 1-1000 Kas Toko
     input.lines.forEach((l) => {
@@ -971,6 +1124,7 @@ function MainAppContent() {
       journals.length + 1
     );
     setJournals((prev) => [newJournal, ...prev]);
+    insertJournalToSupabase(newJournal);
 
     // 2. Add to cash drawer if paid cash
     if (paymentInput.destination_account_code === '1-1000') {
@@ -984,12 +1138,14 @@ function MainAppContent() {
           const newPaid = inv.paid_amount + paymentInput.amount;
           const newRemaining = Math.max(0, inv.total_amount - newPaid);
           const newStatus = newRemaining === 0 ? 'LUNAS' : 'SEBAGIAN';
-          return {
+          const updatedInv: ReceivableInvoice = {
             ...inv,
             paid_amount: newPaid,
             remaining_amount: newRemaining,
             status: newStatus,
           };
+          upsertReceivableToSupabase(updatedInv);
+          return updatedInv;
         }
         return inv;
       })
@@ -1012,6 +1168,7 @@ function MainAppContent() {
     );
 
     setJournals((prev) => [closingResult.journal, ...prev]);
+    insertJournalToSupabase(closingResult.journal);
     setPeriodInfo((prev) => ({
       ...prev,
       status: 'CLOSED',
@@ -1037,6 +1194,7 @@ function MainAppContent() {
     );
 
     setJournals((prev) => [reversingJournal, ...prev]);
+    insertJournalToSupabase(reversingJournal);
 
     toast.info(
       'Jurnal Pembalik Diposting',
@@ -1052,11 +1210,14 @@ function MainAppContent() {
     const check = canSafelyDeleteProduct(targetProduct, mutations, transactions);
     if (check.canDelete) {
       setProducts((prev) => prev.filter((p) => p.id !== productId));
+      deleteProductFromSupabase(productId);
     } else {
       // Toggle is_active status (soft delete / reactivate)
+      const updatedP = { ...targetProduct, is_active: !targetProduct.is_active };
       setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, is_active: !p.is_active } : p))
+        prev.map((p) => (p.id === productId ? updatedP : p))
       );
+      upsertProductToSupabase(updatedP);
     }
   };
 
@@ -1126,11 +1287,20 @@ function MainAppContent() {
     };
 
     setJournals((prev) => [dpJournal, ...prev]);
+    upsertBookingToSupabase(booking);
+    insertJournalToSupabase(dpJournal);
   };
 
   const handleConvertBooking = (bookingId: string) => {
     setBookings((prev) =>
-      prev.map((b) => (b.id === bookingId ? { ...b, status: 'CONVERTED' } : b))
+      prev.map((b) => {
+        if (b.id === bookingId) {
+          const updated = { ...b, status: 'CONVERTED' as const };
+          upsertBookingToSupabase(updated);
+          return updated;
+        }
+        return b;
+      })
     );
   };
 
@@ -1324,7 +1494,10 @@ function MainAppContent() {
             {activeScreen === 'settings' && (
               <SettingsScreen
                 settings={storeSettings}
-                onSaveSettings={(newSet) => setStoreSettings(newSet)}
+                onSaveSettings={(newSet) => {
+                  setStoreSettings(newSet);
+                  saveStoreSettingsToSupabase(newSet);
+                }}
                 currentUser={currentUser}
                 currentPermissions={rolePermissions}
                 onSavePermissions={(newPerms) => setRolePermissions(newPerms)}

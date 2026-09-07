@@ -37,7 +37,7 @@ interface HeaderNavbarProps {
   onOpenWireframeModal: () => void;
   onResetData: () => void;
   currentTimeStr: string;
-  backendStatus?: 'connected' | 'offline' | 'checking';
+  backendStatus?: 'supabase' | 'connected' | 'offline' | 'checking';
   databaseName?: string;
   currentUser?: UserSession;
   rolePermissions?: RolePermissionsConfig;
@@ -219,14 +219,19 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
 
           <div className="h-6 w-px bg-slate-200 hidden sm:block" />
 
-          {/* Backend MySQL Live Status Badge */}
-          {backendStatus === 'connected' ? (
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-[11px] font-bold shadow-2xs" title={`Terhubung ke MySQL (${databaseName}) via Laravel 12 REST API`}>
+          {/* Database & Cloud Live Status Badge */}
+          {backendStatus === 'supabase' ? (
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-lg text-[11px] font-bold shadow-2xs" title={`Terhubung ke Supabase PostgreSQL Cloud (${databaseName})`}>
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Supabase Cloud</span>
+            </div>
+          ) : backendStatus === 'connected' ? (
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-[11px] font-bold shadow-2xs" title={`Terhubung ke MySQL (${databaseName}) via Laravel 12 REST API`}>
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
               <span>MySQL Live</span>
             </div>
           ) : (
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-600 rounded-lg text-[11px] font-medium" title="Mode Penyimpanan Lokal Browser">
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-600 rounded-lg text-[11px] font-medium" title="Mode Penyimpanan Lokal Browser (Offline/Fallback)">
               <span className="w-2 h-2 rounded-full bg-amber-400"></span>
               <span>Mode Lokal</span>
             </div>
