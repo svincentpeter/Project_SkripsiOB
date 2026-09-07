@@ -121,7 +121,7 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({
         {/* Table Inside Border Frame */}
         <div className="w-full overflow-hidden rounded-xl border border-slate-200">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse">
+            <table className="w-full min-w-[620px] text-xs text-left border-collapse">
               <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
                 <tr>
                   <th className="py-2.5 px-3 w-28">Kode Akun</th>

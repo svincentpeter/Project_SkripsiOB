@@ -276,9 +276,10 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
           </div>
         </div>
 
-        {/* Optimized Table - Fit 100% Width (NO HORIZONTAL SCROLL) */}
+        {/* Responsive Table with horizontal scroll on mobile */}
         <div className="w-full overflow-hidden rounded-xl border border-slate-200">
-          <table className="w-full table-fixed text-left text-xs border-collapse">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[650px] text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
                 <th className="py-2.5 px-3 w-[18%]">No. BKK / Tanggal</th>
@@ -411,7 +412,8 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                 })
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
 
         {/* Pagination Footer */}

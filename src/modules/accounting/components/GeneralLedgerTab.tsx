@@ -295,9 +295,10 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({
           </div>
         )}
 
-        {/* Ledger Transactions Table - Zero Horizontal Scroll */}
+        {/* Ledger Transactions Table - Responsive with Horizontal Scroll on Mobile */}
         <div className="w-full overflow-hidden rounded-xl border border-slate-200">
-          <table className="table-fixed w-full text-xs text-left border-collapse">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-xs text-left border-collapse">
             <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
               <tr>
                 <th className="py-2.5 px-3 w-28">Tanggal</th>
@@ -367,6 +368,7 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({
               </tr>
             </tfoot>
           </table>
+          </div>
         </div>
 
         {/* Card Footer Summary */}
@@ -375,7 +377,7 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({
             Total {ledgerData.transactions.length} transaksi mutasi tercatat pada akun ini
           </span>
           <span className="text-[11px] text-slate-400">
-            Standar SAK EMKM Omah Ban BSD
+            Standar SAK EMKM Omah Ban Cabang 3 Magelang
           </span>
         </div>
       </div>

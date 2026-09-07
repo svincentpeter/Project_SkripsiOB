@@ -56,6 +56,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
   const [drawerKicked, setDrawerKicked] = useState(false);
   const [copiedNotification, setCopiedNotification] = useState(false);
   const [previewMode, setPreviewMode] = useState<PreviewMode>('THERMAL_80MM');
+  const [mobileTab, setMobileTab] = useState<'list' | 'preview'>('list');
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -321,13 +322,44 @@ ${footerTitle}`;
         </div>
       )}
 
+      {/* Mobile Top View Switcher (Only visible on screens < lg) */}
+      <div className="lg:hidden flex items-center justify-between p-2 bg-slate-100 border-b border-slate-200 shrink-0 gap-2 no-print">
+        <button
+          type="button"
+          onClick={() => setMobileTab('list')}
+          className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+            mobileTab === 'list'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+          }`}
+        >
+          <Receipt className="w-3.5 h-3.5" />
+          <span>Daftar Nota ({filteredTransactions.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMobileTab('preview')}
+          className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+            mobileTab === 'preview'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+          }`}
+        >
+          <Printer className="w-3.5 h-3.5" />
+          <span>Preview & Cetak {activeTx ? `(${activeTx.invoice_number.slice(-4)})` : ''}</span>
+        </button>
+      </div>
+
       {/* Main Split Layout: Left Master List (42%), Right Detail Canvas (58%) */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         
         {/* =========================================================
             LEFT COLUMN: MASTER TRANSACTIONS & AUDIT LIST (42%)
             ========================================================= */}
-        <aside className="w-full lg:w-[420px] xl:w-[460px] bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col no-print shrink-0 overflow-hidden shadow-xs">
+        <aside className={`w-full lg:w-[420px] xl:w-[460px] bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex-col no-print shrink-0 overflow-hidden shadow-xs ${
+          mobileTab === 'preview' ? 'hidden lg:flex' : 'flex'
+        }`}>
           
           {/* Section 1: Header Title & Mini KPI Cards */}
           <div className="p-3.5 border-b border-slate-200 bg-slate-50/70 space-y-3">
@@ -456,7 +488,10 @@ ${footerTitle}`;
                 return (
                   <div
                     key={tx.id}
-                    onClick={() => onSelectTransaction(tx)}
+                    onClick={() => {
+                      onSelectTransaction(tx);
+                      setMobileTab('preview');
+                    }}
                     className={`p-3 rounded-xl border transition-all cursor-pointer text-xs relative ${
                       isSelected
                         ? 'bg-blue-50/90 border-blue-500 shadow-xs ring-1 ring-blue-400'
@@ -511,7 +546,19 @@ ${footerTitle}`;
         {/* =========================================================
             RIGHT COLUMN: PREVIEW CANVAS & ACTION TOOLBAR (58%)
             ========================================================= */}
-        <main className="flex-1 flex flex-col items-center justify-start overflow-y-auto custom-scrollbar bg-slate-100/80 p-4 sm:p-6">
+        <main className={`flex-1 flex flex-col items-center justify-start overflow-y-auto custom-scrollbar bg-slate-100/80 p-3 sm:p-6 ${
+          mobileTab === 'list' ? 'hidden lg:flex' : 'flex'
+        }`}>
+          
+          {/* Mobile Back to List Button */}
+          <button
+            type="button"
+            onClick={() => setMobileTab('list')}
+            className="lg:hidden self-start mb-3 px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-2xs no-print cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Kembali ke Daftar Nota</span>
+          </button>
           
           {activeTx ? (
             <div className="w-full max-w-[760px] flex flex-col items-center">

@@ -184,9 +184,10 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
           </div>
         </div>
 
-        {/* Invoices Table (Zero Scroll) */}
+        {/* Invoices Table (Responsive Horizontal Scroll) */}
         <div className="w-full overflow-hidden rounded-xl border border-slate-200">
-          <table className="table-fixed w-full text-xs text-left border-collapse">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[780px] text-xs text-left border-collapse">
             <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
               <tr>
                 <th className="py-2.5 px-3 w-[14%]">No. Faktur</th>
@@ -256,6 +257,7 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Card Footer Summary */}

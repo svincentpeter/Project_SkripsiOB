@@ -593,26 +593,33 @@ function MainAppContent() {
         }
       }
 
-      // 2. Fallback: Coba koneksi ke backend lokal Laravel MySQL jika ada
-      try {
-        const health = await apiClient.get<{ status: string; database: string; database_status: string }>('/health');
-        if (health.status === 'healthy' && health.database_status === 'connected' && isMounted) {
-          setBackendStatus('connected');
-          if (health.database) setDatabaseName(health.database);
-          console.log('[Laravel Backend] Terhubung ke MySQL:', health.database);
+      // 2. Fallback: Coba koneksi ke backend lokal Laravel MySQL HANYA jika berjalan di localhost dan Supabase belum terkonfigurasi
+      const isLocalDev = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1'
+      );
 
-          // Fetch fresh products from backend MySQL
-          const apiProds = await productApi.list().catch(() => null);
-          if (apiProds && apiProds.length > 0 && isMounted) {
-            setProducts(apiProds);
+      if (isLocalDev && !isSupabaseConfigured()) {
+        try {
+          const health = await apiClient.get<{ status: string; database: string; database_status: string }>('/health');
+          if (health.status === 'healthy' && health.database_status === 'connected' && isMounted) {
+            setBackendStatus('connected');
+            if (health.database) setDatabaseName(health.database);
+            console.log('[Laravel Backend] Terhubung ke MySQL:', health.database);
+
+            // Fetch fresh products from backend MySQL
+            const apiProds = await productApi.list().catch(() => null);
+            if (apiProds && apiProds.length > 0 && isMounted) {
+              setProducts(apiProds);
+            }
+            return;
+          } else if (isMounted) {
+            setBackendStatus('offline');
           }
-          return;
-        } else if (isMounted) {
-          setBackendStatus('offline');
-        }
-      } catch {
-        if (isMounted) {
-          setBackendStatus('offline');
+        } catch {
+          if (isMounted) {
+            setBackendStatus('offline');
+          }
         }
       }
     };
@@ -1526,7 +1533,7 @@ function MainAppContent() {
             }}
           />
 
-          <main className="flex-1 flex flex-col relative overflow-hidden bg-[#F8FAFC]">
+          <main className="flex-1 min-h-0 flex flex-col relative overflow-y-auto bg-[#F8FAFC]">
             {activeScreen === 'receipt' && (
               <ThermalReceiptScreen
                 currentTransaction={currentReceiptTx}

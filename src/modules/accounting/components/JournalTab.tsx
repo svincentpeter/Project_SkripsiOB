@@ -300,8 +300,8 @@ export const JournalTab: React.FC<JournalTabProps> = ({
                   <div className="p-3 space-y-2">
                     <p className="text-xs text-slate-700 font-medium">{journal.description}</p>
 
-                    <div className="border border-slate-200 rounded-lg overflow-hidden">
-                      <table className="table-fixed w-full text-xs border-collapse">
+                    <div className="border border-slate-200 rounded-lg overflow-x-auto">
+                      <table className="w-full min-w-[500px] text-xs border-collapse">
                         <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
                           <tr>
                             <th className="py-2 px-3 text-left w-28">Kode Akun</th>

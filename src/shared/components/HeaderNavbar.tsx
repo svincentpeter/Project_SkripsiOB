@@ -321,7 +321,29 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 p-2">
+                <div className="border-t border-slate-100 p-2 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onOpenWireframeModal();
+                    }}
+                    className="w-full sm:hidden flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-100 font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    <HelpCircle className="w-4 h-4 text-slate-500" />
+                    <span>Panduan & Wireframe</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onResetData();
+                    }}
+                    className="w-full sm:hidden flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-100 font-semibold text-xs transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-4 h-4 text-slate-500" />
+                    <span>Reset Data Toko</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -338,7 +360,7 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-0.5 sm:gap-1">
+          <div className="hidden sm:flex items-center gap-0.5 sm:gap-1">
             <button
               onClick={onOpenWireframeModal}
               className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
@@ -406,8 +428,8 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
         )}
       </div>
 
-      {/* TIER 3: BREADCRUMB STRIP */}
-      <div className="h-8 px-3 sm:px-4 lg:px-8 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600 overflow-x-auto scrollbar-none">
+      {/* TIER 3: BREADCRUMB STRIP (Hidden on mobile phones to save vertical space) */}
+      <div className="hidden sm:flex h-8 px-3 sm:px-4 lg:px-8 bg-slate-50 border-t border-slate-200/80 items-center justify-between text-xs text-slate-600 overflow-x-auto scrollbar-none">
         <div className="flex items-center gap-1.5 overflow-hidden text-[10px] sm:text-xs">
           <Home 
             className="w-3.5 h-3.5 text-slate-500 shrink-0 cursor-pointer hover:text-blue-600" 

@@ -182,16 +182,16 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const uniqueRings = Array.from(new Set(products.filter(p => (p.category || 'BAN_BARU') === activeTab).map(p => p.ring))).filter(Boolean);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 p-4 sm:p-6 lg:p-8 space-y-6 font-['Plus_Jakarta_Sans',sans-serif]">
+    <div className="flex-1 w-full bg-[#F8FAFC] text-slate-800 p-3 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 font-['Plus_Jakarta_Sans',sans-serif]">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 p-4 sm:p-6 rounded-2xl shadow-xs">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
-              <Boxes className="w-6 h-6" />
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="p-2 sm:p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shrink-0">
+              <Boxes className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight">
                 Pusat Inventori & Master Data Cabang 3
               </h1>
               <p className="text-xs sm:text-sm text-slate-500">
@@ -201,24 +201,24 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto">
           <button
             onClick={() => handleOpenRestock()}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
           >
             <Truck className="w-4 h-4" />
             <span>Penerimaan Barang</span>
           </button>
           <button
             onClick={() => setShowOpnameModal(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
           >
             <ClipboardList className="w-4 h-4" />
             <span>Stock Opname</span>
           </button>
           <button
             onClick={handleOpenCreateProduct}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 sm:gap-2 px-4 py-2 sm:py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Tambah Master Produk</span>
@@ -227,22 +227,22 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white border border-slate-200 p-3.5 sm:p-4 rounded-xl shadow-xs">
-          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Total Unit Fisik Gudang</span>
-          <span className="text-xl sm:text-2xl font-black text-slate-900 truncate block">{valuation.totalPcs} <span className="text-xs text-slate-500 font-semibold">Unit</span></span>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
+          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Total Unit Fisik</span>
+          <span className="text-base sm:text-2xl font-black text-slate-900 truncate block">{valuation.totalPcs} <span className="text-xs text-slate-500 font-semibold">Unit</span></span>
         </div>
-        <div className="bg-white border border-slate-200 p-3.5 sm:p-4 rounded-xl shadow-xs">
-          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Total Nilai HPP Persediaan</span>
-          <span className="text-xl sm:text-2xl font-black text-emerald-700 truncate block">{formatRupiah(valuation.totalValuationHpp)}</span>
+        <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
+          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Total Nilai HPP</span>
+          <span className="text-base sm:text-2xl font-black text-emerald-700 truncate block">{formatRupiah(valuation.totalValuationHpp)}</span>
         </div>
-        <div className="bg-white border border-slate-200 p-3.5 sm:p-4 rounded-xl shadow-xs">
-          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Peringatan Stok Kritis</span>
-          <span className="text-xl sm:text-2xl font-black text-amber-700 truncate block">{valuation.lowStockCount} <span className="text-xs text-slate-500 font-semibold">SKU</span></span>
+        <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
+          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Stok Kritis</span>
+          <span className="text-base sm:text-2xl font-black text-amber-700 truncate block">{valuation.lowStockCount} <span className="text-xs text-slate-500 font-semibold">SKU</span></span>
         </div>
-        <div className="bg-white border border-slate-200 p-3.5 sm:p-4 rounded-xl shadow-xs">
-          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Stok Habis / Kosong</span>
-          <span className="text-xl sm:text-2xl font-black text-rose-700 truncate block">{valuation.outOfStockCount} <span className="text-xs text-slate-500 font-semibold">SKU</span></span>
+        <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
+          <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider block mb-1">Stok Habis</span>
+          <span className="text-base sm:text-2xl font-black text-rose-700 truncate block">{valuation.outOfStockCount} <span className="text-xs text-slate-500 font-semibold">SKU</span></span>
         </div>
       </div>
 
@@ -451,7 +451,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         {(activeTab === 'BAN_BARU' || activeTab === 'VELG' || activeTab === 'BAN_DALAM') && (
           <div className="w-full overflow-hidden rounded-xl border border-slate-200">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full min-w-[680px] text-left text-xs border-collapse">
                 <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
                   <tr>
                     <th className="py-2.5 px-3">Nama Produk & SKU</th>
@@ -565,7 +565,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         {activeTab === 'SERVICES' && (
           <div className="w-full overflow-hidden rounded-xl border border-slate-200">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full min-w-[680px] text-left text-xs border-collapse">
                 <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
                   <tr>
                     <th className="py-2.5 px-3">Nama Layanan / Jasa</th>
@@ -649,7 +649,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         {activeTab === 'SUPPLIERS' && (
           <div className="w-full overflow-hidden rounded-xl border border-slate-200">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full min-w-[680px] text-left text-xs border-collapse">
                 <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
                   <tr>
                     <th className="py-2.5 px-3">Nama Distributor & Kode</th>

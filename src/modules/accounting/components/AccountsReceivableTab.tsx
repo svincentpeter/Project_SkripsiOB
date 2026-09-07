@@ -194,9 +194,10 @@ export const AccountsReceivableTab: React.FC<AccountsReceivableTabProps> = ({
           </div>
         </div>
 
-        {/* Table Container - Strict Zero Scroll */}
+        {/* Table Container - Responsive Horizontal Scroll on Mobile */}
         <div className="w-full overflow-hidden rounded-xl border border-slate-200">
-          <table className="table-fixed w-full text-xs text-left border-collapse">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-xs text-left border-collapse">
             <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
               <tr>
                 <th className="py-2.5 px-3 w-28">No. Faktur</th>
@@ -287,6 +288,7 @@ export const AccountsReceivableTab: React.FC<AccountsReceivableTabProps> = ({
               </tr>
             </tfoot>
           </table>
+          </div>
         </div>
       </div>
 
