@@ -25,9 +25,21 @@ Database Supabase Anda memerlukan struktur tabel dan data awal toko. Ikuti langk
 6. Tunggu beberapa detik sampai muncul pesan `Success. No rows returned`.
 
 ✅ **Hasil:**
-Seluruh 15 tabel (`products`, `services`, `suppliers`, `pos_transactions`, `parked_transactions`, `sales_bookings`, `expenses`, `stock_mutations`, `journal_entries`, `payable_invoices`, `receivable_invoices`, `store_settings`, `account_balances`, `accounting_period`), kebijakan keamanan RLS, dan seed data resmi Omah Ban Cabang 3 telah aktif di database PostgreSQL Cloud Anda!
+Seluruh **17 tabel** (`products`, `services`, `suppliers`, `pos_transactions`, `parked_transactions`, `sales_bookings`, `expenses`, `stock_mutations`, `journal_entries`, `payable_invoices`, `receivable_invoices`, `store_settings`, `account_balances`, `accounting_period`, `users`, `role_permissions`), kebijakan keamanan RLS, dan seed data resmi Omah Ban Cabang 3 telah aktif di database PostgreSQL Cloud Anda!
 
 ---
+
+## 🔐 Akun Login Pengguna (Tersimpan di Database Supabase)
+
+Sistem mendukung login menggunakan **Username ATAU Email** dengan password default:
+
+| Peran (Role) | Username | Email | Password | Hak Akses Utama |
+|---|---|---|---|---|
+| **Owner** (Pemilik) | `owner` | `owner@omahban.com` | `password` | Akses penuh (Dashboard Eksekutif, Akuntansi SAK EMKM, Laporan Laba Rugi, Pengaturan Sistem & Role Permissions) |
+| **Kasir** (Kasir OB3) | `kasir` | `kasir@omahban.com` | `password` | POS Penjualan, Penerimaan Pembayaran Bon/Piutang, Kas Masuk/Keluar, Riwayat Nota & Cetak Struk Thermal |
+| **Admin Gudang** (Gudang OB3) | `gudang` | `gudang@omahban.com` | `password` | Master Stok Ban & Jasa, Penerimaan Barang (PO), Stok Opname, Mutasi Stok, Hutang Dagang Supplier |
+
+*Catatan: Pada layar login, Anda juga dapat mengklik tombol "Login Cepat / Demo" untuk langsung mengisi formulir login.*
 
 ## 🌐 Langkah 2: Deploy ke Vercel (Gratis & Otomatis)
 

@@ -12,6 +12,9 @@ import {
   PayableInvoice,
   ReceivableInvoice,
   StoreSettings,
+  UserAccount,
+  RolePermissionsConfig,
+  AccountingPeriodInfo,
 } from '../shared/types';
 
 // ============================================================================
@@ -453,6 +456,123 @@ export const saveStoreSettingsToSupabase = async (settings: StoreSettings): Prom
       updated_at: new Date().toISOString(),
     };
     const { error } = await supabase.from('store_settings').upsert(payload);
+    return !error;
+  } catch {
+    return false;
+  }
+};
+
+// ============================================================================
+// 11. USERS & AUTH
+// ============================================================================
+export const fetchUsersFromSupabase = async (): Promise<UserAccount[] | null> => {
+  if (!isSupabaseConfigured() || !supabase) return null;
+  try {
+    const { data, error } = await supabase.from('users').select('*').order('role', { ascending: true });
+    if (error || !data) {
+      console.warn('[Supabase] Gagal fetch users:', error?.message);
+      return null;
+    }
+    return data as UserAccount[];
+  } catch (err) {
+    console.warn('[Supabase] Error fetchUsers:', err);
+    return null;
+  }
+};
+
+export const upsertUserToSupabase = async (user: UserAccount): Promise<boolean> => {
+  if (!isSupabaseConfigured() || !supabase) return false;
+  try {
+    const { error } = await supabase.from('users').upsert(user);
+    return !error;
+  } catch {
+    return false;
+  }
+};
+
+// ============================================================================
+// 12. ROLE PERMISSIONS
+// ============================================================================
+export const fetchRolePermissionsFromSupabase = async (): Promise<RolePermissionsConfig | null> => {
+  if (!isSupabaseConfigured() || !supabase) return null;
+  try {
+    const { data, error } = await supabase.from('role_permissions').select('*');
+    if (error || !data || data.length === 0) return null;
+    const config: any = {};
+    data.forEach((row: any) => {
+      config[row.role] = row.permissions;
+    });
+    return config as RolePermissionsConfig;
+  } catch {
+    return null;
+  }
+};
+
+export const saveRolePermissionsToSupabase = async (config: RolePermissionsConfig): Promise<boolean> => {
+  if (!isSupabaseConfigured() || !supabase) return false;
+  try {
+    const promises = Object.entries(config).map(([role, permissions]) =>
+      supabase.from('role_permissions').upsert({
+        role,
+        permissions,
+        updated_at: new Date().toISOString(),
+      })
+    );
+    await Promise.all(promises);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// ============================================================================
+// 13. ACCOUNT BALANCES & PERIOD
+// ============================================================================
+export const fetchAccountBalancesFromSupabase = async (): Promise<Record<string, number> | null> => {
+  if (!isSupabaseConfigured() || !supabase) return null;
+  try {
+    const { data, error } = await supabase.from('account_balances').select('*');
+    if (error || !data || data.length === 0) return null;
+    const balances: Record<string, number> = {};
+    data.forEach((row: any) => {
+      balances[row.account_code] = parseFloat(row.balance);
+    });
+    return balances;
+  } catch {
+    return null;
+  }
+};
+
+export const saveAccountBalancesToSupabase = async (balances: Record<string, number>): Promise<boolean> => {
+  if (!isSupabaseConfigured() || !supabase) return false;
+  try {
+    const rows = Object.entries(balances).map(([account_code, balance]) => ({
+      account_code,
+      balance,
+      updated_at: new Date().toISOString(),
+    }));
+    const { error } = await supabase.from('account_balances').upsert(rows);
+    return !error;
+  } catch {
+    return false;
+  }
+};
+
+export const fetchAccountingPeriodFromSupabase = async (): Promise<AccountingPeriodInfo | null> => {
+  if (!isSupabaseConfigured() || !supabase) return null;
+  try {
+    const { data, error } = await supabase.from('accounting_period').select('*').limit(1).single();
+    if (error || !data) return null;
+    return data as AccountingPeriodInfo;
+  } catch {
+    return null;
+  }
+};
+
+export const saveAccountingPeriodToSupabase = async (period: AccountingPeriodInfo): Promise<boolean> => {
+  if (!isSupabaseConfigured() || !supabase) return false;
+  try {
+    const { error } = await supabase.from('accounting_period').upsert(period);
     return !error;
   } catch {
     return false;

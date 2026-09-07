@@ -536,12 +536,17 @@ export type PermissionKey =
 
 export interface UserSession {
   id: string;
+  username?: string;
   name: string;
   email: string;
   role: UserRole;
   avatar_url?: string;
   branch_name: string;
   phone?: string;
+}
+
+export interface UserAccount extends UserSession {
+  password?: string;
 }
 
 export type RolePermissionsConfig = {

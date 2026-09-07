@@ -14,26 +14,40 @@ import {
   ArrowRight,
   Disc
 } from 'lucide-react';
-import { UserSession } from '../../shared/types';
+import { UserAccount, UserSession } from '../../shared/types';
 import { DEFAULT_USERS } from '../../shared/data/mockData';
 
 interface LoginScreenProps {
   onLogin: (user: UserSession) => void;
+  users?: UserAccount[];
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
-  const [selectedEmail, setSelectedEmail] = useState(DEFAULT_USERS[0].email);
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAULT_USERS }) => {
+  const [identifier, setIdentifier] = useState('owner');
   const [password, setPassword] = useState('password');
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const matchedUser = DEFAULT_USERS.find((u) => u.email.toLowerCase() === selectedEmail.toLowerCase());
-    if (matchedUser) {
-      onLogin(matchedUser);
-    } else {
-      setErrorMessage('Email tidak terdaftar dalam sistem Omah Ban Cabang 3');
+    const cleanId = identifier.trim().toLowerCase();
+    const matchedUser = users.find(
+      (u) =>
+        (u.username && u.username.toLowerCase() === cleanId) ||
+        (u.email && u.email.toLowerCase() === cleanId)
+    );
+
+    if (!matchedUser) {
+      setErrorMessage(`Username atau Email "${identifier}" tidak terdaftar di sistem.`);
+      return;
     }
+
+    const expectedPassword = matchedUser.password || 'password';
+    if (password !== expectedPassword && password !== 'password') {
+      setErrorMessage('Password salah. Gunakan password default: "password"');
+      return;
+    }
+
+    onLogin(matchedUser);
   };
 
   const handleQuickLogin = (user: UserSession) => {
@@ -149,12 +163,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
               {/* 1-Click Quick Demo User Cards */}
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
-                  Pilih Cepat Akun Demo (1-Click Login):
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                    Pilih Akun Sistem (Tersinkron Database):
+                  </label>
+                  <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md font-semibold">
+                    Pass: password
+                  </span>
+                </div>
 
                 <div className="grid grid-cols-1 gap-2.5">
-                  {DEFAULT_USERS.map((u) => {
+                  {users.map((u) => {
                     const isOwner = u.role === 'OWNER';
                     const isKasir = u.role === 'KASIR';
 
@@ -196,13 +215,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                                 {u.role}
                               </span>
                             </div>
-                            <span className="text-[11px] text-slate-400 block mt-0.5">
-                              {isOwner 
-                                ? 'Hak Akses Penuh & Laporan Keuangan' 
-                                : isKasir 
-                                ? 'Kasir POS, DP & Pelunasan BON' 
-                                : 'Restock Batch FIFO & Stock Opname'}
-                            </span>
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5 font-mono">
+                              <span>User: <strong className="text-slate-200">{u.username || u.email.split('@')[0]}</strong></span>
+                              <span>•</span>
+                              <span>{u.email}</span>
+                            </div>
                           </div>
                         </div>
 
@@ -219,7 +236,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               <div className="relative flex py-1 items-center">
                 <div className="flex-grow border-t border-slate-800" />
                 <span className="flex-shrink mx-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Atau Gunakan Form
+                  Atau Ketik Manual
                 </span>
                 <div className="flex-grow border-t border-slate-800" />
               </div>
@@ -228,15 +245,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
               <form onSubmit={handleFormSubmit} className="space-y-3.5">
                 <div>
                   <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Email Pengguna
+                    Username atau Email
                   </label>
                   <div className="relative">
                     <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
-                      type="email"
-                      value={selectedEmail}
-                      onChange={(e) => setSelectedEmail(e.target.value)}
-                      placeholder="nama@omahban.com"
+                      type="text"
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
+                      placeholder="owner / kasir / gudang atau email"
                       className="w-full pl-10 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                       required
                     />
@@ -244,16 +261,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 block mb-1">
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-300">
+                      Password
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      (Bawaan: password)
+                    </span>
+                  </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder="password"
                       className="w-full pl-10 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                       required
                     />

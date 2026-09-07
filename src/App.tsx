@@ -22,7 +22,7 @@ import {
   StoreSettings, 
   SupplierItem, 
   TireProduct, 
-  UpdateProductInput,
+  UserAccount,
   UserSession 
 } from './shared/types';
 import { 
@@ -96,6 +96,14 @@ import {
   fetchReceivablesFromSupabase,
   fetchParkedOrdersFromSupabase,
   fetchStoreSettingsFromSupabase,
+  fetchUsersFromSupabase,
+  upsertUserToSupabase,
+  fetchRolePermissionsFromSupabase,
+  saveRolePermissionsToSupabase,
+  fetchAccountBalancesFromSupabase,
+  saveAccountBalancesToSupabase,
+  fetchAccountingPeriodFromSupabase,
+  saveAccountingPeriodToSupabase,
   insertTransactionToSupabase,
   updateTransactionStatusInSupabase,
   upsertParkedOrderToSupabase,
@@ -194,32 +202,46 @@ function MainAppContent() {
     localStorage.setItem('ob3_role_permissions', JSON.stringify(rolePermissions));
   }, [rolePermissions]);
 
-  const [notifications, setNotifications] = useState<AppNotification[]>([
-    {
-      id: 'notif-1',
-      type: 'STOCK_LOW',
-      title: 'Stok Kritis: Accelera PHI-R',
-      description: 'Sisa stok tinggal 3 unit (di bawah ambang batas minimum 5 unit). Segera buat PO restock.',
-      timestamp: '10 mnt lalu',
-      isRead: false,
-    },
-    {
-      id: 'notif-2',
-      type: 'BOOKING_NEW',
-      title: 'Booking DP Baru',
-      description: 'Pak Denny Sumargo (CR-V) membayar DP Rp 1.000.000 untuk 4 ban Turanza + Spooring.',
-      timestamp: '1 jam lalu',
-      isRead: false,
-    },
-    {
-      id: 'notif-3',
-      type: 'DEBT_DUE',
-      title: 'Jatuh Tempo Hutang Supplier',
-      description: 'Faktur PT Bridgestone Tire Indonesia (Rp 9.500.000) jatuh tempo dalam 11 hari.',
-      timestamp: '3 jam lalu',
-      isRead: false,
-    },
-  ]);
+  // Master Users State (Synchronized with Supabase Database)
+  const [users, setUsers] = useState<UserAccount[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_users');
+      return saved ? JSON.parse(saved) : DEFAULT_USERS;
+    } catch {
+      return DEFAULT_USERS;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('ob3_users', JSON.stringify(users));
+  }, [users]);
+
+  // Notification Read & Dismiss Tracking
+  const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_read_notif_ids');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_dismissed_notif_ids');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('ob3_read_notif_ids', JSON.stringify(readNotifIds));
+  }, [readNotifIds]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_dismissed_notif_ids', JSON.stringify(dismissedNotifIds));
+  }, [dismissedNotifIds]);
 
   // Core Data persistent in LocalStorage
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
@@ -413,6 +435,86 @@ function MainAppContent() {
     return () => clearInterval(interval);
   }, []);
 
+  // 100% Dynamic Notifications derived directly from database records
+  const notifications: AppNotification[] = React.useMemo(() => {
+    const list: AppNotification[] = [];
+
+    // 1. Stok Kritis (Produk di bawah ambang batas)
+    products
+      .filter((p) => {
+        const qty = p.product_quantity ?? p.stock ?? 0;
+        const alertThreshold = p.product_stock_alert ?? p.min_stock ?? 5;
+        return qty < alertThreshold;
+      })
+      .slice(0, 5)
+      .forEach((p) => {
+        const id = `notif-stock-${p.id}`;
+        if (dismissedNotifIds.includes(id)) return;
+        const qty = p.product_quantity ?? p.stock ?? 0;
+        list.push({
+          id,
+          type: 'STOCK_LOW',
+          title: `Stok Kritis: ${p.product_name || p.name}`,
+          description: `Sisa stok tinggal ${qty} unit (di bawah ambang batas ${p.product_stock_alert ?? p.min_stock ?? 5} unit). Segera buat PO restock.`,
+          timestamp: 'Stok Realtime',
+          isRead: readNotifIds.includes(id),
+        });
+      });
+
+    // 2. Booking DP Aktif
+    bookings
+      .filter((b) => b.status === 'ACTIVE')
+      .slice(0, 3)
+      .forEach((b) => {
+        const id = `notif-book-${b.id}`;
+        if (dismissedNotifIds.includes(id)) return;
+        list.push({
+          id,
+          type: 'BOOKING_NEW',
+          title: `Booking DP: ${b.customer_name}`,
+          description: `${b.customer_name} (${b.vehicle_plate}) DP ${formatRupiah(b.dp_amount)} untuk ${b.items?.length || 0} item pesanan.`,
+          timestamp: b.date || 'Hari ini',
+          isRead: readNotifIds.includes(id),
+        });
+      });
+
+    // 3. Jatuh Tempo Hutang Distributor
+    payableInvoices
+      .filter((p) => p.status !== 'LUNAS')
+      .slice(0, 3)
+      .forEach((p) => {
+        const id = `notif-debt-${p.id}`;
+        if (dismissedNotifIds.includes(id)) return;
+        list.push({
+          id,
+          type: 'DEBT_DUE',
+          title: `Hutang Supplier: ${p.supplier_name}`,
+          description: `Faktur ${p.invoice_number} sisa tagihan ${formatRupiah(p.remaining_amount)} (Jatuh tempo: ${p.due_date}).`,
+          timestamp: p.due_date || 'Segera',
+          isRead: readNotifIds.includes(id),
+        });
+      });
+
+    // 4. Piutang Pelanggan (Faktur BON)
+    receivableInvoices
+      .filter((r) => r.status !== 'LUNAS')
+      .slice(0, 3)
+      .forEach((r) => {
+        const id = `notif-rec-${r.id}`;
+        if (dismissedNotifIds.includes(id)) return;
+        list.push({
+          id,
+          type: 'BON_OVERDUE',
+          title: `Piutang BON: ${r.customer_name}`,
+          description: `Faktur BON ${r.invoice_number} sisa tagihan ${formatRupiah(r.remaining_amount)} belum lunas.`,
+          timestamp: r.due_date || 'Tempo',
+          isRead: readNotifIds.includes(id),
+        });
+      });
+
+    return list;
+  }, [products, bookings, payableInvoices, receivableInvoices, readNotifIds, dismissedNotifIds]);
+
   // Synchronize state with Supabase PostgreSQL Cloud or Laravel REST API on mount
   useEffect(() => {
     let isMounted = true;
@@ -440,6 +542,10 @@ function MainAppContent() {
               sbReceivables,
               sbParked,
               sbSettings,
+              sbUsers,
+              sbPerms,
+              sbBalances,
+              sbPeriod,
             ] = await Promise.all([
               fetchProductsFromSupabase(),
               fetchServicesFromSupabase(),
@@ -453,6 +559,10 @@ function MainAppContent() {
               fetchReceivablesFromSupabase(),
               fetchParkedOrdersFromSupabase(),
               fetchStoreSettingsFromSupabase(),
+              fetchUsersFromSupabase(),
+              fetchRolePermissionsFromSupabase(),
+              fetchAccountBalancesFromSupabase(),
+              fetchAccountingPeriodFromSupabase(),
             ]);
 
             if (isMounted) {
@@ -468,6 +578,13 @@ function MainAppContent() {
               if (sbReceivables && sbReceivables.length > 0) setReceivableInvoices(sbReceivables);
               if (sbParked) setParkedOrders(sbParked);
               if (sbSettings) setStoreSettings(sbSettings);
+              if (sbUsers && sbUsers.length > 0) setUsers(sbUsers);
+              if (sbPerms) setRolePermissions(sbPerms);
+              if (sbBalances) {
+                setAccountBalances(sbBalances);
+                if (sbBalances['1-1000'] !== undefined) setCashInDrawer(sbBalances['1-1000']);
+              }
+              if (sbPeriod) setPeriodInfo(sbPeriod);
             }
             return;
           }
@@ -1338,6 +1455,7 @@ function MainAppContent() {
           localStorage.setItem('ob3_user_session', JSON.stringify(user));
           toast.success(`Selamat Datang, ${user.name}!`, `Berhasil masuk sebagai ${user.role} (${user.branch_name}).`);
         }}
+        users={users}
       />
     );
   }
@@ -1384,11 +1502,11 @@ function MainAppContent() {
             cartCount={cartTotalQty}
             notifications={notifications}
             onMarkNotificationRead={(id) => {
-              setNotifications((prev) =>
-                prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-              );
+              setReadNotifIds((prev) => [...prev, id]);
             }}
-            onClearNotifications={() => setNotifications([])}
+            onClearNotifications={() => {
+              setDismissedNotifIds((prev) => [...prev, ...notifications.map((n) => n.id)]);
+            }}
             onOpenWireframeModal={() => setShowWireframeModal(true)}
             onResetData={handleResetData}
             currentTimeStr={timeString}
@@ -1500,7 +1618,10 @@ function MainAppContent() {
                 }}
                 currentUser={currentUser}
                 currentPermissions={rolePermissions}
-                onSavePermissions={(newPerms) => setRolePermissions(newPerms)}
+                onSavePermissions={(newPerms) => {
+                  setRolePermissions(newPerms);
+                  saveRolePermissionsToSupabase(newPerms);
+                }}
               />
             )}
           </main>

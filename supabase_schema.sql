@@ -292,6 +292,27 @@ CREATE TABLE IF NOT EXISTS accounting_period (
     net_income_transferred NUMERIC DEFAULT 0
 );
 
+-- 16. TABEL: users (Pengguna Sistem: Owner, Kasir, Gudang)
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL DEFAULT 'password',
+    role TEXT NOT NULL,
+    branch_name TEXT NOT NULL DEFAULT 'Cabang 3 Magelang',
+    phone TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 17. TABEL: role_permissions (Matriks Hak Akses Peran Kasir & Gudang)
+CREATE TABLE IF NOT EXISTS role_permissions (
+    role TEXT PRIMARY KEY,
+    permissions JSONB NOT NULL DEFAULT '{}'::jsonb,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- Konfigurasi akses aman untuk Supabase anon key
@@ -311,6 +332,8 @@ ALTER TABLE payable_invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE receivable_invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE account_balances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounting_period ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE role_permissions ENABLE ROW LEVEL SECURITY;
 
 -- Buat Permissive Policies untuk 'anon' role (Public Read/Write untuk aplikasi POS)
 DO $$
@@ -323,7 +346,7 @@ BEGIN
             'pos_transactions', 'parked_transactions', 'sales_bookings', 
             'expenses', 'stock_mutations', 'journal_entries', 
             'payable_invoices', 'receivable_invoices', 'account_balances', 
-            'accounting_period'
+            'accounting_period', 'users', 'role_permissions'
         ])
     LOOP
         EXECUTE format('DROP POLICY IF EXISTS "Public Full Access on %I" ON %I;', tbl, tbl);
@@ -412,3 +435,53 @@ ON CONFLICT (account_code) DO UPDATE SET balance = EXCLUDED.balance;
 INSERT INTO accounting_period (period_id, period_name, status)
 VALUES ('2026-09', 'September 2026', 'OPEN')
 ON CONFLICT (period_id) DO NOTHING;
+
+-- 7. Master Pengguna Sistem (Login via Username / Email + Password: password)
+INSERT INTO users (id, username, name, email, password, role, branch_name, phone)
+VALUES 
+    ('user-owner', 'owner', 'Agus Subagyo', 'owner@omahban.com', 'password', 'OWNER', 'Cabang 3 Magelang', '0822-2786-3969'),
+    ('user-kasir', 'kasir', 'Kasir OB3', 'kasir@omahban.com', 'password', 'KASIR', 'Cabang 3 Magelang', '0812-3456-7893'),
+    ('user-gudang', 'gudang', 'Admin Gudang OB3', 'gudang@omahban.com', 'password', 'GUDANG', 'Cabang 3 Magelang', '0812-3456-7892')
+ON CONFLICT (id) DO UPDATE SET 
+    username = EXCLUDED.username,
+    password = EXCLUDED.password,
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
+    role = EXCLUDED.role;
+
+-- 8. Matriks Hak Akses Peran Kasir & Gudang
+INSERT INTO role_permissions (role, permissions)
+VALUES 
+    ('KASIR', '{
+        "dashboard": false,
+        "pos": true,
+        "receipt": true,
+        "booking_dp": true,
+        "bon_receivable": true,
+        "inventory_view": true,
+        "inventory_manage": false,
+        "goods_receipt": false,
+        "stock_opname": false,
+        "expenses": false,
+        "accounts_payable": false,
+        "accounting_hub": false,
+        "financial_reports": false,
+        "role_settings": false
+    }'::jsonb),
+    ('GUDANG', '{
+        "dashboard": false,
+        "pos": false,
+        "receipt": false,
+        "booking_dp": false,
+        "bon_receivable": false,
+        "inventory_view": true,
+        "inventory_manage": true,
+        "goods_receipt": true,
+        "stock_opname": true,
+        "expenses": false,
+        "accounts_payable": false,
+        "accounting_hub": false,
+        "financial_reports": false,
+        "role_settings": false
+    }'::jsonb)
+ON CONFLICT (role) DO UPDATE SET permissions = EXCLUDED.permissions;
