@@ -14,7 +14,7 @@ import { formatDateIndo, formatRupiah } from '../utils/formatters';
 
 export interface AppNotification {
   id: string;
-  type: 'STOCK_LOW' | 'DEBT_DUE' | 'BOOKING_NEW' | 'TRANSACTION';
+  type: 'STOCK_LOW' | 'DEBT_DUE' | 'BOOKING_NEW' | 'TRANSACTION' | 'BON_OVERDUE';
   title: string;
   description: string;
   timestamp: string;
@@ -63,7 +63,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in duration-200 font-['Plus_Jakarta_Sans',sans-serif]">
+        <div className="absolute right-[-48px] sm:right-0 mt-2 w-[calc(100vw-32px)] sm:w-96 max-w-sm bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in duration-200 font-['Plus_Jakarta_Sans',sans-serif]">
           <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-900">Notifikasi Sistem</span>
@@ -97,7 +97,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                   onClick={() => {
                     onMarkAsRead(n.id);
                     if (n.type === 'STOCK_LOW') onNavigateTo('inventory');
-                    if (n.type === 'DEBT_DUE') onNavigateTo('ledger');
+                    if (n.type === 'DEBT_DUE' || n.type === 'BON_OVERDUE') onNavigateTo('ledger');
                     if (n.type === 'BOOKING_NEW') onNavigateTo('pos');
                     if (n.type === 'TRANSACTION') onNavigateTo('receipt');
                     setIsOpen(false);
@@ -109,14 +109,14 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                   <div className={`p-2 rounded-xl shrink-0 ${
                     n.type === 'STOCK_LOW'
                       ? 'bg-amber-50 text-amber-600'
-                      : n.type === 'DEBT_DUE'
+                      : n.type === 'DEBT_DUE' || n.type === 'BON_OVERDUE'
                       ? 'bg-rose-50 text-rose-600'
                       : n.type === 'BOOKING_NEW'
                       ? 'bg-purple-50 text-purple-600'
                       : 'bg-emerald-50 text-emerald-600'
                   }`}>
                     {n.type === 'STOCK_LOW' && <Package className="w-4 h-4" />}
-                    {n.type === 'DEBT_DUE' && <Clock className="w-4 h-4" />}
+                    {(n.type === 'DEBT_DUE' || n.type === 'BON_OVERDUE') && <Clock className="w-4 h-4" />}
                     {n.type === 'BOOKING_NEW' && <CheckCircle2 className="w-4 h-4" />}
                     {n.type === 'TRANSACTION' && <DollarSign className="w-4 h-4" />}
                   </div>

@@ -22,6 +22,7 @@ import {
   StoreSettings, 
   SupplierItem, 
   TireProduct, 
+  UpdateProductInput,
   UserAccount,
   UserSession 
 } from './shared/types';
@@ -1500,7 +1501,7 @@ function MainAppContent() {
           isEmptyState={isEmptyState}
         />
       ) : (
-        <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
+        <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] overflow-x-hidden">
           <HeaderNavbar
             activeScreen={activeScreen}
             setActiveScreen={setActiveScreen}
@@ -1635,7 +1636,7 @@ function MainAppContent() {
         </div>
       )}
 
-      {/* Wireframe Architecture & Design Specs Modal */}
+      {/* Buku Panduan Pengguna Toko (User Guide) Modal */}
       <WireframeGuideModal
         isOpen={showWireframeModal}
         onClose={() => setShowWireframeModal(false)}

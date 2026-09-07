@@ -7,6 +7,7 @@ export const generateServiceCode = (category: ServiceCategory): string => {
     BONGKAR_PASANG: 'SRV-PSG',
     PERBAIKAN_BAN: 'SRV-TMB',
     NITROGEN: 'SRV-N2',
+    JASA_MANUAL: 'SRV-MNL',
   };
   const prefix = prefixMap[category] || 'SRV-GEN';
   const randomSuffix = Math.floor(100 + Math.random() * 900);

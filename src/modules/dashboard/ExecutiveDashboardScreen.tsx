@@ -214,40 +214,40 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 bg-slate-50 text-slate-800 font-['Plus_Jakarta_Sans',sans-serif] overflow-y-auto custom-scrollbar">
+    <div className="flex-1 p-3.5 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-slate-50 text-slate-800 font-['Plus_Jakarta_Sans',sans-serif]">
       
       {/* =======================================================================
           HEADER: TITLE & QUICK ACTIONS (Light Mode Enterprise)
           ======================================================================= */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
-            <span className="w-2 h-2 rounded-full bg-blue-600" />
-            <span className="truncate">Pusat Kendali Eksekutif • Cabang 3 (BSD Tangerang)</span>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
+            <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+            <span className="truncate">Pusat Kendali Eksekutif • Cabang 3 Magelang</span>
           </div>
-          <h1 className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-slate-900">
+          <h1 className="text-base sm:text-xl md:text-2xl font-black tracking-tight text-slate-900 leading-snug">
             Dashboard Kinerja Toko & Akuntansi SAK EMKM
           </h1>
-          <p className="text-xs text-slate-600 mt-0.5">
+          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
             Monitoring real-time omzet kasir, margin laba kotor FIFO, persediaan ban gudang, dan beban operasional.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+        <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
           <button
             onClick={onNavigateToInventory}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-700 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer"
+            className="flex-1 sm:flex-none h-10 sm:h-11 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 rounded-xl bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-700 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap"
           >
-            <Boxes className="w-4 h-4 text-blue-600" />
+            <Boxes className="w-4 h-4 text-blue-600 shrink-0" />
             <span>Inventori & FIFO</span>
           </button>
 
           <button
             onClick={onNavigateToPos}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer"
+            className="flex-1 sm:flex-none h-10 sm:h-11 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer whitespace-nowrap"
           >
-            <ShoppingCart className="w-4 h-4" />
-            <span>Terminal Kasir (POS)</span>
+            <ShoppingCart className="w-4 h-4 shrink-0" />
+            <span>Terminal Kasir</span>
           </button>
         </div>
       </div>
@@ -255,41 +255,50 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
       {/* =======================================================================
           TAB NAVIGATION (Working & High Contrast)
           ======================================================================= */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'overview'
               ? 'bg-blue-600 text-white shadow-xs'
               : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <BarChart2 className="w-4 h-4" />
-          <span>Ringkasan Utama (Overview)</span>
+          <BarChart2 className="w-4 h-4 shrink-0" />
+          <span>
+            <span className="sm:hidden">Overview</span>
+            <span className="hidden sm:inline">Ringkasan Utama (Overview)</span>
+          </span>
         </button>
 
         <button
           onClick={() => setActiveTab('sales')}
-          className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'sales'
               ? 'bg-blue-600 text-white shadow-xs'
               : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <TrendingUp className="w-4 h-4" />
-          <span>Analisis Penjualan & Kasir</span>
+          <TrendingUp className="w-4 h-4 shrink-0" />
+          <span>
+            <span className="sm:hidden">Penjualan</span>
+            <span className="hidden sm:inline">Analisis Penjualan & Kasir</span>
+          </span>
         </button>
 
         <button
           onClick={() => setActiveTab('inventory')}
-          className={`shrink-0 flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+          className={`shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'inventory'
               ? 'bg-blue-600 text-white shadow-xs'
               : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
           }`}
         >
-          <Package className="w-4 h-4" />
-          <span>Status Persediaan & FIFO</span>
+          <Package className="w-4 h-4 shrink-0" />
+          <span>
+            <span className="sm:hidden">Persediaan</span>
+            <span className="hidden sm:inline">Status Persediaan & FIFO</span>
+          </span>
           {lowStockProducts.length > 0 && (
             <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-white">
               {lowStockProducts.length}
@@ -299,117 +308,117 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
       </div>
 
       {/* =======================================================================
-          5 REAL KPI METRIC CARDS (Clean Light Mode, Responsive)
+          5 REAL KPI METRIC CARDS (Responsive 2x2 Grid + 1 Banner on Mobile)
           ======================================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-4">
         {/* Card 1: Omzet Hari Ini */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between space-y-2">
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600">Omzet Penjualan (Hari Ini)</span>
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Banknote className="w-4 h-4" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Omzet Hari Ini</span>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <Banknote className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
           <div>
-            <div className="text-lg sm:text-xl font-black text-slate-900 font-mono tracking-tight truncate">
+            <div className="text-sm sm:text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight truncate" title={formatRupiah(todayOmzet)}>
               {formatRupiah(todayOmzet)}
             </div>
-            <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
-              {todayQty} unit ban • {todayTx.length} nota kasir
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+              {todayQty} ban • {todayTx.length} nota
             </div>
           </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">Rata-rata Nota (AOV):</span>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-slate-500">AOV:</span>
             <span className="font-bold text-slate-800 font-mono">{formatRupiah(averageOrderValue)}</span>
           </div>
         </div>
 
         {/* Card 2: Laba Kotor FIFO */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between space-y-2">
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600">Laba Kotor (FIFO)</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Laba Kotor FIFO</span>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
           <div>
-            <div className="text-lg sm:text-xl font-black text-emerald-700 font-mono tracking-tight truncate">
+            <div className="text-sm sm:text-lg md:text-xl font-black text-emerald-700 font-mono tracking-tight truncate" title={formatRupiah(todayGrossProfit)}>
               {formatRupiah(todayGrossProfit)}
             </div>
-            <div className="text-[11px] text-emerald-700 font-bold mt-0.5">
-              Margin Laba: {grossProfitMargin}%
+            <div className="text-[10px] sm:text-[11px] text-emerald-700 font-bold mt-0.5 truncate">
+              Margin: {grossProfitMargin}%
             </div>
           </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">Beban Pokok (HPP):</span>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-slate-500">HPP:</span>
             <span className="font-bold text-slate-800 font-mono">{formatRupiah(todayHpp)}</span>
           </div>
         </div>
 
         {/* Card 3: Valuasi Persediaan */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between space-y-2">
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600">Valuasi Stok FIFO</span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Boxes className="w-4 h-4" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Valuasi Stok FIFO</span>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <Boxes className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
           <div>
-            <div className="text-lg sm:text-xl font-black text-indigo-900 font-mono tracking-tight truncate">
+            <div className="text-sm sm:text-lg md:text-xl font-black text-indigo-900 font-mono tracking-tight truncate" title={formatRupiah(totalInventoryValue)}>
               {formatRupiah(totalInventoryValue)}
             </div>
-            <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
-              {totalInventoryQty} Unit Fisik Gudang
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+              {totalInventoryQty} Unit Fisik
             </div>
           </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">Jumlah SKU Aktif:</span>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-slate-500">SKU Aktif:</span>
             <span className="font-bold text-slate-800 font-mono">{products.length} SKU</span>
           </div>
         </div>
 
         {/* Card 4: Beban Toko Bulan Berjalan */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between space-y-2">
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600">Beban Toko (Bulan Ini)</span>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <Wallet className="w-4 h-4" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Beban Toko</span>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+              <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
           <div>
-            <div className="text-lg sm:text-xl font-black text-rose-700 font-mono tracking-tight truncate">
+            <div className="text-sm sm:text-lg md:text-xl font-black text-rose-700 font-mono tracking-tight truncate" title={formatRupiah(totalExpensesMonth)}>
               {formatRupiah(totalExpensesMonth)}
             </div>
-            <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
-              {expenses.length} Pos Pengeluaran
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+              {expenses.length} Pos Biaya
             </div>
           </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-500">Beban Listrik, Gaji & Sewa:</span>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-slate-500">Operasional:</span>
             <span className="font-bold text-rose-600 font-mono">Tercatat</span>
           </div>
         </div>
 
-        {/* Card 5: Peringatan Stok Kritis */}
+        {/* Card 5: Peringatan Stok Kritis (Spans 2 columns on mobile) */}
         <div 
           onClick={onNavigateToInventory}
-          className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-amber-400 transition-colors"
+          className="col-span-2 sm:col-span-1 bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2 cursor-pointer hover:border-amber-400 transition-colors"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-600">Peringatan Restock</span>
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${lowStockProducts.length > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
-              <AlertTriangle className="w-4 h-4" />
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Peringatan Restock</span>
+            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${lowStockProducts.length > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
+              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <div>
-            <div className={`text-lg sm:text-xl font-black font-mono tracking-tight truncate ${lowStockProducts.length > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
+          <div className="flex items-baseline justify-between sm:block">
+            <div className={`text-sm sm:text-lg md:text-xl font-black font-mono tracking-tight truncate ${lowStockProducts.length > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
               {lowStockProducts.length} Ukuran Ban
             </div>
-            <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
               {outOfStockProducts.length} SKU Habis (0 Unit)
             </div>
           </div>
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
             <span className="text-amber-700 font-bold">Buka Inventori</span>
             <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
           </div>
@@ -450,129 +459,137 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
               </div>
 
               {/* SVG Line Chart */}
-              <div className="w-full overflow-x-auto">
-                <svg
-                  viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                  className="w-full h-48 overflow-visible"
-                >
-                  <defs>
-                    <linearGradient id="lightGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563eb" stopOpacity="0.15" />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity="0.00" />
-                    </linearGradient>
-                  </defs>
+              <div className="w-full overflow-x-auto pb-1">
+                <div className="min-w-[320px] w-full">
+                  <svg
+                    viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                    preserveAspectRatio="xMidYMid meet"
+                    className="w-full h-auto aspect-[27/11] sm:aspect-[27/8] min-h-[160px] overflow-visible"
+                  >
+                    <defs>
+                      <linearGradient id="lightGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#2563eb" stopOpacity="0.15" />
+                        <stop offset="100%" stopColor="#2563eb" stopOpacity="0.00" />
+                      </linearGradient>
+                    </defs>
 
-                  {/* Horizontal Grid lines */}
-                  {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => {
-                    const y = chartHeight - paddingY - pct * usableHeight;
-                    const labelVal = Math.round((pct * maxVal) / 1000000);
-                    return (
-                      <g key={idx}>
-                        <line
-                          x1={paddingX}
-                          y1={y}
-                          x2={chartWidth - paddingX}
-                          y2={y}
-                          stroke="#e2e8f0"
-                          strokeWidth="1"
-                        />
-                        <text
-                          x={paddingX - 6}
-                          y={y + 3}
-                          textAnchor="end"
-                          fontSize="9"
-                          fill="#64748b"
-                          fontFamily="monospace"
-                          fontWeight="bold"
-                        >
-                          {labelVal}jt
-                        </text>
-                      </g>
-                    );
-                  })}
+                    {/* Horizontal Grid lines */}
+                    {[0, 0.25, 0.5, 0.75, 1].map((pct, idx) => {
+                      const y = chartHeight - paddingY - pct * usableHeight;
+                      const labelVal = Math.round((pct * maxVal) / 1000000);
+                      return (
+                        <g key={idx}>
+                          <line
+                            x1={paddingX}
+                            y1={y}
+                            x2={chartWidth - paddingX}
+                            y2={y}
+                            stroke="#e2e8f0"
+                            strokeWidth="1"
+                          />
+                          <text
+                            x={paddingX - 6}
+                            y={y + 3}
+                            textAnchor="end"
+                            fontSize="9"
+                            fill="#64748b"
+                            fontFamily="monospace"
+                            fontWeight="bold"
+                          >
+                            {labelVal}jt
+                          </text>
+                        </g>
+                      );
+                    })}
 
-                  {/* Area gradient under Omzet */}
-                  <polygon points={areaOmzet} fill="url(#lightGradient)" />
+                    {/* Area gradient under Omzet */}
+                    <polygon points={areaOmzet} fill="url(#lightGradient)" />
 
-                  {/* HPP Line (Dashed) */}
-                  <polyline
-                    points={pointsHpp}
-                    fill="none"
-                    stroke="#94a3b8"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 4"
-                  />
+                    {/* HPP Line (Dashed) */}
+                    <polyline
+                      points={pointsHpp}
+                      fill="none"
+                      stroke="#94a3b8"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 4"
+                    />
 
-                  {/* Omzet Line */}
-                  <polyline
-                    points={pointsOmzet}
-                    fill="none"
-                    stroke="#2563eb"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                    {/* Omzet Line */}
+                    <polyline
+                      points={pointsOmzet}
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
 
-                  {/* Data points & tooltips */}
-                  {last7DaysData.map((d, i) => {
-                    const x = paddingX + (i / (last7DaysData.length - 1)) * usableWidth;
-                    const yOmzet = chartHeight - paddingY - (d.omzet / maxVal) * usableHeight;
-                    const isHovered = hoveredDayIdx === i;
+                    {/* Data points & tooltips */}
+                    {last7DaysData.map((d, i) => {
+                      const x = paddingX + (i / (last7DaysData.length - 1)) * usableWidth;
+                      const yOmzet = chartHeight - paddingY - (d.omzet / maxVal) * usableHeight;
+                      const isHovered = hoveredDayIdx === i;
 
-                    return (
-                      <g key={i} className="cursor-pointer">
-                        <circle
-                          cx={x}
-                          cy={yOmzet}
-                          r={isHovered ? 6 : 4}
-                          fill="#ffffff"
-                          stroke="#2563eb"
-                          strokeWidth="2.5"
-                          onMouseEnter={() => setHoveredDayIdx(i)}
-                          onMouseLeave={() => setHoveredDayIdx(null)}
-                        />
+                      return (
+                        <g key={i} className="cursor-pointer">
+                          <circle
+                            cx={x}
+                            cy={yOmzet}
+                            r={isHovered ? 6 : 4}
+                            fill="#ffffff"
+                            stroke="#2563eb"
+                            strokeWidth="2.5"
+                            onMouseEnter={() => setHoveredDayIdx(i)}
+                            onMouseLeave={() => setHoveredDayIdx(null)}
+                            onTouchStart={(e) => {
+                              e.stopPropagation();
+                              setHoveredDayIdx(hoveredDayIdx === i ? null : i);
+                            }}
+                            onClick={() => setHoveredDayIdx(hoveredDayIdx === i ? null : i)}
+                          />
 
-                        {/* Date label on X-axis */}
-                        <text
-                          x={x}
-                          y={chartHeight - 4}
-                          textAnchor="middle"
-                          fontSize="9.5"
-                          fill={isHovered ? '#0f172a' : '#475569'}
-                          fontWeight={isHovered ? 'bold' : '600'}
-                        >
-                          {d.date}
-                        </text>
+                          {/* Date label on X-axis */}
+                          <text
+                            x={x}
+                            y={chartHeight - 4}
+                            textAnchor="middle"
+                            fontSize="9.5"
+                            fill={isHovered ? '#0f172a' : '#475569'}
+                            fontWeight={isHovered ? 'bold' : '600'}
+                          >
+                            {d.date}
+                          </text>
 
-                        {/* Tooltip on Hover */}
-                        {isHovered && (
-                          <g>
-                            <rect
-                              x={x - 50}
-                              y={Math.max(10, yOmzet - 34)}
-                              width="100"
-                              height="26"
-                              rx="6"
-                              fill="#0f172a"
-                              className="shadow-md"
-                            />
-                            <text
-                              x={x}
-                              y={Math.max(10, yOmzet - 34) + 17}
-                              textAnchor="middle"
-                              fill="#ffffff"
-                              fontSize="10"
-                              fontWeight="bold"
-                              fontFamily="monospace"
-                            >
-                              {formatRupiah(d.omzet)}
-                            </text>
-                          </g>
-                        )}
-                      </g>
-                    );
-                  })}
-                </svg>
+                          {/* Tooltip on Hover */}
+                          {isHovered && (
+                            <g>
+                              <rect
+                                x={x - 50}
+                                y={Math.max(10, yOmzet - 34)}
+                                width="100"
+                                height="26"
+                                rx="6"
+                                fill="#0f172a"
+                                className="shadow-md"
+                              />
+                              <text
+                                x={x}
+                                y={Math.max(10, yOmzet - 34) + 17}
+                                textAnchor="middle"
+                                fill="#ffffff"
+                                fontSize="10"
+                                fontWeight="bold"
+                                fontFamily="monospace"
+                              >
+                                {formatRupiah(d.omzet)}
+                              </text>
+                            </g>
+                          )}
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
               </div>
             </div>
 
@@ -850,7 +867,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
             <div className="w-full overflow-hidden rounded-xl border border-slate-200">
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse">
+                <table className="w-full min-w-[620px] text-xs text-left border-collapse">
                   <thead className="text-[11px] uppercase tracking-wider text-slate-700 bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="py-2.5 px-3 font-bold">No Nota</th>
@@ -970,7 +987,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
             <div className="w-full overflow-hidden rounded-xl border border-slate-200">
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse">
+                <table className="w-full min-w-[580px] text-xs text-left border-collapse">
                   <thead className="text-[11px] uppercase tracking-wider text-slate-700 bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="py-2.5 px-3 font-bold">Produk & Ukuran</th>

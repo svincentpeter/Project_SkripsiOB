@@ -58,7 +58,7 @@ export interface ProductItem {
 
 export type TireProduct = ProductItem;
 
-export type ServiceCategory = 'SPOORING' | 'BALANCING' | 'BONGKAR_PASANG' | 'PERBAIKAN_BAN' | 'NITROGEN';
+export type ServiceCategory = 'SPOORING' | 'BALANCING' | 'BONGKAR_PASANG' | 'PERBAIKAN_BAN' | 'NITROGEN' | 'JASA_MANUAL';
 
 export interface ServiceMasterItem {
   id: string;
