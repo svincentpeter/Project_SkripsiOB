@@ -226,12 +226,12 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
 
           {/* Saldo Kas Laci Kasir (Visible on mobile & desktop) */}
           <div 
-            className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono shadow-2xs"
+            className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono shadow-2xs shrink-0"
             title={`Kas Laci: ${formatRupiah(cashInDrawer)}`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse shrink-0" />
             <span className="hidden md:inline text-emerald-800 text-[11px] font-semibold">Kas Laci:</span>
-            <span className="font-extrabold text-[10px] sm:text-xs text-emerald-950 truncate max-w-[80px] sm:max-w-none">{formatRupiah(cashInDrawer)}</span>
+            <span className="font-extrabold text-[10px] sm:text-xs text-emerald-950 truncate max-w-[70px] sm:max-w-none">{formatRupiah(cashInDrawer)}</span>
           </div>
 
           <div className="h-6 w-px bg-slate-200 hidden sm:block" />
@@ -399,8 +399,8 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
       {/* TIER 2: HORIZONTAL NAVIGATION MENU BAR */}
       <div className="h-12 px-2.5 sm:px-4 lg:px-8 flex items-center justify-between bg-white border-b border-slate-100 relative">
         {/* Scrollable Tabs */}
-        <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none py-1">
-          <nav className="flex items-center gap-1 sm:gap-1.5 w-max pr-3">
+        <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none py-1 touch-pan-x scroll-smooth">
+          <nav className="flex items-center gap-1 sm:gap-1.5 w-max pr-6">
             {visibleNavTabs.map((tab) => {
               const isActive = activeScreen === tab.id;
               const Icon = tab.icon;
@@ -503,6 +503,18 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            {/* Mobile Search Bar inside Drawer */}
+            <div className="p-3 border-b border-slate-100 bg-slate-50/60">
+              <div className="relative flex items-center">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Cari ban, velg, plat nomor..."
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 focus:border-blue-600 text-slate-900 placeholder-slate-400 rounded-xl text-xs font-medium transition-all outline-none"
+                />
+              </div>
             </div>
 
             {/* Navigation Links */}
