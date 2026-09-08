@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { PosTransaction, UserSession } from '../../shared/types';
 import { formatDateIndo, formatRupiah, playCashDrawerSound } from '../../shared/utils/formatters';
+import { ExportMenu } from '../../shared/export/ExportMenu';
 
 interface ThermalReceiptScreenProps {
   currentTransaction: PosTransaction | null;
@@ -375,14 +376,17 @@ ${footerTitle}`;
                   <p className="text-[10px] text-slate-500">Cabang 3 Magelang • Real-time Transaksi</p>
                 </div>
               </div>
-              <button
-                onClick={onBackToPos}
-                className="px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:text-blue-700 hover:bg-blue-50 border border-slate-200 rounded-lg flex items-center gap-1 transition-colors"
-                title="Kembali ke layar kasir POS"
-              >
-                <ArrowLeft className="w-3 h-3" />
-                <span>Kasir POS</span>
-              </button>
+              <div className="flex items-center gap-1.5">
+                <ExportMenu reportId="pos_sales_history" data={filteredTransactions} ctx={{ periodLabel: dateFilter ? `Tanggal ${dateFilter}` : 'Semua Tanggal' }} />
+                <button
+                  onClick={onBackToPos}
+                  className="px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:text-blue-700 hover:bg-blue-50 border border-slate-200 rounded-lg flex items-center gap-1 transition-colors"
+                  title="Kembali ke layar kasir POS"
+                >
+                  <ArrowLeft className="w-3 h-3" />
+                  <span>Kasir POS</span>
+                </button>
+              </div>
             </div>
 
             {/* Mini KPI summary */}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ExpenseRecord, JournalEntry, ProductItem } from '../../types';
+import type { ExpenseRecord, JournalEntry, PosTransaction, ProductItem } from '../../types';
 import { setExportConfig } from '../exportConfig';
 import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
 
@@ -50,5 +50,30 @@ describe('registry inventory_products', () => {
   it('totals stok & nilai persediaan', () => {
     expect(doc.sections[0].totals?.stok).toBe(4);
     expect(doc.sections[0].totals?.nilai).toBe(2800000);
+  });
+});
+
+describe('registry pos_sales_history', () => {
+  const txs = [
+    {
+      id: 'tx1',
+      reference: 'INV-1',
+      date: '2026-09-01',
+      cashier_name: 'Kasir 1',
+      items: [{ qty: 2 }],
+      subtotal: 100000,
+      total_discount: 10000,
+      tax_amount: 9900,
+      grand_total: 99900,
+      total_cost_hpp: 70000,
+      gross_profit: 29900,
+      payment_method: 'TUNAI',
+      status: 'LUNAS',
+    },
+  ] as unknown as PosTransaction[];
+  const doc = buildExportDoc('pos_sales_history', txs, ctx);
+  it('totals terhitung', () => {
+    expect(doc.sections[0].totals?.total).toBe(99900);
+    expect(doc.sections[0].totals?.laba).toBe(29900);
   });
 });

@@ -28,7 +28,8 @@ import {
   Package
 } from 'lucide-react';
 import { ExpenseRecord, PosTransaction, ProductItem } from '../../shared/types';
-import { formatRupiah } from '../../shared/utils/formatters';
+import { formatDateIndo, formatRupiah } from '../../shared/utils/formatters';
+import { ExportMenu } from '../../shared/export/ExportMenu';
 
 interface ExecutiveDashboardScreenProps {
   transactions: PosTransaction[];
@@ -234,6 +235,11 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         </div>
 
         <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
+          <ExportMenu
+            reportId="dashboard_summary"
+            data={{ transactions, products, expenses }}
+            ctx={{ periodLabel: `Sampai ${formatDateIndo(new Date().toISOString())}` }}
+          />
           <button
             onClick={onNavigateToInventory}
             className="flex-1 sm:flex-none h-10 sm:h-11 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 rounded-xl bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-700 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap"

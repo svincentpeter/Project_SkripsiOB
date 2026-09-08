@@ -5,8 +5,7 @@ import type {
   ReceivableInvoice,
   TrialBalanceResult,
 } from '../types';
-import type { ExpenseRecord } from '../types';
-import type { ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
+import type { ExpenseRecord, PosTransaction, ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
 import { EXPENSE_CATEGORY_CONFIG } from '../../services/accountingService';
 import { buildKop } from './kop';
 import type { ExportCtx, ExportDoc, ExportFormat, ExportSection } from './types';
@@ -266,6 +265,123 @@ const mapGoodsReceipts = (muts: StockMutation[], ctx: ExportCtx): ExportDoc => {
   }]);
 };
 
+const mapPosHistory = (txs: PosTransaction[], ctx: ExportCtx): ExportDoc => {
+  const rows = txs.map((t) => ({
+    tanggal: t.date,
+    nota: t.reference || t.invoice_number,
+    kasir: t.cashier_name,
+    pelanggan: t.customer_name || 'Umum',
+    plat: t.vehicle_plate || '-',
+    item: t.items.length,
+    subtotal: t.subtotal,
+    diskon: t.total_discount,
+    ppn: t.tax_amount,
+    total: t.total_amount ?? t.grand_total,
+    hpp: t.total_hpp ?? t.total_cost_hpp ?? 0,
+    laba: t.gross_profit ?? t.total_profit ?? 0,
+    metode: t.payment_method,
+    status: t.status,
+  }));
+  return makeDoc('pos_sales_history', 'Riwayat Penjualan POS', 'landscape', ctx, [{
+    columns: [
+      { key: 'tanggal', label: 'Tanggal', type: 'date', width: 12 },
+      { key: 'nota', label: 'No Nota', type: 'text', width: 20 },
+      { key: 'kasir', label: 'Kasir', type: 'text', width: 16 },
+      { key: 'pelanggan', label: 'Pelanggan', type: 'text', width: 22 },
+      { key: 'plat', label: 'No. Polisi', type: 'text', width: 14 },
+      { key: 'item', label: 'Item', type: 'number', width: 8 },
+      { key: 'subtotal', label: 'Subtotal', type: 'currency' },
+      { key: 'diskon', label: 'Diskon', type: 'currency' },
+      { key: 'ppn', label: 'PPN 11%', type: 'currency' },
+      { key: 'total', label: 'Total', type: 'currency' },
+      { key: 'hpp', label: 'HPP', type: 'currency' },
+      { key: 'laba', label: 'Laba Kotor', type: 'currency' },
+      { key: 'metode', label: 'Metode', type: 'text', width: 14 },
+      { key: 'status', label: 'Status', type: 'text', width: 12 },
+    ],
+    rows,
+    totals: {
+      subtotal: sum(txs, (t) => t.subtotal),
+      diskon: sum(txs, (t) => t.total_discount),
+      ppn: sum(txs, (t) => t.tax_amount),
+      total: sum(txs, (t) => t.total_amount ?? t.grand_total),
+      hpp: sum(txs, (t) => t.total_hpp ?? t.total_cost_hpp ?? 0),
+      laba: sum(txs, (t) => t.gross_profit ?? t.total_profit ?? 0),
+    },
+  }]);
+};
+
+export interface DashboardInput {
+  transactions: PosTransaction[];
+  products: ProductItem[];
+  expenses: ExpenseRecord[];
+}
+
+const mapDashboard = (d: DashboardInput, ctx: ExportCtx): ExportDoc => {
+  const lunas = d.transactions.filter((t) => t.status !== 'VOID');
+  const omzet = (t: PosTransaction) => t.total_amount ?? t.grand_total;
+  const hppOf = (t: PosTransaction) => t.total_hpp ?? t.total_cost_hpp ?? 0;
+  const totalOmzet = sum(lunas, omzet);
+  const totalHpp = sum(lunas, hppOf);
+  const banTerjual = sum(lunas, (t) => sum(t.items, (i) => i.qty));
+  const ymd = (dt: Date) => dt.toISOString().split('T')[0];
+  const tren = Array.from({ length: 7 }).map((_, i) => {
+    const day = new Date();
+    day.setDate(day.getDate() - (6 - i));
+    const key = ymd(day);
+    const dayTx = lunas.filter((t) => t.date === key);
+    return { tgl: key, omzet: sum(dayTx, omzet), hpp: sum(dayTx, hppOf), qty: sum(dayTx, (t) => sum(t.items, (item) => item.qty)) };
+  });
+  const brandMap = new Map<string, number>();
+  lunas.forEach((t) => t.items.forEach((i) => {
+    const b = i.product?.brand || 'Lainnya';
+    brandMap.set(b, (brandMap.get(b) ?? 0) + i.qty);
+  }));
+  const topProduk = [...brandMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const kritis = d.products
+    .filter((p) => stockOf(p) <= (p.product_stock_alert ?? p.min_stock ?? 5))
+    .slice(0, 20);
+  return makeDoc('dashboard_summary', 'Ringkasan Dashboard', 'portrait', ctx, [
+    {
+      title: 'KPI Utama',
+      columns: [{ key: 'm', label: 'Metrik', type: 'text', width: 34 }, { key: 'v', label: 'Nilai', type: 'text', width: 22 }],
+      rows: [
+        { m: 'Total Penjualan (non-VOID)', v: String(totalOmzet) },
+        { m: 'Total HPP FIFO', v: String(totalHpp) },
+        { m: 'Laba Kotor', v: String(totalOmzet - totalHpp) },
+        { m: 'Total Pengeluaran Kas', v: String(sum(d.expenses.filter((e) => e.status !== 'VOID'), (e) => e.amount)) },
+        { m: 'Unit Terjual', v: String(banTerjual) },
+        { m: 'Nilai Persediaan (HPP)', v: String(sum(d.products, (p) => stockOf(p) * costOf(p))) },
+      ],
+    },
+    {
+      title: 'Tren 7 Hari',
+      columns: [
+        { key: 'tgl', label: 'Tanggal', type: 'date', width: 12 },
+        { key: 'omzet', label: 'Omzet (Rp)', type: 'currency' },
+        { key: 'hpp', label: 'HPP (Rp)', type: 'currency' },
+        { key: 'qty', label: 'Unit', type: 'number' },
+      ],
+      rows: tren,
+      totals: { omzet: sum(tren, (t) => t.omzet), hpp: sum(tren, (t) => t.hpp), qty: sum(tren, (t) => t.qty) },
+    },
+    {
+      title: 'Pangsa Merek (unit)',
+      columns: [{ key: 'b', label: 'Merek', type: 'text', width: 22 }, { key: 'q', label: 'Unit', type: 'number' }],
+      rows: topProduk.map(([b, q]) => ({ b, q })),
+    },
+    {
+      title: 'Peringatan Stok Kritis',
+      columns: [
+        { key: 'nama', label: 'Produk', type: 'text', width: 36 },
+        { key: 'stok', label: 'Stok', type: 'number' },
+        { key: 'alert', label: 'Batas Alert', type: 'number' },
+      ],
+      rows: kritis.map((p) => ({ nama: p.product_name || p.name, stok: stockOf(p), alert: p.product_stock_alert ?? p.min_stock ?? 5 })),
+    },
+  ]);
+};
+
 type MapperNotYet = (data: never, ctx: ExportCtx) => ExportDoc;
 const notYet = (id: string): MapperNotYet =>
   (() => {
@@ -285,8 +401,8 @@ export const REPORT_MAPPERS = {
   stock_movements: mapMovements,
   stock_opname: mapOpname,
   goods_receipts: mapGoodsReceipts,
-  pos_sales_history: notYet('pos_sales_history'),
-  dashboard_summary: notYet('dashboard_summary'),
+  pos_sales_history: mapPosHistory,
+  dashboard_summary: mapDashboard,
   fin_income_statement: notYet('fin_income_statement'),
   fin_equity_statement: notYet('fin_equity_statement'),
   fin_balance_sheet: notYet('fin_balance_sheet'),
