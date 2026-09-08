@@ -13,6 +13,7 @@ import {
 import { StockMutation, TireProduct } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
 import { generateMutationId, generateOpnameDocNumber } from '../../../services/inventoryService';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface StockOpnameModalProps {
   isOpen: boolean;
@@ -185,12 +186,33 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-200/60 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportMenu
+              reportId="stock_opname"
+              data={products.map((p) => {
+                const physical = opnameInputs[p.id] ?? p.stock;
+                const diff = physical - p.stock;
+                const cost = p.cost_price || p.product_cost || 0;
+                return {
+                  tire_id: p.id,
+                  tire_name: p.product_name || p.name,
+                  product_size: p.product_size ?? '',
+                  system_stock: p.stock,
+                  physical_stock: physical,
+                  difference: diff,
+                  cost_price: cost,
+                  total_difference_val: diff * cost,
+                };
+              })}
+              ctx={{ periodLabel: docNumber }}
+            />
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-700 p-1.5 rounded-xl hover:bg-slate-200/60 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Operator & Berita Acara Bar */}

@@ -14,6 +14,7 @@ import {
 import { StockMutation, TireProduct } from '../../../shared/types';
 import { formatDateIndo, formatDateTimeIndo, formatRupiah } from '../../../shared/utils/formatters';
 import { ProductFifoBatchList } from './ProductFifoBatchList';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface StockCardDrawerProps {
   product: TireProduct | null;
@@ -89,6 +90,7 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <ExportMenu reportId="stock_movements" data={filteredMutations} ctx={{ periodLabel: 'Seluruh Riwayat' }} />
             {onOpenRestock && (
               <button
                 onClick={() => {

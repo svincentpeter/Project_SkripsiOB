@@ -6,6 +6,7 @@ import type {
   TrialBalanceResult,
 } from '../types';
 import type { ExpenseRecord } from '../types';
+import type { ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
 import { EXPENSE_CATEGORY_CONFIG } from '../../services/accountingService';
 import { buildKop } from './kop';
 import type { ExportCtx, ExportDoc, ExportFormat, ExportSection } from './types';
@@ -152,6 +153,119 @@ const mapExpenses = (list: ExpenseRecord[], ctx: ExportCtx): ExportDoc => {
   }]);
 };
 
+const stockOf = (p: ProductItem): number => p.product_quantity ?? p.stock ?? 0;
+const costOf = (p: ProductItem): number => p.product_cost ?? p.cost_price ?? 0;
+const priceOf = (p: ProductItem): number => p.product_price ?? p.price ?? 0;
+
+const mapProducts = (list: ProductItem[], ctx: ExportCtx): ExportDoc =>
+  makeDoc('inventory_products', 'Katalog Produk', 'landscape', ctx, [{
+    columns: [
+      { key: 'kode', label: 'Kode Produk', type: 'text', width: 14 },
+      { key: 'barcode', label: 'Barcode', type: 'text', width: 14 },
+      { key: 'nama', label: 'Nama Produk', type: 'text', width: 36 },
+      { key: 'kategori', label: 'Kategori', type: 'text', width: 12 },
+      { key: 'merek', label: 'Merek', type: 'text', width: 14 },
+      { key: 'ukuran', label: 'Ukuran', type: 'text', width: 14 },
+      { key: 'stok', label: 'Stok', type: 'number' },
+      { key: 'alert', label: 'Alert Stok', type: 'number' },
+      { key: 'hpp', label: 'HPP (Rp)', type: 'currency' },
+      { key: 'harga', label: 'Harga Jual (Rp)', type: 'currency' },
+      { key: 'nilai', label: 'Nilai Persediaan (Rp)', type: 'currency' },
+      { key: 'status', label: 'Status', type: 'text', width: 10 },
+    ],
+    rows: list.map((p) => ({
+      kode: p.product_code,
+      barcode: p.barcode,
+      nama: p.product_name || p.name,
+      kategori: p.category,
+      merek: p.brand,
+      ukuran: p.product_size ?? p.size ?? '',
+      stok: stockOf(p),
+      alert: p.product_stock_alert ?? p.min_stock ?? 0,
+      hpp: costOf(p),
+      harga: priceOf(p),
+      nilai: stockOf(p) * costOf(p),
+      status: p.is_active === false ? 'NONAKTIF' : 'AKTIF',
+    })),
+    totals: { stok: sum(list, stockOf), nilai: sum(list, (p) => stockOf(p) * costOf(p)) },
+  }]);
+
+const mapServices = (list: ServiceMasterItem[], ctx: ExportCtx): ExportDoc =>
+  makeDoc('inventory_services', 'Master Jasa Bengkel', 'portrait', ctx, [{
+    columns: [
+      { key: 'kode', label: 'Kode Jasa', type: 'text', width: 14 },
+      { key: 'nama', label: 'Nama Jasa', type: 'text', width: 30 },
+      { key: 'kategori', label: 'Kategori', type: 'text', width: 18 },
+      { key: 'hpp', label: 'HPP (Rp)', type: 'currency' },
+      { key: 'harga', label: 'Tarif (Rp)', type: 'currency' },
+      { key: 'status', label: 'Status', type: 'text', width: 10 },
+    ],
+    rows: list.map((s) => ({ kode: s.service_code, nama: s.service_name, kategori: s.category, hpp: s.cost_price, harga: s.standard_price, status: s.is_active ? 'AKTIF' : 'NONAKTIF' })),
+  }]);
+
+const mapSuppliers = (list: SupplierItem[], ctx: ExportCtx): ExportDoc =>
+  makeDoc('inventory_suppliers', 'Master Supplier', 'landscape', ctx, [{
+    columns: [
+      { key: 'kode', label: 'Kode', type: 'text', width: 12 },
+      { key: 'nama', label: 'Nama Distributor', type: 'text', width: 32 },
+      { key: 'telp', label: 'Telepon', type: 'text', width: 16 },
+      { key: 'email', label: 'Email', type: 'text', width: 24 },
+      { key: 'alamat', label: 'Alamat', type: 'text', width: 36 },
+      { key: 'pic', label: 'Kontak PIC', type: 'text', width: 18 },
+      { key: 'termin', label: 'Termin (hari)', type: 'number' },
+      { key: 'status', label: 'Status', type: 'text', width: 10 },
+    ],
+    rows: list.map((s) => ({ kode: s.supplier_code, nama: s.supplier_name, telp: s.phone, email: s.email ?? '', alamat: s.address, pic: s.contact_person, termin: s.payment_terms_days, status: s.is_active ? 'AKTIF' : 'NONAKTIF' })),
+  }]);
+
+const mapMovements = (muts: StockMutation[], ctx: ExportCtx): ExportDoc =>
+  makeDoc('stock_movements', 'Kartu Stok / Mutasi', 'landscape', ctx, [{
+    columns: [
+      { key: 'tgl', label: 'Tanggal', type: 'date', width: 12 },
+      { key: 'produk', label: 'Produk', type: 'text', width: 34 },
+      { key: 'ukuran', label: 'Ukuran', type: 'text', width: 14 },
+      { key: 'ref', label: 'No Ref', type: 'text', width: 18 },
+      { key: 'tipe', label: 'Tipe', type: 'text', width: 12 },
+      { key: 'qty', label: 'Qty', type: 'number' },
+      { key: 'saldo', label: 'Saldo Berjalan', type: 'number' },
+      { key: 'operator', label: 'Operator', type: 'text', width: 16 },
+      { key: 'ket', label: 'Keterangan', type: 'text', width: 30 },
+    ],
+    rows: muts.map((m) => ({ tgl: m.date, produk: m.tire_name || m.product_name || '', ukuran: m.tire_size, ref: m.ref_doc, tipe: m.type, qty: m.qty, saldo: m.balance, operator: m.operator, ket: m.notes || m.description || '' })),
+  }]);
+
+const mapOpname = (items: StockOpnameItem[], ctx: ExportCtx): ExportDoc =>
+  makeDoc('stock_opname', 'Hasil Stock Opname', 'landscape', ctx, [{
+    columns: [
+      { key: 'produk', label: 'Produk', type: 'text', width: 36 },
+      { key: 'ukuran', label: 'Ukuran', type: 'text', width: 14 },
+      { key: 'sistem', label: 'Stok Sistem', type: 'number' },
+      { key: 'fisik', label: 'Stok Fisik', type: 'number' },
+      { key: 'selisih', label: 'Selisih', type: 'number' },
+      { key: 'hpp', label: 'HPP (Rp)', type: 'currency' },
+      { key: 'nilai', label: 'Nilai Selisih (Rp)', type: 'currency' },
+    ],
+    rows: items.map((i) => ({ produk: i.tire_name, ukuran: i.product_size, sistem: i.system_stock, fisik: i.physical_stock, selisih: i.difference, hpp: i.cost_price, nilai: i.total_difference_val })),
+    totals: { selisih: sum(items, (i) => i.difference), nilai: sum(items, (i) => i.total_difference_val) },
+  }]);
+
+const mapGoodsReceipts = (muts: StockMutation[], ctx: ExportCtx): ExportDoc => {
+  const masuk = muts.filter((m) => m.type === 'MASUK');
+  return makeDoc('goods_receipts', 'Riwayat Penerimaan Barang', 'landscape', ctx, [{
+    columns: [
+      { key: 'tgl', label: 'Tanggal', type: 'date', width: 12 },
+      { key: 'ref', label: 'No Ref/PO', type: 'text', width: 20 },
+      { key: 'produk', label: 'Produk', type: 'text', width: 36 },
+      { key: 'ukuran', label: 'Ukuran', type: 'text', width: 14 },
+      { key: 'qty', label: 'Qty Masuk', type: 'number' },
+      { key: 'operator', label: 'Operator', type: 'text', width: 16 },
+      { key: 'ket', label: 'Keterangan', type: 'text', width: 32 },
+    ],
+    rows: masuk.map((m) => ({ tgl: m.date, ref: m.ref_doc, produk: m.tire_name || m.product_name || '', ukuran: m.tire_size, qty: m.qty, operator: m.operator, ket: m.notes || m.description || '' })),
+    totals: { qty: sum(masuk, (m) => m.qty) },
+  }]);
+};
+
 type MapperNotYet = (data: never, ctx: ExportCtx) => ExportDoc;
 const notYet = (id: string): MapperNotYet =>
   (() => {
@@ -165,12 +279,12 @@ export const REPORT_MAPPERS = {
   accounts_receivable: mapReceivable,
   accounts_payable: mapPayable,
   expenses: mapExpenses,
-  inventory_products: notYet('inventory_products'),
-  inventory_services: notYet('inventory_services'),
-  inventory_suppliers: notYet('inventory_suppliers'),
-  stock_movements: notYet('stock_movements'),
-  stock_opname: notYet('stock_opname'),
-  goods_receipts: notYet('goods_receipts'),
+  inventory_products: mapProducts,
+  inventory_services: mapServices,
+  inventory_suppliers: mapSuppliers,
+  stock_movements: mapMovements,
+  stock_opname: mapOpname,
+  goods_receipts: mapGoodsReceipts,
   pos_sales_history: notYet('pos_sales_history'),
   dashboard_summary: notYet('dashboard_summary'),
   fin_income_statement: notYet('fin_income_statement'),

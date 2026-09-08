@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ExpenseRecord, JournalEntry } from '../../types';
+import type { ExpenseRecord, JournalEntry, ProductItem } from '../../types';
 import { setExportConfig } from '../exportConfig';
 import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
 
@@ -39,4 +39,16 @@ describe('registry expenses', () => {
   const doc = buildExportDoc('expenses', [{ ...base }, { ...base, id: 'e2', status: 'VOID', amount: 500 }], ctx);
   it('semua baris ikut (aktif + void)', () => expect(doc.sections[0].rows.length).toBe(2));
   it('totals hanya ACTIVE', () => expect(doc.sections[0].totals?.nominal).toBe(1000));
+});
+
+describe('registry inventory_products', () => {
+  const products = [
+    { id: 'p1', product_code: 'BN-01', barcode: '8991', product_name: 'Bridgestone 185/65R15', category: 'BAN_BARU', brand: 'Bridgestone', product_quantity: 4, product_stock_alert: 2, product_cost: 700000, product_price: 950000 },
+    { id: 'p2', product_code: 'BN-02', barcode: '8992', product_name: 'Accelera 195/55R16', category: 'BAN_BARU', brand: 'Accelera', product_quantity: 0, product_stock_alert: 2, product_cost: 800000, product_price: 1100000 },
+  ] as unknown as ProductItem[];
+  const doc = buildExportDoc('inventory_products', products, ctx);
+  it('totals stok & nilai persediaan', () => {
+    expect(doc.sections[0].totals?.stok).toBe(4);
+    expect(doc.sections[0].totals?.nilai).toBe(2800000);
+  });
 });

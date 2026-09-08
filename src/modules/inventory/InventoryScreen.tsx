@@ -48,6 +48,7 @@ import {
   StockOpnameModal 
 } from './components';
 import { useToast } from '../../shared/components';
+import { ExportMenu } from '../../shared/export/ExportMenu';
 
 interface InventoryScreenProps {
   products: ProductItem[];
@@ -202,6 +203,14 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto">
+          {activeTab === 'SERVICES' ? (
+            <ExportMenu reportId="inventory_services" data={filteredServices} ctx={{ periodLabel: 'Data Saat Ini' }} />
+          ) : activeTab === 'SUPPLIERS' ? (
+            <ExportMenu reportId="inventory_suppliers" data={filteredSuppliers} ctx={{ periodLabel: 'Data Saat Ini' }} />
+          ) : (
+            <ExportMenu reportId="inventory_products" data={filteredProducts} ctx={{ periodLabel: `Kategori ${activeTab}` }} />
+          )}
+          <ExportMenu reportId="goods_receipts" data={mutations} ctx={{ periodLabel: 'Seluruh Riwayat' }} />
           <button
             onClick={() => handleOpenRestock()}
             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
