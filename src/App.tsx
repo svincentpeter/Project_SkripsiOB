@@ -1432,6 +1432,7 @@ function MainAppContent() {
           onOpenWireframeModal={() => setShowWireframeModal(true)}
           isEmptyState={isEmptyState}
           storeSettings={storeSettings}
+          categories={productCategories}
         />
       ) : (
         <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] overflow-x-hidden">

@@ -215,102 +215,104 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
 
   return (
-    <div className="flex-1 p-3.5 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-slate-50 text-slate-800 font-['Plus_Jakarta_Sans',sans-serif]">
-      
-      {/* =======================================================================
-          HEADER: TITLE & QUICK ACTIONS (Light Mode Enterprise)
-          ======================================================================= */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 bg-white border border-slate-200 p-4 sm:p-5 rounded-2xl shadow-xs">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[11px] sm:text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
-            <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
-            <span className="truncate">Pusat Kendali Eksekutif • Cabang 3 Magelang</span>
+    <div className="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar bg-[#F8FAFC] text-slate-900 space-y-5">
+      {/* Top Header & Navigation Container ("Terbungkus Rapi") */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] sm:text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
+              <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+              <span className="truncate">Pusat Kendali Eksekutif • Cabang 3 Magelang</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-snug">
+              Dashboard Kinerja Toko & Akuntansi SAK EMKM
+            </h1>
+            <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+              Monitoring real-time omzet kasir, margin laba kotor FIFO, persediaan ban gudang, dan beban operasional.
+            </p>
           </div>
-          <h1 className="text-base sm:text-xl md:text-2xl font-black tracking-tight text-slate-900 leading-snug">
-            Dashboard Kinerja Toko & Akuntansi SAK EMKM
-          </h1>
-          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-            Monitoring real-time omzet kasir, margin laba kotor FIFO, persediaan ban gudang, dan beban operasional.
-          </p>
+
+          <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
+            <ExportMenu
+              reportId="dashboard_summary"
+              data={{ transactions, products, expenses }}
+              ctx={{ periodLabel: `Sampai ${formatDateIndo(new Date().toISOString())}` }}
+            />
+            <button
+              type="button"
+              onClick={onNavigateToInventory}
+              className="flex-1 sm:flex-none h-10 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 rounded-xl bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-700 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap"
+            >
+              <Boxes className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>Inventori & FIFO</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onNavigateToPos}
+              className="flex-1 sm:flex-none h-10 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer whitespace-nowrap"
+            >
+              <ShoppingCart className="w-4 h-4 shrink-0" />
+              <span>Terminal Kasir</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
-          <ExportMenu
-            reportId="dashboard_summary"
-            data={{ transactions, products, expenses }}
-            ctx={{ periodLabel: `Sampai ${formatDateIndo(new Date().toISOString())}` }}
-          />
+        {/* Integrated Sub-Navigation Tabs */}
+        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200/80 overflow-x-auto scrollbar-none text-xs font-bold">
           <button
-            onClick={onNavigateToInventory}
-            className="flex-1 sm:flex-none h-10 sm:h-11 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 rounded-xl bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-700 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap"
+            type="button"
+            onClick={() => setActiveTab('overview')}
+            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'overview'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+            }`}
           >
-            <Boxes className="w-4 h-4 text-blue-600 shrink-0" />
-            <span>Inventori & FIFO</span>
-          </button>
-
-          <button
-            onClick={onNavigateToPos}
-            className="flex-1 sm:flex-none h-10 sm:h-11 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer whitespace-nowrap"
-          >
-            <ShoppingCart className="w-4 h-4 shrink-0" />
-            <span>Terminal Kasir</span>
-          </button>
-        </div>
-      </div>
-
-      {/* =======================================================================
-          TAB NAVIGATION (Working & High Contrast)
-          ======================================================================= */}
-      <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'overview'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <BarChart2 className="w-4 h-4 shrink-0" />
-          <span>
-            <span className="sm:hidden">Overview</span>
-            <span className="hidden sm:inline">Ringkasan Utama (Overview)</span>
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('sales')}
-          className={`shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'sales'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <TrendingUp className="w-4 h-4 shrink-0" />
-          <span>
-            <span className="sm:hidden">Penjualan</span>
-            <span className="hidden sm:inline">Analisis Penjualan & Kasir</span>
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('inventory')}
-          className={`shrink-0 flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'inventory'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Package className="w-4 h-4 shrink-0" />
-          <span>
-            <span className="sm:hidden">Persediaan</span>
-            <span className="hidden sm:inline">Status Persediaan & FIFO</span>
-          </span>
-          {lowStockProducts.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-white">
-              {lowStockProducts.length}
+            <BarChart2 className="w-4 h-4 shrink-0" />
+            <span>
+              <span className="sm:hidden">Overview</span>
+              <span className="hidden sm:inline">Ringkasan Utama (Overview)</span>
             </span>
-          )}
-        </button>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('sales')}
+            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'sales'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+            }`}
+          >
+            <TrendingUp className="w-4 h-4 shrink-0" />
+            <span>
+              <span className="sm:hidden">Penjualan</span>
+              <span className="hidden sm:inline">Analisis Penjualan & Kasir</span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('inventory')}
+            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'inventory'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+            }`}
+          >
+            <Package className="w-4 h-4 shrink-0" />
+            <span>
+              <span className="sm:hidden">Persediaan</span>
+              <span className="hidden sm:inline">Status Persediaan & FIFO</span>
+            </span>
+            {lowStockProducts.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-white">
+                {lowStockProducts.length}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* =======================================================================
@@ -321,9 +323,10 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Omzet Hari Ini</span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <Banknote className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/80">
+              <ArrowUpRight className="w-2.5 h-2.5" />
+              <span>Real-time</span>
+            </span>
           </div>
           <div>
             <div className="text-sm sm:text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight truncate" title={formatRupiah(todayOmzet)}>
@@ -343,16 +346,16 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Laba Kotor FIFO</span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/80 font-mono">
+              {grossProfitMargin}% Margin
+            </span>
           </div>
           <div>
             <div className="text-sm sm:text-lg md:text-xl font-black text-emerald-700 font-mono tracking-tight truncate" title={formatRupiah(todayGrossProfit)}>
               {formatRupiah(todayGrossProfit)}
             </div>
             <div className="text-[10px] sm:text-[11px] text-emerald-700 font-bold mt-0.5 truncate">
-              Margin: {grossProfitMargin}%
+              Margin Laba: {grossProfitMargin}%
             </div>
           </div>
           <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
@@ -365,9 +368,9 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Valuasi Stok FIFO</span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <Boxes className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-200/80 font-mono">
+              {products.length} SKU
+            </span>
           </div>
           <div>
             <div className="text-sm sm:text-lg md:text-xl font-black text-indigo-900 font-mono tracking-tight truncate" title={formatRupiah(totalInventoryValue)}>
@@ -387,9 +390,9 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Beban Toko</span>
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-              <Wallet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-200/80 font-mono">
+              {expenses.length} BKK
+            </span>
           </div>
           <div>
             <div className="text-sm sm:text-lg md:text-xl font-black text-rose-700 font-mono tracking-tight truncate" title={formatRupiah(totalExpensesMonth)}>
@@ -412,9 +415,9 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Peringatan Restock</span>
-            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${lowStockProducts.length > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500'}`}>
-              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </div>
+            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${lowStockProducts.length > 0 ? 'bg-amber-50 text-amber-800 border-amber-200/80' : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'}`}>
+              {lowStockProducts.length > 0 ? `${lowStockProducts.length} Kritis` : 'Aman'}
+            </span>
           </div>
           <div className="flex items-baseline justify-between sm:block">
             <div className={`text-sm sm:text-lg md:text-xl font-black font-mono tracking-tight truncate ${lowStockProducts.length > 0 ? 'text-amber-700' : 'text-slate-900'}`}>

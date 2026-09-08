@@ -62,42 +62,114 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto custom-scrollbar bg-[#F8FAFC] text-slate-800 space-y-6 font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-slate-200 p-6 rounded-2xl shadow-xs">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-2xs">
-              <SettingsIcon className="w-6 h-6" />
+    <div className="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar bg-[#F8FAFC] text-slate-900 space-y-5 font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* Top Header & Navigation Container ("Terbungkus Rapi") */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
+              <SettingsIcon className="w-4 h-4 text-blue-700" />
+              <span>Konfigurasi Sistem Terpadu • SAK EMKM Standar</span>
             </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                Pengaturan Sistem & Konfigurasi Toko (Settings)
-              </h1>
-              <p className="text-xs sm:text-sm text-slate-500">
-                Ubah identitas toko, tata letak struk nota 80mm, rekening pembayaran, & preferensi akuntansi SAK EMKM.
-              </p>
-            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <span>Pengaturan Sistem & Konfigurasi Toko</span>
+              <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                Cabang 3 Magelang
+              </span>
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Ubah profil identitas toko, format nota cetak thermal 80mm, master metode bayar, dan hak akses staf.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleResetToDefault}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4 text-slate-400" />
+              <span>Reset Bawaan</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>Simpan Pengaturan</span>
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Integrated Sub-Navigation Tabs */}
+        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200/80 overflow-x-auto scrollbar-none text-xs font-bold">
           <button
             type="button"
-            onClick={handleResetToDefault}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold shadow-2xs transition-all"
+            onClick={() => setActiveSubTab('profile')}
+            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeSubTab === 'profile'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+            }`}
           >
-            <RotateCcw className="w-4 h-4 text-slate-400" />
-            <span>Reset Bawaan</span>
+            <Store className="w-4 h-4" />
+            <span>Identitas Toko & Cabang</span>
           </button>
+
           <button
             type="button"
-            onClick={handleSave}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95"
+            onClick={() => setActiveSubTab('invoice')}
+            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeSubTab === 'invoice'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+            }`}
           >
-            <Save className="w-4 h-4" />
-            <span>Simpan Pengaturan</span>
+            <Receipt className="w-4 h-4" />
+            <span>Format Struk & Nota 80mm</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('payment')}
+            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeSubTab === 'payment'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+            }`}
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Metode Pembayaran & Bank</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('accounting')}
+            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeSubTab === 'accounting'
+                ? 'bg-white text-blue-700 shadow-xs font-black'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+            }`}
+          >
+            <Sliders className="w-4 h-4" />
+            <span>Preferensi SAK EMKM</span>
+          </button>
+
+          {currentUser.role === 'OWNER' && (
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('roles')}
+              className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                activeSubTab === 'roles'
+                  ? 'bg-white text-blue-700 shadow-xs font-black'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Wewenang & Hak Akses (RBAC)</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -107,71 +179,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <span>Pengaturan sistem dan format struk nota berhasil diperbarui dan disimpan!</span>
         </div>
       )}
-
-      {/* Navigation Sub-Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-3">
-        <button
-          onClick={() => setActiveSubTab('profile')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'profile'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
-          }`}
-        >
-          <Store className="w-4 h-4" />
-          <span>Identitas Toko & Cabang</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('invoice')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'invoice'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
-          }`}
-        >
-          <Receipt className="w-4 h-4" />
-          <span>Format Struk & Nota 80mm</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('payment')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'payment'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
-          }`}
-        >
-          <CreditCard className="w-4 h-4" />
-          <span>Metode Pembayaran & Bank</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('accounting')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-            activeSubTab === 'accounting'
-              ? 'bg-blue-700 text-white shadow-xs'
-              : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
-          }`}
-        >
-          <Sliders className="w-4 h-4" />
-          <span>Preferensi SAK EMKM</span>
-        </button>
-
-        {currentUser.role === 'OWNER' && (
-          <button
-            onClick={() => setActiveSubTab('roles')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-              activeSubTab === 'roles'
-                ? 'bg-blue-700 text-white shadow-xs'
-                : 'bg-white text-slate-700 border border-slate-200 hover:text-slate-950 hover:bg-slate-100'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>Wewenang & Hak Akses (RBAC)</span>
-          </button>
-        )}
-      </div>
 
       {activeSubTab === 'roles' ? (
         <RolePermissionsTab

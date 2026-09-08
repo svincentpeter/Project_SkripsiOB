@@ -529,9 +529,23 @@ ${footerTitle}`;
                         <span>•</span>
                         <span className="font-medium text-slate-600">{tx.payment_method.replace('_', ' ')}</span>
                       </div>
-                      <span className={`font-mono font-black text-[11px] ${isVoid ? 'text-red-600 line-through' : 'text-emerald-700'}`}>
-                        {formatRupiah(tx.grand_total)}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`font-mono font-black text-[11px] ${isVoid ? 'text-red-600 line-through' : 'text-emerald-700'}`}>
+                          {formatRupiah(tx.grand_total)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectTransaction(tx);
+                            setTimeout(() => window.print(), 100);
+                          }}
+                          className="p-1 rounded-md text-slate-400 hover:text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
+                          title="Cetak Cepat Struk (1-Klik)"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Void Note Indicator */}
@@ -672,13 +686,18 @@ ${footerTitle}`;
                   VIEW 1: THERMAL 80MM RECEIPT PREVIEW
                   ========================================================= */}
               {previewMode === 'THERMAL_80MM' && (
-                <div
-                  id="thermal-receipt-printable"
-                  className="w-full max-w-[300px] bg-white text-slate-900 font-mono text-[11px] p-4 rounded-t-sm shadow-md relative border-t-4 border-slate-300 select-text mb-8 overflow-hidden"
-                  style={{ width: '80mm' }}
-                >
-                  {/* Jagged paper tear illusion at top */}
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+                <div className="relative my-4 flex flex-col items-center select-text">
+                  {/* Perforated zig-zag tear edge at top (persis kertas thermal disobek dari printer) */}
+                  <div 
+                    className="w-full max-w-[300px] h-2.5 bg-white no-print [clip-path:polygon(0_100%,2.5%_0,5%_100%,7.5%_0,10%_100%,12.5%_0,15%_100%,17.5%_0,20%_100%,22.5%_0,25%_100%,27.5%_0,30%_100%,32.5%_0,35%_100%,37.5%_0,40%_100%,42.5%_0,45%_100%,47.5%_0,50%_100%,52.5%_0,55%_100%,57.5%_0,60%_100%,62.5%_0,65%_100%,67.5%_0,70%_100%,72.5%_0,75%_100%,77.5%_0,80%_100%,82.5%_0,85%_100%,87.5%_0,90%_100%,92.5%_0,95%_100%,97.5%_0,100%_100%)] shadow-xs -mb-[1px] z-10" 
+                    style={{ width: '80mm' }}
+                  />
+
+                  <div
+                    id="thermal-receipt-printable"
+                    className="w-full max-w-[300px] bg-white text-slate-900 font-mono text-[11px] p-4.5 shadow-md relative border-x border-slate-200"
+                    style={{ width: '80mm' }}
+                  >
 
                   {/* Watermark Diagonal Stempel VOID */}
                   {isCurrentVoid && (
@@ -855,8 +874,13 @@ ${footerTitle}`;
                     </p>
                   </div>
 
-                  {/* Jagged receipt paper bottom effect */}
-                  <div className="absolute -bottom-2 left-0 right-0 h-2 bg-slate-100/80 [clip-path:polygon(0_0,5%_100%,10%_0,15%_100%,20%_0,25%_100%,30%_0,35%_100%,40%_0,45%_100%,50%_0,55%_100%,60%_0,65%_100%,70%_0,75%_100%,80%_0,85%_100%,90%_0,95%_100%,100%_0)]" />
+                  </div>
+
+                  {/* Perforated zig-zag tear edge at bottom */}
+                  <div 
+                    className="w-full max-w-[300px] h-2.5 bg-white no-print [clip-path:polygon(0_0,2.5%_100%,5%_0,7.5%_100%,10%_0,12.5%_100%,15%_0,17.5%_100%,20%_0,22.5%_100%,25%_0,27.5%_100%,30%_0,32.5%_100%,35%_0,37.5%_100%,40%_0,42.5%_100%,45%_0,47.5%_100%,50%_0,52.5%_100%,55%_0,57.5%_100%,60%_0,62.5%_100%,65%_0,67.5%_100%,70%_0,72.5%_100%,75%_0,77.5%_100%,80%_0,82.5%_100%,85%_0,87.5%_100%,90%_0,92.5%_100%,95%_0,97.5%_100%,100%_0)] shadow-md -mt-[1px]" 
+                    style={{ width: '80mm' }}
+                  />
                 </div>
               )}
 
@@ -1257,17 +1281,28 @@ ${footerTitle}`;
               </p>
             </div>
 
-            {/* Preview Message */}
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-800">
-                Pratinjau Teks Pesan Nota
-              </label>
-              <textarea
-                readOnly
-                rows={6}
-                value={getWaFormattedText()}
-                className="w-full p-2.5 text-[10.5px] font-mono bg-slate-50 border border-slate-200 rounded-xl text-slate-700 resize-none focus:outline-none custom-scrollbar"
-              />
+            {/* Realistic WhatsApp Chat Bubble Mockup */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-800">
+                  Pratinjau Pesan WhatsApp
+                </label>
+                <span className="text-[10.5px] text-emerald-700 font-semibold flex items-center gap-1">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  Format Pesan Otomatis
+                </span>
+              </div>
+              <div className="bg-[#e5ddd5] p-3 rounded-2xl border border-slate-200/80 max-h-[220px] overflow-y-auto custom-scrollbar flex flex-col items-end">
+                <div className="bg-[#d9fdd3] text-slate-900 rounded-2xl rounded-tr-xs p-3 shadow-2xs max-w-[95%] text-left relative">
+                  <p className="text-[11px] font-mono whitespace-pre-line leading-relaxed text-slate-800">
+                    {getWaFormattedText()}
+                  </p>
+                  <div className="flex items-center justify-end gap-1 mt-1.5 text-[9.5px] text-slate-500">
+                    <span>{new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-sky-500 font-black">✓✓</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Actions */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Search, 
   Plus, 
@@ -33,6 +33,7 @@ import {
   ParkedTransaction,
   PaymentMethod, 
   PosTransaction, 
+  ProductCategory,
   ProductItem, 
   SalesBookingRecord, 
   ServiceMasterItem,
@@ -74,7 +75,15 @@ interface PosScreenProps {
   onOpenWireframeModal?: () => void;
   isEmptyState?: boolean;
   storeSettings?: StoreSettings;
+  categories?: ProductCategory[];
 }
+
+const defaultCategories: ProductCategory[] = [
+  { id: 'cat-01', category_code: 'BAN_BARU', category_name: 'Ban Mobil Baru', description: 'Ban luar mobil baru berbagai ukuran', is_active: true },
+  { id: 'cat-02', category_code: 'VELG', category_name: 'Velg Mobil', description: 'Velg mobil racing & standar', is_active: true },
+  { id: 'cat-04', category_code: 'OLI_PELUMAS', category_name: 'Oli & Pelumas', description: 'Oli mesin, transmisi, dan cairan rem', is_active: true },
+  { id: 'cat-03', category_code: 'BAN_DALAM', category_name: 'Ban Dalam', description: 'Ban dalam dan flap velg', is_active: true },
+];
 
 export const PosScreen: React.FC<PosScreenProps> = ({
   products,
@@ -94,10 +103,35 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   onExitToBackoffice,
   isEmptyState = false,
   storeSettings,
+  categories = [],
 }) => {
   const toast = useToast();
   const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
-  const [catalogTab, setCatalogTab] = useState<'BAN_BARU' | 'VELG' | 'OLI_PELUMAS' | 'BAN_DALAM' | 'SERVICES' | 'MANUAL'>('BAN_BARU');
+  
+  const availableCategories = useMemo(() => {
+    const activeCats = (categories && categories.length > 0)
+      ? categories.filter(c => c.is_active !== false)
+      : defaultCategories;
+    return activeCats;
+  }, [categories]);
+
+  const [catalogTab, setCatalogTab] = useState<string>('BAN_BARU');
+  const [isCartBouncing, setIsCartBouncing] = useState<boolean>(false);
+
+  const triggerCartBounce = () => {
+    setIsCartBouncing(true);
+    setTimeout(() => setIsCartBouncing(false), 500);
+  };
+
+  const getCategoryProductCount = (categoryCode: string, categoryId?: string) => {
+    const code = categoryCode.toUpperCase().trim();
+    return products.filter((p) => {
+      const pCat = (p.category || '').toUpperCase().trim();
+      const matches = pCat === code || (p.category_id && String(p.category_id) === categoryId);
+      return matches && p.is_active !== false;
+    }).length;
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRing, setSelectedRing] = useState<string>('ALL');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
@@ -140,7 +174,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const filteredProducts = isEmptyState || catalogTab === 'SERVICES' || catalogTab === 'MANUAL'
     ? []
     : products.filter((prod) => {
-        if (prod.category !== catalogTab) return false;
+        const pCat = (prod.category || '').toUpperCase().trim();
+        const tabCode = catalogTab.toUpperCase().trim();
+        const matchesCategory = pCat === tabCode || (prod.category_id && String(prod.category_id) === catalogTab);
+        if (!matchesCategory) return false;
 
         const q = searchQuery.toLowerCase().trim();
         const matchesQuery =
@@ -173,12 +210,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
   const handleAddToCartManual = (item: CartItem) => {
     setCart((prevCart) => [...prevCart, item]);
+    triggerCartBounce();
   };
 
   const handleAddToCart = (product: ProductItem) => {
     const stockAvailable = product.stock || product.product_quantity || 0;
     if (stockAvailable <= 0) return;
 
+    triggerCartBounce();
     setCart((prevCart) => {
       const existingIndex = prevCart.findIndex(
         (it) => it.item_type === 'PRODUCT' && it.product.id === product.id
@@ -207,6 +246,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   };
 
   const handleAddServiceToCart = (service: ServiceMasterItem) => {
+    triggerCartBounce();
     setCart((prevCart) => {
       const existingIndex = prevCart.findIndex(
         (it) => it.item_type === 'SERVICE' && it.service?.id === service.id
@@ -601,48 +641,39 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           </div>
         </div>
 
-        {/* Category Tabs (Separate category tabs + Input Manual persis ProjectOmahBan) */}
+        {/* Dynamic Category Tabs from Master Settings + Services & Manual persis ProjectOmahBan */}
         <div className="px-3 py-2 bg-white border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
-          <button
-            type="button"
-            onClick={() => setCatalogTab('BAN_BARU')}
-            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              catalogTab === 'BAN_BARU' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
-            }`}
-          >
-            <Disc className="w-3.5 h-3.5" />
-            <span>Ban Baru</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setCatalogTab('VELG')}
-            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              catalogTab === 'VELG' ? 'bg-amber-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
-            }`}
-          >
-            <CircleDot className="w-3.5 h-3.5" />
-            <span>Velg Mobil</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setCatalogTab('OLI_PELUMAS')}
-            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              catalogTab === 'OLI_PELUMAS' ? 'bg-orange-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
-            }`}
-          >
-            <Droplets className="w-3.5 h-3.5" />
-            <span>Oli & Pelumas</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setCatalogTab('BAN_DALAM')}
-            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              catalogTab === 'BAN_DALAM' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
-            }`}
-          >
-            <Package className="w-3.5 h-3.5" />
-            <span>Ban Dalam</span>
-          </button>
+          {availableCategories.map((cat) => {
+            const isSelected = catalogTab === cat.category_code;
+            const count = getCategoryProductCount(cat.category_code, cat.id);
+            const renderIcon = () => {
+              const code = (cat.category_code || '').toUpperCase();
+              if (code.includes('VELG')) return <CircleDot className="w-3.5 h-3.5" />;
+              if (code.includes('OLI') || code.includes('LUBRICANT')) return <Droplets className="w-3.5 h-3.5" />;
+              if (code.includes('DALAM') || code.includes('TUBE')) return <Package className="w-3.5 h-3.5" />;
+              return <Disc className="w-3.5 h-3.5" />;
+            };
+            return (
+              <button
+                key={cat.id || cat.category_code}
+                type="button"
+                onClick={() => setCatalogTab(cat.category_code)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
+                }`}
+              >
+                {renderIcon()}
+                <span>{cat.category_name}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
           <button
             type="button"
             onClick={() => setCatalogTab('SERVICES')}
@@ -652,6 +683,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           >
             <Wrench className="w-3.5 h-3.5" />
             <span>Jasa & Layanan</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+              catalogTab === 'SERVICES' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {services.length}
+            </span>
           </button>
           <button
             type="button"
@@ -662,7 +698,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
             <span>✍️ Input Manual</span>
           </button>
         </div>
@@ -765,6 +801,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 </div>
               </div>
             ))}
+            {catalogTab !== 'SERVICES' && filteredProducts.length === 0 && (
+              <div className="col-span-full py-16 text-center text-slate-500">
+                <Package className="w-12 h-12 mx-auto text-slate-300 mb-2 stroke-[1.5]" />
+                <p className="font-bold text-slate-700">Tidak ada produk dalam kategori ini</p>
+                <p className="text-xs text-slate-400 mt-1">Coba pilih tab kategori lain atau sesuaikan kata kunci pencarian Anda.</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -774,10 +817,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <button
               type="button"
               onClick={() => setMobileTab('cart')}
-              className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-xs sm:text-sm flex items-center justify-between shadow-md transition-all cursor-pointer"
+              className={`w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-xs sm:text-sm flex items-center justify-between shadow-md transition-all cursor-pointer ${
+                isCartBouncing ? 'ring-4 ring-blue-300 scale-[1.02]' : ''
+              }`}
             >
               <div className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-blue-800 text-white flex items-center justify-center text-[11px] font-bold">
+                <span className={`w-5 h-5 rounded-full bg-blue-800 text-white flex items-center justify-center text-[11px] font-bold transition-transform ${
+                  isCartBouncing ? 'scale-125' : ''
+                }`}>
                   {cart.reduce((s, i) => s + i.qty, 0)}
                 </span>
                 <span>Buka Pembayaran</span>
@@ -803,7 +850,9 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Kembali ke Katalog</span>
           </button>
-          <span className="text-xs font-bold text-slate-800">
+          <span className={`text-xs font-bold text-slate-800 transition-transform duration-300 ${
+            isCartBouncing ? 'scale-105 text-blue-700 font-extrabold' : ''
+          }`}>
             Keranjang Kasir ({cart.reduce((s, i) => s + i.qty, 0)} Pcs)
           </span>
         </div>
@@ -811,12 +860,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         {/* Desktop Header Bar for Cart with Quick Park & Clear buttons (persis Cabang 2) */}
         <div className="hidden lg:flex items-center justify-between px-3 py-2.5 bg-white border-b border-slate-200 shrink-0">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="w-4 h-4 text-blue-600" />
+            <div className={`transition-transform duration-300 ${isCartBouncing ? 'animate-bounce text-blue-700' : 'text-blue-600'}`}>
+              <ShoppingCart className="w-4 h-4" />
+            </div>
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">
               Keranjang Kasir
             </h2>
             {cart.length > 0 && (
-              <span className="text-[10px] font-bold rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 font-mono">
+              <span className={`text-[10px] font-bold rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 font-mono transition-transform duration-300 ${
+                isCartBouncing ? 'scale-125 bg-blue-600 text-white ring-2 ring-blue-300' : ''
+              }`}>
                 {cart.reduce((s, i) => s + i.qty, 0)}
               </span>
             )}
