@@ -34,9 +34,21 @@ Route::prefix('v1')->group(function () {
     Route::get('accounts', [\App\Http\Controllers\Api\v1\AccountController::class, 'index']);
 
     // POS Kiosk & Transactions
+    Route::get('pos/payment-options', [\App\Http\Controllers\Api\v1\PaymentMethodSettingController::class, 'getPaymentOptions']);
     Route::post('pos/checkout', [\App\Http\Controllers\Api\v1\PosController::class, 'checkout']);
     Route::get('pos/transactions', [\App\Http\Controllers\Api\v1\PosController::class, 'index']);
     Route::get('pos/transactions/{id}', [\App\Http\Controllers\Api\v1\PosController::class, 'show']);
+
+    // Payment Method Settings (Parity ProjectOmahBan)
+    Route::get('settings/payment-providers', [\App\Http\Controllers\Api\v1\PaymentMethodSettingController::class, 'indexProviders']);
+    Route::post('settings/payment-providers', [\App\Http\Controllers\Api\v1\PaymentMethodSettingController::class, 'storeProvider']);
+    Route::put('settings/payment-providers/{id}', [\App\Http\Controllers\Api\v1\PaymentMethodSettingController::class, 'updateProvider']);
+    Route::delete('settings/payment-providers/{id}', [\App\Http\Controllers\Api\v1\PaymentMethodSettingController::class, 'deleteProvider']);
+
+    Route::get('settings/edc', [\App\Http\Controllers\Api\v1\PaymentMethodSettingController::class, 'indexEdc']);
+    Route::post('settings/edc', [\App\Http\Controllers\Api\v1\PaymentMethodSettingController::class, 'storeEdc']);
+    Route::put('settings/edc/{id}', [\App\Http\Controllers\Api\v1\PaymentMethodSettingController::class, 'updateEdc']);
+    Route::delete('settings/edc/{id}', [\App\Http\Controllers\Api\v1\PaymentMethodSettingController::class, 'deleteEdc']);
 
     // Inventory Restock, Movements & Opname
     Route::post('inventory/restock', [\App\Http\Controllers\Api\v1\InventoryController::class, 'restock']);

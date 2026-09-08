@@ -36,6 +36,7 @@ export const SAK_EMKM_COA: ChartOfAccount[] = [
   { account_code: '3-2000', account_name: 'Laba Ditahan Cabang 3', account_type: 'EQUITY', normal_balance: 'CREDIT', category_name: 'Ekuitas' },
   { account_code: '4-1000', account_name: 'Pendapatan Penjualan Ban Baru', account_type: 'REVENUE', normal_balance: 'CREDIT', category_name: 'Pendapatan Usaha' },
   { account_code: '4-1001', account_name: 'Pendapatan Jasa Servis Roda Mobil', account_type: 'REVENUE', normal_balance: 'CREDIT', category_name: 'Pendapatan Usaha' },
+  { account_code: '4-2000', account_name: 'Pendapatan Administrasi & Surcharge EDC', account_type: 'REVENUE', normal_balance: 'CREDIT', category_name: 'Pendapatan Usaha' },
   { account_code: '4-9000', account_name: 'Potongan Diskon Penjualan', account_type: 'REVENUE', normal_balance: 'DEBIT', category_name: 'Kontra Pendapatan' },
   { account_code: '5-1000', account_name: 'Harga Pokok Penjualan (HPP) Ban Baru', account_type: 'EXPENSE', normal_balance: 'DEBIT', category_name: 'Harga Pokok Penjualan' },
   { account_code: '6-1000', account_name: 'Beban Gaji & Uang Makan Karyawan', account_type: 'EXPENSE', normal_balance: 'DEBIT', category_name: 'Beban Operasional' },
@@ -46,6 +47,7 @@ export const SAK_EMKM_COA: ChartOfAccount[] = [
   { account_code: '6-1006', account_name: 'Beban Perawatan Mesin Spooring & Balancing', account_type: 'EXPENSE', normal_balance: 'DEBIT', category_name: 'Beban Operasional' },
   { account_code: '6-1007', account_name: 'Beban Konsumsi & Lembur Karyawan', account_type: 'EXPENSE', normal_balance: 'DEBIT', category_name: 'Beban Operasional' },
   { account_code: '6-1008', account_name: 'Beban Pajak & Retribusi Daerah', account_type: 'EXPENSE', normal_balance: 'DEBIT', category_name: 'Beban Operasional' },
+  { account_code: '6-1009', account_name: 'Beban Administrasi Bank, MDR QRIS & EDC', account_type: 'EXPENSE', normal_balance: 'DEBIT', category_name: 'Beban Operasional' },
 ];
 
 export const getAccountByCode = (code: string): ChartOfAccount | undefined => {

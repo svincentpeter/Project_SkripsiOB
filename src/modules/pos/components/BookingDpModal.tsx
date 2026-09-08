@@ -9,9 +9,10 @@ import {
   FileText, 
   AlertTriangle 
 } from 'lucide-react';
-import { CartItem, PaymentMethod } from '../../../shared/types';
+import { CartItem, PaymentMethod, StoreSettings } from '../../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
 import { calculateCartTotals } from '../../../services/posService';
+import { INITIAL_BANK_PROVIDERS, INITIAL_QRIS_PROVIDERS } from '../../../shared/data/mockData';
 
 interface BookingDpModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface BookingDpModalProps {
   defaultCustomerName: string;
   defaultVehiclePlate: string;
   defaultVehicleModel: string;
+  storeSettings?: StoreSettings;
   onClose: () => void;
   onSaveBooking: (
     customerName: string,
@@ -37,6 +39,7 @@ export const BookingDpModal: React.FC<BookingDpModalProps> = ({
   defaultCustomerName,
   defaultVehiclePlate,
   defaultVehicleModel,
+  storeSettings,
   onClose,
   onSaveBooking,
 }) => {
@@ -199,9 +202,18 @@ export const BookingDpModal: React.FC<BookingDpModalProps> = ({
                   className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 text-xs font-semibold shadow-2xs"
                 >
                   <option value="TUNAI">Kas Tunai Laci Kasir</option>
-                  <option value="TRANSFER_BCA">Transfer Bank BCA</option>
-                  <option value="QRIS">QRIS Dinamis</option>
+                  {((storeSettings?.bank_providers || INITIAL_BANK_PROVIDERS).filter((b) => b.is_active)).map((b) => (
+                    <option key={b.provider_name} value={b.provider_name === 'BCA' ? 'TRANSFER_BCA' : 'TRANSFER'}>
+                      Transfer Bank {b.provider_name}
+                    </option>
+                  ))}
+                  {((storeSettings?.qris_providers || INITIAL_QRIS_PROVIDERS).filter((q) => q.is_active)).map((q) => (
+                    <option key={q.provider_name} value="QRIS">
+                      QRIS {q.provider_name} ({q.fee_percentage}%)
+                    </option>
+                  ))}
                   <option value="EDC_DEBIT">EDC Kartu Debit</option>
+                  <option value="EDC_CREDIT">EDC Kartu Kredit</option>
                 </select>
               </div>
             </div>

@@ -122,6 +122,7 @@ Project_SkripsiOB/
 ├── database/
 │   └── schema_project_skripsi_ob.sql      # Skema DDL & DML MySQL Resmi
 ├── docs/
+│   ├── SPESIFIKASI_DAN_JUSTIFIKASI_SISTEM.md # Dokumen Spesifikasi Arsitektur & Landasan Akademik
 │   └── superpowers/
 │       ├── specs/                         # Dokumen Spesifikasi Desain Sistem
 │       │   └── 2026-09-03-sistem-informasi-akuntansi-sak-emkm-design.md

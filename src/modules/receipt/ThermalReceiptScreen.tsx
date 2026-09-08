@@ -207,8 +207,8 @@ ${activeTx.items
 Subtotal    : ${formatRupiah(activeTx.subtotal)}
 ${activeTx.total_discount > 0 ? `Diskon      : -${formatRupiah(activeTx.total_discount)}\n` : ''}${
   activeTx.tax_amount > 0 ? `PPN 11%     : ${formatRupiah(activeTx.tax_amount)}\n` : ''
-}*GRAND TOTAL*: *${formatRupiah(activeTx.grand_total)}*
-Metode Bayar: ${activeTx.payment_method.replace('_', ' ')} ${isVoid ? '(DIBATALKAN)' : '(LUNAS)'}
+}${activeTx.surcharge_amount && activeTx.surcharge_amount > 0 ? `Surcharge   : +${formatRupiah(activeTx.surcharge_amount)} (${activeTx.fee_percentage}%)\n` : ''}*GRAND TOTAL*: *${formatRupiah(activeTx.grand_total)}*
+Metode Bayar: ${activeTx.payment_method.replace('_', ' ')}${activeTx.payment_provider ? ` (${activeTx.payment_provider})` : ''}${activeTx.edc_bank ? ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})` : ''} ${isVoid ? '(DIBATALKAN)' : '(LUNAS)'}
 ---------------------------------------
 ★ *KEBIJAKAN GARANSI OMAH BAN:*
 ${warrantyText}
@@ -786,6 +786,13 @@ ${footerTitle}`;
                       </div>
                     )}
 
+                    {activeTx.surcharge_amount !== undefined && activeTx.surcharge_amount > 0 && (
+                      <div className="flex justify-between text-amber-800 text-[10px]">
+                        <span>Surcharge Kartu Kredit ({activeTx.fee_percentage}%):</span>
+                        <span>+{formatRupiah(activeTx.surcharge_amount)}</span>
+                      </div>
+                    )}
+
                     <div className="flex justify-between font-black text-xs pt-1 border-t border-slate-300 text-black">
                       <span>GRAND TOTAL:</span>
                       <span className={isCurrentVoid ? 'line-through text-red-600' : ''}>
@@ -795,7 +802,11 @@ ${footerTitle}`;
 
                     <div className="flex justify-between text-[10px] text-slate-700 pt-1">
                       <span>Metode Bayar:</span>
-                      <span className="font-bold uppercase">{activeTx.payment_method.replace('_', ' ')}</span>
+                      <span className="font-bold uppercase">
+                        {activeTx.payment_method.replace('_', ' ')}
+                        {activeTx.payment_provider && ` (${activeTx.payment_provider})`}
+                        {activeTx.edc_bank && ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})`}
+                      </span>
                     </div>
 
                     <div className="flex justify-between text-[10px] text-slate-700">
@@ -932,6 +943,8 @@ ${footerTitle}`;
                         <span className="w-24 text-slate-500 text-[11px]">Metode Bayar:</span>
                         <span className="font-semibold text-slate-800 text-[11px]">
                           {activeTx.payment_method.replace('_', ' ')}
+                          {activeTx.payment_provider && ` (${activeTx.payment_provider})`}
+                          {activeTx.edc_bank && ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})`}
                           {activeTx.payment_reference && ` (Ref: ${activeTx.payment_reference})`}
                         </span>
                       </div>

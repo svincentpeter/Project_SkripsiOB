@@ -1,4 +1,4 @@
-import { CartItem, ExpenseCategory, ExpenseCategoryMapping, ExpenseRecord, JournalEntry, PosTransaction } from '../types';
+import { CartItem, ExpenseCategory, ExpenseCategoryMapping, ExpenseRecord, JournalEntry, JournalLine, PosTransaction } from '../types';
 
 export const formatRupiah = (value: number): string => {
   return new Intl.NumberFormat('id-ID', {
@@ -127,9 +127,135 @@ export const calculateCartTotals = (items: CartItem[], applyTax: boolean = false
 export const generateSalesJournal = (transaction: PosTransaction, journalIdCounter: number): JournalEntry => {
   const journalNumber = `JU-202609-${String(journalIdCounter).padStart(4, '0')}`;
   const isCash = transaction.payment_method === 'TUNAI';
-  const cashAccountCode = isCash ? '1-1000' : '1-1001';
-  const cashAccountName = isCash ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3';
+  const isBon = transaction.status === 'PENDING' || (transaction as any).payment_method === 'BON' || transaction.amount_paid === 0;
+
+  const debitAccountCode = isBon
+    ? '1-1002'
+    : isCash
+    ? '1-1000'
+    : '1-1001';
+
+  const debitAccountName = isBon
+    ? 'Piutang Usaha Konsumen'
+    : isCash
+    ? 'Kas Toko Laci Kasir'
+    : transaction.payment_provider
+    ? `Bank ${transaction.payment_provider} (Cabang 3)`
+    : transaction.edc_bank
+    ? `Bank EDC ${transaction.edc_bank}`
+    : 'Bank BCA Cabang 3';
+
   const refDoc = transaction.reference || transaction.invoice_number;
+  const feeAmount = transaction.fee_amount || 0;
+  const surchargeAmount = transaction.surcharge_amount || 0;
+  const netBankReceived = transaction.net_received || (transaction.grand_total - feeAmount);
+
+  const lines: JournalLine[] = [];
+
+  if (isBon) {
+    // 1. Debit Piutang
+    lines.push({
+      account_code: debitAccountCode,
+      account_name: debitAccountName,
+      debit: transaction.grand_total,
+      credit: 0,
+      note: `Piutang transaksi BON/Tempo - ${refDoc}`,
+    });
+  } else if (feeAmount > 0) {
+    // 1. Debit Bank (Net received) + Debit Beban MDR / Fee Transaksi (Store absorbed fee)
+    lines.push({
+      account_code: debitAccountCode,
+      account_name: debitAccountName,
+      debit: netBankReceived,
+      credit: 0,
+      note: `Penerimaan bersih ${transaction.payment_method} - ${refDoc}`,
+    });
+    lines.push({
+      account_code: '6-1009',
+      account_name: 'Beban Administrasi Bank, MDR QRIS & EDC',
+      debit: feeAmount,
+      credit: 0,
+      note: `Potongan fee ${transaction.payment_provider || transaction.edc_bank || transaction.payment_method} (${transaction.fee_percentage}%) - ${refDoc}`,
+    });
+  } else if (surchargeAmount > 0) {
+    // 1. Debit Bank (Customer swiped full total including surcharge)
+    lines.push({
+      account_code: debitAccountCode,
+      account_name: debitAccountName,
+      debit: transaction.grand_total,
+      credit: 0,
+      note: `Penerimaan gesek EDC Kartu Kredit (+Surcharge) - ${refDoc}`,
+    });
+    // 2. Credit Surcharge Revenue (Income from customer fee)
+    lines.push({
+      account_code: '4-2000',
+      account_name: 'Pendapatan Administrasi & Surcharge EDC',
+      debit: 0,
+      credit: surchargeAmount,
+      note: `Surcharge gesek kartu kredit (${transaction.fee_percentage}%) - ${refDoc}`,
+    });
+  } else {
+    // Standard Tunai / Transfer
+    lines.push({
+      account_code: debitAccountCode,
+      account_name: debitAccountName,
+      debit: transaction.grand_total,
+      credit: 0,
+      note: `Penerimaan bayar ${transaction.payment_method} - ${refDoc}`,
+    });
+  }
+
+  // Sales Discount
+  if (transaction.total_discount > 0) {
+    lines.push({
+      account_code: '4-9000',
+      account_name: 'Potongan Diskon Penjualan',
+      debit: transaction.total_discount,
+      credit: 0,
+      note: `Diskon promosi penjualan kasir - ${refDoc}`,
+    });
+  }
+
+  // Sales Revenue (base product/service subtotal)
+  lines.push({
+    account_code: '4-1000',
+    account_name: 'Pendapatan Penjualan Ban Baru',
+    debit: 0,
+    credit: transaction.subtotal,
+    note: `Omzet penjualan kotor - ${refDoc}`,
+  });
+
+  // PPN Keluaran
+  if (transaction.tax_amount > 0) {
+    lines.push({
+      account_code: '2-1003',
+      account_name: 'PPN Keluaran (11%)',
+      debit: 0,
+      credit: transaction.tax_amount,
+      note: `Pajak PPN 11% - ${refDoc}`,
+    });
+  }
+
+  // HPP & Inventory
+  if (transaction.total_cost_hpp > 0) {
+    lines.push({
+      account_code: '5-1000',
+      account_name: 'Harga Pokok Penjualan (HPP) Ban Baru',
+      debit: transaction.total_cost_hpp,
+      credit: 0,
+      note: `Beban pokok penjualan FIFO - ${refDoc}`,
+    });
+    lines.push({
+      account_code: '1-2000',
+      account_name: 'Persediaan Ban Baru Cabang 3',
+      debit: 0,
+      credit: transaction.total_cost_hpp,
+      note: `Pengurangan persediaan gudang - ${refDoc}`,
+    });
+  }
+
+  const totalDebit = lines.reduce((acc, l) => acc + l.debit, 0);
+  const totalCredit = lines.reduce((acc, l) => acc + l.credit, 0);
 
   return {
     id: `jnl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -139,66 +265,9 @@ export const generateSalesJournal = (transaction: PosTransaction, journalIdCount
     ref_doc: refDoc,
     description: `Penjualan Ban (${transaction.items.length} item) - Pelanggan: ${transaction.customer_name || 'Umum'} (${transaction.vehicle_plate || 'Tanpa Plat'})`,
     status: 'POSTED',
-    total_debit: transaction.grand_total + (transaction.total_discount > 0 ? transaction.total_discount : 0) + transaction.total_cost_hpp,
-    total_credit: transaction.subtotal + (transaction.tax_amount > 0 ? transaction.tax_amount : 0) + transaction.total_cost_hpp,
-    lines: [
-      // 1. Debit Cash/Bank for total received
-      {
-        account_code: cashAccountCode,
-        account_name: cashAccountName,
-        debit: transaction.grand_total,
-        credit: 0,
-        note: `Penerimaan bayar ${transaction.payment_method} - ${refDoc}`,
-      },
-      // 2. Debit Sales Discount (if any)
-      ...(transaction.total_discount > 0
-        ? [
-            {
-              account_code: '4-9000',
-              account_name: 'Potongan Diskon Penjualan',
-              debit: transaction.total_discount,
-              credit: 0,
-              note: `Diskon promosi penjualan kasir - ${refDoc}`,
-            },
-          ]
-        : []),
-      // 3. Credit Sales Revenue
-      {
-        account_code: '4-1000',
-        account_name: 'Pendapatan Penjualan Ban Baru',
-        debit: 0,
-        credit: transaction.subtotal,
-        note: `Omzet penjualan kotor - ${refDoc}`,
-      },
-      // 4. Credit PPN Keluaran (if tax applied)
-      ...(transaction.tax_amount > 0
-        ? [
-            {
-              account_code: '2-1003',
-              account_name: 'PPN Keluaran (11%)',
-              debit: 0,
-              credit: transaction.tax_amount,
-              note: `Pajak PPN 11% - ${refDoc}`,
-            },
-          ]
-        : []),
-      // 5. Debit HPP
-      {
-        account_code: '5-1000',
-        account_name: 'Harga Pokok Penjualan (HPP) Ban Baru',
-        debit: transaction.total_cost_hpp,
-        credit: 0,
-        note: `Beban pokok penjualan FIFO - ${refDoc}`,
-      },
-      // 6. Credit Tire Inventory
-      {
-        account_code: '1-2000',
-        account_name: 'Persediaan Ban Baru Cabang 3',
-        debit: 0,
-        credit: transaction.total_cost_hpp,
-        note: `Pengurangan persediaan gudang - ${refDoc}`,
-      },
-    ],
+    total_debit: totalDebit,
+    total_credit: totalCredit,
+    lines,
   };
 };
 

@@ -100,7 +100,12 @@ class PosController extends Controller
             }
 
             $grandTotal = ($grossSales - $totalDiscount) + $taxAmount;
-            $paidAmount = (float) $validated['paid_amount'];
+            $surchargeAmount = (float) ($validated['surcharge_amount'] ?? 0);
+            $feeAmount = (float) ($validated['fee_amount'] ?? 0);
+            $feePercentage = (float) ($validated['fee_percentage'] ?? 0);
+            $finalGrandTotal = $grandTotal + $surchargeAmount;
+            $netReceived = (float) ($validated['net_received'] ?? ($finalGrandTotal - $feeAmount));
+            $paidAmount = (float) ($validated['paid_amount'] ?? $finalGrandTotal);
 
             $sale = Sale::create([
                 'reference' => $reference,
@@ -112,13 +117,20 @@ class PosController extends Controller
                 'discount_amount' => $totalDiscount,
                 'tax_percentage' => $taxAmount > 0 ? 11.00 : 0.00,
                 'tax_amount' => $taxAmount,
-                'total_amount' => $grandTotal,
+                'total_amount' => $finalGrandTotal,
                 'paid_amount' => $paidAmount,
                 'payment_method' => $validated['payment_method'],
+                'payment_provider' => $validated['payment_provider'] ?? null,
+                'edc_bank' => $validated['edc_bank'] ?? null,
+                'edc_type' => $validated['edc_type'] ?? null,
+                'fee_percentage' => $feePercentage,
+                'fee_amount' => $feeAmount,
+                'surcharge_amount' => $surchargeAmount,
+                'net_received' => $netReceived,
                 'total_hpp' => 0.00,
                 'total_profit' => 0.00,
                 'notes' => $validated['notes'] ?? null,
-                'status' => 'LUNAS',
+                'status' => ($validated['payment_method'] === 'BON' || $validated['payment_method'] === 'KREDIT') ? 'PENDING' : 'LUNAS',
                 'stock_deducted' => true,
                 'branch_id' => 3,
             ]);
@@ -165,23 +177,84 @@ class PosController extends Controller
             $sale->save();
 
             // Auto-Journaling Double-Entry SAK EMKM
+            $isBon = ($validated['payment_method'] === 'BON' || $validated['payment_method'] === 'KREDIT');
             $paymentAccountCode = match ($validated['payment_method']) {
                 'TUNAI' => '1-1000',
-                'TRANSFER_BCA', 'QRIS', 'KARTU_DEBIT' => '1-1001',
-                'KREDIT' => '1-1002',
+                'TRANSFER', 'TRANSFER_BCA', 'QRIS', 'KARTU_DEBIT', 'EDC', 'EDC_DEBIT', 'EDC_CREDIT' => '1-1001',
+                'BON', 'KREDIT' => '1-1002',
                 default => '1-1000',
             };
 
             $accPayment = Account::where('account_code', $paymentAccountCode)->firstOrFail();
             $journalItems = [];
 
-            // 1. [DEBIT] Cash / Bank / Receivable = Grand Total
-            $journalItems[] = [
-                'account_id' => $accPayment->id,
-                'debit' => $grandTotal,
-                'credit' => 0.00,
-                'note' => "Penerimaan {$validated['payment_method']} Nota {$reference}",
-            ];
+            if ($isBon) {
+                // 1. [DEBIT] Piutang Usaha Konsumen
+                $journalItems[] = [
+                    'account_id' => $accPayment->id,
+                    'debit' => $finalGrandTotal,
+                    'credit' => 0.00,
+                    'note' => "Piutang Usaha Konsumen BON Nota {$reference}",
+                ];
+            } elseif ($surchargeAmount > 0) {
+                // 1. [DEBIT] Bank Gesek EDC Total
+                $journalItems[] = [
+                    'account_id' => $accPayment->id,
+                    'debit' => $finalGrandTotal,
+                    'credit' => 0.00,
+                    'note' => "Penerimaan EDC Gesek Kartu Kredit (+Surcharge) Nota {$reference}",
+                ];
+                // 2. [KREDIT] Pendapatan Surcharge Pelanggan
+                $accSurcharge = Account::firstOrCreate(
+                    ['account_code' => '4-2000'],
+                    [
+                        'account_name' => 'Pendapatan Administrasi & Surcharge EDC',
+                        'account_type' => 'REVENUE',
+                        'normal_balance' => 'CREDIT',
+                        'category_name' => 'Pendapatan Usaha',
+                        'is_active' => true,
+                    ]
+                );
+                $journalItems[] = [
+                    'account_id' => $accSurcharge->id,
+                    'debit' => 0.00,
+                    'credit' => $surchargeAmount,
+                    'note' => "Surcharge Pelanggan Gesek Kartu Kredit ({$feePercentage}%) Nota {$reference}",
+                ];
+            } elseif ($feeAmount > 0) {
+                // 1. [DEBIT] Bank Penerimaan Bersih
+                $journalItems[] = [
+                    'account_id' => $accPayment->id,
+                    'debit' => $netReceived,
+                    'credit' => 0.00,
+                    'note' => "Penerimaan Bank Bersih ({$validated['payment_method']}) Nota {$reference}",
+                ];
+                // 2. [DEBIT] Beban Administrasi Bank, MDR QRIS & EDC (Beban Toko)
+                $accFee = Account::firstOrCreate(
+                    ['account_code' => '6-1009'],
+                    [
+                        'account_name' => 'Beban Administrasi Bank, MDR QRIS & EDC',
+                        'account_type' => 'EXPENSE',
+                        'normal_balance' => 'DEBIT',
+                        'category_name' => 'Beban Operasional',
+                        'is_active' => true,
+                    ]
+                );
+                $journalItems[] = [
+                    'account_id' => $accFee->id,
+                    'debit' => $feeAmount,
+                    'credit' => 0.00,
+                    'note' => "Potongan MDR/Admin ({$feePercentage}%) Nota {$reference}",
+                ];
+            } else {
+                // 1. [DEBIT] Cash / Bank Normal
+                $journalItems[] = [
+                    'account_id' => $accPayment->id,
+                    'debit' => $finalGrandTotal,
+                    'credit' => 0.00,
+                    'note' => "Penerimaan {$validated['payment_method']} Nota {$reference}",
+                ];
+            }
 
             // 2. [DEBIT] Sales Discount (if any)
             if ($totalDiscount > 0) {

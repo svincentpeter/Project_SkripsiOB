@@ -35,7 +35,8 @@ import {
   PosTransaction, 
   ProductItem, 
   SalesBookingRecord, 
-  ServiceMasterItem 
+  ServiceMasterItem,
+  StoreSettings
 } from '../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../shared/utils/formatters';
 import { MoneyInput } from '../../shared/components/MoneyInput';
@@ -72,6 +73,7 @@ interface PosScreenProps {
   onExitToBackoffice: () => void;
   onOpenWireframeModal?: () => void;
   isEmptyState?: boolean;
+  storeSettings?: StoreSettings;
 }
 
 export const PosScreen: React.FC<PosScreenProps> = ({
@@ -91,6 +93,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   timeString,
   onExitToBackoffice,
   isEmptyState = false,
+  storeSettings,
 }) => {
   const toast = useToast();
   const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
@@ -272,7 +275,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     isBon: boolean = false,
     overrideMethod?: PaymentMethod,
     overrideCash?: number,
-    overrideNotes?: string
+    overrideNotes?: string,
+    overridePaymentMeta?: {
+      provider_name?: string;
+      edc_bank?: string;
+      edc_type?: 'Debit' | 'Credit';
+      fee_percentage?: number;
+      fee_amount?: number;
+      surcharge_amount?: number;
+      net_received?: number;
+    }
   ) => {
     if (cart.length === 0) return;
     const finalMethod = overrideMethod || paymentMethod;
@@ -293,6 +305,25 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       manualDiscount,
       isBon
     );
+
+    if (overridePaymentMeta) {
+      transaction.payment_provider = overridePaymentMeta.provider_name;
+      transaction.edc_bank = overridePaymentMeta.edc_bank;
+      transaction.edc_type = overridePaymentMeta.edc_type;
+      transaction.fee_percentage = overridePaymentMeta.fee_percentage;
+      transaction.fee_amount = overridePaymentMeta.fee_amount;
+      transaction.surcharge_amount = overridePaymentMeta.surcharge_amount;
+      transaction.net_received = overridePaymentMeta.net_received;
+
+      if (overridePaymentMeta.surcharge_amount && overridePaymentMeta.surcharge_amount > 0) {
+        transaction.grand_total += overridePaymentMeta.surcharge_amount;
+        transaction.total_amount = transaction.grand_total;
+        if (!isBon) {
+          transaction.amount_paid = transaction.grand_total;
+          transaction.paid_amount = transaction.grand_total;
+        }
+      }
+    }
 
     if (overrideNotes) {
       transaction.notes = `${transaction.notes ? transaction.notes + ' | ' : ''}${overrideNotes}`;
@@ -327,9 +358,18 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     isBon: boolean,
     pm: PaymentMethod,
     cashTendered: number,
-    notes?: string
+    notes?: string,
+    paymentMeta?: {
+      provider_name?: string;
+      edc_bank?: string;
+      edc_type?: 'Debit' | 'Credit';
+      fee_percentage?: number;
+      fee_amount?: number;
+      surcharge_amount?: number;
+      net_received?: number;
+    }
   ) => {
-    handleCheckoutSale(isBon, pm, cashTendered, notes);
+    handleCheckoutSale(isBon, pm, cashTendered, notes, paymentMeta);
     setShowCheckoutModal(false);
   };
 
@@ -1095,6 +1135,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         defaultVehicleModel={vehicleModel}
         onClose={() => setShowBookingDpModal(false)}
         onSaveBooking={handleSaveBookingFromModal}
+        storeSettings={storeSettings}
       />
 
       <BookingListDrawer
@@ -1124,6 +1165,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         totals={totals}
         appliedDpAmount={appliedDpAmount}
         netPayable={netPayable}
+        storeSettings={storeSettings}
         onPrintPhysicalNota={handlePrintCurrentCartNota}
         onParkCart={handleParkCurrentCart}
         onConfirmCheckout={handleConfirmCheckoutFromModal}

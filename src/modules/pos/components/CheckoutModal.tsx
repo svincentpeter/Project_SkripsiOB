@@ -12,9 +12,11 @@ import {
   Car,
   User,
   Tag,
+  Landmark,
 } from 'lucide-react';
-import { CartItem, PaymentMethod } from '../../../shared/types';
+import { CartItem, PaymentMethod, StoreSettings } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
+import { INITIAL_BANK_PROVIDERS, INITIAL_QRIS_PROVIDERS, INITIAL_EDC_SETTINGS } from '../../../shared/data/mockData';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -31,13 +33,23 @@ interface CheckoutModalProps {
   };
   appliedDpAmount: number;
   netPayable: number;
+  storeSettings?: StoreSettings;
   onPrintPhysicalNota: () => void;
   onParkCart: () => void;
   onConfirmCheckout: (
     isBon: boolean,
     paymentMethod: PaymentMethod,
     cashTendered: number,
-    notes?: string
+    notes?: string,
+    paymentMeta?: {
+      provider_name?: string;
+      edc_bank?: string;
+      edc_type?: 'Debit' | 'Credit';
+      fee_percentage?: number;
+      fee_amount?: number;
+      surcharge_amount?: number;
+      net_received?: number;
+    }
   ) => void;
 }
 
@@ -52,25 +64,74 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   totals,
   appliedDpAmount,
   netPayable,
+  storeSettings,
   onPrintPhysicalNota,
   onParkCart,
   onConfirmCheckout,
 }) => {
   const [tag, setTag] = useState<'REGULAR' | 'BON'>(initialTag);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TUNAI');
+  const [selectedBank, setSelectedBank] = useState<string>('BCA');
+  const [selectedQris, setSelectedQris] = useState<string>('BCA');
+  const [selectedEdcBank, setSelectedEdcBank] = useState<string>('BCA');
+  const [selectedEdcType, setSelectedEdcType] = useState<'Debit' | 'Credit'>('Debit');
   const [cashTenderedInput, setCashTenderedInput] = useState<string>('');
   const [transactionNotes, setTransactionNotes] = useState<string>('');
+
+  const bankOptions = (storeSettings?.bank_providers || INITIAL_BANK_PROVIDERS).filter((b) => b.is_active);
+  const qrisOptions = (storeSettings?.qris_providers || INITIAL_QRIS_PROVIDERS).filter((q) => q.is_active);
+  const edcOptions = (storeSettings?.edc_settings || INITIAL_EDC_SETTINGS).filter((e) => e.is_active);
+  const edcBanks = Array.from(new Set(edcOptions.map((e) => e.bank_name)));
+
+  useEffect(() => {
+    if (bankOptions.length > 0 && !bankOptions.some((b) => b.provider_name === selectedBank)) {
+      setSelectedBank(bankOptions[0].provider_name);
+    }
+  }, [bankOptions, selectedBank]);
+
+  useEffect(() => {
+    if (qrisOptions.length > 0 && !qrisOptions.some((q) => q.provider_name === selectedQris)) {
+      setSelectedQris(qrisOptions[0].provider_name);
+    }
+  }, [qrisOptions, selectedQris]);
+
+  useEffect(() => {
+    if (edcBanks.length > 0 && !edcBanks.includes(selectedEdcBank)) {
+      setSelectedEdcBank(edcBanks[0]);
+    }
+  }, [edcBanks, selectedEdcBank]);
+
+  // Dynamic fee calculations
+  const currentQrisSetting = qrisOptions.find((q) => q.provider_name === selectedQris) || qrisOptions[0];
+  const qrisFeePct = currentQrisSetting?.fee_percentage ?? 0.30;
+  const qrisThreshold = currentQrisSetting?.fee_threshold_amount ?? 500000;
+  const qrisFeeAmount = (paymentMethod === 'QRIS' && netPayable > qrisThreshold && qrisFeePct > 0)
+    ? Math.round(netPayable * (qrisFeePct / 100))
+    : 0;
+  const qrisNetReceived = Math.max(0, netPayable - qrisFeeAmount);
+
+  const currentEdcSetting = edcOptions.find(
+    (e) => e.bank_name === selectedEdcBank && e.payment_type === selectedEdcType
+  );
+  const edcFeePct = currentEdcSetting?.fee_percentage ?? 0;
+  const isEdcCredit = paymentMethod === 'EDC_CREDIT' || (paymentMethod === 'EDC' && selectedEdcType === 'Credit');
+  const edcCreditSurcharge = isEdcCredit ? Math.round(netPayable * (edcFeePct / 100)) : 0;
+  const isEdcDebit = paymentMethod === 'EDC_DEBIT' || (paymentMethod === 'EDC' && selectedEdcType === 'Debit');
+  const edcDebitFeeAmount = isEdcDebit ? Math.round(netPayable * (edcFeePct / 100)) : 0;
+  const edcDebitNetReceived = Math.max(0, netPayable - edcDebitFeeAmount);
+
+  const effectivePayable = isEdcCredit ? netPayable + edcCreditSurcharge : netPayable;
 
   useEffect(() => {
     if (isOpen) {
       setTag(initialTag);
       if (initialTag === 'REGULAR') {
-        setCashTenderedInput(String(netPayable));
+        setCashTenderedInput(String(effectivePayable));
       } else {
         setCashTenderedInput('');
       }
     }
-  }, [isOpen, initialTag, netPayable]);
+  }, [isOpen, initialTag, effectivePayable]);
 
   if (!isOpen) return null;
 
@@ -81,12 +142,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const cashTenderedVal = parseRupiahInput(cashTenderedInput);
   const changeAmount =
-    paymentMethod === 'TUNAI' ? Math.max(0, cashTenderedVal - netPayable) : 0;
+    paymentMethod === 'TUNAI' ? Math.max(0, cashTenderedVal - effectivePayable) : 0;
   const isCashShort =
-    tag === 'REGULAR' && paymentMethod === 'TUNAI' && cashTenderedVal < netPayable;
+    tag === 'REGULAR' && paymentMethod === 'TUNAI' && cashTenderedVal < effectivePayable;
 
   const handleFillExact = () => {
-    setCashTenderedInput(String(netPayable));
+    setCashTenderedInput(String(effectivePayable));
   };
 
   const handleAddCash = (amount: number) => {
@@ -96,11 +157,52 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleFinalSubmit = () => {
     if (tag === 'REGULAR' && isCashShort) return;
+
+    let finalMethod: PaymentMethod = paymentMethod;
+    if (paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA') {
+      finalMethod = selectedBank === 'BCA' ? 'TRANSFER_BCA' : 'TRANSFER';
+    } else if (paymentMethod === 'EDC') {
+      finalMethod = selectedEdcType === 'Credit' ? 'EDC_CREDIT' : 'EDC_DEBIT';
+    }
+
+    const tenderedAmount = paymentMethod === 'TUNAI' ? cashTenderedVal : effectivePayable;
+
+    const paymentMeta = {
+      provider_name:
+        paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA'
+          ? selectedBank
+          : paymentMethod === 'QRIS'
+          ? selectedQris
+          : undefined,
+      edc_bank: (paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT') ? selectedEdcBank : undefined,
+      edc_type: (paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT') ? selectedEdcType : undefined,
+      fee_percentage:
+        paymentMethod === 'QRIS'
+          ? qrisFeePct
+          : (paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT')
+          ? edcFeePct
+          : 0,
+      fee_amount:
+        paymentMethod === 'QRIS'
+          ? qrisFeeAmount
+          : (paymentMethod === 'EDC' && selectedEdcType === 'Debit')
+          ? edcDebitFeeAmount
+          : 0,
+      surcharge_amount: isEdcCredit ? edcCreditSurcharge : 0,
+      net_received:
+        paymentMethod === 'QRIS'
+          ? qrisNetReceived
+          : (paymentMethod === 'EDC' && selectedEdcType === 'Debit')
+          ? edcDebitNetReceived
+          : effectivePayable,
+    };
+
     onConfirmCheckout(
       tag === 'BON',
-      paymentMethod,
-      paymentMethod === 'TUNAI' ? cashTenderedVal : netPayable,
-      transactionNotes.trim() || undefined
+      finalMethod,
+      tenderedAmount,
+      transactionNotes.trim() || undefined,
+      paymentMeta
     );
   };
 
@@ -360,44 +462,57 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
                       Metode Pembayaran
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 gap-1.5">
                       <button
                         type="button"
                         onClick={() => setPaymentMethod('TUNAI')}
-                        className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                        className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
                           paymentMethod === 'TUNAI'
                             ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                         }`}
                       >
                         <Banknote className="w-4 h-4 text-emerald-600" />
-                        <span>Tunai / Cash</span>
+                        <span className="text-[11px] truncate">Tunai</span>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => setPaymentMethod('TRANSFER_BCA')}
-                        className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                          paymentMethod === 'TRANSFER_BCA'
+                        onClick={() => setPaymentMethod('TRANSFER')}
+                        className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                          paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA'
                             ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                         }`}
                       >
-                        <CreditCard className="w-4 h-4 text-blue-600" />
-                        <span>Transfer BCA</span>
+                        <Landmark className="w-4 h-4 text-blue-600" />
+                        <span className="text-[11px] truncate">Transfer</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setPaymentMethod('QRIS')}
-                        className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                        className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
                           paymentMethod === 'QRIS'
                             ? 'bg-cyan-50 border-cyan-500 text-cyan-900 shadow-xs'
                             : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                         }`}
                       >
                         <QrCode className="w-4 h-4 text-cyan-600" />
-                        <span>QRIS Dinamis</span>
+                        <span className="text-[11px] truncate">QRIS</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('EDC')}
+                        className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                          paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT'
+                            ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-xs'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        <CreditCard className="w-4 h-4 text-purple-600" />
+                        <span className="text-[11px] truncate">Mesin EDC</span>
                       </button>
                     </div>
                   </div>
@@ -468,29 +583,217 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                   )}
 
-                  {paymentMethod === 'TRANSFER_BCA' && (
-                    <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs space-y-1 text-blue-950">
-                      <div className="font-bold flex items-center gap-1.5">
-                        <CreditCard className="w-4 h-4 text-blue-700" />
-                        <span>Rekening Tujuan Transfer:</span>
+                  {(paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA') && (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs space-y-2.5 text-blue-950">
+                      <div className="font-bold flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Landmark className="w-4 h-4 text-blue-700" />
+                          <span>Pilih Bank Tujuan Transfer:</span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
+                          Bebas Biaya Admin
+                        </span>
                       </div>
-                      <div className="font-mono font-black text-sm text-blue-900 pl-5">
-                        BCA: 015-888-2999
+
+                      {/* Bank Provider Selection Chips */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {bankOptions.map((bank) => (
+                          <button
+                            key={bank.id || bank.provider_name}
+                            type="button"
+                            onClick={() => setSelectedBank(bank.provider_name)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                              selectedBank === bank.provider_name
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-100/60'
+                            }`}
+                          >
+                            Bank {bank.provider_name}
+                          </button>
+                        ))}
                       </div>
-                      <div className="text-[11px] text-blue-700 pl-5">
-                        a.n. Omah Ban Cabang 3 (Agus Subagyo)
+
+                      <div className="pt-2 border-t border-blue-200/80 space-y-1">
+                        <div className="text-[11px] text-blue-700">
+                          Rekening Resmi Omah Ban:
+                        </div>
+                        <div className="font-mono font-black text-sm text-blue-900">
+                          {selectedBank === 'BCA'
+                            ? `${storeSettings?.bank_name || 'BCA'}: ${storeSettings?.bank_account_number || '015-888-2999'}`
+                            : `${selectedBank}: Rekening Kas Operasional ${selectedBank}`}
+                        </div>
+                        <div className="text-[11px] text-blue-700">
+                          a.n. {storeSettings?.bank_account_holder || 'Omah Ban Cabang 3 (Agus Subagyo)'}
+                        </div>
                       </div>
                     </div>
                   )}
 
                   {paymentMethod === 'QRIS' && (
-                    <div className="rounded-xl border border-cyan-200 bg-cyan-50/70 p-3 text-xs space-y-1 text-cyan-950">
-                      <div className="font-bold flex items-center gap-1.5">
-                        <QrCode className="w-4 h-4 text-cyan-700" />
-                        <span>QRIS Omah Ban Magelang</span>
+                    <div className="rounded-xl border border-cyan-200 bg-cyan-50/70 p-3 text-xs space-y-2.5 text-cyan-950">
+                      <div className="font-bold flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <QrCode className="w-4 h-4 text-cyan-700" />
+                          <span>Pilih Provider QRIS:</span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded-md">
+                          MDR {qrisFeePct}% (Beban Toko)
+                        </span>
                       </div>
-                      <div className="text-[11px] text-cyan-800">
-                        Scan menggunakan BCA, Mandiri, GoPay, OVO, atau ShopeePay.
+
+                      {/* QRIS Provider Selection Chips */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {qrisOptions.map((qris) => (
+                          <button
+                            key={qris.id || qris.provider_name}
+                            type="button"
+                            onClick={() => setSelectedQris(qris.provider_name)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                              selectedQris === qris.provider_name
+                                ? 'bg-cyan-600 text-white border-cyan-600 shadow-xs'
+                                : 'bg-white text-cyan-900 border-cyan-200 hover:bg-cyan-100/60'
+                            }`}
+                          >
+                            {qris.provider_name} ({qris.fee_percentage}%)
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* MDR Calculation Breakdown */}
+                      <div className="pt-2 border-t border-cyan-200/80 space-y-1.5 text-[11px]">
+                        {netPayable > qrisThreshold && qrisFeePct > 0 ? (
+                          <div className="flex items-center justify-between text-cyan-900">
+                            <span>Potongan MDR ({qrisFeePct}% beban toko):</span>
+                            <span className="font-mono font-bold text-rose-600">
+                              -{formatRupiah(qrisFeeAmount)}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="text-emerald-700 font-medium">
+                            ✓ Bebas Potongan MDR (Nominal di bawah batas minimal {formatRupiah(qrisThreshold)})
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-cyan-950 font-bold">
+                          <span>Toko Menerima Bersih:</span>
+                          <span className="font-mono text-emerald-700 text-xs font-black">
+                            {formatRupiah(qrisNetReceived)}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-cyan-700">
+                          * Pelanggan tetap membayar nominal pas: <b className="font-mono">{formatRupiah(netPayable)}</b>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {(paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT') && (
+                    <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3 text-xs space-y-3 text-purple-950">
+                      <div className="flex items-center justify-between">
+                        <div className="font-bold flex items-center gap-1.5">
+                          <CreditCard className="w-4 h-4 text-purple-700" />
+                          <span>Pilih Mesin EDC Bank:</span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md">
+                          Mesin EDC Gesek
+                        </span>
+                      </div>
+
+                      {/* EDC Bank Selection Chips */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {edcBanks.map((b) => (
+                          <button
+                            key={b}
+                            type="button"
+                            onClick={() => setSelectedEdcBank(b)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                              selectedEdcBank === b
+                                ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                                : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100/60'
+                            }`}
+                          >
+                            EDC {b}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Card Type Selector (Debit vs Credit) */}
+                      <div>
+                        <label className="text-[11px] font-bold text-purple-900 uppercase tracking-wider block mb-1">
+                          Pilih Jenis Kartu Gesek
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEdcType('Debit')}
+                            className={`p-2 rounded-lg text-xs font-bold border text-center transition-all cursor-pointer ${
+                              selectedEdcType === 'Debit'
+                                ? 'bg-purple-700 text-white border-purple-700 shadow-xs'
+                                : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100/60'
+                            }`}
+                          >
+                            <div>Kartu Debit</div>
+                            <div className="text-[10px] font-normal opacity-90">
+                              Beban Toko ({edcOptions.find((e) => e.bank_name === selectedEdcBank && e.payment_type === 'Debit')?.fee_percentage ?? 0.15}%)
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedEdcType('Credit')}
+                            className={`p-2 rounded-lg text-xs font-bold border text-center transition-all cursor-pointer ${
+                              selectedEdcType === 'Credit'
+                                ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                                : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-100/60'
+                            }`}
+                          >
+                            <div>Kartu Kredit (+Surcharge)</div>
+                            <div className="text-[10px] font-normal opacity-90">
+                              Beban Customer (+{edcOptions.find((e) => e.bank_name === selectedEdcBank && e.payment_type === 'Credit')?.fee_percentage ?? 2.0}%)
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Fee/Surcharge Breakdown */}
+                      <div className="pt-2 border-t border-purple-200/80 space-y-1 text-[11px]">
+                        {selectedEdcType === 'Credit' ? (
+                          <>
+                            <div className="flex items-center justify-between text-amber-900">
+                              <span>Tagihan Awal Belanja:</span>
+                              <span className="font-mono">{formatRupiah(netPayable)}</span>
+                            </div>
+                            <div className="flex items-center justify-between text-amber-900 font-bold">
+                              <span>Surcharge Kartu Kredit (+{edcFeePct}%):</span>
+                              <span className="font-mono text-amber-800">
+                                +{formatRupiah(edcCreditSurcharge)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-purple-950 font-black pt-1.5 border-t border-purple-200">
+                              <span className="text-xs uppercase">Total Gesek EDC (Dibayar Pelanggan):</span>
+                              <span className="font-mono text-sm text-purple-700 font-black">
+                                {formatRupiah(effectivePayable)}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between text-purple-900">
+                              <span>Fee EDC Debit ({edcFeePct}% beban toko):</span>
+                              <span className="font-mono text-rose-600 font-bold">
+                                -{formatRupiah(edcDebitFeeAmount)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-purple-950 font-bold">
+                              <span>Toko Menerima Bersih:</span>
+                              <span className="font-mono text-emerald-700 text-xs font-black">
+                                {formatRupiah(edcDebitNetReceived)}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-purple-700">
+                              * Pelanggan membayar nominal normal: <b className="font-mono">{formatRupiah(netPayable)}</b>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -525,7 +828,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>
                     {tag === 'BON'
                       ? 'Simpan Sebagai Faktur BON'
-                      : `Selesaikan Transaksi (${formatRupiah(netPayable)})`}
+                      : `Selesaikan Transaksi (${formatRupiah(effectivePayable)})`}
                   </span>
                 </button>
               </div>

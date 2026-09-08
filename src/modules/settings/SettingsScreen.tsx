@@ -22,6 +22,7 @@ import {
 import { RolePermissionsConfig, StoreSettings, UserSession } from '../../shared/types';
 import { DEFAULT_ROLE_PERMISSIONS, DEFAULT_USERS, INITIAL_STORE_SETTINGS } from '../../shared/data/mockData';
 import { RolePermissionsTab } from './components/RolePermissionsTab';
+import { PaymentMethodsTab } from './components/PaymentMethodsTab';
 
 interface SettingsScreenProps {
   settings: StoreSettings;
@@ -421,71 +422,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </div>
         )}
 
-        {/* SUBTAB 3: REKENING & PEMBAYARAN */}
+        {/* SUBTAB 3: MASTER METODE PEMBAYARAN */}
         {activeSubTab === 'payment' && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
-            <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-base font-bold text-slate-900">Rekening Bank & QRIS Toko</h2>
-              <p className="text-xs text-slate-500">Data rekening penerima transfer bank dan QRIS merchant yang valid.</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nama Bank</label>
-                <input
-                  type="text"
-                  value={formData.bank_name}
-                  onChange={(e) => handleChange('bank_name', e.target.value)}
-                  placeholder="Contoh: Bank Central Asia (BCA)"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs placeholder:text-slate-400 placeholder:font-light"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nomor Rekening</label>
-                <input
-                  type="text"
-                  value={formData.bank_account_number}
-                  onChange={(e) => handleChange('bank_account_number', e.target.value)}
-                  placeholder="Contoh: 8830-1234-56"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 font-mono text-xs font-bold shadow-2xs placeholder:text-slate-400 placeholder:font-light"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Atas Nama (Holder)</label>
-                <input
-                  type="text"
-                  value={formData.bank_account_holder}
-                  onChange={(e) => handleChange('bank_account_holder', e.target.value)}
-                  placeholder="Contoh: PT Omah Ban Indonesia"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs placeholder:text-slate-400 placeholder:font-light"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nama Merchant QRIS</label>
-                <input
-                  type="text"
-                  value={formData.qris_merchant_name}
-                  onChange={(e) => handleChange('qris_merchant_name', e.target.value)}
-                  placeholder="Contoh: Omah Ban Cabang 3"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs placeholder:text-slate-400 placeholder:font-light"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">National Merchant ID (NMID)</label>
-                <input
-                  type="text"
-                  value={formData.qris_nmid}
-                  onChange={(e) => handleChange('qris_nmid', e.target.value)}
-                  placeholder="Contoh: ID1020030040050"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 font-mono text-xs shadow-2xs placeholder:text-slate-400 placeholder:font-light"
-                />
-              </div>
-            </div>
-          </div>
+          <PaymentMethodsTab
+            settings={formData}
+            onUpdateSettings={setFormData}
+          />
         )}
+
 
         {/* SUBTAB 4: PREFERENSI AKUNTANSI SAK EMKM */}
         {activeSubTab === 'accounting' && (

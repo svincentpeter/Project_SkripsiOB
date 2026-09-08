@@ -130,7 +130,34 @@ export interface ParkedTransaction {
   created_at: string;
 }
 
-export type PaymentMethod = 'TUNAI' | 'TRANSFER_BCA' | 'QRIS' | 'EDC_DEBIT' | 'EDC_CREDIT';
+export interface PaymentProviderSetting {
+  id: string | number;
+  method_type: 'bank' | 'qris';
+  provider_name: string;
+  provider_code?: string;
+  fee_percentage?: number;
+  fee_threshold_amount?: number;
+  is_active: boolean;
+}
+
+export interface EdcSetting {
+  id: string | number;
+  bank_name: string;
+  payment_type: 'Debit' | 'Credit';
+  fee_percentage: number;
+  charge_to_customer: boolean;
+  is_active: boolean;
+  notes?: string;
+}
+
+export type PaymentMethod =
+  | 'TUNAI'
+  | 'TRANSFER'
+  | 'TRANSFER_BCA'
+  | 'QRIS'
+  | 'EDC'
+  | 'EDC_DEBIT'
+  | 'EDC_CREDIT';
 
 export interface PosTransaction {
   id: string;
@@ -160,6 +187,13 @@ export interface PosTransaction {
   paid_amount: number;
   change_amount: number;
   payment_reference?: string;
+  payment_provider?: string;
+  edc_bank?: string;
+  edc_type?: 'Debit' | 'Credit';
+  fee_percentage?: number;
+  fee_amount?: number;
+  surcharge_amount?: number;
+  net_received?: number;
   notes?: string;
   status: 'LUNAS' | 'VOID' | 'PENDING' | 'Completed';
   stock_deducted: boolean;
@@ -307,6 +341,10 @@ export interface StoreSettings {
   
   default_tax_rate: number;
   default_payment_terms_days: number;
+
+  bank_providers?: PaymentProviderSetting[];
+  qris_providers?: PaymentProviderSetting[];
+  edc_settings?: EdcSetting[];
 }
 
 export interface CreateProductInput {

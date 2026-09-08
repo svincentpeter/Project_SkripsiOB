@@ -1335,6 +1335,7 @@ function MainAppContent() {
           onExitToBackoffice={() => setActiveScreen('dashboard')}
           onOpenWireframeModal={() => setShowWireframeModal(true)}
           isEmptyState={isEmptyState}
+          storeSettings={storeSettings}
         />
       ) : (
         <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] overflow-x-hidden">
