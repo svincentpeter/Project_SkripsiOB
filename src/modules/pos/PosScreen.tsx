@@ -96,26 +96,36 @@ const defaultCategories: ProductCategory[] = [
   { id: 'cat-03', category_code: 'BAN_DALAM', category_name: 'Ban Dalam', description: 'Ban dalam dan flap velg', is_active: true },
 ];
 
-const getShortCategoryName = (code: string, fullName: string) => {
-  const c = code.toUpperCase().trim();
-  if (c === 'BAN_BARU') return 'Ban Baru';
-  if (c === 'VELG') return 'Velg';
-  if (c === 'BAN_DALAM') return 'Ban Dalam';
-  if (c === 'OLI_PELUMAS') return 'Oli & Pelumas';
+export const getShortCategoryName = (code: string, fullName: string): string => {
+  const c = (code || '').toUpperCase().trim();
+  if (c === 'BAN_BARU' || c === 'TIRE' || c === 'BAN') return 'Ban';
+  if (c === 'VELG' || c === 'WHEEL' || c === 'RIMS') return 'Velg';
+  if (c === 'BAN_DALAM' || c === 'INNER_TUBE' || c.includes('DALAM')) return 'Ban Dlm';
+  if (c === 'OLI_PELUMAS' || c === 'OIL' || c.includes('LUBRICANT') || c.includes('OLI')) return 'Oli';
+  if (c === 'AKSESORIS' || c.includes('AKSESOR') || c.includes('ACCESSOR')) return 'Aksesori';
 
   let name = (fullName || '').trim();
   name = name.replace(/\(.*?\)/g, '').trim();
-  if (name.toLowerCase().startsWith('aksesoris')) return 'Aksesoris';
+  const lower = name.toLowerCase();
+  if (lower.startsWith('ban mobil baru') || lower === 'ban baru' || lower === 'ban luar') return 'Ban';
+  if (lower.startsWith('velg mobil') || lower === 'velg') return 'Velg';
+  if (lower.startsWith('oli & pelumas') || lower.startsWith('oli mesin') || lower.startsWith('oli')) return 'Oli';
+  if (lower.startsWith('ban dalam') || lower === 'ban dalam') return 'Ban Dlm';
+  if (lower.startsWith('aksesoris') || lower.startsWith('aksesori')) return 'Aksesori';
+
   if (name.includes('&')) {
     const first = name.split('&')[0].trim();
-    if (first.length >= 3 && first.length <= 14) return first;
+    const parts = first.split(/\s+/);
+    if (parts.length > 0 && parts[0].length >= 3) return parts[0];
+    if (first.length >= 3 && first.length <= 10) return first;
   }
   const words = name.split(/\s+/);
-  if (words.length > 2 && name.length > 14) {
-    return `${words[0]} ${words[1]}`;
+  if (words.length > 1 && name.length > 10) {
+    return words[0];
   }
-  return name || code;
+  return name.slice(0, 10) || code;
 };
+
 
 export const PosScreen: React.FC<PosScreenProps> = ({
   products,
@@ -821,7 +831,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         {/* Left Column: Catalog */}
         <div className={`flex-1 min-w-0 min-h-0 border-r border-slate-200 bg-white h-full ${mobileTab === 'cart' ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}>
           {/* Category Tabs (Short clean labels, no overflow cutoff) */}
-          <div className="px-3 py-2 bg-white border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+          <div className="px-3 py-1.5 bg-white border-b border-slate-200 flex flex-wrap items-center gap-1.5 shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -829,7 +839,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               setSelectedRing('ALL');
               setSelectedBrand('ALL');
             }}
-            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
+            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
               catalogTab === 'ALL'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200/90'
@@ -854,6 +864,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               if (code.includes('VELG')) return <CircleDot className="w-3.5 h-3.5 shrink-0" />;
               if (code.includes('OLI') || code.includes('LUBRICANT')) return <Droplets className="w-3.5 h-3.5 shrink-0" />;
               if (code.includes('DALAM') || code.includes('TUBE')) return <Package className="w-3.5 h-3.5 shrink-0" />;
+              if (code.includes('AKSESOR') || code.includes('ACCESSOR')) return <Sparkles className="w-3.5 h-3.5 shrink-0" />;
               return <Disc className="w-3.5 h-3.5 shrink-0" />;
             };
             return (
@@ -865,7 +876,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                   setSelectedRing('ALL');
                   setSelectedBrand('ALL');
                 }}
-                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
+                className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
                   isSelected
                     ? 'bg-blue-600 text-white shadow-xs'
                     : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200/90'
@@ -889,13 +900,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               setSelectedRing('ALL');
               setSelectedBrand('ALL');
             }}
-            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
+            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
               catalogTab === 'SERVICES' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200/90'
             }`}
             title="Daftar Tarif Jasa & Layanan Pit Omah Ban"
           >
             <Wrench className="w-3.5 h-3.5 shrink-0" />
-            <span>Jasa Pit</span>
+            <span>Jasa</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
               catalogTab === 'SERVICES' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
             }`}>
@@ -909,15 +920,15 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               setSelectedRing('ALL');
               setSelectedBrand('ALL');
             }}
-            className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap select-none ${
+            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
               catalogTab === 'MANUAL'
                 ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-400/30'
                 : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200'
             }`}
             title="Input Item Manual Non-Katalog"
           >
-            <Sparkles className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <span>✍️ Manual</span>
+            <Plus className="w-3.5 h-3.5 shrink-0" />
+            <span>Manual</span>
           </button>
         </div>
 
@@ -1206,23 +1217,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 }
               }}
               disabled={cart.length === 0}
-              className="text-xs px-2 py-1 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               title="Kosongkan Keranjang"
             >
               Kosongkan
             </button>
-
-            {onLogout && (
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(true)}
-                className="text-xs px-2.5 py-1 rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
-                title="Keluar dari Sesi Kasir (Logout)"
-              >
-                <LogOut className="w-3.5 h-3.5 text-rose-600" />
-                <span>Logout</span>
-              </button>
-            )}
           </div>
         </div>
 
