@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   Search, 
-  Download, 
   Eye, 
   Printer, 
   Plus, 
@@ -16,6 +15,7 @@ import {
 import { ExpenseCategory, ExpenseRecord } from '../../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
 import { EXPENSE_CATEGORY_CONFIG } from '../../../services/accountingService';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface ExpenseTableProps {
   expenses: ExpenseRecord[];
@@ -86,27 +86,6 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
     currentPage * rowsPerPage
   );
 
-  // Export to CSV
-  const handleExportCsv = () => {
-    let csv = 'No BKK,Tanggal,Kategori,Kode Akun,Nominal,Sumber Dana,Penerima,Keterangan,Otorisasi,Status,Alasan Void\n';
-    filteredExpenses.forEach((exp) => {
-      const bkk = exp.bkk_number || exp.expense_number;
-      const code = exp.category_code || EXPENSE_CATEGORY_CONFIG[exp.category]?.account_code || '6-1005';
-      const status = exp.status === 'VOID' ? 'VOID' : 'ACTIVE';
-      const reason = exp.void_reason ? exp.void_reason.replace(/"/g, '""') : '';
-      csv += `"${bkk}","${exp.date}","${exp.category}","${code}",${exp.amount},"${exp.cash_source}","${exp.paid_to}","${exp.description.replace(/"/g, '""')}","${exp.approved_by}","${status}","${reason}"\n`;
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Rekap_Biaya_Operasional_OB3_${new Date().toISOString().substring(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="w-full">
       {/* Main Unified Table Card ("Terbungkus Rapi") */}
@@ -124,15 +103,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-200"
-              title="Unduh data dalam format CSV"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Ekspor CSV</span>
-            </button>
+            <ExportMenu reportId="expenses" data={filteredExpenses} ctx={{ periodLabel: 'Semua Periode' }} />
 
             {onAddNew && (
               <button

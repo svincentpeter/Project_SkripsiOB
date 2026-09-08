@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { JournalEntry } from '../../types';
+import type { ExpenseRecord, JournalEntry } from '../../types';
 import { setExportConfig } from '../exportConfig';
 import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
 
@@ -28,4 +28,15 @@ describe('registry journal', () => {
     expect(REPORT_FORMATS.trial_balance).toEqual(['xlsx', 'pdf', 'docx', 'csv']);
   });
   it('semua 21 reportId terdaftar', () => expect(Object.keys(REPORT_MAPPERS).length).toBe(21));
+});
+
+describe('registry expenses', () => {
+  const base: ExpenseRecord = {
+    id: 'e1', reference: 'BKK-1', expense_number: 'BKK-202609-0001', date: '2026-09-01',
+    category: 'Listrik & Air (PLN/PDAM)', amount: 1000, cash_source: 'Kas Tunai Laci Kasir',
+    paid_to: 'PLN', description: 'token listrik', approved_by: 'Owner', created_at: '2026-09-01',
+  };
+  const doc = buildExportDoc('expenses', [{ ...base }, { ...base, id: 'e2', status: 'VOID', amount: 500 }], ctx);
+  it('semua baris ikut (aktif + void)', () => expect(doc.sections[0].rows.length).toBe(2));
+  it('totals hanya ACTIVE', () => expect(doc.sections[0].totals?.nominal).toBe(1000));
 });

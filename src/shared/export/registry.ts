@@ -5,6 +5,8 @@ import type {
   ReceivableInvoice,
   TrialBalanceResult,
 } from '../types';
+import type { ExpenseRecord } from '../types';
+import { EXPENSE_CATEGORY_CONFIG } from '../../services/accountingService';
 import { buildKop } from './kop';
 import type { ExportCtx, ExportDoc, ExportFormat, ExportSection } from './types';
 
@@ -117,6 +119,39 @@ const mapPayable = (invoices: PayableInvoice[], ctx: ExportCtx): ExportDoc =>
     totals: { total: sum(invoices, (i) => i.total_amount), bayar: sum(invoices, (i) => i.paid_amount), sisa: sum(invoices, (i) => i.remaining_amount) },
   }]);
 
+const mapExpenses = (list: ExpenseRecord[], ctx: ExportCtx): ExportDoc => {
+  const rows = list.map((e) => ({
+    bkk: e.bkk_number || e.expense_number || e.reference,
+    tanggal: e.date,
+    kategori: e.category,
+    kode_akun: e.category_code || EXPENSE_CATEGORY_CONFIG[e.category]?.account_code || '6-1005',
+    nominal: e.amount,
+    sumber: e.cash_source,
+    penerima: e.paid_to,
+    keterangan: e.description,
+    otorisasi: e.approved_by,
+    status: e.status === 'VOID' ? 'VOID' : 'ACTIVE',
+    alasan_void: e.void_reason || '',
+  }));
+  return makeDoc('expenses', 'Rekap Pengeluaran Kas', 'landscape', ctx, [{
+    columns: [
+      { key: 'bkk', label: 'No BKK', type: 'text', width: 16 },
+      { key: 'tanggal', label: 'Tanggal', type: 'date', width: 12 },
+      { key: 'kategori', label: 'Kategori', type: 'text', width: 28 },
+      { key: 'kode_akun', label: 'Kode Akun', type: 'text', width: 10 },
+      { key: 'nominal', label: 'Nominal', type: 'currency' },
+      { key: 'sumber', label: 'Sumber Dana', type: 'text', width: 22 },
+      { key: 'penerima', label: 'Penerima', type: 'text', width: 20 },
+      { key: 'keterangan', label: 'Keterangan', type: 'text', width: 36 },
+      { key: 'otorisasi', label: 'Otorisasi', type: 'text', width: 16 },
+      { key: 'status', label: 'Status', type: 'text', width: 9 },
+      { key: 'alasan_void', label: 'Alasan Void', type: 'text', width: 24 },
+    ],
+    rows,
+    totals: { nominal: sum(list.filter((e) => e.status !== 'VOID'), (e) => e.amount) },
+  }]);
+};
+
 type MapperNotYet = (data: never, ctx: ExportCtx) => ExportDoc;
 const notYet = (id: string): MapperNotYet =>
   (() => {
@@ -129,7 +164,7 @@ export const REPORT_MAPPERS = {
   trial_balance: mapTrialBalance,
   accounts_receivable: mapReceivable,
   accounts_payable: mapPayable,
-  expenses: notYet('expenses'),
+  expenses: mapExpenses,
   inventory_products: notYet('inventory_products'),
   inventory_services: notYet('inventory_services'),
   inventory_suppliers: notYet('inventory_suppliers'),
