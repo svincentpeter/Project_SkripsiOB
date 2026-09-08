@@ -932,6 +932,17 @@ function MainAppContent() {
     }
   };
 
+  const handleRefreshProducts = async () => {
+    try {
+      const apiProds = await productApi.list();
+      if (apiProds && apiProds.length > 0) {
+        setProducts(apiProds);
+      }
+    } catch (e) {
+      console.warn('[Omah Ban] Gagal memuat ulang produk dari backend:', e);
+    }
+  };
+
   // Handle Create Product Master (with optional initial FIFO batch)
   const handleCreateProduct = (input: CreateProductInput) => {
     const { product, mutation } = createProductWithInitialStock(input, products, mutations);
@@ -1507,6 +1518,7 @@ function MainAppContent() {
                 onToggleCategoryStatus={handleToggleProductCategoryStatus}
                 onSaveServiceCategory={handleSaveServiceCategory}
                 onDeleteServiceCategory={handleDeleteServiceCategory}
+                onRefreshProducts={handleRefreshProducts}
                 isEmptyState={isEmptyState}
               />
             )}

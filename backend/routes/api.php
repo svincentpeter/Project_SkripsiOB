@@ -55,6 +55,17 @@ Route::prefix('v1')->group(function () {
     Route::get('inventory/stock-movements', [\App\Http\Controllers\Api\v1\InventoryController::class, 'stockMovements']);
     Route::post('inventory/stock-opname', [\App\Http\Controllers\Api\v1\InventoryController::class, 'stockOpname']);
 
+    // Stock Excel Import & Reconciliation (Paritas ProjectOmahBan)
+    Route::prefix('stock')->group(function () {
+        Route::post('import-preview', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'importPreview']);
+        Route::get('staging', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'getStaging']);
+        Route::post('resolve-brand', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'resolveBrand']);
+        Route::post('resolve-name', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'resolveName']);
+        Route::post('ignore-unresolved', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'ignoreUnresolved']);
+        Route::post('commit', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'commit']);
+        Route::get('template', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'downloadTemplate']);
+    });
+
     // Expense Management (BKK) & Void Reversal
     Route::get('expense-categories', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'categories']);
     Route::get('expenses', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'index']);

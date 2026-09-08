@@ -14,18 +14,20 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(endpoint: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   
+  const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers: Record<string, string> = {
     'Accept': 'application/json',
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string> || {}),
   };
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutMs = options.timeoutMs ?? (isFormData ? 30000 : 10000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const response = await fetch(url, {
       ...options,
@@ -86,5 +88,13 @@ export const apiClient = {
 
   delete: <T>(endpoint: string) => {
     return request<T>(endpoint, { method: 'DELETE' });
+  },
+
+  upload: <T>(endpoint: string, formData: FormData, timeoutMs = 45000) => {
+    return request<T>(endpoint, {
+      method: 'POST',
+      body: formData,
+      timeoutMs,
+    });
   },
 };

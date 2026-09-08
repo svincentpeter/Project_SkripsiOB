@@ -26,7 +26,8 @@ import {
   Power,
   RotateCcw,
   ArrowDownLeft,
-  X
+  X,
+  FileSpreadsheet
 } from 'lucide-react';
 import { 
   CreateProductInput, 
@@ -69,7 +70,8 @@ import {
   StockCardDrawer, 
   StockOpnameModal, 
   StockOpnameReceiptView, 
-  SupplierFormModal 
+  SupplierFormModal,
+  StockReconciliationModal
 } from './components';
 import { useToast } from '../../shared/components';
 import { ExportMenu } from '../../shared/export/ExportMenu';
@@ -102,6 +104,7 @@ interface InventoryScreenProps {
   onToggleCategoryStatus?: (categoryId: string) => void;
   onSaveServiceCategory?: (categoryData: { code: string; name: string; description?: string }, id?: string) => void;
   onDeleteServiceCategory?: (id: string) => void;
+  onRefreshProducts?: () => void;
   isEmptyState?: boolean;
 }
 
@@ -128,6 +131,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   onToggleCategoryStatus: propToggleCategoryStatus,
   onSaveServiceCategory: propSaveServiceCategory,
   onDeleteServiceCategory: propDeleteServiceCategory,
+  onRefreshProducts,
   isEmptyState = false,
 }) => {
   const toast = useToast();
@@ -167,6 +171,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
   const [showGoodsReceiptModal, setShowGoodsReceiptModal] = useState<boolean>(false);
   const [preselectedRestockProduct, setPreselectedRestockProduct] = useState<ProductItem | null>(null);
+
+  const [showReconciliationModal, setShowReconciliationModal] = useState<boolean>(false);
 
   const [showSupplierModal, setShowSupplierModal] = useState<boolean>(false);
   const [supplierFormMode, setSupplierFormMode] = useState<'CREATE' | 'EDIT'>('CREATE');
@@ -539,6 +545,15 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   data={filteredProducts}
                   ctx={{ periodLabel: `Kategori: ${selectedCategoryFilter}` }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowReconciliationModal(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                  title="Impor dan rekonsiliasi stok dari berkas Excel multi-sheet"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Import Excel Stok Ban</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleOpenCreateProduct}
@@ -1002,6 +1017,15 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           onSaveSupplier?.(data, id);
           setShowSupplierModal(false);
           toast.success('Berhasil', id ? 'Data supplier diperbarui.' : 'Supplier baru ditambahkan.');
+        }}
+      />
+
+      <StockReconciliationModal
+        isOpen={showReconciliationModal}
+        onClose={() => setShowReconciliationModal(false)}
+        onSuccessCommit={() => {
+          onRefreshProducts?.();
+          toast.success('Rekonsiliasi Selesai', 'Stok produk ban dan kartu mutasi berhasil disinkronkan ke database!');
         }}
       />
     </div>

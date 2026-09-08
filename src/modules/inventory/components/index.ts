@@ -8,3 +8,4 @@ export * from './StockOpnameModal';
 export * from './CategoryManagementView';
 export * from './ServiceManagementView';
 export * from './StockOpnameReceiptView';
+export * from './StockReconciliationModal';
