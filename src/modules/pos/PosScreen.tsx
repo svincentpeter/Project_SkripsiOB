@@ -628,7 +628,148 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const activeBookingsCount = bookings.filter((b) => b.status === 'ACTIVE').length;
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen max-h-screen bg-slate-50 text-slate-800 overflow-hidden select-none font-['Plus_Jakarta_Sans',sans-serif]">
+    <div className="flex flex-col h-screen max-h-screen bg-slate-50 text-slate-800 overflow-hidden select-none font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* 1. TOP ACTION & STATUS BAR (FULL WIDTH 100vw, spans above BOTH Catalog & Cart) */}
+      <header className="w-full px-3 py-2 bg-white border-b border-slate-200 flex items-center justify-between gap-2.5 shrink-0 z-20 shadow-xs">
+        {/* Left: Brand / Backoffice & Search Bar */}
+        <div className="flex items-center gap-2 min-w-0 flex-1 max-w-xl">
+          {canAccessBackoffice && onExitToBackoffice ? (
+            <button
+              type="button"
+              onClick={onExitToBackoffice}
+              className="p-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5 shrink-0"
+              title="Kembali ke Dashboard Backoffice"
+            >
+              <ArrowLeft className="w-4 h-4 text-slate-600" />
+              <span className="text-xs font-bold hidden sm:inline">Dashboard</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs shrink-0" title="Terminal Kasir Omah Ban Cabang 3">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-xs tracking-tight">
+                OB
+              </div>
+              <div className="leading-tight hidden sm:block">
+                <div className="flex items-center gap-1">
+                  <span className="font-extrabold text-xs text-slate-900 tracking-tight">Terminal Kasir</span>
+                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.2 rounded-xs">
+                    POS Aktif
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-500 font-semibold">Cabang 3 Magelang</span>
+              </div>
+            </div>
+          )}
+
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari Ban, Velg, Ban Dalam, Jasa (F2)..."
+              className="w-full bg-slate-50 border border-slate-300 focus:bg-white rounded-xl pl-9 pr-3 py-1.5 text-xs sm:text-sm text-slate-900 placeholder-slate-500 focus:outline-hidden focus:border-blue-600 focus:ring-2 focus:ring-blue-100 shadow-2xs transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Center/Right: Action Buttons, Drawer, Struk & LOGOUT */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowParkedDrawer(true)}
+            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+            title="Lihat antrian nota yang sedang ditahan (Parked Orders)"
+          >
+            <Clock className="w-3.5 h-3.5 text-amber-700" />
+            <span className="hidden sm:inline">Antrian Tahan</span>
+            {parkedOrders.length > 0 && (
+              <span className="w-4 h-4 rounded-full bg-amber-700 text-white text-[9px] font-black flex items-center justify-center">
+                {parkedOrders.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowBookingListDrawer(true)}
+            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 border border-purple-300 text-purple-800 hover:bg-purple-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+            title="Daftar Booking Inden & DP"
+          >
+            <Bookmark className="w-3.5 h-3.5 text-purple-700" />
+            <span className="hidden sm:inline">Booking DP</span>
+            {activeBookingsCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-purple-700 text-white text-[9px] font-black flex items-center justify-center">
+                {activeBookingsCount}
+              </span>
+            )}
+          </button>
+
+          <div 
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-800 font-semibold shadow-2xs"
+            title={`Kas Laci: ${formatRupiah(cashInDrawer)}`}
+          >
+            <Banknote className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <span className="hidden md:inline text-[11px] text-emerald-700">Kas Laci:</span>
+            <b className="text-emerald-950 font-mono font-extrabold text-xs">{formatRupiah(cashInDrawer)}</b>
+          </div>
+
+          {canAccessReceipts && onNavigateToReceipts && (
+            <button
+              type="button"
+              onClick={onNavigateToReceipts}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Lihat Riwayat Transaksi & Cetak Ulang Struk"
+            >
+              <Receipt className="w-3.5 h-3.5 text-blue-600" />
+              <span className="hidden md:inline">Riwayat Struk</span>
+            </button>
+          )}
+
+          {onOpenWireframeModal && (
+            <button
+              type="button"
+              onClick={onOpenWireframeModal}
+              className="p-1.5 sm:p-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs cursor-pointer hidden md:flex"
+              title="Buku Panduan Pengguna Toko"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* User Profile & LOGOUT BUTTON (Always in the top right corner of the window) */}
+          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs">
+              <div className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px] text-white ${
+                currentUser?.role === 'OWNER' ? 'bg-blue-600' : 'bg-emerald-600'
+              }`}>
+                {cashierName.slice(0, 2).toUpperCase()}
+              </div>
+              <div className="text-left leading-tight">
+                <span className="font-bold text-slate-800 text-xs block truncate max-w-[100px]">
+                  {cashierName}
+                </span>
+                <span className="text-[9px] font-extrabold text-emerald-700 uppercase">
+                  {currentUser?.role || 'KASIR'}
+                </span>
+              </div>
+            </div>
+
+            {onLogout && (
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-black transition-all shadow-xs cursor-pointer"
+                title="Keluar dari Sesi Kasir (Logout)"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Keluar</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
       {/* Mobile Top View Switcher (Only visible on screens < lg) */}
       <div className="lg:hidden flex items-center justify-between p-2 bg-slate-100 border-b border-slate-200 shrink-0 gap-2">
         <button
@@ -666,153 +807,21 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           <button
             type="button"
             onClick={() => setShowLogoutConfirm(true)}
-            className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors shadow-2xs shrink-0 cursor-pointer flex items-center gap-1 font-bold text-xs"
+            className="p-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-2xs shrink-0 cursor-pointer flex items-center gap-1 font-bold text-xs"
             title="Keluar dari Sesi Kasir (Logout)"
           >
-            <LogOut className="w-4 h-4 text-rose-600" />
+            <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">Logout</span>
           </button>
         )}
       </div>
 
-      {/* Left Column: Catalog */}
-      <div className={`flex-1 min-w-0 min-h-0 border-r border-slate-200 bg-white h-full ${mobileTab === 'cart' ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}>
-        {/* Search & Top Action Bar */}
-        <div className="p-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
-          <div className="flex items-center gap-2">
-            {canAccessBackoffice && onExitToBackoffice ? (
-              <button
-                type="button"
-                onClick={onExitToBackoffice}
-                className="p-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5 shrink-0"
-                title="Kembali ke Dashboard Backoffice"
-              >
-                <ArrowLeft className="w-5 h-5 text-slate-600" />
-                <span className="text-xs font-bold hidden xl:inline">Dashboard</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl shadow-2xs shrink-0" title="Terminal Kasir Omah Ban Cabang 3">
-                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-xs tracking-tight">
-                  OB
-                </div>
-                <div className="leading-tight hidden sm:block">
-                  <div className="flex items-center gap-1">
-                    <span className="font-extrabold text-xs text-slate-900 tracking-tight">Terminal Kasir</span>
-                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.2 rounded-xs">
-                      POS Aktif
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-500 font-semibold">Cabang 3 Magelang</span>
-                </div>
-              </div>
-            )}
-            <div className="relative flex-1 sm:w-72 md:w-80">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari Ban, Velg, Ban Dalam, Jasa (F2)..."
-                className="w-full bg-white border border-slate-300 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-slate-900 placeholder-slate-500 focus:outline-hidden focus:border-blue-600 focus:ring-2 focus:ring-blue-100 shadow-2xs"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <button
-              type="button"
-              onClick={() => setShowParkedDrawer(true)}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-              title="Lihat antrian nota yang sedang ditahan (Parked Orders)"
-            >
-              <Clock className="w-4 h-4 text-amber-700" />
-              <span>Antrian Tahan</span>
-              {parkedOrders.length > 0 && (
-                <span className="w-5 h-5 rounded-full bg-amber-700 text-white text-[10px] font-black flex items-center justify-center">
-                  {parkedOrders.length}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowBookingListDrawer(true)}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 border border-purple-300 text-purple-800 hover:bg-purple-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-            >
-              <Bookmark className="w-4 h-4 text-purple-700" />
-              <span>Booking DP</span>
-              {activeBookingsCount > 0 && (
-                <span className="w-5 h-5 rounded-full bg-purple-700 text-white text-[10px] font-black flex items-center justify-center">
-                  {activeBookingsCount}
-                </span>
-              )}
-            </button>
-
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-800 font-semibold shadow-2xs">
-              <Banknote className="w-3.5 h-3.5 text-emerald-700" />
-              <span>Kas Laci: <b className="text-emerald-950 font-mono font-extrabold">{formatRupiah(cashInDrawer)}</b></span>
-            </div>
-
-            {/* Riwayat Struk Shortcut */}
-            {canAccessReceipts && onNavigateToReceipts && (
-              <button
-                type="button"
-                onClick={onNavigateToReceipts}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                title="Lihat Riwayat Transaksi & Cetak Ulang Struk"
-              >
-                <Receipt className="w-4 h-4 text-blue-600" />
-                <span className="hidden xl:inline">Riwayat Struk</span>
-              </button>
-            )}
-
-            {/* Cashier Badge & Logout Button */}
-            <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200">
-              <div className="hidden lg:flex items-center gap-2 px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl shadow-2xs">
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs text-white ${
-                  currentUser?.role === 'OWNER' ? 'bg-blue-600' : 'bg-emerald-600'
-                }`}>
-                  <UserCheck className="w-4 h-4" />
-                </div>
-                <div className="text-left leading-tight">
-                  <span className="font-bold text-slate-800 text-xs block truncate max-w-[110px]">
-                    {cashierName}
-                  </span>
-                  <span className="text-[9.5px] font-extrabold text-emerald-700 bg-emerald-50 px-1 rounded-xs uppercase">
-                    {currentUser?.role || 'KASIR'}
-                  </span>
-                </div>
-              </div>
-
-              {onOpenWireframeModal && (
-                <button
-                  type="button"
-                  onClick={onOpenWireframeModal}
-                  className="p-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs cursor-pointer"
-                  title="Buku Panduan Pengguna Toko"
-                >
-                  <HelpCircle className="w-4 h-4" />
-                </button>
-              )}
-
-              {onLogout && (
-                <button
-                  type="button"
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                  title="Keluar dari Sesi Kasir (Logout)"
-                >
-                  <LogOut className="w-4 h-4 text-rose-600" />
-                  <span className="hidden sm:inline">Keluar</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Category Tabs (Short clean labels, no overflow cutoff) */}
-        <div className="px-3 py-2 bg-white border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+      {/* 2. MAIN BODY (Split layout: Catalog Left, Cart Right) */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
+        {/* Left Column: Catalog */}
+        <div className={`flex-1 min-w-0 min-h-0 border-r border-slate-200 bg-white h-full ${mobileTab === 'cart' ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}>
+          {/* Category Tabs (Short clean labels, no overflow cutoff) */}
+          <div className="px-3 py-2 bg-white border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -1202,6 +1211,18 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             >
               Kosongkan
             </button>
+
+            {onLogout && (
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="text-xs px-2.5 py-1 rounded-lg border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                title="Keluar dari Sesi Kasir (Logout)"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-600" />
+                <span>Logout</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1470,6 +1491,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           )}
         </div>
       </div>
+    </div>
 
       <CartLineEditModal
         isOpen={editLineIndex !== null}
