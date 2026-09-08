@@ -34,6 +34,7 @@ import {
 } from './shared/data/mockData';
 import { LoginScreen } from './modules/auth';
 import { formatRupiah, generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
+import { setExportConfig } from './shared/export/exportConfig';
 import { 
   generatePurchaseJournal, 
   generateDebtPaymentJournal, 
@@ -526,6 +527,10 @@ function MainAppContent() {
   useEffect(() => {
     localStorage.setItem('ob3_store_settings', JSON.stringify(storeSettings));
   }, [storeSettings]);
+
+  useEffect(() => {
+    setExportConfig(storeSettings, currentUser);
+  }, [storeSettings, currentUser]);
 
   useEffect(() => {
     localStorage.setItem('ob3_cart', JSON.stringify(cart));

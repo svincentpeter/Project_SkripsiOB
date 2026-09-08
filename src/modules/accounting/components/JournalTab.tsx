@@ -3,7 +3,6 @@ import {
   BookOpen, 
   Search, 
   Plus, 
-  Download, 
   Filter, 
   CheckCircle2, 
   AlertCircle, 
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { JournalEntry } from '../../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface JournalTabProps {
   journals: JournalEntry[];
@@ -88,28 +88,6 @@ export const JournalTab: React.FC<JournalTabProps> = ({
     setJournalToReverse(null);
   };
 
-  // Export to CSV helper
-  const handleExportCsv = () => {
-    let csv = 'Tanggal,No Jurnal,No Ref,Kode Akun,Nama Akun,Keterangan,Debit,Kredit,Status\n';
-    journals.forEach((j) => {
-      j.lines.forEach((l) => {
-        csv += `"${j.date}","${j.journal_number}","${j.ref_doc}","${l.account_code}","${l.account_name}","${j.description.replace(
-          /"/g,
-          '""'
-        )}",${l.debit},${l.credit},"${j.status}"\n`;
-      });
-    });
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Jurnal_Umum_OB3_${new Date().toISOString().substring(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="w-full">
       {/* Main Unified Card ("Terbungkus Rapi") */}
@@ -127,13 +105,7 @@ export const JournalTab: React.FC<JournalTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportCsv}
-              className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Ekspor CSV</span>
-            </button>
+            <ExportMenu reportId="journal" data={filteredJournals} ctx={{ periodLabel: 'Seluruh Periode' }} />
             <button
               onClick={onOpenManualModal}
               className="px-3.5 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"

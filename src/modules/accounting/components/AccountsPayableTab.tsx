@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   CreditCard, 
   Search, 
-  Download, 
   Building2, 
   Calendar, 
   Clock, 
@@ -14,6 +13,7 @@ import {
 import { DebtPaymentInput, PayableInvoice } from '../../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
 import { PayDebtModal } from './PayDebtModal';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface AccountsPayableTabProps {
   invoices: PayableInvoice[];
@@ -50,28 +50,6 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
   const totalRemainingDebt = invoices.reduce((acc, i) => acc + i.remaining_amount, 0);
   const unpaidCount = invoices.filter((i) => i.status !== 'LUNAS').length;
 
-  // Export AP Sub-Ledger to CSV
-  const handleExportApCsv = () => {
-    let csv = 'BUKU PEMBANTU HUTANG DAGANG DISTRIBUTOR (AP SUB-LEDGER) - OMAH BAN CABANG 3\n';
-    csv += `Tanggal: ${new Date().toISOString().substring(0, 10)}\n\n`;
-    csv += 'No Faktur,Distributor,Tanggal Faktur,Jatuh Tempo,Total Tagihan,Sudah Dibayar,Sisa Hutang,Status,Catatan\n';
-
-    invoices.forEach((i) => {
-      csv += `"${i.invoice_number}","${i.supplier_name}","${i.date}","${i.due_date}",${i.total_amount},${i.paid_amount},${i.remaining_amount},"${i.status}","${i.notes || ''}"\n`;
-    });
-
-    csv += `\nTOTAL TAGIHAN: ${totalInvoiced}, TOTAL DIBAYAR: ${totalPaid}, SISA HUTANG: ${totalRemainingDebt}\n`;
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Buku_Pembantu_Hutang_OB3_${new Date().toISOString().substring(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="w-full">
       {/* Main Unified Card ("Terbungkus Rapi") */}
@@ -89,13 +67,7 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportApCsv}
-              className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Ekspor CSV</span>
-            </button>
+            <ExportMenu reportId="accounts_payable" data={invoices} ctx={{ periodLabel: 'Seluruh Periode' }} />
           </div>
         </div>
 

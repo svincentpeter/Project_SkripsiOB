@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   BookMarked, 
   Search, 
-  Download, 
   ArrowUpRight, 
   ArrowDownRight, 
   Wallet, 
@@ -16,6 +15,7 @@ import { JournalEntry } from '../../../shared/types';
 import { calculateAccountLedger, SAK_EMKM_COA } from '../../../services/accountingService';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
 import { LedgerPrintModal } from './LedgerPrintModal';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface GeneralLedgerTabProps {
   journals: JournalEntry[];
@@ -66,29 +66,6 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({
     category_name: 'Aset',
   };
 
-  // Export specific account ledger to CSV
-  const handleExportLedgerCsv = () => {
-    let csv = `BUKU BESAR (GENERAL LEDGER) - ${selectedAccountMeta.account_code} ${selectedAccountMeta.account_name}\n`;
-    csv += `Saldo Normal: ${selectedAccountMeta.normal_balance} | Saldo Awal: ${ledgerData.initial_balance}\n`;
-    csv += `Periode: ${effectiveStartDate || 'Awal'} s/d ${effectiveEndDate || 'Akhir'}\n\n`;
-    csv += 'Tanggal,No Jurnal,No Ref,Keterangan,Debit,Kredit,Saldo Berjalan\n';
-
-    ledgerData.transactions.forEach((tx) => {
-      csv += `"${tx.date}","${tx.journal_number}","${tx.ref_doc}","${tx.description.replace(/"/g, '""')}",${tx.debit},${tx.credit},${tx.running_balance}\n`;
-    });
-
-    csv += `\nTOTAL DEBIT: ${ledgerData.total_debit}, TOTAL KREDIT: ${ledgerData.total_credit}, SALDO AKHIR: ${ledgerData.ending_balance}\n`;
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Buku_Besar_${selectedAccountMeta.account_code}_${new Date().toISOString().substring(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="w-full">
       {/* Main Unified Card ("Terbungkus Rapi") */}
@@ -113,13 +90,15 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({
               <Printer className="w-3.5 h-3.5" />
               <span>Cetak Lembar Buku Besar</span>
             </button>
-            <button
-              onClick={handleExportLedgerCsv}
-              className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Unduh CSV</span>
-            </button>
+            <ExportMenu
+              reportId="general_ledger"
+              data={ledgerData}
+              ctx={{
+                periodLabel: `${effectiveStartDate || 'Awal'} s/d ${effectiveEndDate || 'Sekarang'}`,
+                startDate: effectiveStartDate,
+                endDate: effectiveEndDate,
+              }}
+            />
           </div>
         </div>
 

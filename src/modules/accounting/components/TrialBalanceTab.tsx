@@ -3,7 +3,6 @@ import {
   Scale, 
   CheckCircle2, 
   AlertTriangle, 
-  Download, 
   Layers,
   ArrowRight,
   ShieldCheck
@@ -11,6 +10,7 @@ import {
 import { JournalEntry } from '../../../shared/types';
 import { calculateTrialBalance } from '../../../services/accountingService';
 import { formatRupiah } from '../../../shared/utils/formatters';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface TrialBalanceTabProps {
   journals: JournalEntry[];
@@ -25,28 +25,6 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({
 }) => {
   const trialBalance = calculateTrialBalance(journals, initialBalances);
   const hasActivity = trialBalance.total_debit > 0 || trialBalance.total_credit > 0;
-
-  const handleExportTrialBalanceCsv = () => {
-    let csv = 'NERACA SALDO (TRIAL BALANCE) - OMAH BAN CABANG 3\n';
-    csv += `Tanggal Cetak: ${new Date().toISOString().substring(0, 10)}\n\n`;
-    csv += 'Kode Akun,Nama Rekening,Klasifikasi,Saldo Debit (Rp),Saldo Kredit (Rp)\n';
-
-    trialBalance.rows.forEach((r) => {
-      csv += `"${r.account_code}","${r.account_name}","${r.account_type}",${r.debit_balance},${r.credit_balance}\n`;
-    });
-
-    csv += `\nTOTAL, , ,${trialBalance.total_debit},${trialBalance.total_credit}\n`;
-    csv += `STATUS: ${trialBalance.is_balanced ? 'SEIMBANG (DEBIT = KREDIT)' : `TIDAK SEIMBANG (SELISIH ${trialBalance.difference})`}\n`;
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Neraca_Saldo_OB3_${new Date().toISOString().substring(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <div className="space-y-4">
@@ -116,13 +94,7 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleExportTrialBalanceCsv}
-              className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Ekspor CSV</span>
-            </button>
+            <ExportMenu reportId="trial_balance" data={trialBalance} ctx={{ periodLabel: 'Periode Berjalan' }} />
             <button
               onClick={onNavigateToReports}
               className="px-3.5 py-2 text-xs font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
