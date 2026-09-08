@@ -26,7 +26,11 @@ import {
   ArrowRight,
   ShoppingCart,
   Droplets,
-  Sparkles
+  Sparkles,
+  LogOut,
+  Receipt,
+  HelpCircle,
+  UserCheck
 } from 'lucide-react';
 import { 
   CartItem, 
@@ -38,7 +42,8 @@ import {
   SalesBookingRecord, 
   ServiceMasterItem,
   StoreSettings,
-  SplitPaymentLine
+  SplitPaymentLine,
+  UserSession
 } from '../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../shared/utils/formatters';
 import { MoneyInput } from '../../shared/components/MoneyInput';
@@ -72,11 +77,16 @@ interface PosScreenProps {
   cashierName: string;
   cashInDrawer: number;
   timeString: string;
-  onExitToBackoffice: () => void;
+  onExitToBackoffice?: () => void;
   onOpenWireframeModal?: () => void;
   isEmptyState?: boolean;
   storeSettings?: StoreSettings;
   categories?: ProductCategory[];
+  currentUser?: UserSession | null;
+  canAccessBackoffice?: boolean;
+  canAccessReceipts?: boolean;
+  onNavigateToReceipts?: () => void;
+  onLogout?: () => void;
 }
 
 const defaultCategories: ProductCategory[] = [
@@ -123,12 +133,19 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   cashInDrawer,
   timeString,
   onExitToBackoffice,
+  onOpenWireframeModal,
   isEmptyState = false,
   storeSettings,
   categories = [],
+  currentUser,
+  canAccessBackoffice = true,
+  canAccessReceipts = false,
+  onNavigateToReceipts,
+  onLogout,
 }) => {
   const toast = useToast();
   const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   const availableCategories = useMemo(() => {
     const activeCats = (categories && categories.length > 0)
@@ -644,6 +661,18 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             </span>
           )}
         </button>
+
+        {onLogout && (
+          <button
+            type="button"
+            onClick={() => setShowLogoutConfirm(true)}
+            className="p-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors shadow-2xs shrink-0 cursor-pointer flex items-center gap-1 font-bold text-xs"
+            title="Keluar dari Sesi Kasir (Logout)"
+          >
+            <LogOut className="w-4 h-4 text-rose-600" />
+            <span className="hidden sm:inline">Logout</span>
+          </button>
+        )}
       </div>
 
       {/* Left Column: Catalog */}
@@ -651,14 +680,33 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         {/* Search & Top Action Bar */}
         <div className="p-3 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0">
           <div className="flex items-center gap-2">
-            <button
-              onClick={onExitToBackoffice}
-              className="p-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition-colors shadow-2xs cursor-pointer"
-              title="Kembali ke Backoffice"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div className="relative flex-1 sm:w-80">
+            {canAccessBackoffice && onExitToBackoffice ? (
+              <button
+                type="button"
+                onClick={onExitToBackoffice}
+                className="p-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5 shrink-0"
+                title="Kembali ke Dashboard Backoffice"
+              >
+                <ArrowLeft className="w-5 h-5 text-slate-600" />
+                <span className="text-xs font-bold hidden xl:inline">Dashboard</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl shadow-2xs shrink-0" title="Terminal Kasir Omah Ban Cabang 3">
+                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-xs tracking-tight">
+                  OB
+                </div>
+                <div className="leading-tight hidden sm:block">
+                  <div className="flex items-center gap-1">
+                    <span className="font-extrabold text-xs text-slate-900 tracking-tight">Terminal Kasir</span>
+                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.2 rounded-xs">
+                      POS Aktif
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-semibold">Cabang 3 Magelang</span>
+                </div>
+              </div>
+            )}
+            <div className="relative flex-1 sm:w-72 md:w-80">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
                 ref={searchInputRef}
@@ -671,7 +719,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <button
               type="button"
               onClick={() => setShowParkedDrawer(true)}
@@ -688,6 +736,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             </button>
 
             <button
+              type="button"
               onClick={() => setShowBookingListDrawer(true)}
               className="relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 border border-purple-300 text-purple-800 hover:bg-purple-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
             >
@@ -703,6 +752,61 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-800 font-semibold shadow-2xs">
               <Banknote className="w-3.5 h-3.5 text-emerald-700" />
               <span>Kas Laci: <b className="text-emerald-950 font-mono font-extrabold">{formatRupiah(cashInDrawer)}</b></span>
+            </div>
+
+            {/* Riwayat Struk Shortcut */}
+            {canAccessReceipts && onNavigateToReceipts && (
+              <button
+                type="button"
+                onClick={onNavigateToReceipts}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                title="Lihat Riwayat Transaksi & Cetak Ulang Struk"
+              >
+                <Receipt className="w-4 h-4 text-blue-600" />
+                <span className="hidden xl:inline">Riwayat Struk</span>
+              </button>
+            )}
+
+            {/* Cashier Badge & Logout Button */}
+            <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-200">
+              <div className="hidden lg:flex items-center gap-2 px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl shadow-2xs">
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs text-white ${
+                  currentUser?.role === 'OWNER' ? 'bg-blue-600' : 'bg-emerald-600'
+                }`}>
+                  <UserCheck className="w-4 h-4" />
+                </div>
+                <div className="text-left leading-tight">
+                  <span className="font-bold text-slate-800 text-xs block truncate max-w-[110px]">
+                    {cashierName}
+                  </span>
+                  <span className="text-[9.5px] font-extrabold text-emerald-700 bg-emerald-50 px-1 rounded-xs uppercase">
+                    {currentUser?.role || 'KASIR'}
+                  </span>
+                </div>
+              </div>
+
+              {onOpenWireframeModal && (
+                <button
+                  type="button"
+                  onClick={onOpenWireframeModal}
+                  className="p-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs cursor-pointer"
+                  title="Buku Panduan Pengguna Toko"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                </button>
+              )}
+
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  title="Keluar dari Sesi Kasir (Logout)"
+                >
+                  <LogOut className="w-4 h-4 text-rose-600" />
+                  <span className="hidden sm:inline">Keluar</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1523,6 +1627,57 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <p className="font-bold text-black text-[10px] pt-1">
               TERIMA KASIH ATAS KUNJUNGAN ANDA!
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Logout Kasir */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <LogOut className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  Keluar dari Sesi Kasir?
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Sesi kasir atas nama <strong className="text-slate-800">{cashierName}</strong> ({currentUser?.role || 'KASIR'}) akan diakhiri. Anda akan dialihkan kembali ke layar login sistem Omah Ban Cabang 3.
+                </p>
+              </div>
+            </div>
+
+            {cart.length > 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+                <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  Terdapat <strong>{cart.reduce((s, i) => s + i.qty, 0)} item</strong> di keranjang belanja. Nota dapat ditahan di antrian terlebih dahulu sebelum keluar.
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  onLogout?.();
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Ya, Keluar (Logout)</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

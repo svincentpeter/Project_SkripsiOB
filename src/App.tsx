@@ -123,6 +123,8 @@ import {
   upsertPayableToSupabase,
   upsertReceivableToSupabase,
   saveStoreSettingsToSupabase,
+  isScreenPermittedForRole,
+  getDefaultScreenForUser,
 } from './services';
 import { Loader2 } from 'lucide-react';
 
@@ -161,45 +163,14 @@ function MainAppContent() {
 
   // Permission verification
   const isScreenPermitted = (screen: ActiveScreen): boolean => {
-    if (!currentUser) return false;
-    if (currentUser.role === 'OWNER') return true;
-    const roleConfig = rolePermissions[currentUser.role];
-    if (!roleConfig) return true;
-
-    switch (screen) {
-      case 'dashboard':
-        return !!roleConfig.dashboard;
-      case 'pos':
-        return !!roleConfig.pos;
-      case 'receipt':
-        return !!roleConfig.receipt;
-      case 'inventory':
-        return !!roleConfig.inventory_view;
-      case 'expenses':
-        return !!roleConfig.expenses;
-      case 'ledger':
-        return !!roleConfig.accounting_hub || !!roleConfig.bon_receivable || !!roleConfig.accounts_payable;
-      case 'financials':
-        return !!roleConfig.financial_reports;
-      case 'settings':
-        return !!roleConfig.role_settings;
-      default:
-        return true;
-    }
+    return isScreenPermittedForRole(screen, currentUser?.role, rolePermissions);
   };
 
   // Auto-redirect if activeScreen is not permitted for current user
   useEffect(() => {
     if (currentUser && !isScreenPermitted(activeScreen)) {
-      if (isScreenPermitted('pos')) {
-        setActiveScreen('pos');
-      } else if (isScreenPermitted('inventory')) {
-        setActiveScreen('inventory');
-      } else if (isScreenPermitted('dashboard')) {
-        setActiveScreen('dashboard');
-      } else {
-        setActiveScreen('receipt');
-      }
+      const fallbackScreen = getDefaultScreenForUser(currentUser.role, rolePermissions);
+      setActiveScreen(fallbackScreen);
     }
   }, [currentUser, rolePermissions, activeScreen]);
 
@@ -1383,6 +1354,13 @@ function MainAppContent() {
     }
   };
 
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('ob3_user_session');
+    setActiveScreen('dashboard');
+    toast.info('Sesi Ditutup', 'Anda telah keluar dari sistem Omah Ban Cabang 3.');
+  };
+
   const lowStockCount = products.filter((p) => p.stock < 5).length;
   const cartTotalQty = cart.reduce((acc, c) => acc + c.qty, 0);
 
@@ -1393,6 +1371,8 @@ function MainAppContent() {
         onLogin={(user) => {
           setCurrentUser(user);
           localStorage.setItem('ob3_user_session', JSON.stringify(user));
+          const targetScreen = getDefaultScreenForUser(user.role, rolePermissions);
+          setActiveScreen(targetScreen);
           toast.success(`Selamat Datang, ${user.name}!`, `Berhasil masuk sebagai ${user.role} (${user.branch_name}).`);
         }}
         users={users}
@@ -1428,8 +1408,21 @@ function MainAppContent() {
           cashierName={currentUser.name}
           cashInDrawer={cashInDrawer}
           timeString={timeString}
-          onExitToBackoffice={() => setActiveScreen('dashboard')}
+          currentUser={currentUser}
+          canAccessBackoffice={isScreenPermitted('dashboard')}
+          canAccessReceipts={isScreenPermitted('receipt')}
+          onNavigateToReceipts={() => setActiveScreen('receipt')}
+          onExitToBackoffice={() => {
+            if (isScreenPermitted('dashboard')) {
+              setActiveScreen('dashboard');
+            } else if (isScreenPermitted('receipt')) {
+              setActiveScreen('receipt');
+            } else {
+              toast.warning('Akses Terbatas', 'Petugas kasir hanya memiliki akses ke terminal POS.');
+            }
+          }}
           onOpenWireframeModal={() => setShowWireframeModal(true)}
+          onLogout={handleLogout}
           isEmptyState={isEmptyState}
           storeSettings={storeSettings}
           categories={productCategories}
@@ -1459,13 +1452,12 @@ function MainAppContent() {
             onSwitchUser={(user) => {
               setCurrentUser(user);
               localStorage.setItem('ob3_user_session', JSON.stringify(user));
+              if (!isScreenPermittedForRole(activeScreen, user.role, rolePermissions)) {
+                setActiveScreen(getDefaultScreenForUser(user.role, rolePermissions));
+              }
               toast.info('Beralih Peran', `Kini melihat antarmuka sebagai ${user.name} (${user.role}).`);
             }}
-            onLogout={() => {
-              setCurrentUser(null);
-              localStorage.removeItem('ob3_user_session');
-              toast.info('Sesi Ditutup', 'Anda telah keluar dari sistem Omah Ban Cabang 3.');
-            }}
+            onLogout={handleLogout}
           />
 
           <main className="flex-1 min-h-0 flex flex-col relative overflow-y-auto bg-[#F8FAFC]">

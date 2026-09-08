@@ -8,3 +8,4 @@ export * from './storageService';
 export * from './productCategoryService';
 export * from './supabaseClient';
 export * from './supabaseDataService';
+export * from './authNavigationService';

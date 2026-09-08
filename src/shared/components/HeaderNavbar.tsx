@@ -26,6 +26,7 @@ import { ActiveScreen, PermissionKey, RolePermissionsConfig, UserSession } from 
 import { DEFAULT_ROLE_PERMISSIONS, DEFAULT_USERS } from '../data/mockData';
 import { formatRupiah } from '../utils/formatters';
 import { NotificationBellDropdown } from './NotificationBellDropdown';
+import { isScreenPermittedForRole } from '../../services/authNavigationService';
 
 interface HeaderNavbarProps {
   activeScreen: ActiveScreen;
@@ -128,30 +129,7 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   ];
 
   const isScreenAllowed = (screen: ActiveScreen): boolean => {
-    if (currentUser.role === 'OWNER') return true;
-    const roleConfig = rolePermissions[currentUser.role];
-    if (!roleConfig) return true;
-
-    switch (screen) {
-      case 'dashboard':
-        return !!roleConfig.dashboard;
-      case 'pos':
-        return !!roleConfig.pos;
-      case 'receipt':
-        return !!roleConfig.receipt;
-      case 'inventory':
-        return !!roleConfig.inventory_view;
-      case 'expenses':
-        return !!roleConfig.expenses;
-      case 'ledger':
-        return !!roleConfig.accounting_hub || !!roleConfig.bon_receivable || !!roleConfig.accounts_payable;
-      case 'financials':
-        return !!roleConfig.financial_reports;
-      case 'settings':
-        return !!roleConfig.role_settings;
-      default:
-        return true;
-    }
+    return isScreenPermittedForRole(screen, currentUser.role, rolePermissions);
   };
 
   const visibleNavTabs = navTabs.filter((t) => isScreenAllowed(t.id));

@@ -61,7 +61,7 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     receipt: true,
     booking_dp: true,
     bon_receivable: true,
-    inventory_view: true,
+    inventory_view: false,
     inventory_manage: false,
     goods_receipt: false,
     stock_opname: false,
