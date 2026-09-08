@@ -68,7 +68,7 @@ Dokumentasi resmi antarmuka pemrograman aplikasi (API) untuk sistem terintegrasi
 | `GET` | `/accounting/trial-balance` | Neraca Saldo kompilasi akun dengan verifikasi keseimbangan otomatis ($\Delta = 0$) |
 | `GET` | `/accounting/accounts-payable` | Buku Pembantu Hutang distributor (Bridgestone, Dunlop, dll) |
 | `POST` | `/accounting/accounts-payable/pay` | Pelunasan hutang supplier + Auto-Journaling pelunasan |
-| `GET` | `/accounting/financial-statements` | **Laporan Keuangan SAK EMKM Lengkap**: Laporan Laba Rugi, Laporan Posisi Keuangan (Neraca seimbang), dan CALK |
+| `GET` | `/accounting/financial-statements` | **Laporan Keuangan SAK EMKM Lengkap**: Laporan Laba Rugi dan Laporan Posisi Keuangan (Neraca seimbang) |
 
 ---
 

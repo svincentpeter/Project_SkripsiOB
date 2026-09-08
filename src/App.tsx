@@ -29,19 +29,8 @@ import {
 import { 
   DEFAULT_ROLE_PERMISSIONS,
   DEFAULT_USERS,
-  INITIAL_ACCOUNT_BALANCES, 
-  INITIAL_BOOKINGS, 
-  INITIAL_EXPENSES, 
-  INITIAL_JOURNALS, 
-  INITIAL_PAYABLE_INVOICES, 
   INITIAL_PERIOD_INFO,
-  INITIAL_PRODUCTS, 
-  INITIAL_RECEIVABLES, 
-  INITIAL_SERVICES, 
-  INITIAL_STOCK_MUTATIONS, 
-  INITIAL_STORE_SETTINGS, 
-  INITIAL_SUPPLIERS, 
-  INITIAL_TRANSACTIONS 
+  INITIAL_STORE_SETTINGS
 } from './shared/data/mockData';
 import { LoginScreen } from './modules/auth';
 import { formatRupiah, generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
@@ -254,50 +243,11 @@ function MainAppContent() {
     }
   });
 
-  const [products, setProducts] = useState<ProductItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_products');
-      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-    } catch {
-      return INITIAL_PRODUCTS;
-    }
-  });
-
-  const [services, setServices] = useState<ServiceMasterItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_services');
-      return saved ? JSON.parse(saved) : INITIAL_SERVICES;
-    } catch {
-      return INITIAL_SERVICES;
-    }
-  });
-
-  const [suppliers, setSuppliers] = useState<SupplierItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_suppliers');
-      return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
-    } catch {
-      return INITIAL_SUPPLIERS;
-    }
-  });
-
-  const [bookings, setBookings] = useState<SalesBookingRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_bookings');
-      return saved ? JSON.parse(saved) : INITIAL_BOOKINGS;
-    } catch {
-      return INITIAL_BOOKINGS;
-    }
-  });
-
-  const [transactions, setTransactions] = useState<PosTransaction[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_transactions');
-      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-    } catch {
-      return INITIAL_TRANSACTIONS;
-    }
-  });
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [services, setServices] = useState<ServiceMasterItem[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierItem[]>([]);
+  const [bookings, setBookings] = useState<SalesBookingRecord[]>([]);
+  const [transactions, setTransactions] = useState<PosTransaction[]>([]);
 
   const [parkedOrders, setParkedOrders] = useState<ParkedTransaction[]>(() => {
     try {
@@ -322,68 +272,13 @@ function MainAppContent() {
     deleteParkedOrderFromSupabase(orderId);
   };
 
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_expenses');
-      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
-    } catch {
-      return INITIAL_EXPENSES;
-    }
-  });
-
-  const [mutations, setMutations] = useState<StockMutation[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_mutations');
-      return saved ? JSON.parse(saved) : INITIAL_STOCK_MUTATIONS;
-    } catch {
-      return INITIAL_STOCK_MUTATIONS;
-    }
-  });
-
-  const [journals, setJournals] = useState<JournalEntry[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_journals');
-      return saved ? JSON.parse(saved) : INITIAL_JOURNALS;
-    } catch {
-      return INITIAL_JOURNALS;
-    }
-  });
-
-  const [cashInDrawer, setCashInDrawer] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_cash_drawer');
-      return saved ? JSON.parse(saved) : 2450000;
-    } catch {
-      return 2450000;
-    }
-  });
-
-  const [payableInvoices, setPayableInvoices] = useState<PayableInvoice[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_payable_invoices');
-      return saved ? JSON.parse(saved) : INITIAL_PAYABLE_INVOICES;
-    } catch {
-      return INITIAL_PAYABLE_INVOICES;
-    }
-  });
-
-  const [accountBalances, setAccountBalances] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_account_balances');
-      return saved ? JSON.parse(saved) : INITIAL_ACCOUNT_BALANCES;
-    } catch {
-      return INITIAL_ACCOUNT_BALANCES;
-    }
-  });
-
-  const [receivableInvoices, setReceivableInvoices] = useState<ReceivableInvoice[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_receivable_invoices');
-      return saved ? JSON.parse(saved) : INITIAL_RECEIVABLES;
-    } catch {
-      return INITIAL_RECEIVABLES;
-    }
-  });
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [mutations, setMutations] = useState<StockMutation[]>([]);
+  const [journals, setJournals] = useState<JournalEntry[]>([]);
+  const [cashInDrawer, setCashInDrawer] = useState<number>(0);
+  const [payableInvoices, setPayableInvoices] = useState<PayableInvoice[]>([]);
+  const [accountBalances, setAccountBalances] = useState<Record<string, number>>({});
+  const [receivableInvoices, setReceivableInvoices] = useState<ReceivableInvoice[]>([]);
 
   const [periodInfo, setPeriodInfo] = useState<AccountingPeriodInfo>(() => {
     try {
@@ -567,16 +462,16 @@ function MainAppContent() {
             ]);
 
             if (isMounted) {
-              if (sbProds && sbProds.length > 0) setProducts(sbProds);
-              if (sbServs && sbServs.length > 0) setServices(sbServs);
-              if (sbSupps && sbSupps.length > 0) setSuppliers(sbSupps);
-              if (sbTxs && sbTxs.length > 0) setTransactions(sbTxs);
-              if (sbExps && sbExps.length > 0) setExpenses(sbExps);
-              if (sbJournals && sbJournals.length > 0) setJournals(sbJournals);
-              if (sbMuts && sbMuts.length > 0) setMutations(sbMuts);
-              if (sbBookings && sbBookings.length > 0) setBookings(sbBookings);
-              if (sbPayables && sbPayables.length > 0) setPayableInvoices(sbPayables);
-              if (sbReceivables && sbReceivables.length > 0) setReceivableInvoices(sbReceivables);
+              if (sbProds) setProducts(sbProds);
+              if (sbServs) setServices(sbServs);
+              if (sbSupps) setSuppliers(sbSupps);
+              if (sbTxs) setTransactions(sbTxs);
+              if (sbExps) setExpenses(sbExps);
+              if (sbJournals) setJournals(sbJournals);
+              if (sbMuts) setMutations(sbMuts);
+              if (sbBookings) setBookings(sbBookings);
+              if (sbPayables) setPayableInvoices(sbPayables);
+              if (sbReceivables) setReceivableInvoices(sbReceivables);
               if (sbParked) setParkedOrders(sbParked);
               if (sbSettings) setStoreSettings(sbSettings);
               if (sbUsers && sbUsers.length > 0) setUsers(sbUsers);
@@ -632,58 +527,9 @@ function MainAppContent() {
     localStorage.setItem('ob3_store_settings', JSON.stringify(storeSettings));
   }, [storeSettings]);
 
-  // Save to LocalStorage
-  useEffect(() => {
-    localStorage.setItem('ob3_products', JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_services', JSON.stringify(services));
-  }, [services]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_suppliers', JSON.stringify(suppliers));
-  }, [suppliers]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_bookings', JSON.stringify(bookings));
-  }, [bookings]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_transactions', JSON.stringify(transactions));
-  }, [transactions]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_expenses', JSON.stringify(expenses));
-  }, [expenses]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_mutations', JSON.stringify(mutations));
-  }, [mutations]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_journals', JSON.stringify(journals));
-  }, [journals]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_cash_drawer', JSON.stringify(cashInDrawer));
-  }, [cashInDrawer]);
-
   useEffect(() => {
     localStorage.setItem('ob3_cart', JSON.stringify(cart));
   }, [cart]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_payable_invoices', JSON.stringify(payableInvoices));
-  }, [payableInvoices]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_account_balances', JSON.stringify(accountBalances));
-  }, [accountBalances]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_receivable_invoices', JSON.stringify(receivableInvoices));
-  }, [receivableInvoices]);
 
   useEffect(() => {
     localStorage.setItem('ob3_period_info', JSON.stringify(periodInfo));
@@ -1429,25 +1275,10 @@ function MainAppContent() {
     );
   };
 
-  // Reset to default seed data
   const handleResetData = () => {
-    if (window.confirm('Reset seluruh data simulasi toko ke bawaan awal?')) {
-      setProducts(INITIAL_PRODUCTS);
-      setServices(INITIAL_SERVICES);
-      setSuppliers(INITIAL_SUPPLIERS);
-      setBookings(INITIAL_BOOKINGS);
-      setTransactions(INITIAL_TRANSACTIONS);
-      setExpenses(INITIAL_EXPENSES);
-      setMutations(INITIAL_STOCK_MUTATIONS);
-      setJournals(INITIAL_JOURNALS);
-      setPayableInvoices(INITIAL_PAYABLE_INVOICES);
-      setAccountBalances(INITIAL_ACCOUNT_BALANCES);
-      setRolePermissions(DEFAULT_ROLE_PERMISSIONS);
-      setCashInDrawer(2450000);
-      setCart([]);
-      setCurrentReceiptTx(null);
+    if (window.confirm('Tarik ulang seluruh data dari database Supabase?')) {
       localStorage.clear();
-      alert('Data sistem telah direset ke kondisi awal!');
+      window.location.reload();
     }
   };
 

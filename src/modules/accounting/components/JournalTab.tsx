@@ -228,8 +228,19 @@ export const JournalTab: React.FC<JournalTabProps> = ({
           {filteredJournals.length === 0 ? (
             <div className="border border-slate-200 rounded-xl p-12 text-center text-slate-400 bg-slate-50/50">
               <BookOpen className="w-10 h-10 mx-auto mb-2 opacity-30 text-blue-600" />
-              <p className="text-xs font-bold text-slate-600">Tidak ada ayat jurnal yang cocok dengan kriteria pencarian</p>
-              <p className="text-[11px] text-slate-400 mt-1">Coba ubah kata kunci atau filter kategori di atas</p>
+              {journals.length === 0 ? (
+                <>
+                  <p className="text-xs font-bold text-slate-600">Belum ada ayat jurnal di database</p>
+                  <p className="text-[11px] italic text-slate-400 mt-1">
+                    Jurnal terbentuk otomatis dari transaksi POS, penerimaan barang, beban, atau penyesuaian periode.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-bold text-slate-600">Tidak ada ayat jurnal yang cocok dengan kriteria pencarian</p>
+                  <p className="text-[11px] italic text-slate-400 mt-1">Coba ubah kata kunci atau filter kategori di atas</p>
+                </>
+              )}
             </div>
           ) : (
             filteredJournals.map((journal) => {

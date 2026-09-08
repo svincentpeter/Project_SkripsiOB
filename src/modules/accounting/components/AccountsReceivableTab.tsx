@@ -213,8 +213,12 @@ export const AccountsReceivableTab: React.FC<AccountsReceivableTabProps> = ({
             <tbody className="divide-y divide-slate-100 font-mono">
               {filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400 font-sans text-xs">
-                    Tidak ada faktur piutang yang sesuai dengan kriteria filter.
+                  <td colSpan={8} className="py-8 text-center font-sans">
+                    <span className="text-xs italic text-slate-400">
+                      {invoices.length === 0
+                        ? 'Belum ada faktur piutang dagang tersimpan di database.'
+                        : 'Belum ada faktur piutang yang cocok dengan kriteria filter.'}
+                    </span>
                   </td>
                 </tr>
               ) : (

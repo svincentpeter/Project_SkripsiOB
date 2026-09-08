@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { 
-  FileText, 
   Printer, 
   Download, 
   Calendar, 
@@ -35,7 +34,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
   initialBalances,
   products,
 }) => {
-  const [activeReportSubTab, setActiveReportSubTab] = useState<'income' | 'balance' | 'cashflow' | 'calk'>('income');
+  const [activeReportSubTab, setActiveReportSubTab] = useState<'income' | 'balance' | 'cashflow'>('income');
   const [periodType, setPeriodType] = useState<PeriodType>('THIS_MONTH');
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
@@ -218,17 +217,6 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
             <span>3. Arus Kas (Cash Flow)</span>
           </button>
 
-          <button
-            onClick={() => setActiveReportSubTab('calk')}
-            className={`shrink-0 px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-              activeReportSubTab === 'calk'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>4. Catatan (CALK)</span>
-          </button>
         </div>
 
         {/* Actions: Period Selector, Print, Export */}
@@ -287,6 +275,16 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
 
       {/* Main Report Body */}
       <div>
+        {journals.length === 0 ? (
+          <div className="max-w-3xl mx-auto border border-slate-200 rounded-xl p-12 text-center bg-slate-50/50">
+            <FileSpreadsheet className="w-10 h-10 mx-auto mb-2 opacity-30 text-slate-500" />
+            <p className="text-xs font-bold text-slate-600">Belum ada data laporan keuangan</p>
+            <p className="text-[11px] italic text-slate-400 mt-1">
+              Laba Rugi, Neraca, dan Arus Kas dihitung otomatis dari ayat jurnal di database. Belum ada jurnal yang tersimpan.
+            </p>
+          </div>
+        ) : (
+          <>
         {/* Formal Report Header */}
         <div className="text-center border-b border-slate-200 pb-4 mb-5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider mb-2">
@@ -297,7 +295,6 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
             {activeReportSubTab === 'income' && 'LAPORAN LABA RUGI'}
             {activeReportSubTab === 'balance' && 'LAPORAN POSISI KEUANGAN (NERACA)'}
             {activeReportSubTab === 'cashflow' && 'LAPORAN ARUS KAS (STATEMENT OF CASH FLOWS)'}
-            {activeReportSubTab === 'calk' && 'CATATAN ATAS LAPORAN KEUANGAN (CALK)'}
           </h2>
           <p className="text-xs text-slate-500 mt-1 font-medium">
             Standar SAK EMKM • {periodLabel}
@@ -552,51 +549,9 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
             <CashFlowStatementTab cashFlow={cashFlow} periodLabel={periodLabel} />
           </div>
         )}
-
-        {/* SUB-VIEW 4: CATATAN ATAS LAPORAN KEUANGAN (CALK) */}
-        {activeReportSubTab === 'calk' && (
-          <div className="max-w-3xl mx-auto space-y-4 text-xs text-slate-700 leading-relaxed font-sans">
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-1">
-                  1. Gambaran Umum Entitas Usaha
-                </h3>
-                <p>
-                  <strong>Toko Ban dan Velg Omah Ban Cabang 3</strong> adalah entitas usaha dagang dan jasa otomotif milik <strong>Bapak Agus Subagyo</strong> yang berfokus pada penjualan ban mobil baru berbagai merek resmi (Bridgestone, Dunlop, Accelera, Forceum, Hankook), velg baru, serta penyediaan jasa servis roda mobil (spooring 3D, balancing, dan bongkar pasang ban). Beroperasi sebagai unit UMKM mandiri di <strong>Kabupaten Magelang, Jawa Tengah</strong>. Sistem informasi akuntansi ini dikembangkan oleh <strong>Catherine Wong (NIM: 23.G4.0007)</strong>, Program Studi S1 Akuntansi, Fakultas Ekonomi dan Bisnis, Universitas Katolik Soegijapranata Semarang.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-1">
-                  2. Kebijakan Akuntansi SAK EMKM
-                </h3>
-                <p>
-                  Laporan keuangan disusun mengikuti <strong>SAK EMKM</strong> (Ikatan Akuntan Indonesia) dengan prinsip biaya historis dan dasar akrual.
-                </p>
-                <ul className="list-disc pl-5 space-y-1 mt-1 text-slate-600">
-                  <li>
-                    <strong>Metode FIFO:</strong> Persediaan ban dinilai dengan urutan masuk tertua.
-                  </li>
-                  <li>
-                    <strong>Penyusutan Mesin:</strong> Mesin spooring dan balancing disusutkan dengan metode garis lurus.
-                  </li>
-                  <li>
-                    <strong>Pengakuan Pendapatan:</strong> Diakui saat barang diserahkan atau jasa servis selesai.
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-1">
-                  3. Keselarasan Fisik vs Pembukuan
-                </h3>
-                <p>
-                  Nilai persediaan ban di Buku Besar: <strong>{formatRupiah(financials.persediaanBuku)}</strong>. Nilai fisik gudang: <strong>{formatRupiah(financials.totalInventoryPhysical)}</strong>.
-                </p>
-              </div>
-            </div>
-          </div>
+          </>
         )}
+
       </div>
 
       {/* Printable Executive Modal */}

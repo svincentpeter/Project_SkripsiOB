@@ -219,7 +219,7 @@ class AccountingEngine
     }
 
     /**
-     * Generate SAK EMKM Financial Statements: Laba Rugi, Posisi Keuangan (Neraca), CALK.
+     * Generate SAK EMKM Financial Statements: Laba Rugi, Posisi Keuangan (Neraca).
      */
     public function getFinancialStatements(): array
     {
@@ -339,19 +339,9 @@ class AccountingEngine
             'difference' => round($balanceDiff, 2),
         ];
 
-        // 3. Notes (CALK) SAK EMKM
-        $notes = [
-            'entity_name' => 'Omah Ban Cabang 3 (OB3)',
-            'accounting_standard' => 'Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM)',
-            'inventory_method' => 'First-In, First-Out (FIFO)',
-            'depreciation_method' => 'Garis Lurus (Straight-Line Method)',
-            'tax_policy' => 'PPN 11% Sesuai Regulasi Berlaku',
-        ];
-
         return [
             'income_statement' => $incomeStatement,
             'balance_sheet' => $balanceSheet,
-            'notes' => $notes,
         ];
     }
 }

@@ -41,7 +41,6 @@ export const accountingApi = {
       data: {
         income_statement: any;
         balance_sheet: any;
-        notes: any;
       };
     }>('/accounting/financial-statements');
   },

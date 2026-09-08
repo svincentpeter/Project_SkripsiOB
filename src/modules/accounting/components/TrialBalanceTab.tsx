@@ -24,6 +24,7 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({
   onNavigateToReports,
 }) => {
   const trialBalance = calculateTrialBalance(journals, initialBalances);
+  const hasActivity = trialBalance.total_debit > 0 || trialBalance.total_credit > 0;
 
   const handleExportTrialBalanceCsv = () => {
     let csv = 'NERACA SALDO (TRIAL BALANCE) - OMAH BAN CABANG 3\n';
@@ -50,6 +51,19 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({
   return (
     <div className="space-y-4">
       {/* Verification Status Banner */}
+      {!hasActivity ? (
+        <div className="p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3 bg-slate-50/80">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-200 text-slate-500">
+            <Scale className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-sm font-black tracking-tight text-slate-500">Belum ada data neraca saldo</h2>
+            <p className="text-xs italic text-slate-400 mt-0.5">
+              Tabel terisi otomatis setelah ada ayat jurnal berstatus POSTED di database.
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className={`p-4 rounded-xl border shadow-xs flex flex-wrap items-center justify-between gap-3 ${
         trialBalance.is_balanced 
           ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' 
@@ -85,6 +99,7 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({
           </span>
         </div>
       </div>
+      )}
 
       {/* Main Card (Bungkus Bersih Sesuai Standar) */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
@@ -132,7 +147,16 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-mono">
-                {trialBalance.rows.map((row) => {
+                {!hasActivity ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center font-sans">
+                      <span className="text-xs italic text-slate-400">
+                        Belum ada saldo akun yang ditarik dari database.
+                      </span>
+                    </td>
+                  </tr>
+                ) : (
+                  trialBalance.rows.map((row) => {
                   const hasBalance = row.debit_balance > 0 || row.credit_balance > 0;
                   return (
                     <tr 
@@ -160,7 +184,8 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({
                       </td>
                     </tr>
                   );
-                })}
+                })
+                )}
               </tbody>
               {/* Grand Total Footer */}
               <tfoot className="bg-slate-50 font-black text-slate-900 border-t-2 border-slate-200 font-mono text-xs">

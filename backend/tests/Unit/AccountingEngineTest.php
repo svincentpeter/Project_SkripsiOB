@@ -60,6 +60,5 @@ class AccountingEngineTest extends TestCase
         $fin = $engine->getFinancialStatements();
         $this->assertArrayHasKey('income_statement', $fin);
         $this->assertArrayHasKey('balance_sheet', $fin);
-        $this->assertArrayHasKey('notes', $fin);
     }
 }

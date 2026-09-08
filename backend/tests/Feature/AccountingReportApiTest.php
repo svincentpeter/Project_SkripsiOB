@@ -94,7 +94,6 @@ class AccountingReportApiTest extends TestCase
                 'data' => [
                     'income_statement',
                     'balance_sheet',
-                    'notes',
                 ]
             ]);
     }

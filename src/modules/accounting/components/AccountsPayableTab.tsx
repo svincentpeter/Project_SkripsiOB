@@ -202,7 +202,18 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-mono">
-              {filteredInvoices.map((inv) => (
+              {filteredInvoices.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center font-sans">
+                    <span className="text-xs italic text-slate-400">
+                      {invoices.length === 0
+                        ? 'Belum ada faktur hutang dagang tersimpan di database.'
+                        : 'Belum ada faktur yang cocok dengan filter status ini.'}
+                    </span>
+                  </td>
+                </tr>
+              ) : (
+                filteredInvoices.map((inv) => (
                 <tr key={inv.id} className="hover:bg-slate-50/70 transition-colors">
                   <td className="py-2 px-3 font-bold text-indigo-700 text-xs truncate" title={inv.invoice_number}>{inv.invoice_number}</td>
                   <td className="py-2 px-3 font-sans truncate" title={inv.supplier_name}>
@@ -254,7 +265,8 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
                     )}
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
           </div>

@@ -50,7 +50,7 @@ Sistem ini memadukan kecepatan operasional kasir toko ban (*Point of Sale*) deng
 
 ### 📊 D. Modul Akuntansi SAK EMKM Lengkap (Accounting Hub)
 
-Modul akuntansi tersaji dalam **5 Tab Terpadu**:
+Modul akuntansi tersaji dalam **6 Tab Terpadu**:
 
 1. **Jurnal Umum & Penyesuaian (*General Journal*):**
    - Riwayat seluruh jurnal transaksi secara kronologis (`SALE`, `PURCHASE`, `EXPENSE`, `DEBT_PAYMENT`, `ADJUSTMENT`).
@@ -65,10 +65,18 @@ Modul akuntansi tersaji dalam **5 Tab Terpadu**:
 4. **Buku Pembantu Hutang (*Accounts Payable Sub-Ledger*):**
    - Daftar tagihan faktur tempo dari distributor ban (PT Bridgestone Tire Indonesia, PT Elangperdana Tyre Industry, PT Sumi Rubber Indonesia).
    - Fitur **"Bayar Hutang Supplier"**: Modal pelunasan via Kas atau Bank BCA yang langsung memotong hutang dan mencatat jurnal pelunasan secara otomatis.
-5. **Laporan Keuangan Standar SAK EMKM (100% Dinamis):**
+5. **Buku Pembantu Piutang (*Accounts Receivable Sub-Ledger*):**
+   - Daftar faktur penjualan tempo pelanggan beserta nomor plat kendaraan.
+   - Fitur pencatatan **penerimaan pelunasan piutang** yang otomatis membentuk jurnal dan menambah kas laci atau rekening bank.
+6. **Ikhtisar Eksekutif (*Executive Handoff*):**
+   - Tiga kartu metrik cepat: Omzet Bersih Berjalan, Laba Bersih Berjalan beserta margin, dan Uang Kas & Bank Siap Pakai.
+   - Pintu menuju modul **Laporan Keuangan** tersendiri, dengan opsi pratinjau laporan lengkap di tempat.
+
+Laporan Keuangan Standar SAK EMKM (100% Dinamis) disajikan pada menu tersendiri dengan **3 sub-tab**:
+
    - **Laporan Laba Rugi:** Omzet Kotor $\rightarrow$ Diskon $\rightarrow$ Penjualan Bersih $\rightarrow$ HPP FIFO $\rightarrow$ Laba Bruto $\rightarrow$ Rincian Beban Operasional Usaha $\rightarrow$ Laba Neto Periode Berjalan.
    - **Laporan Posisi Keuangan (Neraca):** 100% dinamis terhitung dari Buku Besar: Total Aset Lancar + Nilai Buku Aset Tetap = Total Liabilitas + Total Ekuitas (Seimbang $\Delta = 0$).
-   - **Catatan Atas Laporan Keuangan (CALK):** Penjelasan kebijakan akuntansi SAK EMKM, basis akrual, metode FIFO, dan aset tetap garis lurus.
+   - **Laporan Arus Kas:** Rekonsiliasi arus kas operasi, investasi, dan pendanaan sepanjang periode berjalan.
    - Fitur Cetak Dokumen Standar A4 dan Ekspor Spreadsheet CSV/Excel.
 
 ### 📈 E. Dashboard Eksekutif Pemilik (*Owner Analytics*)
@@ -128,10 +136,11 @@ Project_SkripsiOB/
 │   │   │   │   ├── GeneralLedgerTab.tsx   # Tab 2: Buku Besar per Akun COA
 │   │   │   │   ├── TrialBalanceTab.tsx    # Tab 3: Neraca Saldo (Debit = Kredit)
 │   │   │   │   ├── AccountsPayableTab.tsx # Tab 4: Buku Pembantu Hutang Supplier
+│   │   │   │   ├── AccountsReceivableTab.tsx # Tab 5: Buku Pembantu Piutang Pelanggan
 │   │   │   │   ├── PayDebtModal.tsx       # Modal Pelunasan Hutang Distributor
-│   │   │   │   ├── SakEmkmReportTab.tsx   # Tab 5: Laporan Laba Rugi, Neraca, CALK
+│   │   │   │   ├── SakEmkmReportTab.tsx   # Laporan Laba Rugi, Neraca & Arus Kas
 │   │   │   │   └── index.ts
-│   │   │   ├── GeneralLedgerScreen.tsx    # Layar Utama Pusat Akuntansi (5 Tab)
+│   │   │   ├── GeneralLedgerScreen.tsx    # Layar Utama Pusat Akuntansi (6 Tab)
 │   │   │   ├── FinancialStatementsScreen.tsx
 │   │   │   └── index.ts
 │   │   ├── dashboard/                     # Modul Dashboard Eksekutif Owner
@@ -141,12 +150,13 @@ Project_SkripsiOB/
 │   │   └── receipt/                       # Modul Riwayat & Cetak Struk Thermal
 │   ├── services/
 │   │   ├── accountingService.ts           # Logika Ledger, Trial Balance & SAK EMKM
+│   │   ├── supabaseDataService.ts         # Sumber kebenaran data: fetch & tulis Supabase
 │   │   ├── fifoCostingService.ts          # Algoritma Alokasi Batch FIFO & HPP
 │   │   ├── inventoryService.ts            # Mutasi Stok & Goods Receipt
 │   │   └── posService.ts                  # Checkout Kasir & Format Nota
 │   ├── shared/
 │   │   ├── components/                    # HeaderNavbar, Modals, Shared UI
-│   │   ├── data/mockData.ts               # Data Seed Awal (Produk, Jurnal, COA)
+│   │   ├── data/mockData.ts               # COA SAK EMKM, user bawaan & konfigurasi awal
 │   │   ├── types/index.ts                 # Definisi Tipe TypeScript
 │   │   └── utils/formatters.ts            # formatRupiah, formatDateIndo, dsb.
 │   ├── App.tsx                            # Root Component & Central State Store
