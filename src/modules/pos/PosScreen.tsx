@@ -136,6 +136,30 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [selectedRing, setSelectedRing] = useState<string>('ALL');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
 
+  const availableRings = useMemo(() => {
+    const rings = new Set<string>();
+    products.forEach((p) => {
+      if (p.ring && p.ring.trim()) {
+        rings.add(p.ring.trim());
+      }
+    });
+    return Array.from(rings).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, '')) || 0;
+      const numB = parseInt(b.replace(/\D/g, '')) || 0;
+      return numA - numB;
+    });
+  }, [products]);
+
+  const availableBrands = useMemo(() => {
+    const brands = new Set<string>();
+    products.forEach((p) => {
+      if (p.brand && p.brand.trim()) {
+        brands.add(p.brand.trim());
+      }
+    });
+    return Array.from(brands).sort();
+  }, [products]);
+
   const [customerName, setCustomerName] = useState('Pelanggan Walk-In');
   const [vehiclePlate, setVehiclePlate] = useState('B 1984 SKZ');
   const [vehicleModel, setVehicleModel] = useState('Avanza');
@@ -703,111 +727,198 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           </button>
         </div>
 
+        {/* Quick Ring Chips & Brand Filter Bar (persis ProjectOmahBan ProductGrid) */}
+        {catalogTab !== 'SERVICES' && catalogTab !== 'MANUAL' && (availableRings.length > 0 || availableBrands.length > 0) && (
+          <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shrink-0">
+            {/* Left: Quick Ring Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-0.5">
+                Ring:
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedRing('ALL')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  selectedRing === 'ALL'
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+              >
+                Semua
+              </button>
+              {availableRings.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setSelectedRing(selectedRing === r ? 'ALL' : r)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                    selectedRing === r
+                      ? 'bg-blue-600 text-white shadow-2xs ring-2 ring-blue-300'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  {r.startsWith('R') ? r : `R${r}`}
+                </button>
+              ))}
+            </div>
+
+            {/* Right: Brand Selector & Products Counter */}
+            <div className="flex items-center gap-2 shrink-0">
+              {availableBrands.length > 0 && (
+                <select
+                  value={selectedBrand}
+                  onChange={(e) => setSelectedBrand(e.target.value)}
+                  className="text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0 shadow-2xs"
+                >
+                  <option value="ALL">Semua Merk ({availableBrands.length})</option>
+                  {availableBrands.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              )}
+              <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                <b className="text-slate-900 font-mono font-black">{filteredProducts.length}</b> Produk
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Product Cards Grid OR Manual Item Form */}
         {catalogTab === 'MANUAL' ? (
           <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 bg-slate-50 custom-scrollbar">
             <ManualItemForm onAddToCart={handleAddToCartManual} />
           </div>
         ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-3.5 grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3 bg-slate-50 custom-scrollbar">
-            {catalogTab !== 'SERVICES' && filteredProducts.map((p) => {
-              const stockQty = p.stock || p.product_quantity || 0;
-              const isOutOfStock = stockQty <= 0;
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 bg-slate-50/70 custom-scrollbar">
+            <div className="grid content-start auto-rows-max grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+              {catalogTab !== 'SERVICES' && filteredProducts.map((p) => {
+                const stockQty = p.stock || p.product_quantity || 0;
+                const isOutOfStock = stockQty <= 0;
+                const isLowStock = stockQty > 0 && stockQty <= 3;
 
-              return (
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => !isOutOfStock && handleAddToCart(p)}
+                    className={`bg-white border rounded-2xl p-3.5 flex flex-col justify-between transition-all group shadow-2xs relative ${
+                      isOutOfStock
+                        ? 'opacity-45 bg-slate-100/60 border-slate-200 cursor-not-allowed'
+                        : isLowStock
+                        ? 'border-amber-300/80 hover:border-amber-400 hover:shadow-md cursor-pointer active:scale-[0.98]'
+                        : 'border-slate-200 hover:border-blue-500 hover:shadow-md cursor-pointer active:scale-[0.98]'
+                    }`}
+                  >
+                    <div>
+                      {/* Top Line: Prominent Ring / Category Badge + Stock Status */}
+                      <div className="flex items-center justify-between gap-1.5 mb-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {p.ring && (
+                            <span className="px-2 py-0.5 rounded-lg text-[11px] font-black tracking-tight bg-slate-900 text-amber-400 shadow-2xs">
+                              {p.ring}
+                            </span>
+                          )}
+                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                            p.category === 'BAN_BARU'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : p.category === 'VELG'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : p.category === 'OLI_PELUMAS'
+                              ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}>
+                            {p.category === 'OLI_PELUMAS' ? 'OLI & PELUMAS' : (p.category || 'BAN_BARU').replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 shrink-0 ${
+                          isOutOfStock
+                            ? 'bg-rose-50 text-rose-700 border-rose-200 font-extrabold'
+                            : isLowStock
+                            ? 'bg-amber-50 text-amber-800 border-amber-300 font-extrabold'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`} />
+                          {isOutOfStock ? 'Habis' : isLowStock ? `Sisa ${stockQty}` : `Stok: ${stockQty}`}
+                        </span>
+                      </div>
+
+                      {/* Product Title */}
+                      <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
+                        {p.product_name || p.name}
+                      </h3>
+
+                      {/* Specs / Motip */}
+                      <div className="text-[11px] text-slate-500 mt-1 font-medium line-clamp-1">
+                        {p.category === 'BAN_BARU' && `${p.product_size || ''} ${p.motif ? `• ${p.motif}` : ''}`}
+                        {p.category === 'VELG' && `${p.ring || ''} | PCD ${p.pcd || ''} | ${p.color_finish || ''}`}
+                        {p.category === 'OLI_PELUMAS' && `${p.product_size || ''} ${p.motif ? `• ${p.motif}` : ''}`}
+                        {p.category === 'BAN_DALAM' && `${p.product_size || p.size_ratio || ''} | ${p.valve_type || ''}`}
+                      </div>
+                    </div>
+
+                    {/* Bottom Line: Price & Add Button */}
+                    <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[9.5px] text-slate-400 font-semibold uppercase tracking-tight">Harga Satuan</span>
+                        <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono tracking-tight">
+                          {formatRupiah(p.product_price || p.price || 0)}
+                        </span>
+                      </div>
+                      <span className="p-1.5 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-700 group-hover:text-white transition-all shadow-2xs">
+                        <Plus className="w-4 h-4" />
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {catalogTab === 'SERVICES' && filteredServices.map((srv) => (
                 <div
-                  key={p.id}
-                  onClick={() => !isOutOfStock && handleAddToCart(p)}
-                  className={`bg-white border border-slate-200 rounded-2xl p-3.5 flex flex-col justify-between transition-all shadow-xs group ${
-                    isOutOfStock
-                      ? 'opacity-50 cursor-not-allowed'
-                      : 'hover:border-blue-500 hover:shadow-md cursor-pointer active:scale-98'
-                  }`}
+                  key={srv.id}
+                  onClick={() => handleAddServiceToCart(srv)}
+                  className="bg-white border border-slate-200 hover:border-cyan-500 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all shadow-xs hover:shadow-md active:scale-[0.98] group"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                        p.category === 'BAN_BARU'
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                          : p.category === 'VELG'
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : p.category === 'OLI_PELUMAS'
-                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}>
-                        {p.category === 'OLI_PELUMAS' ? 'OLI & PELUMAS' : (p.category || 'BAN_BARU').replace('_', ' ')}
+                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-800 border border-cyan-300 flex items-center gap-1">
+                        <Wrench className="w-3 h-3 text-cyan-700" /> JASA PIT
                       </span>
-                      <span className={`text-[11px] font-bold ${
-                        isOutOfStock ? 'text-rose-700 font-extrabold' : stockQty < 5 ? 'text-amber-700 font-extrabold' : 'text-slate-600'
-                      }`}>
-                        Stok: {stockQty} unit
-                      </span>
+                      <span className="text-[10px] font-mono text-slate-500 font-semibold">{srv.service_code}</span>
                     </div>
 
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
-                      {p.product_name}
+                    <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 group-hover:text-cyan-700 transition-colors line-clamp-2 leading-snug">
+                      {srv.service_name}
                     </h3>
 
-                    <div className="text-xs text-slate-600 mt-1 font-medium">
-                      {p.category === 'BAN_BARU' && `${p.product_size || ''} | ${p.motif || ''}`}
-                      {p.category === 'VELG' && `${p.ring || ''} | PCD ${p.pcd || ''} | ${p.color_finish || ''}`}
-                      {p.category === 'OLI_PELUMAS' && `${p.product_size || ''} • ${p.motif || ''}`}
-                      {p.category === 'BAN_DALAM' && `${p.product_size || p.size_ratio || ''} | ${p.valve_type || ''}`}
-                    </div>
+                    {srv.description && (
+                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{srv.description}</p>
+                    )}
                   </div>
 
-                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono">
-                      {formatRupiah(p.product_price || p.price || 0)}
-                    </span>
-                    <span className="p-1.5 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-700 group-hover:text-white transition-all shadow-2xs">
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[9.5px] text-slate-400 font-semibold uppercase tracking-tight">Tarif Jasa</span>
+                      <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono tracking-tight">
+                        {formatRupiah(srv.standard_price)}
+                      </span>
+                    </div>
+                    <span className="p-1.5 rounded-xl bg-cyan-50 group-hover:bg-cyan-600 text-cyan-700 group-hover:text-white transition-all shadow-2xs">
                       <Plus className="w-4 h-4" />
                     </span>
                   </div>
                 </div>
-              );
-            })}
+              ))}
 
-            {catalogTab === 'SERVICES' && filteredServices.map((srv) => (
-              <div
-                key={srv.id}
-                onClick={() => handleAddServiceToCart(srv)}
-                className="bg-white border border-slate-200 hover:border-cyan-500 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all shadow-xs hover:shadow-md active:scale-98 group"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-800 border border-cyan-300 flex items-center gap-1">
-                      <Wrench className="w-3 h-3 text-cyan-700" /> JASA
-                    </span>
-                    <span className="text-[11px] font-mono text-slate-500 font-semibold">{srv.service_code}</span>
-                  </div>
-
-                  <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-cyan-700 transition-colors line-clamp-2">
-                    {srv.service_name}
-                  </h3>
-
-                  {srv.description && (
-                    <p className="text-xs text-slate-600 mt-1 line-clamp-2">{srv.description}</p>
-                  )}
+              {catalogTab !== 'SERVICES' && filteredProducts.length === 0 && (
+                <div className="col-span-full py-16 text-center text-slate-500">
+                  <Package className="w-12 h-12 mx-auto text-slate-300 mb-2 stroke-[1.5]" />
+                  <p className="font-bold text-slate-700">Tidak ada produk dalam kategori ini</p>
+                  <p className="text-xs text-slate-400 mt-1">Coba pilih tab kategori lain atau sesuaikan filter Ring & kata kunci pencarian Anda.</p>
                 </div>
-
-                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono">
-                    {formatRupiah(srv.standard_price)}
-                  </span>
-                  <span className="p-1.5 rounded-xl bg-cyan-50 group-hover:bg-cyan-600 text-cyan-700 group-hover:text-white transition-all shadow-2xs">
-                    <Plus className="w-4 h-4" />
-                  </span>
-                </div>
-              </div>
-            ))}
-            {catalogTab !== 'SERVICES' && filteredProducts.length === 0 && (
-              <div className="col-span-full py-16 text-center text-slate-500">
-                <Package className="w-12 h-12 mx-auto text-slate-300 mb-2 stroke-[1.5]" />
-                <p className="font-bold text-slate-700">Tidak ada produk dalam kategori ini</p>
-                <p className="text-xs text-slate-400 mt-1">Coba pilih tab kategori lain atau sesuaikan kata kunci pencarian Anda.</p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
