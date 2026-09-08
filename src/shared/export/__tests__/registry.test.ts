@@ -77,3 +77,68 @@ describe('registry pos_sales_history', () => {
     expect(doc.sections[0].totals?.laba).toBe(29900);
   });
 });
+
+describe('registry financial statements', () => {
+  const mockFinancials = {
+    grossSales: 1000000,
+    discounts: 50000,
+    netSales: 950000,
+    totalHpp: 600000,
+    grossProfit: 350000,
+    expenseBreakdown: [{ code: '6-1000', name: 'Gaji', amount: 100000 }],
+    totalExpenses: 100000,
+    netIncome: 250000,
+    kasLaci: 100000,
+    bankBca: 200000,
+    liquidCash: 300000,
+    piutangDagang: 50000,
+    persediaanBuku: 500000,
+    totalCurrentAssets: 850000,
+    peralatanMesin: 1000000,
+    akumulasiPenyusutan: 200000,
+    netFixedAssets: 800000,
+    totalAssets: 1650000,
+    hutangSupplier: 300000,
+    ppnKeluaran: 50000,
+    totalLiabilities: 350000,
+    modalPemilik: 1000000,
+    labaDitahan: 50000,
+    currentNetIncome: 250000,
+    totalEquity: 1300000,
+    totalLiabilitiesAndEquity: 1650000,
+    isBalanceSheetBalanced: true,
+    totalInventoryPhysical: 500000,
+    currentRatio: 2.4,
+    isLiquiditySafe: true,
+  } as never;
+
+  it('laba rugi sections dan diskon negatif', () => {
+    const doc = buildExportDoc('fin_income_statement', mockFinancials, ctx);
+    expect(doc.sections[0].rows.length).toBe(8);
+    expect(doc.sections[0].rows.find((r) => r.label === 'Potongan Diskon')?.value).toBe(-50000);
+  });
+
+  it('sak emkm package memiliki 5 section', () => {
+    const cf = {
+      cashFromSales: 900000,
+      cashFromReceivables: 50000,
+      totalOperatingInflows: 950000,
+      cashPaidForExpenses: 100000,
+      cashPaidForInventory: 500000,
+      totalOperatingOutflows: 600000,
+      netOperatingCashFlow: 350000,
+      cashPaidForFixedAssets: 0,
+      netInvestingCashFlow: 0,
+      cashPaidForPayables: 0,
+      cashFromCapital: 0,
+      netFinancingCashFlow: 0,
+      netCashFlow: 350000,
+      beginningCash: 100000,
+      endingCash: 450000,
+      cashDrawerEnding: 150000,
+      bankBcaEnding: 300000,
+    };
+    const doc = buildExportDoc('sak_emkm_package', { financials: mockFinancials, cashFlow: cf }, ctx);
+    expect(doc.sections.length).toBe(5);
+  });
+});

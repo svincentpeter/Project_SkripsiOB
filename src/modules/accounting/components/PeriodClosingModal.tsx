@@ -3,6 +3,7 @@ import { X, Lock, AlertTriangle, CheckCircle2, DollarSign, ArrowRight, ShieldChe
 import { JournalEntry, AccountingPeriodInfo } from '../../../shared/types';
 import { calculateDynamicSakEmkmFinancials } from '../../../services/accountingService';
 import { formatRupiah } from '../../../shared/utils/formatters';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface PeriodClosingModalProps {
   isOpen: boolean;
@@ -164,6 +165,7 @@ export const PeriodClosingModal: React.FC<PeriodClosingModalProps> = ({
 
           {/* Modal Footer Buttons */}
           <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+            <ExportMenu reportId="period_closing" data={periodInfo} ctx={{ periodLabel: periodInfo.period_name }} />
             <button
               type="button"
               onClick={onClose}

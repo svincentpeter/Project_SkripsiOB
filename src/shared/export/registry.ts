@@ -1,4 +1,6 @@
 import type {
+  AccountingPeriodInfo,
+  CashFlowStatementResult,
   JournalEntry,
   LedgerAccountSummary,
   PayableInvoice,
@@ -6,7 +8,9 @@ import type {
   TrialBalanceResult,
 } from '../types';
 import type { ExpenseRecord, PosTransaction, ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
-import { EXPENSE_CATEGORY_CONFIG } from '../../services/accountingService';
+import { calculateDynamicSakEmkmFinancials, EXPENSE_CATEGORY_CONFIG } from '../../services/accountingService';
+
+type Financials = ReturnType<typeof calculateDynamicSakEmkmFinancials>;
 import { buildKop } from './kop';
 import type { ExportCtx, ExportDoc, ExportFormat, ExportSection } from './types';
 
@@ -382,11 +386,136 @@ const mapDashboard = (d: DashboardInput, ctx: ExportCtx): ExportDoc => {
   ]);
 };
 
-type MapperNotYet = (data: never, ctx: ExportCtx) => ExportDoc;
-const notYet = (id: string): MapperNotYet =>
-  (() => {
-    throw new Error(`Mapper ${id} belum dipasang`);
-  }) as MapperNotYet;
+type LabelValue = { label: string; value: number };
+const lvSection = (title: string, rows: LabelValue[]): ExportSection => ({
+  title,
+  columns: [
+    { key: 'label', label: 'Komponen Akuntansi', type: 'text', width: 48 },
+    { key: 'value', label: 'Nominal (Rp)', type: 'currency' },
+  ],
+  rows: rows.map((r) => ({ label: r.label, value: r.value })),
+});
+
+const incomeSection = (f: Financials): ExportSection =>
+  lvSection('1. LAPORAN LABA RUGI', [
+    { label: 'Penjualan Bruto', value: f.grossSales },
+    { label: 'Potongan Diskon', value: -f.discounts },
+    { label: 'PENJUALAN BERSIH', value: f.netSales },
+    { label: 'Beban Pokok Penjualan (HPP FIFO)', value: -f.totalHpp },
+    { label: 'LABA BRUTO', value: f.grossProfit },
+    ...f.expenseBreakdown.map((e) => ({ label: `Beban Operasional: ${e.code} ${e.name}`, value: -e.amount })),
+    { label: 'TOTAL BEBAN OPERASIONAL', value: -f.totalExpenses },
+    { label: 'LABA NETO PERIODE BERJALAN', value: f.netIncome },
+  ]);
+
+const balanceSection = (f: Financials): ExportSection =>
+  lvSection('2. LAPORAN POSISI KEUANGAN (NERACA)', [
+    { label: 'Aset Lancar - Kas Laci Toko', value: f.kasLaci },
+    { label: 'Aset Lancar - Bank BCA Cabang 3', value: f.bankBca },
+    { label: 'Aset Lancar - Piutang Usaha (AR)', value: f.piutangDagang },
+    { label: 'Aset Lancar - Persediaan Ban Baru', value: f.persediaanBuku },
+    { label: 'TOTAL ASET LANCAR', value: f.totalCurrentAssets },
+    { label: 'Aset Tetap - Mesin Spooring 3D & Peralatan', value: f.peralatanMesin },
+    { label: 'Akumulasi Penyusutan', value: -f.akumulasiPenyusutan },
+    { label: 'NILAI BUKU ASET TETAP', value: f.netFixedAssets },
+    { label: 'TOTAL ASET', value: f.totalAssets },
+    { label: 'Liabilitas - Hutang Dagang Supplier (AP)', value: f.hutangSupplier },
+    { label: 'Liabilitas - PPN Keluaran', value: f.ppnKeluaran },
+    { label: 'TOTAL LIABILITAS', value: f.totalLiabilities },
+    { label: 'Ekuitas - Modal Disetor Pemilik', value: f.modalPemilik },
+    { label: 'Ekuitas - Laba Ditahan', value: f.labaDitahan },
+    { label: 'Ekuitas - Laba Periode Berjalan', value: f.currentNetIncome },
+    { label: 'TOTAL EKUITAS', value: f.totalEquity },
+    { label: 'TOTAL LIABILITAS & EKUITAS', value: f.totalLiabilitiesAndEquity },
+  ]);
+
+const equitySection = (f: Financials): ExportSection =>
+  lvSection('3. LAPORAN PERUBAHAN MODAL', [
+    { label: 'Modal Disetor Pemilik', value: f.modalPemilik },
+    { label: 'Laba Ditahan', value: f.labaDitahan },
+    { label: 'Laba Periode Berjalan', value: f.currentNetIncome },
+    { label: 'TOTAL EKUITAS', value: f.totalEquity },
+  ]);
+
+const cashFlowSection = (cf: CashFlowStatementResult): ExportSection =>
+  lvSection('4. LAPORAN ARUS KAS', [
+    { label: 'Kas Masuk dari Penjualan', value: cf.cashFromSales },
+    { label: 'Kas Masuk dari Piutang', value: cf.cashFromReceivables },
+    { label: 'Total Arus Kas Masuk Operasional', value: cf.totalOperatingInflows },
+    { label: 'Kas Dibayar untuk Beban', value: -cf.cashPaidForExpenses },
+    { label: 'Kas Dibayar untuk Persediaan', value: -cf.cashPaidForInventory },
+    { label: 'Total Arus Kas Keluar Operasional', value: -cf.totalOperatingOutflows },
+    { label: 'ARUS KAS OPERASIONAL', value: cf.netOperatingCashFlow },
+    { label: 'Kas Dibayar untuk Aset Tetap', value: -cf.cashPaidForFixedAssets },
+    { label: 'ARUS KAS INVESTASI', value: cf.netInvestingCashFlow },
+    { label: 'Kas Dibayar untuk Hutang', value: -cf.cashPaidForPayables },
+    { label: 'Kas dari Modal', value: cf.cashFromCapital },
+    { label: 'ARUS KAS PENDANAAN', value: cf.netFinancingCashFlow },
+    { label: 'KENAIKAN (PENURUNAN) KAS BERSIH', value: cf.netCashFlow },
+    { label: 'Saldo Kas Awal', value: cf.beginningCash },
+    { label: 'Saldo Kas Akhir', value: cf.endingCash },
+    { label: 'Rincian: Kas Laci Akhir', value: cf.cashDrawerEnding },
+    { label: 'Rincian: Bank BCA Akhir', value: cf.bankBcaEnding },
+  ]);
+
+const calkSection = (f: Financials): ExportSection => ({
+  title: '5. CATATAN ATAS LAPORAN KEUANGAN (CALK)',
+  columns: [{ key: 'uraian', label: 'Uraian', type: 'text', width: 110 }],
+  rows: [
+    'Laporan disusun berdasarkan SAK EMKM dengan basis akrual.',
+    'Persediaan dinilai dengan metode FIFO (First-In, First-Out).',
+    'Aset tetap disusutkan dengan metode garis lurus.',
+    `Pendapatan usaha periode berjalan: Rp ${f.netSales}.`,
+    `Laba neto periode berjalan: Rp ${f.netIncome}.`,
+    `Total aset: Rp ${f.totalAssets}; seimbang dengan total liabilitas & ekuitas: Rp ${f.totalLiabilitiesAndEquity}.`,
+    `Likuiditas (aset lancar / liabilitas): ${f.currentRatio.toFixed(2)}.`,
+  ].map((t) => ({ uraian: t })),
+});
+
+const mapIncome = (f: Financials, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_income_statement', 'Laporan Laba Rugi', 'portrait', ctx, [incomeSection(f)]);
+
+const mapBalance = (f: Financials, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_balance_sheet', 'Laporan Posisi Keuangan', 'portrait', ctx, [balanceSection(f)]);
+
+const mapEquity = (f: Financials, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_equity_statement', 'Laporan Perubahan Modal', 'portrait', ctx, [equitySection(f)]);
+
+const mapCashFlow = (cf: CashFlowStatementResult, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_cash_flow', 'Laporan Arus Kas', 'portrait', ctx, [cashFlowSection(cf)]);
+
+const mapCalk = (f: Financials, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_calk', 'CALK', 'portrait', ctx, [calkSection(f)]);
+
+export interface SakEmkmPackageInput {
+  financials: Financials;
+  cashFlow: CashFlowStatementResult;
+}
+
+const mapSakPackage = (d: SakEmkmPackageInput, ctx: ExportCtx): ExportDoc =>
+  makeDoc('sak_emkm_package', 'Paket Laporan Keuangan SAK EMKM', 'portrait', ctx, [
+    incomeSection(d.financials),
+    balanceSection(d.financials),
+    equitySection(d.financials),
+    cashFlowSection(d.cashFlow),
+    calkSection(d.financials),
+  ]);
+
+const mapPeriodClosing = (p: AccountingPeriodInfo, ctx: ExportCtx): ExportDoc =>
+  makeDoc('period_closing', 'Penutupan Periode Akuntansi', 'portrait', ctx, [{
+    columns: [
+      { key: 'label', label: 'Keterangan', type: 'text', width: 34 },
+      { key: 'value', label: 'Nilai', type: 'text', width: 26 },
+    ],
+    rows: [
+      { label: 'Periode', value: p.period_name },
+      { label: 'Status', value: p.status },
+      { label: 'Ditutup Pada', value: p.closed_at ?? '-' },
+      { label: 'Ditutup Oleh', value: p.closed_by ?? '-' },
+      { label: 'No Jurnal Penutup', value: p.closing_journal_id ?? '-' },
+      { label: 'Laba Dipindahkan ke Laba Ditahan', value: `Rp ${p.net_income_transferred ?? 0}` },
+    ],
+  }]);
 
 export const REPORT_MAPPERS = {
   journal: mapJournal,
@@ -403,13 +532,13 @@ export const REPORT_MAPPERS = {
   goods_receipts: mapGoodsReceipts,
   pos_sales_history: mapPosHistory,
   dashboard_summary: mapDashboard,
-  fin_income_statement: notYet('fin_income_statement'),
-  fin_equity_statement: notYet('fin_equity_statement'),
-  fin_balance_sheet: notYet('fin_balance_sheet'),
-  fin_cash_flow: notYet('fin_cash_flow'),
-  fin_calk: notYet('fin_calk'),
-  sak_emkm_package: notYet('sak_emkm_package'),
-  period_closing: notYet('period_closing'),
+  fin_income_statement: mapIncome,
+  fin_equity_statement: mapEquity,
+  fin_balance_sheet: mapBalance,
+  fin_cash_flow: mapCashFlow,
+  fin_calk: mapCalk,
+  sak_emkm_package: mapSakPackage,
+  period_closing: mapPeriodClosing,
 } as const;
 
 export type ReportId = keyof typeof REPORT_MAPPERS;

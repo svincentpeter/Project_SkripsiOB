@@ -1,25 +1,25 @@
 import React, { useState } from 'react';
 import { 
   Printer, 
-  Download, 
   Calendar, 
   TrendingUp, 
   Scale, 
   Building2, 
   CheckCircle2, 
-  AlertCircle,
-  HelpCircle,
-  FileSpreadsheet,
-  Banknote,
-  ShieldCheck,
-  Wallet,
-  Sparkles
+  AlertCircle, 
+  HelpCircle, 
+  FileSpreadsheet, 
+  Banknote, 
+  ShieldCheck, 
+  Wallet, 
+  Sparkles 
 } from 'lucide-react';
 import { JournalEntry, TireProduct } from '../../../shared/types';
 import { calculateDynamicSakEmkmFinancials, calculateCashFlowStatement } from '../../../services/accountingService';
 import { formatRupiah } from '../../../shared/utils/formatters';
 import { CashFlowStatementTab } from './CashFlowStatementTab';
 import { FinancialStatementsPrintModal } from './FinancialStatementsPrintModal';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface SakEmkmReportTabProps {
   journals: JournalEntry[];
@@ -71,63 +71,6 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
     effectiveStartDate, 
     effectiveEndDate
   );
-
-  // Export Financials to CSV
-  const handleExportCsv = () => {
-    let csv = `LAPORAN KEUANGAN EKSEKUTIF SAK EMKM OMAH BAN CABANG 3\nPeriode: ${periodLabel}\n\n`;
-    csv += '=== 1. LAPORAN LABA RUGI ===\n';
-    csv += 'Komponen Akuntansi,Nominal (Rp)\n';
-    csv += `Penjualan Bruto Ban Baru,${financials.grossSales}\n`;
-    csv += `Potongan Penjualan (Diskon),-${financials.discounts}\n`;
-    csv += `PENJUALAN BERSIH,${financials.netSales}\n`;
-    csv += `Beban Pokok Penjualan (HPP FIFO),-${financials.totalHpp}\n`;
-    csv += `LABA BRUTO (GROSS PROFIT),${financials.grossProfit}\n\n`;
-
-    csv += 'Rincian Beban Operasional Usaha:\n';
-    financials.expenseBreakdown.forEach((exp: any) => {
-      csv += `"${exp.code} - ${exp.name}",${exp.amount}\n`;
-    });
-    csv += `TOTAL BEBAN OPERASIONAL,${financials.totalExpenses}\n`;
-    csv += `LABA NETO PERIODE BERJALAN,${financials.netIncome}\n\n`;
-
-    csv += '=== 2. LAPORAN POSISI KEUANGAN (NERACA) ===\n';
-    csv += 'Komponen Neraca,Nominal (Rp)\n';
-    csv += `Aset Lancar - Kas Laci Toko,${financials.kasLaci}\n`;
-    csv += `Aset Lancar - Bank BCA Cabang 3,${financials.bankBca}\n`;
-    csv += `Aset Lancar - Piutang Usaha (AR),${financials.piutangDagang}\n`;
-    csv += `Aset Lancar - Persediaan Ban Baru,${financials.persediaanBuku}\n`;
-    csv += `TOTAL ASET LANCAR,${financials.totalCurrentAssets}\n`;
-    csv += `Aset Tetap - Mesin Spooring 3D & Peralatan,${financials.peralatanMesin}\n`;
-    csv += `Akumulasi Penyusutan Mesin Bengkel,-${financials.akumulasiPenyusutan}\n`;
-    csv += `NILAI BUKU ASET TETAP,${financials.netFixedAssets}\n`;
-    csv += `TOTAL ASET,${financials.totalAssets}\n\n`;
-
-    csv += `Liabilitas - Hutang Dagang Supplier (AP),${financials.hutangSupplier}\n`;
-    csv += `Liabilitas - PPN Keluaran,${financials.ppnKeluaran}\n`;
-    csv += `TOTAL LIABILITAS,${financials.totalLiabilities}\n`;
-    csv += `Ekuitas - Modal Disetor Pemilik,${financials.modalPemilik}\n`;
-    csv += `Ekuitas - Laba Ditahan,${financials.labaDitahan}\n`;
-    csv += `Ekuitas - Laba Periode Berjalan,${financials.currentNetIncome}\n`;
-    csv += `TOTAL EKUITAS,${financials.totalEquity}\n`;
-    csv += `TOTAL LIABILITAS & EKUITAS,${financials.totalLiabilitiesAndEquity}\n\n`;
-
-    csv += '=== 3. LAPORAN ARUS KAS RINGKAS ===\n';
-    csv += `Arus Kas Operasional,${cashFlow.netOperatingCashFlow}\n`;
-    csv += `Arus Kas Investasi,${cashFlow.netInvestingCashFlow}\n`;
-    csv += `Arus Kas Pendanaan,${cashFlow.netFinancingCashFlow}\n`;
-    csv += `Kenaikan Kas Bersih,${cashFlow.netCashFlow}\n`;
-    csv += `Saldo Kas Awal,${cashFlow.beginningCash}\n`;
-    csv += `Saldo Kas Akhir,${cashFlow.endingCash}\n`;
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `Laporan_Keuangan_Eksekutif_OB3_${periodLabel.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
@@ -255,13 +198,32 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
             </button>
           </div>
 
-          <button
-            onClick={handleExportCsv}
-            className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Ekspor CSV</span>
-          </button>
+          {activeReportSubTab === 'income' && (
+            <ExportMenu
+              reportId="fin_income_statement"
+              data={financials}
+              ctx={{ periodLabel, startDate: effectiveStartDate, endDate: effectiveEndDate }}
+            />
+          )}
+          {activeReportSubTab === 'balance' && (
+            <ExportMenu
+              reportId="fin_balance_sheet"
+              data={financials}
+              ctx={{ periodLabel, startDate: effectiveStartDate, endDate: effectiveEndDate }}
+            />
+          )}
+          {activeReportSubTab === 'cashflow' && (
+            <ExportMenu
+              reportId="fin_cash_flow"
+              data={cashFlow}
+              ctx={{ periodLabel, startDate: effectiveStartDate, endDate: effectiveEndDate }}
+            />
+          )}
+          <ExportMenu
+            reportId="sak_emkm_package"
+            data={{ financials, cashFlow }}
+            ctx={{ periodLabel, startDate: effectiveStartDate, endDate: effectiveEndDate }}
+          />
 
           <button
             onClick={() => setIsPrintModalOpen(true)}

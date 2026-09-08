@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { CashFlowStatementResult } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
+import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface CashFlowStatementTabProps {
   cashFlow: CashFlowStatementResult;
@@ -26,6 +27,14 @@ export const CashFlowStatementTab: React.FC<CashFlowStatementTabProps> = ({
 
   return (
     <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-200 p-3.5 sm:p-4 rounded-xl shadow-xs">
+        <div>
+          <h3 className="font-extrabold text-sm text-slate-900">Laporan Arus Kas (Cash Flow)</h3>
+          <p className="text-[11px] text-slate-500">Standar SAK EMKM • {periodLabel}</p>
+        </div>
+        <ExportMenu reportId="fin_cash_flow" data={cashFlow} ctx={{ periodLabel }} />
+      </div>
+
       {/* 4 Quick Executive Cash KPI Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5">
