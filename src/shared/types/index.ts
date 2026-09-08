@@ -177,7 +177,22 @@ export type PaymentMethod =
   | 'QRIS'
   | 'EDC'
   | 'EDC_DEBIT'
-  | 'EDC_CREDIT';
+  | 'EDC_CREDIT'
+  | 'SPLIT';
+
+export interface SplitPaymentLine {
+  id: string;
+  method: PaymentMethod;
+  amount: number;
+  provider_name?: string;
+  edc_bank?: string;
+  edc_type?: 'Debit' | 'Credit';
+  fee_percentage?: number;
+  fee_amount?: number;
+  surcharge_amount?: number;
+  net_received?: number;
+  note?: string;
+}
 
 export interface PosTransaction {
   id: string;
@@ -187,7 +202,8 @@ export interface PosTransaction {
   timestamp: string;
   cashier_name: string;
   customer_name: string;
-  vehicle_plate: string; // Plat nomor dan jenis kendaraan
+  vehicle_plate: string; // Plat nomor
+  vehicle_model?: string; // Jenis/tipe kendaraan
   items: CartItem[];
   subtotal: number;
   gross_sales_amount: number;
@@ -203,6 +219,7 @@ export interface PosTransaction {
   gross_profit: number; // Omzet - HPP
   total_profit: number;
   payment_method: PaymentMethod;
+  split_payments?: SplitPaymentLine[];
   amount_paid: number;
   paid_amount: number;
   change_amount: number;

@@ -180,19 +180,28 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
   const getWaFormattedText = () => {
     if (!activeTx) return '';
     const isVoid = activeTx.status === 'VOID' || activeTx.is_voided;
+    const customerLine = activeTx.customer_name?.trim() ? `Pelanggan   : ${activeTx.customer_name.trim()}\n` : '';
+    const vehicleParts = [activeTx.vehicle_plate, activeTx.vehicle_model].filter(Boolean).map(s => s!.trim()).filter(Boolean);
+    const vehicleLine = vehicleParts.length > 0 ? `Kendaraan   : ${vehicleParts.join(' - ')}\n` : '';
+
+    let paymentMethodLine = '';
+    if (activeTx.split_payments && activeTx.split_payments.length > 0) {
+      paymentMethodLine = `Metode Bayar: MULTI-PAYMENT (SPLIT) ${isVoid ? '(DIBATALKAN)' : '(LUNAS)'}\n` +
+        activeTx.split_payments.map(sp => `  • ${sp.method.replace('_', ' ')}${sp.provider_name ? ` (${sp.provider_name})` : ''}${sp.edc_bank ? ` (${sp.edc_bank} - ${sp.edc_type || 'Debit'})` : ''}: ${formatRupiah(sp.amount)}`).join('\n');
+    } else {
+      paymentMethodLine = `Metode Bayar: ${activeTx.payment_method.replace('_', ' ')}${activeTx.payment_provider ? ` (${activeTx.payment_provider})` : ''}${activeTx.edc_bank ? ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})` : ''} ${isVoid ? '(DIBATALKAN)' : '(LUNAS)'}`;
+    }
+
     return `*OMAH BAN CABANG 3 - MAGELANG*
 Pusat Penjualan Ban Baru, Velg & Spooring 3D
 ${addressText}
 ${phoneText}
 ---------------------------------------
-${isVoid ? '⚠️ *PERHATIAN: NOTA INI TELAH DIBATALKAN (VOID)*\n---------------------------------------' : ''}
-*STRUK TRANSAKSI PENJUALAN BAN*
+${isVoid ? '⚠️ *PERHATIAN: NOTA INI TELAH DIBATALKAN (VOID)*\n---------------------------------------' : ''}*STRUK TRANSAKSI PENJUALAN BAN*
 No. Nota    : ${activeTx.invoice_number}
 Tanggal     : ${activeTx.timestamp || activeTx.date}
 Kasir       : ${activeTx.cashier_name}
-Pelanggan   : ${activeTx.customer_name}
-Kendaraan   : ${activeTx.vehicle_plate}
----------------------------------------
+${customerLine}${vehicleLine}---------------------------------------
 *RINCIAN PRODUK & JASA:*
 ${activeTx.items
   .map(
@@ -208,7 +217,7 @@ Subtotal    : ${formatRupiah(activeTx.subtotal)}
 ${activeTx.total_discount > 0 ? `Diskon      : -${formatRupiah(activeTx.total_discount)}\n` : ''}${
   activeTx.tax_amount > 0 ? `PPN 11%     : ${formatRupiah(activeTx.tax_amount)}\n` : ''
 }${activeTx.surcharge_amount && activeTx.surcharge_amount > 0 ? `Surcharge   : +${formatRupiah(activeTx.surcharge_amount)} (${activeTx.fee_percentage}%)\n` : ''}*GRAND TOTAL*: *${formatRupiah(activeTx.grand_total)}*
-Metode Bayar: ${activeTx.payment_method.replace('_', ' ')}${activeTx.payment_provider ? ` (${activeTx.payment_provider})` : ''}${activeTx.edc_bank ? ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})` : ''} ${isVoid ? '(DIBATALKAN)' : '(LUNAS)'}
+${paymentMethodLine}
 ---------------------------------------
 ★ *KEBIJAKAN GARANSI OMAH BAN:*
 ${warrantyText}
@@ -515,10 +524,14 @@ ${footerTitle}`;
                     {/* Middle Row: Customer & Vehicle */}
                     <div className="flex items-center gap-1.5 text-slate-700 text-[11px] font-medium truncate mb-1">
                       <User className="w-3 h-3 text-slate-400 shrink-0" />
-                      <span className="truncate">{tx.customer_name || 'Pelanggan Umum'}</span>
-                      <span className="text-slate-300">•</span>
-                      <Car className="w-3 h-3 text-slate-400 shrink-0" />
-                      <span className="font-semibold text-slate-800">{tx.vehicle_plate || 'Tanpa Plat'}</span>
+                      <span className="truncate">{tx.customer_name?.trim() || 'Pelanggan Umum'}</span>
+                      {tx.vehicle_plate?.trim() && (
+                        <>
+                          <span className="text-slate-300">•</span>
+                          <Car className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="font-semibold text-slate-800 font-mono">{tx.vehicle_plate.trim()}</span>
+                        </>
+                      )}
                     </div>
 
                     {/* Bottom Row: Amount & Payment / Time */}
@@ -735,14 +748,20 @@ ${footerTitle}`;
                       <span className="text-slate-600">Kasir:</span>
                       <span className="text-black">{activeTx.cashier_name}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Pelanggan:</span>
-                      <span className="font-semibold text-black">{activeTx.customer_name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Kendaraan:</span>
-                      <span className="font-bold text-black">{activeTx.vehicle_plate}</span>
-                    </div>
+                    {activeTx.customer_name?.trim() && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Pelanggan:</span>
+                        <span className="font-semibold text-black">{activeTx.customer_name.trim()}</span>
+                      </div>
+                    )}
+                    {((activeTx.vehicle_plate && activeTx.vehicle_plate.trim()) || (activeTx.vehicle_model && activeTx.vehicle_model.trim())) && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Kendaraan:</span>
+                        <span className="font-bold text-black">
+                          {[activeTx.vehicle_plate, activeTx.vehicle_model].filter(Boolean).map((s) => s!.trim()).filter(Boolean).join(' - ')}
+                        </span>
+                      </div>
+                    )}
                     {isCurrentVoid && (
                       <div className="flex justify-between text-red-600 font-bold pt-0.5">
                         <span>Status:</span>
@@ -819,14 +838,31 @@ ${footerTitle}`;
                       </span>
                     </div>
 
-                    <div className="flex justify-between text-[10px] text-slate-700 pt-1">
-                      <span>Metode Bayar:</span>
-                      <span className="font-bold uppercase">
-                        {activeTx.payment_method.replace('_', ' ')}
-                        {activeTx.payment_provider && ` (${activeTx.payment_provider})`}
-                        {activeTx.edc_bank && ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})`}
-                      </span>
-                    </div>
+                    {activeTx.split_payments && activeTx.split_payments.length > 0 ? (
+                      <div className="py-1 border-t border-dashed border-slate-300 text-[10px] text-slate-700">
+                        <div className="flex justify-between font-bold text-black mb-0.5">
+                          <span>Metode Bayar:</span>
+                          <span>MULTI-PAYMENT (SPLIT)</span>
+                        </div>
+                        <div className="space-y-0.5 pl-1.5 pt-0.5 text-[9.5px]">
+                          {activeTx.split_payments.map((sp, idx) => (
+                            <div key={idx} className="flex justify-between text-slate-700">
+                              <span>• {sp.method.replace('_', ' ')}{sp.provider_name ? ` (${sp.provider_name})` : ''}{sp.edc_bank ? ` (${sp.edc_bank} - ${sp.edc_type || 'Debit'})` : ''}:</span>
+                              <span className="font-mono font-bold text-black">{formatRupiah(sp.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-[10px] text-slate-700 pt-1">
+                        <span>Metode Bayar:</span>
+                        <span className="font-bold uppercase">
+                          {activeTx.payment_method.replace('_', ' ')}
+                          {activeTx.payment_provider && ` (${activeTx.payment_provider})`}
+                          {activeTx.edc_bank && ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})`}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="flex justify-between text-[10px] text-slate-700">
                       <span>Uang Diterima:</span>
@@ -955,21 +991,35 @@ ${footerTitle}`;
 
                     {/* Right Column */}
                     <div className="space-y-1.5">
-                      <div className="flex">
-                        <span className="w-24 text-slate-500 text-[11px]">Nama Pelanggan:</span>
-                        <span className="font-bold text-slate-900 text-[11px]">{activeTx.customer_name}</span>
-                      </div>
-                      <div className="flex">
-                        <span className="w-24 text-slate-500 text-[11px]">No. Kendaraan:</span>
-                        <span className="font-bold text-blue-900 text-[11px]">{activeTx.vehicle_plate}</span>
-                      </div>
+                      {activeTx.customer_name?.trim() && (
+                        <div className="flex">
+                          <span className="w-24 text-slate-500 text-[11px]">Nama Pelanggan:</span>
+                          <span className="font-bold text-slate-900 text-[11px]">{activeTx.customer_name.trim()}</span>
+                        </div>
+                      )}
+                      {((activeTx.vehicle_plate && activeTx.vehicle_plate.trim()) || (activeTx.vehicle_model && activeTx.vehicle_model.trim())) && (
+                        <div className="flex">
+                          <span className="w-24 text-slate-500 text-[11px]">No. Kendaraan:</span>
+                          <span className="font-bold text-blue-900 text-[11px]">
+                            {[activeTx.vehicle_plate, activeTx.vehicle_model].filter(Boolean).map((s) => s!.trim()).filter(Boolean).join(' - ')}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex">
                         <span className="w-24 text-slate-500 text-[11px]">Metode Bayar:</span>
                         <span className="font-semibold text-slate-800 text-[11px]">
-                          {activeTx.payment_method.replace('_', ' ')}
-                          {activeTx.payment_provider && ` (${activeTx.payment_provider})`}
-                          {activeTx.edc_bank && ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})`}
-                          {activeTx.payment_reference && ` (Ref: ${activeTx.payment_reference})`}
+                          {activeTx.split_payments && activeTx.split_payments.length > 0 ? (
+                            <span>
+                              Split ({activeTx.split_payments.map((sp) => `${sp.method.replace('_', ' ')}: ${formatRupiah(sp.amount)}`).join(', ')})
+                            </span>
+                          ) : (
+                            <>
+                              {activeTx.payment_method.replace('_', ' ')}
+                              {activeTx.payment_provider && ` (${activeTx.payment_provider})`}
+                              {activeTx.edc_bank && ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})`}
+                              {activeTx.payment_reference && ` (Ref: ${activeTx.payment_reference})`}
+                            </>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -1090,7 +1140,9 @@ ${footerTitle}`;
                       <p className="font-semibold text-slate-700 text-[11px]">Pelanggan / Penanggung Jawab,</p>
                       <div className="space-y-0.5">
                         <div className="w-36 mx-auto border-b border-slate-400" />
-                        <p className="font-bold text-slate-900 text-[10.5px]">{activeTx.customer_name}</p>
+                        <p className="font-bold text-slate-900 text-[10.5px]">
+                          {activeTx.customer_name?.trim() || 'Pelanggan'}
+                        </p>
                       </div>
                     </div>
 
@@ -1185,7 +1237,10 @@ ${footerTitle}`;
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Pelanggan:</span>
-                <span className="font-semibold text-slate-800">{activeTx.customer_name} ({activeTx.vehicle_plate})</span>
+                <span className="font-semibold text-slate-800">
+                  {activeTx.customer_name?.trim() || 'Pelanggan Umum'}
+                  {activeTx.vehicle_plate?.trim() ? ` (${activeTx.vehicle_plate.trim()})` : ''}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Total Transaksi:</span>
@@ -1252,7 +1307,7 @@ ${footerTitle}`;
                     Kirim Nota via WhatsApp
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Nota {activeTx.invoice_number} • {activeTx.customer_name}
+                    Nota {activeTx.invoice_number}{activeTx.customer_name?.trim() ? ` • ${activeTx.customer_name.trim()}` : ''}
                   </p>
                 </div>
               </div>

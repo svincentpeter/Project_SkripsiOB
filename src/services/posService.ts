@@ -75,8 +75,9 @@ export const createPosTransactionRecord = (
     invoice_number: invoiceNo,
     date: dateStr,
     timestamp: timeStr,
-    customer_name: customerName || 'Pelanggan Umum',
-    vehicle_plate: vehiclePlate || 'B 1984 SKZ',
+    customer_name: customerName ? customerName.trim() : '',
+    vehicle_plate: vehiclePlate ? vehiclePlate.trim() : '',
+    vehicle_model: vehicleModel ? vehicleModel.trim() : undefined,
     cashier_name: cashierName,
     items: cart.map((item) => ({
       item_type: item.item_type || 'PRODUCT',

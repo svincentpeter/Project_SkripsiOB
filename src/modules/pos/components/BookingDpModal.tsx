@@ -43,10 +43,10 @@ export const BookingDpModal: React.FC<BookingDpModalProps> = ({
   onClose,
   onSaveBooking,
 }) => {
-  const [customerName, setCustomerName] = useState(defaultCustomerName || 'Pelanggan Umum');
+  const [customerName, setCustomerName] = useState(defaultCustomerName || '');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [vehiclePlate, setVehiclePlate] = useState(defaultVehiclePlate || 'B 1984 SKZ');
-  const [vehicleModel, setVehicleModel] = useState(defaultVehicleModel || 'Avanza');
+  const [vehiclePlate, setVehiclePlate] = useState(defaultVehiclePlate || '');
+  const [vehicleModel, setVehicleModel] = useState(defaultVehicleModel || '');
   const [dpAmount, setDpAmount] = useState<number>(500000);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TRANSFER_BCA');
   const [notes, setNotes] = useState('');
@@ -132,7 +132,8 @@ export const BookingDpModal: React.FC<BookingDpModalProps> = ({
                 type="text"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 text-xs sm:text-sm font-semibold shadow-2xs focus:border-purple-500 focus:outline-none"
+                placeholder="Contoh: Pak Budi / PT Maju Jaya"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 text-xs sm:text-sm font-semibold shadow-2xs focus:border-purple-500 focus:outline-none placeholder:text-slate-400"
               />
             </div>
             <div>
@@ -144,7 +145,7 @@ export const BookingDpModal: React.FC<BookingDpModalProps> = ({
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder="08xxxxxxxxxx"
-                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 text-xs sm:text-sm font-semibold shadow-2xs focus:border-purple-500 focus:outline-none"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 text-xs sm:text-sm font-semibold shadow-2xs focus:border-purple-500 focus:outline-none placeholder:text-slate-400"
               />
             </div>
           </div>
@@ -158,7 +159,8 @@ export const BookingDpModal: React.FC<BookingDpModalProps> = ({
                 type="text"
                 value={vehiclePlate}
                 onChange={(e) => setVehiclePlate(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 font-mono text-xs sm:text-sm font-bold shadow-2xs focus:border-purple-500 focus:outline-none"
+                placeholder="Contoh: AA 1234 XY (Opsional)"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 font-mono text-xs sm:text-sm font-bold shadow-2xs focus:border-purple-500 focus:outline-none placeholder:text-slate-400 placeholder:font-sans placeholder:font-normal"
               />
             </div>
             <div>
@@ -169,7 +171,8 @@ export const BookingDpModal: React.FC<BookingDpModalProps> = ({
                 type="text"
                 value={vehicleModel}
                 onChange={(e) => setVehicleModel(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 text-xs sm:text-sm shadow-2xs focus:border-purple-500 focus:outline-none"
+                placeholder="Contoh: Avanza / Innova (Opsional)"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-slate-900 text-xs sm:text-sm shadow-2xs focus:border-purple-500 focus:outline-none placeholder:text-slate-400"
               />
             </div>
           </div>

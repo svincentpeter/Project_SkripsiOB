@@ -13,8 +13,11 @@ import {
   User,
   Tag,
   Landmark,
+  Plus,
+  Trash2,
+  Layers,
 } from 'lucide-react';
-import { CartItem, PaymentMethod, StoreSettings } from '../../../shared/types';
+import { CartItem, PaymentMethod, StoreSettings, SplitPaymentLine } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
 import { INITIAL_BANK_PROVIDERS, INITIAL_QRIS_PROVIDERS, INITIAL_EDC_SETTINGS } from '../../../shared/data/mockData';
 
@@ -49,6 +52,7 @@ interface CheckoutModalProps {
       fee_amount?: number;
       surcharge_amount?: number;
       net_received?: number;
+      split_payments?: SplitPaymentLine[];
     }
   ) => void;
 }
@@ -78,10 +82,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [cashTenderedInput, setCashTenderedInput] = useState<string>('');
   const [transactionNotes, setTransactionNotes] = useState<string>('');
 
+  // Split Payment State
+  const [isSplitMode, setIsSplitMode] = useState<boolean>(false);
+  const [splitRows, setSplitRows] = useState<SplitPaymentLine[]>([]);
+
   const bankOptions = (storeSettings?.bank_providers || INITIAL_BANK_PROVIDERS).filter((b) => b.is_active);
   const qrisOptions = (storeSettings?.qris_providers || INITIAL_QRIS_PROVIDERS).filter((q) => q.is_active);
   const edcOptions = (storeSettings?.edc_settings || INITIAL_EDC_SETTINGS).filter((e) => e.is_active);
-  const edcBanks = Array.from(new Set(edcOptions.map((e) => e.bank_name)));
+  const edcBanks: string[] = Array.from(new Set(edcOptions.map((e) => e.bank_name)));
 
   useEffect(() => {
     if (bankOptions.length > 0 && !bankOptions.some((b) => b.provider_name === selectedBank)) {
@@ -122,9 +130,59 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const effectivePayable = isEdcCredit ? netPayable + edcCreditSurcharge : netPayable;
 
+  // Helper calculation for individual split line
+  const calculateRowMeta = (row: SplitPaymentLine) => {
+    let feePct = 0;
+    let feeAmt = 0;
+    let surchargeAmt = 0;
+
+    if (row.method === 'QRIS') {
+      const qSetting = qrisOptions.find((q) => q.provider_name === row.provider_name) || qrisOptions[0];
+      feePct = qSetting?.fee_percentage ?? 0.30;
+      const th = qSetting?.fee_threshold_amount ?? 500000;
+      if (row.amount > th && feePct > 0) {
+        feeAmt = Math.round(row.amount * (feePct / 100));
+      }
+    } else if (row.method === 'EDC' || row.method === 'EDC_DEBIT') {
+      const eSetting = edcOptions.find((e) => e.bank_name === (row.edc_bank || selectedEdcBank) && e.payment_type === 'Debit');
+      feePct = eSetting?.fee_percentage ?? 0;
+      if (feePct > 0) {
+        feeAmt = Math.round(row.amount * (feePct / 100));
+      }
+    } else if (row.method === 'EDC_CREDIT') {
+      const eSetting = edcOptions.find((e) => e.bank_name === (row.edc_bank || selectedEdcBank) && e.payment_type === 'Credit');
+      feePct = eSetting?.fee_percentage ?? 0;
+      if (feePct > 0) {
+        surchargeAmt = Math.round(row.amount * (feePct / 100));
+      }
+    }
+
+    const netRec = Math.max(0, row.amount - feeAmt);
+    return { feePct, feeAmt, surchargeAmt, netRec };
+  };
+
+  // Split calculations
+  const totalSplitPaid = splitRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const splitRemaining = Math.max(0, effectivePayable - totalSplitPaid);
+  const splitCashTotal = splitRows
+    .filter((r) => r.method === 'TUNAI')
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const splitChange =
+    totalSplitPaid > effectivePayable && splitCashTotal > 0
+      ? Math.min(splitCashTotal, totalSplitPaid - effectivePayable)
+      : 0;
+
+  const totalSplitFees = splitRows.reduce((sum, r) => sum + calculateRowMeta(r).feeAmt, 0);
+  const totalSplitSurcharges = splitRows.reduce((sum, r) => sum + calculateRowMeta(r).surchargeAmt, 0);
+  const totalSplitNetReceived = Math.max(0, totalSplitPaid - totalSplitFees);
+
+  const isSplitShort = tag === 'REGULAR' && totalSplitPaid < effectivePayable;
+
   useEffect(() => {
     if (isOpen) {
       setTag(initialTag);
+      setIsSplitMode(false);
+      setSplitRows([]);
       if (initialTag === 'REGULAR') {
         setCashTenderedInput(String(effectivePayable));
       } else {
@@ -155,8 +213,102 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setCashTenderedInput(String(current + amount));
   };
 
+  // Quick split actions
+  const handleSplit5050 = () => {
+    const half1 = Math.floor(effectivePayable / 2);
+    const half2 = effectivePayable - half1;
+    setSplitRows([
+      {
+        id: `split-${Date.now()}-1`,
+        method: 'TUNAI',
+        amount: half1,
+      },
+      {
+        id: `split-${Date.now()}-2`,
+        method: 'TRANSFER',
+        provider_name: selectedBank || bankOptions[0]?.provider_name || 'BCA',
+        amount: half2,
+      },
+    ]);
+    setIsSplitMode(true);
+  };
+
+  const handleAddSplitRow = (targetMethod: PaymentMethod = 'TRANSFER') => {
+    const currentPaid = splitRows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    const remainder = Math.max(0, effectivePayable - currentPaid);
+
+    const newRow: SplitPaymentLine = {
+      id: `split-${Date.now()}-${splitRows.length + 1}`,
+      method: targetMethod,
+      amount: remainder,
+      provider_name: targetMethod === 'TRANSFER' || targetMethod === 'TRANSFER_BCA'
+        ? (selectedBank || bankOptions[0]?.provider_name || 'BCA')
+        : targetMethod === 'QRIS'
+        ? (selectedQris || qrisOptions[0]?.provider_name || 'BCA')
+        : undefined,
+      edc_bank: (targetMethod === 'EDC' || targetMethod === 'EDC_DEBIT' || targetMethod === 'EDC_CREDIT')
+        ? (selectedEdcBank || edcBanks[0] || 'BCA')
+        : undefined,
+      edc_type: targetMethod === 'EDC_CREDIT' ? 'Credit' : 'Debit',
+    };
+
+    setSplitRows((prev) => [...prev, newRow]);
+    setIsSplitMode(true);
+  };
+
+  const handleUpdateSplitRow = (index: number, patch: Partial<SplitPaymentLine>) => {
+    setSplitRows((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...patch };
+      return updated;
+    });
+  };
+
+  const handleRemoveSplitRow = (index: number) => {
+    setSplitRows((prev) => {
+      const filtered = prev.filter((_, i) => i !== index);
+      if (filtered.length <= 1) {
+        // Still in split mode or user can revert
+      }
+      if (filtered.length === 0) {
+        setIsSplitMode(false);
+      }
+      return filtered;
+    });
+  };
+
   const handleFinalSubmit = () => {
-    if (tag === 'REGULAR' && isCashShort) return;
+    if (tag === 'REGULAR') {
+      if (isSplitMode && isSplitShort) return;
+      if (!isSplitMode && isCashShort) return;
+    }
+
+    if (isSplitMode) {
+      const detailedSplitRows: SplitPaymentLine[] = splitRows.map((row) => {
+        const calcs = calculateRowMeta(row);
+        return {
+          ...row,
+          fee_percentage: calcs.feePct,
+          fee_amount: calcs.feeAmt,
+          surcharge_amount: calcs.surchargeAmt,
+          net_received: calcs.netRec,
+        };
+      });
+
+      onConfirmCheckout(
+        tag === 'BON',
+        'SPLIT',
+        totalSplitPaid,
+        transactionNotes.trim() || undefined,
+        {
+          fee_amount: totalSplitFees,
+          surcharge_amount: totalSplitSurcharges,
+          net_received: totalSplitNetReceived,
+          split_payments: detailedSplitRows,
+        }
+      );
+      return;
+    }
 
     let finalMethod: PaymentMethod = paymentMethod;
     if (paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA') {
@@ -224,20 +376,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <h2 className="text-base sm:text-lg font-black tracking-tight">
                 Penyelesaian Pesanan &amp; Pembayaran
               </h2>
-              <div className="flex items-center gap-3 text-xs text-slate-300 font-medium mt-0.5">
-                <span className="flex items-center gap-1 font-mono font-bold text-amber-300">
-                  <Car className="w-3.5 h-3.5" />
-                  {vehiclePlate.trim() || 'TANPA PLAT'}
-                </span>
-                <span>&bull;</span>
+              <div className="flex items-center gap-2 text-xs text-slate-300 font-medium mt-0.5">
                 <span className="flex items-center gap-1">
-                  <User className="w-3.5 h-3.5" />
-                  {customerName.trim() || 'Pelanggan Walk-In'}
+                  <User className="w-3.5 h-3.5 text-blue-400" />
+                  {customerName.trim() || 'Pelanggan Umum'}
                 </span>
+                {vehiclePlate.trim() && (
+                  <>
+                    <span>&bull;</span>
+                    <span className="flex items-center gap-1 font-mono font-bold text-amber-300">
+                      <Car className="w-3.5 h-3.5" />
+                      {vehiclePlate.trim()}
+                    </span>
+                  </>
+                )}
                 {vehicleModel.trim() && (
                   <>
                     <span>&bull;</span>
-                    <span className="text-slate-400">{vehicleModel}</span>
+                    <span className="text-slate-400">{vehicleModel.trim()}</span>
                   </>
                 )}
               </div>
@@ -445,354 +601,615 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       <h4 className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
                         Mode Faktur BON (Tempo/Piutang)
                       </h4>
-                      <p className="text-xs text-amber-900 leading-relaxed mt-1">
+<p className="text-xs text-amber-900 leading-relaxed mt-1">
                         Barang/jasa dikeluarkan hari ini tanpa mensyaratkan pelunasan kas saat ini.
                         Tagihan sebesar{' '}
                         <b className="font-mono font-black">{formatRupiah(netPayable)}</b> akan otomatis
                         tercatat di <b>Buku Pembantu Piutang Usaha</b> atas nama{' '}
-                        <b>{customerName.trim() || 'Pelanggan Walk-In'}</b>.
+                        <b>{customerName.trim() || 'Pelanggan Umum'}</b>.
                       </p>
                     </div>
                   </div>
                 </div>
               ) : (
-                /* Mode REGULER: Pilihan Metode Bayar & Uang Tunai */
+                /* Mode REGULER: Pilihan Metode Bayar Tunggal vs Multi-Bayar / Split */
                 <div className="space-y-3.5">
-                  <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
-                      Metode Pembayaran
-                    </label>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('TUNAI')}
-                        className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                          paymentMethod === 'TUNAI'
-                            ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Banknote className="w-4 h-4 text-emerald-600" />
-                        <span className="text-[11px] truncate">Tunai</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('TRANSFER')}
-                        className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                          paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA'
-                            ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs'
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Landmark className="w-4 h-4 text-blue-600" />
-                        <span className="text-[11px] truncate">Transfer</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('QRIS')}
-                        className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                          paymentMethod === 'QRIS'
-                            ? 'bg-cyan-50 border-cyan-500 text-cyan-900 shadow-xs'
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        <QrCode className="w-4 h-4 text-cyan-600" />
-                        <span className="text-[11px] truncate">QRIS</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod('EDC')}
-                        className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                          paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT'
-                            ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-xs'
-                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        <CreditCard className="w-4 h-4 text-purple-600" />
-                        <span className="text-[11px] truncate">Mesin EDC</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {paymentMethod === 'TUNAI' && (
-                    <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-slate-700">
-                          Nominal Uang Tunai Diterima (Rp)
-                        </label>
-                        <button
-                          type="button"
-                          onClick={handleFillExact}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-[11px] font-bold cursor-pointer transition-colors"
-                        >
-                          Uang Pas ({formatRupiah(netPayable)})
-                        </button>
-                      </div>
-
-                      <div className="relative">
-                        <span className="absolute left-3 top-2 text-slate-400 font-bold text-xs">
-                          Rp
-                        </span>
-                        <input
-                          type="text"
-                          value={
-                            cashTenderedInput
-                              ? formatRupiah(parseRupiahInput(cashTenderedInput)).replace('Rp ', '')
-                              : ''
-                          }
-                          onChange={(e) => setCashTenderedInput(e.target.value)}
-                          placeholder="0"
-                          className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono text-base font-black focus:bg-white focus:border-emerald-600 focus:outline-none"
-                        />
-                      </div>
-
-                      {/* Quick Add Buttons */}
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {[20000, 50000, 100000, 200000, 500000].map((amt) => (
-                          <button
-                            key={amt}
-                            type="button"
-                            onClick={() => handleAddCash(amt)}
-                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer font-mono"
-                          >
-                            +{formatRupiah(amt).replace('Rp ', '')}
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Kembalian Display */}
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-600">Kembalian Kasir:</span>
-                        <span
-                          className={`font-mono text-base font-black ${
-                            isCashShort
-                              ? 'text-rose-600'
-                              : changeAmount > 0
-                              ? 'text-blue-700'
-                              : 'text-slate-800'
-                          }`}
-                        >
-                          {isCashShort
-                            ? `Kurang ${formatRupiah(netPayable - cashTenderedVal)}`
-                            : formatRupiah(changeAmount)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {(paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA') && (
-                    <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs space-y-2.5 text-blue-950">
-                      <div className="font-bold flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <Landmark className="w-4 h-4 text-blue-700" />
-                          <span>Pilih Bank Tujuan Transfer:</span>
+                  {!isSplitMode ? (
+                    /* ================= SINGLE PAYMENT MODE ================= */
+                    <div className="space-y-3.5">
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
+                            Metode Pembayaran
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={handleSplit5050}
+                              className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                              title="Bagi 50% Tunai & 50% Transfer BCA"
+                            >
+                              <span>⚖️ Split 50:50</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAddSplitRow('TRANSFER')}
+                              className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                              title="Buka multi-pembayaran (split payment)"
+                            >
+                              <Layers className="w-3 h-3 text-indigo-600" />
+                              <span>Multi-Bayar</span>
+                            </button>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
-                          Bebas Biaya Admin
-                        </span>
-                      </div>
 
-                      {/* Bank Provider Selection Chips */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {bankOptions.map((bank) => (
+                        <div className="grid grid-cols-4 gap-1.5">
                           <button
-                            key={bank.id || bank.provider_name}
                             type="button"
-                            onClick={() => setSelectedBank(bank.provider_name)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                              selectedBank === bank.provider_name
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                                : 'bg-white text-blue-900 border-blue-200 hover:bg-blue-100/60'
+                            onClick={() => setPaymentMethod('TUNAI')}
+                            className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                              paymentMethod === 'TUNAI'
+                                ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-xs'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                             }`}
                           >
-                            Bank {bank.provider_name}
+                            <Banknote className="w-4 h-4 text-emerald-600" />
+                            <span className="text-[11px] truncate">Tunai</span>
                           </button>
-                        ))}
-                      </div>
 
-                      <div className="pt-2 border-t border-blue-200/80 space-y-1">
-                        <div className="text-[11px] text-blue-700">
-                          Rekening Resmi Omah Ban:
-                        </div>
-                        <div className="font-mono font-black text-sm text-blue-900">
-                          {selectedBank === 'BCA'
-                            ? `${storeSettings?.bank_name || 'BCA'}: ${storeSettings?.bank_account_number || '015-888-2999'}`
-                            : `${selectedBank}: Rekening Kas Operasional ${selectedBank}`}
-                        </div>
-                        <div className="text-[11px] text-blue-700">
-                          a.n. {storeSettings?.bank_account_holder || 'Omah Ban Cabang 3 (Agus Subagyo)'}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentMethod === 'QRIS' && (
-                    <div className="rounded-xl border border-cyan-200 bg-cyan-50/70 p-3 text-xs space-y-2.5 text-cyan-950">
-                      <div className="font-bold flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <QrCode className="w-4 h-4 text-cyan-700" />
-                          <span>Pilih Provider QRIS:</span>
-                        </div>
-                        <span className="text-[10px] font-bold bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded-md">
-                          MDR {qrisFeePct}% (Beban Toko)
-                        </span>
-                      </div>
-
-                      {/* QRIS Provider Selection Chips */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {qrisOptions.map((qris) => (
                           <button
-                            key={qris.id || qris.provider_name}
                             type="button"
-                            onClick={() => setSelectedQris(qris.provider_name)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                              selectedQris === qris.provider_name
-                                ? 'bg-cyan-600 text-white border-cyan-600 shadow-xs'
-                                : 'bg-white text-cyan-900 border-cyan-200 hover:bg-cyan-100/60'
+                            onClick={() => setPaymentMethod('TRANSFER')}
+                            className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                              paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA'
+                                ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
                             }`}
                           >
-                            {qris.provider_name} ({qris.fee_percentage}%)
+                            <Landmark className="w-4 h-4 text-blue-600" />
+                            <span className="text-[11px] truncate">Transfer</span>
                           </button>
-                        ))}
+
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('QRIS')}
+                            className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                              paymentMethod === 'QRIS'
+                                ? 'bg-cyan-50 border-cyan-500 text-cyan-900 shadow-xs'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <QrCode className="w-4 h-4 text-cyan-600" />
+                            <span className="text-[11px] truncate">QRIS</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod('EDC')}
+                            className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                              paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT'
+                                ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-xs'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <CreditCard className="w-4 h-4 text-purple-600" />
+                            <span className="text-[11px] truncate">Mesin EDC</span>
+                          </button>
+                        </div>
                       </div>
 
-                      {/* MDR Calculation Breakdown */}
-                      <div className="pt-2 border-t border-cyan-200/80 space-y-1.5 text-[11px]">
-                        {netPayable > qrisThreshold && qrisFeePct > 0 ? (
-                          <div className="flex items-center justify-between text-cyan-900">
-                            <span>Potongan MDR ({qrisFeePct}% beban toko):</span>
-                            <span className="font-mono font-bold text-rose-600">
-                              -{formatRupiah(qrisFeeAmount)}
+                      {paymentMethod === 'TUNAI' && (
+                        <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-700">
+                              Nominal Uang Tunai Diterima (Rp)
+                            </label>
+                            <button
+                              type="button"
+                              onClick={handleFillExact}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-[11px] font-bold cursor-pointer transition-colors"
+                            >
+                              Uang Pas ({formatRupiah(netPayable)})
+                            </button>
+                          </div>
+
+                          <div className="relative">
+                            <span className="absolute left-3 top-2 text-slate-400 font-bold text-xs">
+                              Rp
+                            </span>
+                            <input
+                              type="text"
+                              value={
+                                cashTenderedInput
+                                  ? formatRupiah(parseRupiahInput(cashTenderedInput)).replace('Rp ', '')
+                                  : ''
+                              }
+                              onChange={(e) => setCashTenderedInput(e.target.value)}
+                              placeholder="0"
+                              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono text-base font-black focus:bg-white focus:border-emerald-600 focus:outline-none"
+                            />
+                          </div>
+
+                          {/* Quick Add Buttons */}
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {[20000, 50000, 100000, 200000, 500000].map((amt) => (
+                              <button
+                                key={amt}
+                                type="button"
+                                onClick={() => handleAddCash(amt)}
+                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer font-mono"
+                              >
+                                +{formatRupiah(amt).replace('Rp ', '')}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Kembalian Display */}
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-600">Kembalian Kasir:</span>
+                            <span
+                              className={`font-mono text-base font-black ${
+                                isCashShort
+                                  ? 'text-rose-600'
+                                  : changeAmount > 0
+                                  ? 'text-blue-700'
+                                  : 'text-slate-800'
+                              }`}
+                            >
+                              {isCashShort
+                                ? `Kurang ${formatRupiah(netPayable - cashTenderedVal)}`
+                                : formatRupiah(changeAmount)}
                             </span>
                           </div>
-                        ) : (
-                          <div className="text-emerald-700 font-medium">
-                            ✓ Bebas Potongan MDR (Nominal di bawah batas minimal {formatRupiah(qrisThreshold)})
+                        </div>
+                      )}
+
+                      {(paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA') && (
+                        <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs space-y-2.5 text-blue-950">
+                          <div className="font-bold flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <Landmark className="w-4 h-4 text-blue-700" />
+                              <span>Pilih Bank Tujuan Transfer:</span>
+                            </div>
+                            <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
+                              Bebas Biaya Admin
+                            </span>
                           </div>
-                        )}
-                        <div className="flex items-center justify-between text-cyan-950 font-bold">
-                          <span>Toko Menerima Bersih:</span>
-                          <span className="font-mono text-emerald-700 text-xs font-black">
-                            {formatRupiah(qrisNetReceived)}
-                          </span>
+
+                          <div className="flex flex-wrap gap-1.5">
+                            {bankOptions.map((bank) => (
+                              <button
+                                key={bank.id || bank.provider_name}
+                                type="button"
+                                onClick={() => setSelectedBank(bank.provider_name)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                  selectedBank === bank.provider_name
+                                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                    : 'bg-white text-blue-950 border-blue-200 hover:bg-blue-100/60'
+                                }`}
+                              >
+                                {bank.provider_name}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="pt-1 text-[11px] text-blue-800 flex items-center justify-between border-t border-blue-200/60">
+                            <span>Nominal Transfer Pas:</span>
+                            <span className="font-mono font-bold">{formatRupiah(effectivePayable)}</span>
+                          </div>
                         </div>
-                        <div className="text-[10px] text-cyan-700">
-                          * Pelanggan tetap membayar nominal pas: <b className="font-mono">{formatRupiah(netPayable)}</b>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  {(paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT') && (
-                    <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3 text-xs space-y-3 text-purple-950">
-                      <div className="flex items-center justify-between">
-                        <div className="font-bold flex items-center gap-1.5">
-                          <CreditCard className="w-4 h-4 text-purple-700" />
-                          <span>Pilih Mesin EDC Bank:</span>
-                        </div>
-                        <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md">
-                          Mesin EDC Gesek
-                        </span>
-                      </div>
+                      {paymentMethod === 'QRIS' && (
+                        <div className="rounded-xl border border-cyan-200 bg-cyan-50/70 p-3 text-xs space-y-3 text-cyan-950">
+                          <div className="flex items-center justify-between">
+                            <div className="font-bold flex items-center gap-1.5">
+                              <QrCode className="w-4 h-4 text-cyan-700" />
+                              <span>Pilih Rekening QRIS Dinamis:</span>
+                            </div>
+                            <span className="text-[10px] font-bold bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded-md">
+                              Scan Barcode
+                            </span>
+                          </div>
 
-                      {/* EDC Bank Selection Chips */}
-                      <div className="flex flex-wrap gap-1.5">
-                        {edcBanks.map((b) => (
-                          <button
-                            key={b}
-                            type="button"
-                            onClick={() => setSelectedEdcBank(b)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                              selectedEdcBank === b
-                                ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                                : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100/60'
-                            }`}
-                          >
-                            EDC {b}
-                          </button>
-                        ))}
-                      </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {qrisOptions.map((qris) => (
+                              <button
+                                key={qris.id || qris.provider_name}
+                                type="button"
+                                onClick={() => setSelectedQris(qris.provider_name)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                  selectedQris === qris.provider_name
+                                    ? 'bg-cyan-600 text-white border-cyan-600 shadow-xs'
+                                    : 'bg-white text-cyan-900 border-cyan-200 hover:bg-cyan-100/60'
+                                }`}
+                              >
+                                {qris.provider_name} ({qris.fee_percentage}%)
+                              </button>
+                            ))}
+                          </div>
 
-                      {/* Card Type Selector (Debit vs Credit) */}
-                      <div>
-                        <label className="text-[11px] font-bold text-purple-900 uppercase tracking-wider block mb-1">
-                          Pilih Jenis Kartu Gesek
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedEdcType('Debit')}
-                            className={`p-2 rounded-lg text-xs font-bold border text-center transition-all cursor-pointer ${
-                              selectedEdcType === 'Debit'
-                                ? 'bg-purple-700 text-white border-purple-700 shadow-xs'
-                                : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100/60'
-                            }`}
-                          >
-                            <div>Kartu Debit</div>
-                            <div className="text-[10px] font-normal opacity-90">
-                              Beban Toko ({edcOptions.find((e) => e.bank_name === selectedEdcBank && e.payment_type === 'Debit')?.fee_percentage ?? 0.15}%)
-                            </div>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => setSelectedEdcType('Credit')}
-                            className={`p-2 rounded-lg text-xs font-bold border text-center transition-all cursor-pointer ${
-                              selectedEdcType === 'Credit'
-                                ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                                : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-100/60'
-                            }`}
-                          >
-                            <div>Kartu Kredit (+Surcharge)</div>
-                            <div className="text-[10px] font-normal opacity-90">
-                              Beban Customer (+{edcOptions.find((e) => e.bank_name === selectedEdcBank && e.payment_type === 'Credit')?.fee_percentage ?? 2.0}%)
-                            </div>
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Fee/Surcharge Breakdown */}
-                      <div className="pt-2 border-t border-purple-200/80 space-y-1 text-[11px]">
-                        {selectedEdcType === 'Credit' ? (
-                          <>
-                            <div className="flex items-center justify-between text-amber-900">
-                              <span>Tagihan Awal Belanja:</span>
-                              <span className="font-mono">{formatRupiah(netPayable)}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-amber-900 font-bold">
-                              <span>Surcharge Kartu Kredit (+{edcFeePct}%):</span>
-                              <span className="font-mono text-amber-800">
-                                +{formatRupiah(edcCreditSurcharge)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-purple-950 font-black pt-1.5 border-t border-purple-200">
-                              <span className="text-xs uppercase">Total Gesek EDC (Dibayar Pelanggan):</span>
-                              <span className="font-mono text-sm text-purple-700 font-black">
-                                {formatRupiah(effectivePayable)}
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex items-center justify-between text-purple-900">
-                              <span>Fee EDC Debit ({edcFeePct}% beban toko):</span>
-                              <span className="font-mono text-rose-600 font-bold">
-                                -{formatRupiah(edcDebitFeeAmount)}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-purple-950 font-bold">
+                          <div className="pt-2 border-t border-cyan-200/80 space-y-1.5 text-[11px]">
+                            {netPayable > qrisThreshold && qrisFeePct > 0 ? (
+                              <div className="flex items-center justify-between text-cyan-900">
+                                <span>Potongan MDR ({qrisFeePct}% beban toko):</span>
+                                <span className="font-mono font-bold text-rose-600">
+                                  -{formatRupiah(qrisFeeAmount)}
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="text-emerald-700 font-medium">
+                                ✓ Bebas Potongan MDR (Nominal di bawah batas minimal {formatRupiah(qrisThreshold)})
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between text-cyan-950 font-bold">
                               <span>Toko Menerima Bersih:</span>
                               <span className="font-mono text-emerald-700 text-xs font-black">
-                                {formatRupiah(edcDebitNetReceived)}
+                                {formatRupiah(qrisNetReceived)}
                               </span>
                             </div>
-                            <div className="text-[10px] text-purple-700">
-                              * Pelanggan membayar nominal normal: <b className="font-mono">{formatRupiah(netPayable)}</b>
+                            <div className="text-[10px] text-cyan-700">
+                              * Pelanggan tetap membayar nominal pas: <b className="font-mono">{formatRupiah(netPayable)}</b>
                             </div>
-                          </>
+                          </div>
+                        </div>
+                      )}
+
+                      {(paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT') && (
+                        <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3 text-xs space-y-3 text-purple-950">
+                          <div className="flex items-center justify-between">
+                            <div className="font-bold flex items-center gap-1.5">
+                              <CreditCard className="w-4 h-4 text-purple-700" />
+                              <span>Pilih Mesin EDC Bank:</span>
+                            </div>
+                            <span className="text-[10px] font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded-md">
+                              Mesin EDC Gesek
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5">
+                            {edcBanks.map((b) => (
+                              <button
+                                key={b}
+                                type="button"
+                                onClick={() => setSelectedEdcBank(b)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                  selectedEdcBank === b
+                                    ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                                    : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100/60'
+                                }`}
+                              >
+                                EDC {b}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div>
+                            <label className="text-[11px] font-bold text-purple-900 uppercase tracking-wider block mb-1">
+                              Pilih Jenis Kartu Gesek
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedEdcType('Debit')}
+                                className={`p-2 rounded-lg text-xs font-bold border text-center transition-all cursor-pointer ${
+                                  selectedEdcType === 'Debit'
+                                    ? 'bg-purple-700 text-white border-purple-700 shadow-xs'
+                                    : 'bg-white text-purple-900 border-purple-200 hover:bg-purple-100/60'
+                                }`}
+                              >
+                                <div>Kartu Debit</div>
+                                <div className="text-[10px] font-normal opacity-90">
+                                  Beban Toko ({edcOptions.find((e) => e.bank_name === selectedEdcBank && e.payment_type === 'Debit')?.fee_percentage ?? 0.15}%)
+                                </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setSelectedEdcType('Credit')}
+                                className={`p-2 rounded-lg text-xs font-bold border text-center transition-all cursor-pointer ${
+                                  selectedEdcType === 'Credit'
+                                    ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                                    : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-100/60'
+                                }`}
+                              >
+                                <div>Kartu Kredit (+Surcharge)</div>
+                                <div className="text-[10px] font-normal opacity-90">
+                                  Beban Customer (+{edcOptions.find((e) => e.bank_name === selectedEdcBank && e.payment_type === 'Credit')?.fee_percentage ?? 2.0}%)
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="pt-2 border-t border-purple-200/80 space-y-1 text-[11px]">
+                            {selectedEdcType === 'Credit' ? (
+                              <>
+                                <div className="flex items-center justify-between text-amber-900">
+                                  <span>Tagihan Awal Belanja:</span>
+                                  <span className="font-mono">{formatRupiah(netPayable)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-amber-900 font-bold">
+                                  <span>Surcharge Kartu Kredit (+{edcFeePct}%):</span>
+                                  <span className="font-mono text-amber-800">
+                                    +{formatRupiah(edcCreditSurcharge)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-purple-950 font-black pt-1.5 border-t border-purple-200">
+                                  <span className="text-xs uppercase">Total Gesek EDC (Dibayar Pelanggan):</span>
+                                  <span className="font-mono text-sm text-purple-700 font-black">
+                                    {formatRupiah(effectivePayable)}
+                                  </span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-between text-purple-900">
+                                  <span>Fee EDC Debit ({edcFeePct}% beban toko):</span>
+                                  <span className="font-mono text-rose-600 font-bold">
+                                    -{formatRupiah(edcDebitFeeAmount)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-purple-950 font-bold">
+                                  <span>Toko Menerima Bersih:</span>
+                                  <span className="font-mono text-emerald-700 text-xs font-black">
+                                    {formatRupiah(edcDebitNetReceived)}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-purple-700">
+                                  * Pelanggan membayar nominal normal: <b className="font-mono">{formatRupiah(netPayable)}</b>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* ================= SPLIT / MULTI-PAYMENT MODE ================= */
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
+                          <label className="text-xs font-black text-indigo-950 uppercase tracking-wider block">
+                            Multi-Bayar (Split Payment)
+                          </label>
+                          <span className="text-[10px] font-bold font-mono px-1.5 py-0.2 bg-indigo-100 text-indigo-800 rounded-full">
+                            {splitRows.length} Metode
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={handleSplit5050}
+                            className="px-2 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                            title="Bagi rata 50:50 Tunai dan Transfer"
+                          >
+                            <span>⚖️ 50:50</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAddSplitRow('TRANSFER')}
+                            className="px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Tambah</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsSplitMode(false);
+                              setSplitRows([]);
+                            }}
+                            className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-rose-50 border border-slate-200 text-slate-600 hover:text-rose-600 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Kembali ke pembayaran tunggal"
+                          >
+                            <X className="w-3 h-3" />
+                            <span className="hidden sm:inline">Tunggal</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Payment Rows List */}
+                      <div className="space-y-2.5 max-h-[340px] overflow-y-auto custom-scrollbar pr-1">
+                        {splitRows.map((row, idx) => {
+                          return (
+                            <div key={row.id || idx} className="bg-white border border-slate-200 rounded-xl p-3 shadow-2xs space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0">
+                                  #{idx + 1}
+                                </span>
+                                <div className="grid grid-cols-4 gap-1 flex-1">
+                                  {(['TUNAI', 'TRANSFER', 'QRIS', 'EDC'] as PaymentMethod[]).map((m) => {
+                                    const isActive =
+                                      (m === 'TRANSFER' && (row.method === 'TRANSFER' || row.method === 'TRANSFER_BCA')) ||
+                                      (m === 'EDC' && (row.method === 'EDC' || row.method === 'EDC_DEBIT' || row.method === 'EDC_CREDIT')) ||
+                                      row.method === m;
+                                    return (
+                                      <button
+                                        key={m}
+                                        type="button"
+                                        onClick={() => {
+                                          let newMethod = m;
+                                          if (m === 'EDC') newMethod = row.edc_type === 'Credit' ? 'EDC_CREDIT' : 'EDC_DEBIT';
+                                          handleUpdateSplitRow(idx, {
+                                            method: newMethod,
+                                            provider_name: m === 'TRANSFER' ? (selectedBank || 'BCA') : m === 'QRIS' ? (selectedQris || 'BCA') : undefined,
+                                            edc_bank: m === 'EDC' ? (selectedEdcBank || 'BCA') : undefined,
+                                            edc_type: m === 'EDC' ? (row.edc_type || 'Debit') : undefined,
+                                          });
+                                        }}
+                                        className={`py-1 px-1 rounded-lg text-[10.5px] font-bold transition-all border text-center cursor-pointer ${
+                                          isActive
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                        }`}
+                                      >
+                                        {m === 'TRANSFER' ? 'Transfer' : m === 'TUNAI' ? 'Tunai' : m === 'QRIS' ? 'QRIS' : 'EDC'}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                {splitRows.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSplitRow(idx)}
+                                    className="w-7 h-7 rounded-lg text-rose-500 hover:bg-rose-50 border border-transparent hover:border-rose-200 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                                    title="Hapus baris metode ini"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Sub-selectors */}
+                              {(row.method === 'TRANSFER' || row.method === 'TRANSFER_BCA') && (
+                                <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200/80">
+                                  <span className="text-[10px] font-bold text-slate-500 mr-1">Bank:</span>
+                                  {bankOptions.map((b) => (
+                                    <button
+                                      key={b.provider_name}
+                                      type="button"
+                                      onClick={() => handleUpdateSplitRow(idx, { provider_name: b.provider_name })}
+                                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
+                                        (row.provider_name || selectedBank) === b.provider_name
+                                          ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {b.provider_name}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {row.method === 'QRIS' && (
+                                <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200/80">
+                                  <span className="text-[10px] font-bold text-slate-500 mr-1">QRIS:</span>
+                                  {qrisOptions.map((q) => (
+                                    <button
+                                      key={q.provider_name}
+                                      type="button"
+                                      onClick={() => handleUpdateSplitRow(idx, { provider_name: q.provider_name })}
+                                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
+                                        (row.provider_name || selectedQris) === q.provider_name
+                                          ? 'bg-cyan-600 text-white border-cyan-600 shadow-2xs'
+                                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                                      }`}
+                                    >
+                                      {q.provider_name}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {(row.method === 'EDC' || row.method === 'EDC_DEBIT' || row.method === 'EDC_CREDIT') && (
+                                <div className="space-y-1.5 bg-slate-50 p-2 rounded-lg border border-slate-200/80">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-slate-500 mr-1">Mesin:</span>
+                                    {edcBanks.map((eb) => (
+                                      <button
+                                        key={eb}
+                                        type="button"
+                                        onClick={() => handleUpdateSplitRow(idx, { edc_bank: eb })}
+                                        className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
+                                          (row.edc_bank || selectedEdcBank) === eb
+                                            ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                                        }`}
+                                      >
+                                        {eb}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60">
+                                    <span className="text-[10px] font-bold text-slate-500 mr-1">Tipe:</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateSplitRow(idx, { method: 'EDC_DEBIT', edc_type: 'Debit' })}
+                                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
+                                        row.edc_type !== 'Credit'
+                                          ? 'bg-purple-700 text-white border-purple-700'
+                                          : 'bg-white text-slate-700 border-slate-200'
+                                      }`}
+                                    >
+                                      Debit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateSplitRow(idx, { method: 'EDC_CREDIT', edc_type: 'Credit' })}
+                                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-all cursor-pointer ${
+                                        row.edc_type === 'Credit'
+                                          ? 'bg-amber-600 text-white border-amber-600'
+                                          : 'bg-white text-slate-700 border-slate-200'
+                                      }`}
+                                    >
+                                      Kredit (+Surcharge)
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Amount input for this line */}
+                              <div className="flex items-center gap-2">
+                                <div className="relative flex-1">
+                                  <span className="absolute left-2.5 top-1.5 text-slate-400 font-bold text-xs">Rp</span>
+                                  <input
+                                    type="text"
+                                    value={row.amount ? formatRupiah(row.amount).replace('Rp ', '') : ''}
+                                    onChange={(e) => {
+                                      const val = parseRupiahInput(e.target.value);
+                                      handleUpdateSplitRow(idx, { amount: val });
+                                    }}
+                                    placeholder="0"
+                                    className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono text-sm font-bold focus:bg-white focus:border-indigo-600 focus:outline-none"
+                                  />
+                                </div>
+                                {splitRemaining > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const currentWithoutThis = splitRows.reduce((sum, r, i) => i === idx ? sum : sum + (Number(r.amount) || 0), 0);
+                                      const rem = Math.max(0, effectivePayable - currentWithoutThis);
+                                      handleUpdateSplitRow(idx, { amount: rem });
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 text-[10.5px] font-bold whitespace-nowrap cursor-pointer transition-colors shrink-0"
+                                    title="Isi dengan sisa tagihan yang belum terbayar"
+                                  >
+                                    + Sisa ({formatRupiah(splitRemaining)})
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Split Status Summary Card */}
+                      <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1.5 text-xs shadow-2xs">
+                        <div className="flex items-center justify-between text-slate-600">
+                          <span>Total Tagihan:</span>
+                          <span className="font-mono font-bold text-slate-900">{formatRupiah(effectivePayable)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-600">
+                          <span>Total Terbayar:</span>
+                          <span className="font-mono font-black text-indigo-700">{formatRupiah(totalSplitPaid)}</span>
+                        </div>
+                        {splitRemaining > 0 ? (
+                          <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between font-bold text-rose-600">
+                            <span>⚠️ Masih Kurang:</span>
+                            <span className="font-mono">{formatRupiah(splitRemaining)}</span>
+                          </div>
+                        ) : (
+                          <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between font-bold text-emerald-700">
+                            <span>✓ Status Pelunasan:</span>
+                            <span>Lunas Pas</span>
+                          </div>
+                        )}
+                        {splitChange > 0 && (
+                          <div className="flex items-center justify-between font-bold text-blue-700">
+                            <span>Kembalian Tunai:</span>
+                            <span className="font-mono">{formatRupiah(splitChange)}</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -817,7 +1234,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <button
                   type="button"
                   onClick={handleFinalSubmit}
-                  disabled={tag === 'REGULAR' && isCashShort}
+                  disabled={tag === 'REGULAR' && (isSplitMode ? isSplitShort : isCashShort)}
                   className={`flex-1 py-3 px-4 rounded-xl text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     tag === 'BON'
                       ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
@@ -828,6 +1245,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>
                     {tag === 'BON'
                       ? 'Simpan Sebagai Faktur BON'
+                      : isSplitMode
+                      ? `Selesaikan Multi-Bayar (${formatRupiah(totalSplitPaid)})`
                       : `Selesaikan Transaksi (${formatRupiah(effectivePayable)})`}
                   </span>
                 </button>

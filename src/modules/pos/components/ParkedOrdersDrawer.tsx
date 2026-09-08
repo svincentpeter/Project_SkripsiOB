@@ -118,9 +118,15 @@ export const ParkedOrdersDrawer: React.FC<ParkedOrdersDrawerProps> = ({
                   <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-black text-sm text-slate-900 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg text-amber-950">
-                          {order.vehicle_plate || 'TANPA PLAT'}
-                        </span>
+                        {order.vehicle_plate ? (
+                          <span className="font-mono font-black text-sm text-slate-900 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg text-amber-950">
+                            {order.vehicle_plate}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg">
+                            Non-Kendaraan
+                          </span>
+                        )}
                         {order.vehicle_model && (
                           <span className="text-xs text-slate-600 font-semibold">
                             ({order.vehicle_model})
@@ -129,7 +135,7 @@ export const ParkedOrdersDrawer: React.FC<ParkedOrdersDrawerProps> = ({
                       </div>
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-600 mt-1">
                         <User className="w-3 h-3 text-slate-400" />
-                        <span className="font-medium text-slate-800">{order.customer_name}</span>
+                        <span className="font-medium text-slate-800">{order.customer_name?.trim() || 'Pelanggan Umum'}</span>
                         <span className="text-slate-300">•</span>
                         <span className="font-mono text-slate-400 text-[10px]">{order.reference}</span>
                       </div>
@@ -193,7 +199,8 @@ export const ParkedOrdersDrawer: React.FC<ParkedOrdersDrawerProps> = ({
                       {/* Hapus Antrian */}
                       <button
                         onClick={() => {
-                          if (confirm(`Hapus antrian nota ${order.vehicle_plate}?`)) {
+                          const label = order.vehicle_plate ? `kendaraan ${order.vehicle_plate}` : (order.customer_name || order.reference);
+                          if (confirm(`Hapus antrian nota ${label}?`)) {
                             onDeleteOrder(order.id);
                           }
                         }}

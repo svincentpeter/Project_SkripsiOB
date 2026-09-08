@@ -82,10 +82,14 @@ export const BookingListDrawer: React.FC<BookingListDrawerProps> = ({
                 <div className="border-t border-b border-slate-100 py-2.5 grid grid-cols-2 gap-2 text-xs">
                   <div>
                     <span className="text-slate-400 block text-[11px]">Pelanggan & Kendaraan</span>
-                    <span className="text-slate-900 font-bold block">{bk.customer_name}</span>
-                    <span className="text-slate-500 text-[11px] flex items-center gap-1 mt-0.5">
-                      <Car className="w-3 h-3 text-slate-400" /> {bk.vehicle_plate} ({bk.vehicle_model || 'Mobil'})
-                    </span>
+                    <span className="text-slate-900 font-bold block">{bk.customer_name?.trim() || 'Pelanggan Umum'}</span>
+                    {(bk.vehicle_plate || bk.vehicle_model) ? (
+                      <span className="text-slate-500 text-[11px] flex items-center gap-1 mt-0.5">
+                        <Car className="w-3 h-3 text-slate-400" /> {[bk.vehicle_plate, bk.vehicle_model].filter(Boolean).map(s => s.trim()).filter(Boolean).join(' - ')}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-[11px] block mt-0.5">Tanpa Kendaraan</span>
+                    )}
                     {bk.customer_phone && (
                       <span className="text-slate-500 text-[11px] flex items-center gap-1 mt-0.5">
                         <Phone className="w-3 h-3 text-slate-400" /> {bk.customer_phone}

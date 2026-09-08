@@ -37,7 +37,8 @@ import {
   ProductItem, 
   SalesBookingRecord, 
   ServiceMasterItem,
-  StoreSettings
+  StoreSettings,
+  SplitPaymentLine
 } from '../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../shared/utils/formatters';
 import { MoneyInput } from '../../shared/components/MoneyInput';
@@ -84,6 +85,27 @@ const defaultCategories: ProductCategory[] = [
   { id: 'cat-04', category_code: 'OLI_PELUMAS', category_name: 'Oli & Pelumas', description: 'Oli mesin, transmisi, dan cairan rem', is_active: true },
   { id: 'cat-03', category_code: 'BAN_DALAM', category_name: 'Ban Dalam', description: 'Ban dalam dan flap velg', is_active: true },
 ];
+
+const getShortCategoryName = (code: string, fullName: string) => {
+  const c = code.toUpperCase().trim();
+  if (c === 'BAN_BARU') return 'Ban Baru';
+  if (c === 'VELG') return 'Velg';
+  if (c === 'BAN_DALAM') return 'Ban Dalam';
+  if (c === 'OLI_PELUMAS') return 'Oli & Pelumas';
+
+  let name = (fullName || '').trim();
+  name = name.replace(/\(.*?\)/g, '').trim();
+  if (name.toLowerCase().startsWith('aksesoris')) return 'Aksesoris';
+  if (name.includes('&')) {
+    const first = name.split('&')[0].trim();
+    if (first.length >= 3 && first.length <= 14) return first;
+  }
+  const words = name.split(/\s+/);
+  if (words.length > 2 && name.length > 14) {
+    return `${words[0]} ${words[1]}`;
+  }
+  return name || code;
+};
 
 export const PosScreen: React.FC<PosScreenProps> = ({
   products,
@@ -138,8 +160,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
   const availableRings = useMemo(() => {
     const rings = new Set<string>();
+    const tabCode = catalogTab.toUpperCase().trim();
     products.forEach((p) => {
-      if (p.ring && p.ring.trim()) {
+      const pCat = (p.category || '').toUpperCase().trim();
+      const matchesCategory = tabCode === 'ALL' || pCat === tabCode || (p.category_id && String(p.category_id) === catalogTab);
+      if (matchesCategory && p.is_active !== false && p.ring && p.ring.trim()) {
         rings.add(p.ring.trim());
       }
     });
@@ -148,21 +173,24 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       const numB = parseInt(b.replace(/\D/g, '')) || 0;
       return numA - numB;
     });
-  }, [products]);
+  }, [products, catalogTab]);
 
   const availableBrands = useMemo(() => {
     const brands = new Set<string>();
+    const tabCode = catalogTab.toUpperCase().trim();
     products.forEach((p) => {
-      if (p.brand && p.brand.trim()) {
+      const pCat = (p.category || '').toUpperCase().trim();
+      const matchesCategory = tabCode === 'ALL' || pCat === tabCode || (p.category_id && String(p.category_id) === catalogTab);
+      if (matchesCategory && p.is_active !== false && p.brand && p.brand.trim()) {
         brands.add(p.brand.trim());
       }
     });
     return Array.from(brands).sort();
-  }, [products]);
+  }, [products, catalogTab]);
 
-  const [customerName, setCustomerName] = useState('Pelanggan Walk-In');
-  const [vehiclePlate, setVehiclePlate] = useState('B 1984 SKZ');
-  const [vehicleModel, setVehicleModel] = useState('Avanza');
+  const [customerName, setCustomerName] = useState('');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TUNAI');
   const [cashTenderedInput, setCashTenderedInput] = useState<string>('');
@@ -200,7 +228,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     : products.filter((prod) => {
         const pCat = (prod.category || '').toUpperCase().trim();
         const tabCode = catalogTab.toUpperCase().trim();
-        const matchesCategory = pCat === tabCode || (prod.category_id && String(prod.category_id) === catalogTab);
+        const matchesCategory = tabCode === 'ALL' || pCat === tabCode || (prod.category_id && String(prod.category_id) === catalogTab);
         if (!matchesCategory) return false;
 
         const q = searchQuery.toLowerCase().trim();
@@ -348,6 +376,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       fee_amount?: number;
       surcharge_amount?: number;
       net_received?: number;
+      split_payments?: SplitPaymentLine[];
     }
   ) => {
     if (cart.length === 0) return;
@@ -379,10 +408,19 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       transaction.surcharge_amount = overridePaymentMeta.surcharge_amount;
       transaction.net_received = overridePaymentMeta.net_received;
 
+      if (overridePaymentMeta.split_payments && overridePaymentMeta.split_payments.length > 0) {
+        transaction.payment_method = 'SPLIT';
+        transaction.split_payments = overridePaymentMeta.split_payments;
+        const totalSplit = overridePaymentMeta.split_payments.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+        transaction.amount_paid = totalSplit;
+        transaction.paid_amount = totalSplit;
+        transaction.change_amount = Math.max(0, totalSplit - transaction.grand_total);
+      }
+
       if (overridePaymentMeta.surcharge_amount && overridePaymentMeta.surcharge_amount > 0) {
         transaction.grand_total += overridePaymentMeta.surcharge_amount;
         transaction.total_amount = transaction.grand_total;
-        if (!isBon) {
+        if (!isBon && !overridePaymentMeta.split_payments) {
           transaction.amount_paid = transaction.grand_total;
           transaction.paid_amount = transaction.grand_total;
         }
@@ -407,6 +445,9 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     setManualDiscount(0);
     setAppliedDpAmount(0);
     setActiveBookingSourceId(null);
+    setCustomerName('');
+    setVehiclePlate('');
+    setVehicleModel('');
   };
 
   const handleOpenCheckout = (initialTag: 'REGULAR' | 'BON' = 'REGULAR') => {
@@ -431,6 +472,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       fee_amount?: number;
       surcharge_amount?: number;
       net_received?: number;
+      split_payments?: SplitPaymentLine[];
     }
   ) => {
     handleCheckoutSale(isBon, pm, cashTendered, notes, paymentMeta);
@@ -665,33 +707,62 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           </div>
         </div>
 
-        {/* Dynamic Category Tabs from Master Settings + Services & Manual persis ProjectOmahBan */}
+        {/* Category Tabs (Short clean labels, no overflow cutoff) */}
         <div className="px-3 py-2 bg-white border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto scrollbar-none shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setCatalogTab('ALL');
+              setSelectedRing('ALL');
+              setSelectedBrand('ALL');
+            }}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
+              catalogTab === 'ALL'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200/90'
+            }`}
+            title="Tampilkan semua produk katalog"
+          >
+            <Disc className="w-3.5 h-3.5 shrink-0" />
+            <span>Semua</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+              catalogTab === 'ALL' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {products.filter((p) => p.is_active !== false).length}
+            </span>
+          </button>
+
           {availableCategories.map((cat) => {
             const isSelected = catalogTab === cat.category_code;
             const count = getCategoryProductCount(cat.category_code, cat.id);
+            const shortName = getShortCategoryName(cat.category_code, cat.category_name);
             const renderIcon = () => {
               const code = (cat.category_code || '').toUpperCase();
-              if (code.includes('VELG')) return <CircleDot className="w-3.5 h-3.5" />;
-              if (code.includes('OLI') || code.includes('LUBRICANT')) return <Droplets className="w-3.5 h-3.5" />;
-              if (code.includes('DALAM') || code.includes('TUBE')) return <Package className="w-3.5 h-3.5" />;
-              return <Disc className="w-3.5 h-3.5" />;
+              if (code.includes('VELG')) return <CircleDot className="w-3.5 h-3.5 shrink-0" />;
+              if (code.includes('OLI') || code.includes('LUBRICANT')) return <Droplets className="w-3.5 h-3.5 shrink-0" />;
+              if (code.includes('DALAM') || code.includes('TUBE')) return <Package className="w-3.5 h-3.5 shrink-0" />;
+              return <Disc className="w-3.5 h-3.5 shrink-0" />;
             };
             return (
               <button
                 key={cat.id || cat.category_code}
                 type="button"
-                onClick={() => setCatalogTab(cat.category_code)}
-                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                onClick={() => {
+                  setCatalogTab(cat.category_code);
+                  setSelectedRing('ALL');
+                  setSelectedBrand('ALL');
+                }}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
                   isSelected
                     ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
+                    : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200/90'
                 }`}
+                title={cat.category_name}
               >
                 {renderIcon()}
-                <span>{cat.category_name}</span>
+                <span>{shortName}</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                  isSelected ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
                 }`}>
                   {count}
                 </span>
@@ -700,75 +771,89 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           })}
           <button
             type="button"
-            onClick={() => setCatalogTab('SERVICES')}
-            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              catalogTab === 'SERVICES' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200'
+            onClick={() => {
+              setCatalogTab('SERVICES');
+              setSelectedRing('ALL');
+              setSelectedBrand('ALL');
+            }}
+            className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
+              catalogTab === 'SERVICES' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200/90'
             }`}
+            title="Daftar Tarif Jasa & Layanan Pit Omah Ban"
           >
-            <Wrench className="w-3.5 h-3.5" />
-            <span>Jasa & Layanan</span>
+            <Wrench className="w-3.5 h-3.5 shrink-0" />
+            <span>Jasa Pit</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-              catalogTab === 'SERVICES' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              catalogTab === 'SERVICES' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
             }`}>
               {services.length}
             </span>
           </button>
           <button
             type="button"
-            onClick={() => setCatalogTab('MANUAL')}
-            className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+            onClick={() => {
+              setCatalogTab('MANUAL');
+              setSelectedRing('ALL');
+              setSelectedBrand('ALL');
+            }}
+            className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap select-none ${
               catalogTab === 'MANUAL'
                 ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-400/30'
                 : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200'
             }`}
+            title="Input Item Manual Non-Katalog"
           >
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span>✍️ Input Manual</span>
+            <Sparkles className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+            <span>✍️ Manual</span>
           </button>
         </div>
 
         {/* Quick Ring Chips & Brand Filter Bar (persis ProjectOmahBan ProductGrid) */}
-        {catalogTab !== 'SERVICES' && catalogTab !== 'MANUAL' && (availableRings.length > 0 || availableBrands.length > 0) && (
-          <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shrink-0">
-            {/* Left: Quick Ring Pills */}
+        {catalogTab !== 'SERVICES' && catalogTab !== 'MANUAL' && (availableRings.length > 0 || availableBrands.length > 1) && (
+          <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shrink-0">
+            {/* Left: Quick Ring Pills (Hanya jika kategori memiliki ring) */}
             <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-0.5">
-                Ring:
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelectedRing('ALL')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                  selectedRing === 'ALL'
-                    ? 'bg-blue-600 text-white shadow-2xs'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                Semua
-              </button>
-              {availableRings.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setSelectedRing(selectedRing === r ? 'ALL' : r)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                    selectedRing === r
-                      ? 'bg-blue-600 text-white shadow-2xs ring-2 ring-blue-300'
-                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  {r.startsWith('R') ? r : `R${r}`}
-                </button>
-              ))}
+              {availableRings.length > 0 && (
+                <>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-0.5">
+                    Ring:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRing('ALL')}
+                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                      selectedRing === 'ALL'
+                        ? 'bg-slate-900 text-white shadow-2xs'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    Semua
+                  </button>
+                  {availableRings.map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setSelectedRing(selectedRing === r ? 'ALL' : r)}
+                      className={`px-2 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                        selectedRing === r
+                          ? 'bg-blue-600 text-white shadow-2xs ring-2 ring-blue-300'
+                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      {r.startsWith('R') ? r : `R${r}`}
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
 
             {/* Right: Brand Selector & Products Counter */}
             <div className="flex items-center gap-2 shrink-0">
-              {availableBrands.length > 0 && (
+              {availableBrands.length > 1 && (
                 <select
                   value={selectedBrand}
                   onChange={(e) => setSelectedBrand(e.target.value)}
-                  className="text-xs font-bold text-slate-700 bg-white border border-slate-200 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0 shadow-2xs"
+                  className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0 shadow-2xs"
                 >
                   <option value="ALL">Semua Merk ({availableBrands.length})</option>
                   {availableBrands.map((b) => (
@@ -776,7 +861,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                   ))}
                 </select>
               )}
-              <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+              <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
                 <b className="text-slate-900 font-mono font-black">{filteredProducts.length}</b> Produk
               </span>
             </div>
@@ -1034,8 +1119,8 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 type="text"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Walk-In"
-                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-semibold shadow-2xs focus:border-blue-600 focus:outline-none"
+                placeholder="Pelanggan Umum (Opsional)"
+                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-semibold shadow-2xs focus:border-blue-600 focus:outline-none placeholder:text-slate-400"
               />
             </div>
             <div>
@@ -1044,8 +1129,8 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 type="text"
                 value={vehiclePlate}
                 onChange={(e) => setVehiclePlate(e.target.value)}
-                placeholder="B 1234 ABC"
-                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-mono font-bold shadow-2xs focus:border-blue-600 focus:outline-none"
+                placeholder="Contoh: AA 1234 XY (Opsional)"
+                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-mono font-bold shadow-2xs focus:border-blue-600 focus:outline-none placeholder:text-slate-400 uppercase"
               />
             </div>
             <div>
@@ -1054,8 +1139,8 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 type="text"
                 value={vehicleModel}
                 onChange={(e) => setVehicleModel(e.target.value)}
-                placeholder="Avanza/Innova"
-                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-semibold shadow-2xs focus:border-blue-600 focus:outline-none"
+                placeholder="Contoh: Avanza (Opsional)"
+                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-semibold shadow-2xs focus:border-blue-600 focus:outline-none placeholder:text-slate-400"
               />
             </div>
           </div>
