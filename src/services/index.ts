@@ -5,5 +5,6 @@ export * from './accountingService';
 export * from './serviceMasterService';
 export * from './supplierService';
 export * from './storageService';
+export * from './productCategoryService';
 export * from './supabaseClient';
 export * from './supabaseDataService';

@@ -7,7 +7,7 @@ import {
   DollarSign, 
   AlertTriangle 
 } from 'lucide-react';
-import { ServiceCategory, ServiceMasterItem } from '../../../shared/types';
+import { ServiceCategory, ServiceCategoryItem, ServiceMasterItem } from '../../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
 import { generateServiceCode } from '../../../services/serviceMasterService';
 
@@ -15,25 +15,32 @@ interface ServiceFormModalProps {
   isOpen: boolean;
   mode: 'CREATE' | 'EDIT';
   serviceToEdit?: ServiceMasterItem | null;
+  serviceCategories?: ServiceCategoryItem[];
   onClose: () => void;
   onSave: (serviceData: Omit<ServiceMasterItem, 'id' | 'is_active'>, serviceId?: string) => void;
 }
 
-const CATEGORIES: { value: ServiceCategory; label: string }[] = [
+const DEFAULT_CATEGORIES: { value: string; label: string }[] = [
   { value: 'SPOORING', label: 'Spooring 3D Digital' },
   { value: 'BALANCING', label: 'Balancing Roda & Timah' },
   { value: 'BONGKAR_PASANG', label: 'Bongkar Pasang & Rotasi' },
   { value: 'PERBAIKAN_BAN', label: 'Tambal & Servis Ban' },
   { value: 'NITROGEN', label: 'Pengisian Gas Nitrogen' },
+  { value: 'GANTI_OLI', label: 'Servis Ringan & Ganti Oli' },
 ];
 
 export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
   isOpen,
   mode,
   serviceToEdit,
+  serviceCategories = [],
   onClose,
   onSave,
 }) => {
+  const categoryOptions = serviceCategories.length > 0
+    ? serviceCategories.map((sc) => ({ value: sc.code, label: sc.name }))
+    : DEFAULT_CATEGORIES;
+
   const [serviceName, setServiceName] = useState('');
   const [serviceCode, setServiceCode] = useState('');
   const [category, setCategory] = useState<ServiceCategory>('SPOORING');
@@ -140,7 +147,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
               onChange={(e) => handleCategoryChange(e.target.value as ServiceCategory)}
               className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-cyan-500 shadow-2xs"
             >
-              {CATEGORIES.map((cat) => (
+              {categoryOptions.map((cat) => (
                 <option key={cat.value} value={cat.value}>
                   {cat.label}
                 </option>

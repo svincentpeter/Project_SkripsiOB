@@ -16,6 +16,7 @@ import {
 import { 
   CreateProductInput, 
   ItemCategory,
+  ProductCategory,
   StockMutation, 
   TireProduct, 
   UpdateProductInput 
@@ -33,6 +34,7 @@ interface ProductFormModalProps {
   isOpen: boolean;
   mode: 'CREATE' | 'EDIT';
   productToEdit?: TireProduct | null;
+  categories?: ProductCategory[];
   existingProducts: TireProduct[];
   existingMutations: StockMutation[];
   onClose: () => void;
@@ -43,12 +45,14 @@ interface ProductFormModalProps {
 const BRANDS_BAN = ['Bridgestone', 'Accelera', 'Dunlop', 'Forceum', 'Hankook', 'GTRadial'];
 const BRANDS_VELG = ['HSR', 'Enkei', 'Rays', 'Work', 'BBS', 'SSW', 'OEM'];
 const BRANDS_TUBE = ['GTRadial', 'Swallow', 'Kingland', 'IRC'];
+const BRANDS_OIL = ['Shell', 'Pertamina', 'Castrol', 'Motul', 'Total', 'Mobil 1'];
 const RINGS = ['R13', 'R14', 'R15', 'R16', 'R17', 'R18', 'R19', 'R20+'];
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   isOpen,
   mode,
   productToEdit,
+  categories = [],
   existingProducts,
   onClose,
   onSaveCreate,
@@ -221,7 +225,23 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     }
   };
 
-  const currentBrandOptions = category === 'VELG' ? BRANDS_VELG : category === 'BAN_DALAM' ? BRANDS_TUBE : BRANDS_BAN;
+  const activeCategories = categories.length > 0
+    ? categories.filter((c) => c.is_active)
+    : [
+        { id: 'c1', category_code: 'BAN_BARU', category_name: 'Ban Baru' },
+        { id: 'c2', category_code: 'VELG', category_name: 'Velg Mobil' },
+        { id: 'c3', category_code: 'BAN_DALAM', category_name: 'Ban Dalam' },
+        { id: 'c4', category_code: 'OLI_PELUMAS', category_name: 'Oli & Pelumas' },
+      ];
+
+  const currentBrandOptions =
+    category === 'VELG'
+      ? BRANDS_VELG
+      : category === 'BAN_DALAM'
+      ? BRANDS_TUBE
+      : category === 'OLI_PELUMAS'
+      ? BRANDS_OIL
+      : BRANDS_BAN;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto font-['Plus_Jakarta_Sans',sans-serif]">
@@ -236,7 +256,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 {mode === 'CREATE' ? 'Tambah Master Produk Baru' : 'Edit Data Master Produk'}
               </h2>
               <p className="text-xs text-slate-500">
-                {mode === 'CREATE' ? 'Pilih kategori (Ban Baru, Velg, atau Ban Dalam) dan isi spesifikasi teknis.' : `Mengubah informasi: ${productToEdit?.product_name}`}
+                {mode === 'CREATE' ? 'Pilih kategori produk dan isi rincian spesifikasi teknis.' : `Mengubah informasi: ${productToEdit?.product_name}`}
               </p>
             </div>
           </div>
@@ -258,43 +278,37 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                 Kategori Produk
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
-                <button
-                  type="button"
-                  onClick={() => { setCategory('BAN_BARU'); setBrand('Bridgestone'); }}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
-                    category === 'BAN_BARU'
-                      ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-xs font-bold'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <Disc className="w-4 h-4" />
-                  Ban Baru
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setCategory('VELG'); setBrand('HSR'); }}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
-                    category === 'VELG'
-                      ? 'bg-amber-50 border-amber-500 text-amber-700 shadow-xs font-bold'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <CircleDot className="w-4 h-4" />
-                  Velg Mobil
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setCategory('BAN_DALAM'); setBrand('GTRadial'); }}
-                  className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
-                    category === 'BAN_DALAM'
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-xs font-bold'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  <Package className="w-4 h-4" />
-                  Ban Dalam
-                </button>
+              <div className="flex flex-wrap gap-2">
+                {activeCategories.map((cat) => {
+                  const isSelected = (category || '').toUpperCase() === cat.category_code.toUpperCase();
+                  return (
+                    <button
+                      key={cat.id || cat.category_code}
+                      type="button"
+                      onClick={() => {
+                        setCategory(cat.category_code);
+                        if (cat.category_code === 'BAN_BARU') setBrand('Bridgestone');
+                        else if (cat.category_code === 'VELG') setBrand('HSR');
+                        else if (cat.category_code === 'BAN_DALAM') setBrand('GTRadial');
+                        else if (cat.category_code === 'OLI_PELUMAS') setBrand('Shell');
+                      }}
+                      className={`flex items-center gap-2 py-2 px-3.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-xs font-bold ring-2 ring-blue-500/20'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {cat.category_code === 'BAN_BARU' ? (
+                        <Disc className="w-4 h-4 text-blue-600" />
+                      ) : cat.category_code === 'VELG' ? (
+                        <CircleDot className="w-4 h-4 text-amber-600" />
+                      ) : (
+                        <Package className="w-4 h-4 text-emerald-600" />
+                      )}
+                      <span>{cat.category_name}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

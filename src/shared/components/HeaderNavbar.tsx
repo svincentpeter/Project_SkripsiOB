@@ -90,10 +90,10 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
     },
     { 
       id: 'inventory' as ActiveScreen, 
-      label: 'Inventori & Master', 
+      label: 'Produk & Jasa', 
       icon: Package,
       badge: lowStockCount > 0 ? `${lowStockCount}` : undefined,
-      breadcrumb: ['Inventori & Master', 'Katalog Ban, Velg, Jasa & Supplier'],
+      breadcrumb: ['Produk & Jasa', 'Katalog Ban, Kategori, Servis & Rekanan'],
     },
     { 
       id: 'expenses' as ActiveScreen, 

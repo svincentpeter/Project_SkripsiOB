@@ -8,10 +8,12 @@ import {
   EdcSetting,
   PermissionKey,
   PosTransaction, 
+  ProductCategory,
   ProductItem, 
   ReceivableInvoice,
   RolePermissionsConfig,
   SalesBookingRecord, 
+  ServiceCategoryItem,
   ServiceMasterItem, 
   StockMutation, 
   StoreSettings, 
@@ -852,6 +854,53 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
       },
     ],
   },
+];
+
+export const INITIAL_PRODUCT_CATEGORIES: ProductCategory[] = [
+  {
+    id: 'cat-01',
+    category_code: 'BAN_BARU',
+    category_name: 'Ban Mobil Baru',
+    description: 'Katalog ban mobil penumpang, SUV, MPV, komersial berbagai ukuran ring',
+    is_active: true,
+  },
+  {
+    id: 'cat-02',
+    category_code: 'VELG',
+    category_name: 'Velg Mobil Racing & OEM',
+    description: 'Velg mobil variasi casting, flow forming, forged dan velg standar pabrik',
+    is_active: true,
+  },
+  {
+    id: 'cat-03',
+    category_code: 'BAN_DALAM',
+    category_name: 'Ban Dalam & Marset (Flap)',
+    description: 'Ban dalam tube type, karet marset pelindung velg dan pentil tubeless',
+    is_active: true,
+  },
+  {
+    id: 'cat-04',
+    category_code: 'OLI_PELUMAS',
+    category_name: 'Oli & Pelumas Mesin',
+    description: 'Pelumas mesin bensin/diesel, oli gardan, oli transmisi manual & matic',
+    is_active: true,
+  },
+  {
+    id: 'cat-05',
+    category_code: 'AKSESORIS',
+    category_name: 'Aksesoris & Mur Roda',
+    description: 'Baut roda racing, center ring velg, spacer, dan penutup pentil indikator',
+    is_active: true,
+  },
+];
+
+export const INITIAL_SERVICE_CATEGORIES: ServiceCategoryItem[] = [
+  { id: 'scat-01', code: 'SPOORING', name: 'Spooring 3D Digital', description: 'Penyelarasan sudut toe, camber, dan caster suspensi', is_active: true },
+  { id: 'scat-02', code: 'BALANCING', name: 'Balancing Roda & Timah', description: 'Kalibrasi rotasi dinamis roda dan timah penyeimbang', is_active: true },
+  { id: 'scat-03', code: 'BONGKAR_PASANG', name: 'Bongkar Pasang & Rotasi', description: 'Jasa pasang ban, pelepasan, dan rotasi posisi roda', is_active: true },
+  { id: 'scat-04', code: 'PERBAIKAN_BAN', name: 'Tambal & Servis Ban', description: 'Tambal tip-top dingin, press bakar, dan string tubeless', is_active: true },
+  { id: 'scat-05', code: 'NITROGEN', name: 'Pengisian Gas Nitrogen', description: 'Kuras oksigen dan isi angin nitrogen murni 99.5%', is_active: true },
+  { id: 'scat-06', code: 'GANTI_OLI', name: 'Servis Ringan & Ganti Oli', description: 'Jasa kuras oli mesin, ganti filter oli, dan tune up ringan', is_active: true },
 ];
 
 export const INITIAL_SERVICES: ServiceMasterItem[] = [

@@ -1,6 +1,28 @@
-export type ItemCategory = 'BAN_BARU' | 'VELG' | 'BAN_DALAM' | 'OLI_PELUMAS';
+export type ItemCategory = 'BAN_BARU' | 'VELG' | 'BAN_DALAM' | 'OLI_PELUMAS' | string;
 export type TireBrand = 'Bridgestone' | 'Accelera' | 'Dunlop' | 'Forceum' | 'Hankook' | 'GTRadial' | 'HSR' | 'Enkei' | 'Rays' | 'Swallow' | 'Kingland' | string;
 export type TireRing = 'R13' | 'R14' | 'R15' | 'R16' | 'R17' | 'R18' | 'R19' | 'R20+' | string;
+
+export interface ProductCategory {
+  id: string;
+  category_code: string;
+  category_name: string;
+  description?: string;
+  is_active: boolean;
+  product_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ServiceCategoryItem {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  is_active: boolean;
+  service_count?: number;
+}
+
+export type ServiceCategory = 'SPOORING' | 'BALANCING' | 'BONGKAR_PASANG' | 'PERBAIKAN_BAN' | 'NITROGEN' | 'JASA_MANUAL' | string;
 
 export interface ProductBatch {
   id: string;
@@ -57,8 +79,6 @@ export interface ProductItem {
 }
 
 export type TireProduct = ProductItem;
-
-export type ServiceCategory = 'SPOORING' | 'BALANCING' | 'BONGKAR_PASANG' | 'PERBAIKAN_BAN' | 'NITROGEN' | 'JASA_MANUAL';
 
 export interface ServiceMasterItem {
   id: string;

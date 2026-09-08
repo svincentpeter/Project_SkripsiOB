@@ -11,12 +11,14 @@ import {
   ManualJournalInput, 
   PayableInvoice, 
   PosTransaction, 
+  ProductCategory,
   ProductItem, 
   ParkedTransaction,
   ReceivableInvoice,
   ReceivablePaymentInput,
   RolePermissionsConfig,
   SalesBookingRecord, 
+  ServiceCategoryItem,
   ServiceMasterItem, 
   StockMutation, 
   StoreSettings, 
@@ -53,8 +55,20 @@ import {
 import { 
   createServiceItem, 
   deleteOrToggleServiceItem, 
-  updateServiceItem 
+  updateServiceItem,
+  deleteServiceItemPermanent,
+  createServiceCategory,
+  updateServiceCategory,
+  deleteServiceCategory,
+  fetchServiceCategoriesFromStorage
 } from './services/serviceMasterService';
+import { 
+  fetchProductCategoriesFromStorage,
+  createProductCategory,
+  updateProductCategory,
+  deleteProductCategory,
+  toggleProductCategoryStatus
+} from './services/productCategoryService';
 import { 
   createSupplierItem, 
   deleteOrToggleSupplierItem, 
@@ -245,7 +259,13 @@ function MainAppContent() {
   });
 
   const [products, setProducts] = useState<ProductItem[]>([]);
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>(() =>
+    fetchProductCategoriesFromStorage()
+  );
   const [services, setServices] = useState<ServiceMasterItem[]>([]);
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategoryItem[]>(() =>
+    fetchServiceCategoriesFromStorage()
+  );
   const [suppliers, setSuppliers] = useState<SupplierItem[]>([]);
   const [bookings, setBookings] = useState<SalesBookingRecord[]>([]);
   const [transactions, setTransactions] = useState<PosTransaction[]>([]);
@@ -1210,6 +1230,82 @@ function MainAppContent() {
     setServices((prev) => deleteOrToggleServiceItem(prev, serviceId));
   };
 
+  const handleDeleteServicePermanent = (serviceId: string) => {
+    setServices((prev) => deleteServiceItemPermanent(prev, serviceId));
+    toast.info('Layanan Dihapus', 'Layanan jasa berhasil dihapus permanen.');
+  };
+
+  const handleSaveProductCategory = (
+    categoryData: { category_code: string; category_name: string; description?: string; is_active?: boolean },
+    categoryId?: string
+  ) => {
+    if (categoryId) {
+      const res = updateProductCategory(productCategories, categoryId, categoryData);
+      if (res.success) {
+        setProductCategories(res.updatedCategories);
+        toast.success('Berhasil', 'Kategori produk berhasil diperbarui.');
+      } else {
+        toast.error('Gagal', res.error || 'Terjadi kesalahan saat memperbarui kategori.');
+      }
+    } else {
+      const res = createProductCategory(productCategories, categoryData);
+      if (res.success) {
+        setProductCategories(res.updatedCategories);
+        toast.success('Berhasil', 'Kategori produk baru berhasil ditambahkan.');
+      } else {
+        toast.error('Gagal', res.error || 'Terjadi kesalahan saat menambahkan kategori.');
+      }
+    }
+  };
+
+  const handleDeleteProductCategory = (categoryId: string) => {
+    const res = deleteProductCategory(productCategories, categoryId, products);
+    if (res.success) {
+      setProductCategories(res.updatedCategories);
+      toast.info('Kategori Dihapus', 'Kategori produk berhasil dihapus.');
+    } else {
+      toast.error('Gagal Menghapus', res.error || 'Kategori tidak dapat dihapus.');
+    }
+  };
+
+  const handleToggleProductCategoryStatus = (categoryId: string) => {
+    const updated = toggleProductCategoryStatus(productCategories, categoryId);
+    setProductCategories(updated);
+  };
+
+  const handleSaveServiceCategory = (
+    categoryData: { code: string; name: string; description?: string },
+    id?: string
+  ) => {
+    if (id) {
+      const res = updateServiceCategory(serviceCategories, id, categoryData);
+      if (res.success) {
+        setServiceCategories(res.updatedCategories);
+        toast.success('Berhasil', 'Kategori jasa diperbarui.');
+      } else {
+        toast.error('Gagal', res.error || 'Gagal memperbarui kategori jasa.');
+      }
+    } else {
+      const res = createServiceCategory(serviceCategories, categoryData);
+      if (res.success) {
+        setServiceCategories(res.updatedCategories);
+        toast.success('Berhasil', 'Kategori jasa baru ditambahkan.');
+      } else {
+        toast.error('Gagal', res.error || 'Gagal menambahkan kategori jasa.');
+      }
+    }
+  };
+
+  const handleDeleteServiceCategory = (id: string) => {
+    const res = deleteServiceCategory(serviceCategories, id, services);
+    if (res.success) {
+      setServiceCategories(res.updatedCategories);
+      toast.info('Dihapus', 'Kategori jasa telah dihapus.');
+    } else {
+      toast.error('Gagal Menghapus', res.error || 'Kategori masih digunakan oleh layanan aktif.');
+    }
+  };
+
   const handleSaveSupplier = (supplierData: Omit<SupplierItem, 'id' | 'is_active'>, supplierId?: string) => {
     if (supplierId) {
       setSuppliers((prev) => updateSupplierItem(prev, supplierId, supplierData));
@@ -1401,6 +1497,8 @@ function MainAppContent() {
                 suppliers={suppliers}
                 mutations={mutations}
                 transactions={transactions}
+                categories={productCategories}
+                serviceCategories={serviceCategories}
                 onCreateProduct={handleCreateProduct}
                 onUpdateProduct={handleUpdateProduct}
                 onGoodsReceipt={handleGoodsReceipt}
@@ -1408,8 +1506,14 @@ function MainAppContent() {
                 onUpdateProductStock={handleUpdateProductStock}
                 onSaveService={handleSaveService}
                 onToggleService={handleToggleService}
+                onDeleteServicePermanent={handleDeleteServicePermanent}
                 onSaveSupplier={handleSaveSupplier}
                 onToggleSupplier={handleToggleSupplier}
+                onSaveCategory={handleSaveProductCategory}
+                onDeleteCategory={handleDeleteProductCategory}
+                onToggleCategoryStatus={handleToggleProductCategoryStatus}
+                onSaveServiceCategory={handleSaveServiceCategory}
+                onDeleteServiceCategory={handleDeleteServiceCategory}
                 isEmptyState={isEmptyState}
               />
             )}
