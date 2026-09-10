@@ -55,6 +55,14 @@ Route::prefix('v1')->group(function () {
     Route::get('inventory/stock-movements', [\App\Http\Controllers\Api\v1\InventoryController::class, 'stockMovements']);
     Route::post('inventory/stock-opname', [\App\Http\Controllers\Api\v1\InventoryController::class, 'stockOpname']);
 
+    // Fintech QRIS Midtrans Gateway
+    Route::prefix('payment')->group(function () {
+        Route::post('qris/charge', [\App\Http\Controllers\Api\v1\PaymentApiController::class, 'chargeQris']);
+        Route::get('qris/status/{orderId}', [\App\Http\Controllers\Api\v1\PaymentApiController::class, 'checkQrisStatus']);
+        Route::post('qris/simulate/{orderId}', [\App\Http\Controllers\Api\v1\PaymentApiController::class, 'simulateQrisSettlement']);
+        Route::post('midtrans/webhook', [\App\Http\Controllers\Api\v1\PaymentApiController::class, 'handleWebhook']);
+    });
+
     // Stock Excel Import & Reconciliation (Paritas ProjectOmahBan)
     Route::prefix('stock')->group(function () {
         Route::post('import-preview', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'importPreview']);
