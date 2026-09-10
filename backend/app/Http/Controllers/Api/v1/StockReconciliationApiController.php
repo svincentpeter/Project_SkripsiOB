@@ -10,6 +10,7 @@ use App\Services\Inventory\Excel\BrandResolver;
 use App\Services\Inventory\Excel\StockMatchKey;
 use App\Services\Inventory\StockExcelImportService;
 use App\Services\Inventory\StockOpnameCommitService;
+use App\Services\Inventory\StockSelectiveUpdateService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,13 +26,16 @@ class StockReconciliationApiController extends Controller
 {
     protected StockExcelImportService $importService;
     protected StockOpnameCommitService $commitService;
+    protected StockSelectiveUpdateService $selectiveUpdateService;
 
     public function __construct(
         StockExcelImportService $importService,
-        StockOpnameCommitService $commitService
+        StockOpnameCommitService $commitService,
+        StockSelectiveUpdateService $selectiveUpdateService
     ) {
         $this->importService = $importService;
         $this->commitService = $commitService;
+        $this->selectiveUpdateService = $selectiveUpdateService;
     }
 
     public function importPreview(Request $request): JsonResponse
@@ -303,6 +307,47 @@ class StockReconciliationApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Sinkronisasi gagal: ' . $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    public function bulkUpdate(Request $request): JsonResponse
+    {
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer',
+            'update_cost' => 'nullable|boolean',
+            'update_price' => 'nullable|boolean',
+            'update_stock' => 'nullable|boolean',
+            'reason' => 'required|string|min:3',
+            'branch_id' => 'nullable|integer',
+        ]);
+
+        try {
+            $result = $this->selectiveUpdateService->updateBulk(
+                $request->input('items'),
+                [
+                    'update_cost' => $request->boolean('update_cost'),
+                    'update_price' => $request->boolean('update_price'),
+                    'update_stock' => $request->boolean('update_stock'),
+                    'reason' => $request->input('reason'),
+                    'branch_id' => $request->input('branch_id', 3),
+                    'user_id' => auth()->id() ?? 1,
+                ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => "Update selektif berhasil! {$result['total_processed']} produk diperbarui "
+                    . "(HPP: {$result['cost_updated']}, Harga: {$result['price_updated']}, Stok: {$result['stock_updated']}).",
+                'data' => $result,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Gagal update bulk selektif', ['exception' => $e]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal melakukan update selektif: ' . $e->getMessage(),
             ], 422);
         }
     }

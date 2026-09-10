@@ -63,6 +63,8 @@ Route::prefix('v1')->group(function () {
         Route::post('resolve-name', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'resolveName']);
         Route::post('ignore-unresolved', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'ignoreUnresolved']);
         Route::post('commit', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'commit']);
+        Route::post('bulk-update', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'bulkUpdate']);
+        Route::post('reconciliation/bulk-update', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'bulkUpdate']);
         Route::get('template', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'downloadTemplate']);
     });
 

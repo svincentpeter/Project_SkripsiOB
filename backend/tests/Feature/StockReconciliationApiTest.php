@@ -84,4 +84,49 @@ class StockReconciliationApiTest extends TestCase
             'product_name' => 'Bs Techno',
         ]);
     }
+
+    public function test_bulk_update_endpoint_updates_selected_products_successfully(): void
+    {
+        $uniqueCode = 'DLP-BULK-' . uniqid();
+        $brand = Brand::firstOrCreate(['name' => 'Dunlop']);
+        $product = Product::create([
+            'brand' => $brand->name,
+            'brand_id' => $brand->id,
+            'product_name' => 'Dlp Enasave EC300+ 185/65 R15',
+            'product_code' => $uniqueCode,
+            'barcode' => $uniqueCode,
+            'product_cost' => 600000,
+            'product_price' => 800000,
+            'product_quantity' => 10,
+            'branch_id' => 3,
+        ]);
+
+        $response = $this->postJson('/api/v1/stock/reconciliation/bulk-update', [
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'excel_cost' => 620000,
+                    'excel_price' => 850000,
+                    'excel_stock' => 12,
+                ]
+            ],
+            'update_cost' => true,
+            'update_price' => true,
+            'update_stock' => true,
+            'reason' => 'Penyesuaian stok dan harga bulanan',
+            'branch_id' => 3,
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+        ]);
+
+        $this->assertEquals(620000, $product->fresh()->product_cost);
+        $this->assertEquals(850000, $product->fresh()->product_price);
+        $this->assertEquals(12, $product->fresh()->product_quantity);
+
+        // Clean up
+        $product->forceDelete();
+    }
 }
