@@ -2,14 +2,11 @@ import React, { useState } from 'react';
 import {
   CheckCircle2,
   Printer,
-  MessageCircle,
   Receipt,
   X,
   Copy,
   Check,
   ArrowRight,
-  Send,
-  ExternalLink,
 } from 'lucide-react';
 import { PosTransaction } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
@@ -29,11 +26,8 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
   onClose,
   onPrintReceipt,
   onNavigateToReceipts,
-  storeSettings,
 }) => {
   const [copiedNota, setCopiedNota] = useState(false);
-  const [showWaInput, setShowWaInput] = useState(false);
-  const [waPhone, setWaPhone] = useState('');
 
   if (!isOpen || !transaction) return null;
 
@@ -44,35 +38,6 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
     navigator.clipboard.writeText(transaction.invoice_number);
     setCopiedNota(true);
     setTimeout(() => setCopiedNota(false), 2000);
-  };
-
-  const handleSendWhatsApp = () => {
-    let cleanPhone = waPhone.replace(/\D/g, '');
-    if (cleanPhone.startsWith('0')) {
-      cleanPhone = '62' + cleanPhone.substring(1);
-    }
-
-    const storeName = storeSettings?.name || 'OMAH BAN CABANG 3';
-    const storeAddress = storeSettings?.address || 'Jl. Raya Magelang - Secang Km. 5, Magelang';
-    const storePhone = storeSettings?.phone || '(0293) 314-889';
-
-    const itemsText = transaction.items
-      .map(
-        (it, idx) =>
-          `${idx + 1}. ${it.custom_name_override || it.product.name} (${it.qty} pcs) = ${formatRupiah(
-            (it.custom_price ?? it.product.product_price) * it.qty - (it.discount_per_item || 0) * it.qty
-          )}`
-      )
-      .join('\n');
-
-    const message = `*${storeName}*\n${storeAddress}\nTelp: ${storePhone}\n---------------------------------------\n*STRUK TRANSAKSI PENJUALAN*\nNo. Nota: ${transaction.invoice_number}\nWaktu   : ${transaction.timestamp || transaction.date}\nKasir   : ${transaction.cashier_name}\nPelanggan: ${transaction.customer_name || 'Umum'} (${transaction.vehicle_plate || '-'})\n---------------------------------------\n*DETAIL ITEM:*\n${itemsText}\n---------------------------------------\nSubtotal: ${formatRupiah(transaction.subtotal)}\n${transaction.total_discount > 0 ? `Diskon: -${formatRupiah(transaction.total_discount)}\n` : ''}*TOTAL BAYAR: ${formatRupiah(transaction.grand_total)}*\nMetode: ${transaction.payment_method} ${transaction.payment_provider ? `(${transaction.payment_provider})` : ''}\n---------------------------------------\nTerima kasih atas kunjungan Anda di Omah Ban!`;
-
-    const waUrl = cleanPhone
-      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
-      : `https://wa.me/?text=${encodeURIComponent(message)}`;
-
-    window.open(waUrl, '_blank');
-    setShowWaInput(false);
   };
 
   return (
@@ -189,7 +154,7 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
               Ringkasan Item ({transaction.items.length})
             </span>
-            <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-200/70 space-y-1.5 max-h-28 overflow-y-auto">
+            <div className="bg-slate-50 rounded-xl p-2.5 border border-slate-200/70 space-y-1.5 max-h-32 overflow-y-auto">
               {transaction.items.map((it, idx) => (
                 <div key={idx} className="flex justify-between items-center text-[11px]">
                   <span className="text-slate-700 truncate max-w-[240px]">
@@ -204,62 +169,25 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
               ))}
             </div>
           </div>
-
-          {/* WhatsApp Drawer / Input Form */}
-          {showWaInput && (
-            <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 space-y-2 animate-in fade-in">
-              <span className="text-[11px] font-bold text-emerald-900 block">
-                Kirim Struk via WhatsApp
-              </span>
-              <div className="flex gap-2">
-                <input
-                  type="tel"
-                  placeholder="08xxxxxxxxxx"
-                  value={waPhone}
-                  onChange={(e) => setWaPhone(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-white rounded-xl border border-emerald-300 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-                <button
-                  type="button"
-                  onClick={handleSendWhatsApp}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Kirim</span>
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Modal Action Buttons Footer */}
         <div className="p-5 bg-slate-50 border-t border-slate-100 space-y-2.5 shrink-0">
-          {/* Main Actions: Print Thermal & WA */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => onPrintReceipt(transaction)}
-              className="py-2.5 px-3 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Cetak Struk (80mm)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowWaInput((prev) => !prev)}
-              className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
-            >
-              <MessageCircle className="w-4 h-4 text-emerald-600" />
-              <span>Kirim WhatsApp</span>
-            </button>
-          </div>
+          {/* Main Action: Print Thermal 80mm */}
+          <button
+            type="button"
+            onClick={() => onPrintReceipt(transaction)}
+            className="w-full py-3 px-4 bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white rounded-xl text-sm font-bold transition flex items-center justify-center gap-2.5 shadow-sm hover:shadow cursor-pointer"
+          >
+            <Printer className="w-4.5 h-4.5" />
+            <span>Cetak Struk Thermal (80mm)</span>
+          </button>
 
           {/* Secondary Action: Transaksi Baru (Tetap di POS) */}
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-xs font-extrabold transition flex items-center justify-center gap-2 shadow-xs cursor-pointer"
           >
             <span>+ Transaksi Baru (Lanjut Kasir)</span>
             <ArrowRight className="w-4 h-4" />
