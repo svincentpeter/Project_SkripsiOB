@@ -16,10 +16,12 @@ import {
   Plus,
   Trash2,
   Layers,
+  Sparkles,
 } from 'lucide-react';
 import { CartItem, PaymentMethod, StoreSettings, SplitPaymentLine } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
 import { INITIAL_BANK_PROVIDERS, INITIAL_QRIS_PROVIDERS, INITIAL_EDC_SETTINGS } from '../../../shared/data/mockData';
+import { QrisDynamicModal } from './QrisDynamicModal';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -81,6 +83,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [selectedEdcType, setSelectedEdcType] = useState<'Debit' | 'Credit'>('Debit');
   const [cashTenderedInput, setCashTenderedInput] = useState<string>('');
   const [transactionNotes, setTransactionNotes] = useState<string>('');
+
+  // Fintech QRIS Dinamis Midtrans State
+  const [qrisFlowType, setQrisFlowType] = useState<'DYNAMIC' | 'MANUAL'>('DYNAMIC');
+  const [isQrisModalOpen, setIsQrisModalOpen] = useState<boolean>(false);
+  const [qrisOrderId, setQrisOrderId] = useState<string>('');
 
   // Split Payment State
   const [isSplitMode, setIsSplitMode] = useState<boolean>(false);
@@ -277,10 +284,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     });
   };
 
+  const handleQrisPaymentSuccess = (paymentData: any) => {
+    setIsQrisModalOpen(false);
+    onConfirmCheckout(
+      tag === 'BON',
+      'QRIS',
+      effectivePayable,
+      transactionNotes.trim() || undefined,
+      {
+        provider_name: 'Midtrans QRIS',
+        fee_percentage: qrisFeePct,
+        fee_amount: qrisFeeAmount,
+        net_received: qrisNetReceived,
+      }
+    );
+  };
+
   const handleFinalSubmit = () => {
     if (tag === 'REGULAR') {
       if (isSplitMode && isSplitShort) return;
       if (!isSplitMode && isCashShort) return;
+    }
+
+    if (!isSplitMode && paymentMethod === 'QRIS' && qrisFlowType === 'DYNAMIC') {
+      const generatedOrderId = `POS-${Date.now().toString().slice(-8)}`;
+      setQrisOrderId(generatedOrderId);
+      setIsQrisModalOpen(true);
+      return;
     }
 
     if (isSplitMode) {
@@ -801,33 +831,84 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       )}
 
                       {paymentMethod === 'QRIS' && (
-                        <div className="rounded-xl border border-cyan-200 bg-cyan-50/70 p-3 text-xs space-y-3 text-cyan-950">
+                        <div className="rounded-xl border border-cyan-200 bg-cyan-50/70 p-3.5 text-xs space-y-3 text-cyan-950">
+                          {/* Selector: Mode Dinamis Midtrans vs Statis */}
                           <div className="flex items-center justify-between">
                             <div className="font-bold flex items-center gap-1.5">
                               <QrCode className="w-4 h-4 text-cyan-700" />
-                              <span>Pilih Rekening QRIS Dinamis:</span>
+                              <span>Metode QRIS Kasir:</span>
                             </div>
-                            <span className="text-[10px] font-bold bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded-md">
-                              Scan Barcode
+                            <span className="text-[10px] font-black bg-cyan-600 text-white px-2 py-0.5 rounded-md uppercase tracking-wider">
+                              {qrisFlowType === 'DYNAMIC' ? 'Midtrans Core API' : 'Manual Statis'}
                             </span>
                           </div>
 
-                          <div className="flex flex-wrap gap-1.5">
-                            {qrisOptions.map((qris) => (
-                              <button
-                                key={qris.id || qris.provider_name}
-                                type="button"
-                                onClick={() => setSelectedQris(qris.provider_name)}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                                  selectedQris === qris.provider_name
-                                    ? 'bg-cyan-600 text-white border-cyan-600 shadow-xs'
-                                    : 'bg-white text-cyan-900 border-cyan-200 hover:bg-cyan-100/60'
-                                }`}
-                              >
-                                {qris.provider_name} ({qris.fee_percentage}%)
-                              </button>
-                            ))}
+                          <div className="grid grid-cols-2 gap-1.5 bg-cyan-100/60 p-1 rounded-xl">
+                            <button
+                              type="button"
+                              onClick={() => setQrisFlowType('DYNAMIC')}
+                              className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                qrisFlowType === 'DYNAMIC'
+                                  ? 'bg-white text-cyan-950 shadow-xs'
+                                  : 'text-cyan-800 hover:text-cyan-950'
+                              }`}
+                            >
+                              <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
+                              <span>Otomatis (Midtrans)</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setQrisFlowType('MANUAL')}
+                              className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                qrisFlowType === 'MANUAL'
+                                  ? 'bg-white text-cyan-950 shadow-xs'
+                                  : 'text-cyan-800 hover:text-cyan-950'
+                              }`}
+                            >
+                              <span>Manual / EDC Statis</span>
+                            </button>
                           </div>
+
+                          {qrisFlowType === 'DYNAMIC' ? (
+                            <div className="bg-white/80 p-3 rounded-xl border border-cyan-200 space-y-2">
+                              <div className="flex items-start gap-2 text-cyan-900">
+                                <div className="w-6 h-6 rounded-lg bg-cyan-100 flex items-center justify-center text-cyan-700 shrink-0 mt-0.5">
+                                  <QrCode className="w-3.5 h-3.5" />
+                                </div>
+                                <div>
+                                  <span className="font-extrabold text-[11px] block">
+                                    QRIS Dinamis Otomatis
+                                  </span>
+                                  <p className="text-[10px] text-cyan-700 mt-0.5 leading-snug">
+                                    Mendukung GoPay, BCA, Livin, OVO, Dana, ShopeePay. Kasir langsung melihat status lunas tanpa cek mutasi manual.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <span className="text-[11px] font-semibold text-cyan-800 block">
+                                Pilih Rekening Merchant QRIS:
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {qrisOptions.map((qris) => (
+                                  <button
+                                    key={qris.id || qris.provider_name}
+                                    type="button"
+                                    onClick={() => setSelectedQris(qris.provider_name)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                                      selectedQris === qris.provider_name
+                                        ? 'bg-cyan-600 text-white border-cyan-600 shadow-xs'
+                                        : 'bg-white text-cyan-900 border-cyan-200 hover:bg-cyan-100/60'
+                                    }`}
+                                  >
+                                    {qris.provider_name} ({qris.fee_percentage}%)
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
                           <div className="pt-2 border-t border-cyan-200/80 space-y-1.5 text-[11px]">
                             {netPayable > qrisThreshold && qrisFeePct > 0 ? (
@@ -1255,6 +1336,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Dynamic QRIS Midtrans Gateway Modal */}
+      <QrisDynamicModal
+        isOpen={isQrisModalOpen}
+        onClose={() => setIsQrisModalOpen(false)}
+        orderId={qrisOrderId}
+        grossAmount={effectivePayable}
+        customerName={customerName || vehiclePlate}
+        onSuccess={handleQrisPaymentSuccess}
+      />
     </div>
   );
 };
