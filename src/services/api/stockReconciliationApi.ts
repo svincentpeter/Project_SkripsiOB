@@ -102,6 +102,32 @@ export interface CommitResult {
   snapshot_path: string;
 }
 
+export interface BulkUpdateItem {
+  product_id: number;
+  excel_cost?: number | null;
+  excel_price?: number | null;
+  excel_stock?: number | null;
+  product_name?: string | null;
+  product_code?: string | null;
+  batches?: StagingBatch[];
+}
+
+export interface BulkUpdateOptions {
+  update_cost: boolean;
+  update_price: boolean;
+  update_stock: boolean;
+  reason: string;
+  branch_id?: number;
+}
+
+export interface BulkUpdateResult {
+  total_processed: number;
+  cost_updated: number;
+  price_updated: number;
+  stock_updated: number;
+  details: Array<{ id: number; code: string; name: string }>;
+}
+
 // Client-side brand aliases dictionary (Paritas ProjectOmahBan)
 const BRAND_ALIASES: Record<string, { id: number; name: string }> = {
   'bs': { id: 2, name: 'Bridgestone' },
@@ -700,6 +726,64 @@ export const stockReconciliationApi = {
         message: `Sinkronisasi berhasil! Baru: ${created}, diperbarui: ${updated}, batch: ${result.batches_created}.`,
         data: result,
       };
+    }
+  },
+
+  bulkUpdate: async (
+    items: BulkUpdateItem[],
+    options: BulkUpdateOptions
+  ): Promise<{ success: boolean; message: string; data?: BulkUpdateResult }> => {
+    try {
+      return await apiClient.post<any>('/stock/bulk-update', {
+        items,
+        ...options,
+      });
+    } catch (err: any) {
+      // Fallback for offline/local storage if backend is unreachable
+      const localProductsRaw = localStorage.getItem('ob3_products');
+      if (localProductsRaw) {
+        const localProducts = JSON.parse(localProductsRaw);
+        let costUpdated = 0;
+        let priceUpdated = 0;
+        let stockUpdated = 0;
+
+        for (const it of items) {
+          const p = localProducts.find((x: any) => String(x.id) === String(it.product_id) || x.product_code === it.product_code);
+          if (p) {
+            if (options.update_cost && it.excel_cost != null) {
+              p.product_cost = it.excel_cost;
+              p.cost_price = it.excel_cost;
+              costUpdated++;
+            }
+            if (options.update_price && it.excel_price != null) {
+              p.product_price = it.excel_price;
+              p.price = it.excel_price;
+              priceUpdated++;
+            }
+            if (options.update_stock && it.excel_stock != null) {
+              p.product_quantity = it.excel_stock;
+              p.stock = it.excel_stock;
+              stockUpdated++;
+            }
+            if (isSupabaseConfigured()) {
+              upsertProductToSupabase(p);
+            }
+          }
+        }
+        localStorage.setItem('ob3_products', JSON.stringify(localProducts));
+        return {
+          success: true,
+          message: `Update selektif lokal berhasil (${items.length} produk).`,
+          data: {
+            total_processed: items.length,
+            cost_updated: costUpdated,
+            price_updated: priceUpdated,
+            stock_updated: stockUpdated,
+            details: items.map(i => ({ id: i.product_id, code: i.product_code || '', name: i.product_name || '' })),
+          },
+        };
+      }
+      throw err;
     }
   },
 

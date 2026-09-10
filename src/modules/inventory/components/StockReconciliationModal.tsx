@@ -63,8 +63,18 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
   // Table Filter State
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeBrandTab, setActiveBrandTab] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'MATCHED' | 'NEW' | 'DIFF'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<
+    'ALL' | 'MATCHED' | 'NEW' | 'DIFF' | 'DIFF_COST' | 'DIFF_PRICE' | 'DIFF_STOCK' | 'DIFF_ANY' | 'IDENTICAL'
+  >('ALL');
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+
+  // Bulk Update Selective Modal State (Paritas ProjectOmahBan)
+  const [showBulkModal, setShowBulkModal] = useState<boolean>(false);
+  const [bulkUpdateCost, setBulkUpdateCost] = useState<boolean>(true);
+  const [bulkUpdatePrice, setBulkUpdatePrice] = useState<boolean>(true);
+  const [bulkUpdateStock, setBulkUpdateStock] = useState<boolean>(true);
+  const [bulkReason, setBulkReason] = useState<string>('Pembaruan data stok dan harga dari Excel');
+  const [isBulkUpdating, setIsBulkUpdating] = useState<boolean>(false);
 
   // Result Summary Modal
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
@@ -153,13 +163,157 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
       // Status filter
       if (statusFilter === 'MATCHED' && !p.db_match) return false;
       if (statusFilter === 'NEW' && p.db_match) return false;
-      if (statusFilter === 'DIFF') {
+      if (statusFilter === 'DIFF' || statusFilter === 'DIFF_STOCK') {
         if (!p.db_match || p.db_match.diff === 0) return false;
+      }
+      if (statusFilter === 'DIFF_COST') {
+        if (!p.db_match) return false;
+        const dbCost = Number(p.db_match.cost) || 0;
+        const exCost = Number(p.avg_cost) || 0;
+        if (exCost <= 0 || dbCost <= 0 || exCost === dbCost) return false;
+      }
+      if (statusFilter === 'DIFF_PRICE') {
+        if (!p.db_match) return false;
+        const dbPrice = Number(p.db_match.price) || 0;
+        const exPrice = Number(p.product_price) || 0;
+        if (exPrice <= 0 || dbPrice <= 0 || exPrice === dbPrice) return false;
+      }
+      if (statusFilter === 'DIFF_ANY') {
+        if (!p.db_match) return false;
+        const dbCost = Number(p.db_match.cost) || 0;
+        const exCost = Number(p.avg_cost) || 0;
+        const dbPrice = Number(p.db_match.price) || 0;
+        const exPrice = Number(p.product_price) || 0;
+        const stockDiff = p.db_match.diff !== 0;
+        const costDiff = exCost > 0 && dbCost > 0 && exCost !== dbCost;
+        const priceDiff = exPrice > 0 && dbPrice > 0 && exPrice !== dbPrice;
+        if (!stockDiff && !costDiff && !priceDiff) return false;
+      }
+      if (statusFilter === 'IDENTICAL') {
+        if (!p.db_match) return false;
+        const dbCost = Number(p.db_match.cost) || 0;
+        const exCost = Number(p.avg_cost) || 0;
+        const dbPrice = Number(p.db_match.price) || 0;
+        const exPrice = Number(p.product_price) || 0;
+        const stockDiff = p.db_match.diff !== 0;
+        const costDiff = exCost > 0 && dbCost > 0 && exCost !== dbCost;
+        const priceDiff = exPrice > 0 && dbPrice > 0 && exPrice !== dbPrice;
+        if (stockDiff || costDiff || priceDiff) return false;
       }
 
       return true;
     });
   }, [stagingData, searchQuery, activeBrandTab, statusFilter]);
+
+  // Quick Action: Pilih Semua Yang Beda (Paritas ProjectOmahBan)
+  const handleSelectAllDifferent = () => {
+    if (!stagingData?.products) return;
+    const diffKeys = new Set<string>();
+    stagingData.products.forEach((p) => {
+      if (p.db_match) {
+        const dbCost = Number(p.db_match.cost) || 0;
+        const exCost = Number(p.avg_cost) || 0;
+        const dbPrice = Number(p.db_match.price) || 0;
+        const exPrice = Number(p.product_price) || 0;
+        const stockDiff = p.db_match.diff !== 0;
+        const costDiff = exCost > 0 && dbCost > 0 && exCost !== dbCost;
+        const priceDiff = exPrice > 0 && dbPrice > 0 && exPrice !== dbPrice;
+        if (stockDiff || costDiff || priceDiff) {
+          diffKeys.add(p.match_key);
+        }
+      }
+    });
+    setSelectedKeys(diffKeys);
+  };
+
+  // Bulk update summary calculation
+  const bulkSummary = useMemo(() => {
+    if (!stagingData?.products || selectedKeys.size === 0) {
+      return { total: 0, matched: 0, costDiffs: 0, priceDiffs: 0, stockDiffs: 0 };
+    }
+    let matched = 0;
+    let costDiffs = 0;
+    let priceDiffs = 0;
+    let stockDiffs = 0;
+
+    stagingData.products.forEach((p) => {
+      if (selectedKeys.has(p.match_key) && p.db_match?.id) {
+        matched++;
+        const dbCost = Number(p.db_match.cost) || 0;
+        const exCost = Number(p.avg_cost) || 0;
+        const dbPrice = Number(p.db_match.price) || 0;
+        const exPrice = Number(p.product_price) || 0;
+        if (exCost > 0 && dbCost > 0 && exCost !== dbCost) costDiffs++;
+        if (exPrice > 0 && dbPrice > 0 && exPrice !== dbPrice) priceDiffs++;
+        if (p.db_match.diff !== 0) stockDiffs++;
+      }
+    });
+
+    return {
+      total: selectedKeys.size,
+      matched,
+      costDiffs,
+      priceDiffs,
+      stockDiffs,
+    };
+  }, [stagingData, selectedKeys]);
+
+  // Bulk update execution
+  const handleExecuteBulkUpdate = async () => {
+    const reason = bulkReason.trim();
+    if (reason.length < 3) {
+      alert('Alasan perubahan wajib diisi minimal 3 karakter.');
+      return;
+    }
+    if (!bulkUpdateCost && !bulkUpdatePrice && !bulkUpdateStock) {
+      alert('Pilih minimal satu aspek yang ingin diperbarui (HPP, Harga, atau Stok).');
+      return;
+    }
+
+    const itemsToUpdate = (stagingData?.products || [])
+      .filter((p) => selectedKeys.has(p.match_key) && p.db_match?.id)
+      .map((p) => ({
+        product_id: p.db_match!.id,
+        excel_cost: p.avg_cost,
+        excel_price: p.product_price,
+        excel_stock: p.total_stock,
+        product_name: p.product_name,
+        product_code: p.product_code,
+        batches: p.batches,
+      }));
+
+    if (itemsToUpdate.length === 0) {
+      alert('Tidak ada produk dengan padanan database (matched) yang dipilih.');
+      return;
+    }
+
+    setIsBulkUpdating(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const res = await stockReconciliationApi.bulkUpdate(itemsToUpdate, {
+        update_cost: bulkUpdateCost,
+        update_price: bulkUpdatePrice,
+        update_stock: bulkUpdateStock,
+        reason,
+        branch_id: 3,
+      });
+
+      if (res.success) {
+        setShowBulkModal(false);
+        setSuccessMessage(res.message);
+        setSelectedKeys(new Set());
+        await loadExistingStaging();
+        onSuccessCommit();
+      } else {
+        setErrorMessage(res.message || 'Gagal melakukan pembaruan massal');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Terjadi kesalahan saat memproses update massal.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
 
   // Select all / Toggle selection
   const handleToggleSelectAll = () => {
@@ -579,44 +733,102 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
                     />
                   </div>
 
-                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                  <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold flex-wrap">
                     <button
                       type="button"
                       onClick={() => setStatusFilter('ALL')}
                       className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                        statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
+                        statusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
                       Semua ({stagingData.products.length})
                     </button>
                     <button
                       type="button"
-                      onClick={() => setStatusFilter('MATCHED')}
+                      onClick={() => setStatusFilter('DIFF_ANY')}
                       className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                        statusFilter === 'MATCHED' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-600'
+                        statusFilter === 'DIFF_ANY' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      Cocok di DB ({stagingData.stats.total_matched})
+                      Ada Selisih
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('DIFF_COST')}
+                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                        statusFilter === 'DIFF_COST' ? 'bg-white text-violet-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Beda HPP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('DIFF_PRICE')}
+                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                        statusFilter === 'DIFF_PRICE' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Beda Harga
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('DIFF_STOCK')}
+                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                        statusFilter === 'DIFF_STOCK' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Beda Stok
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter('IDENTICAL')}
+                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                        statusFilter === 'IDENTICAL' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Identik
                     </button>
                     <button
                       type="button"
                       onClick={() => setStatusFilter('NEW')}
                       className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                        statusFilter === 'NEW' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600'
+                        statusFilter === 'NEW' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
                       Produk Baru ({stagingData.stats.total_unmatched})
                     </button>
+                  </div>
+                </div>
+
+                {/* Quick Selection Actions Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setStatusFilter('DIFF')}
-                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                        statusFilter === 'DIFF' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-600'
-                      }`}
+                      onClick={handleSelectAllDifferent}
+                      className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold transition-colors cursor-pointer flex items-center gap-1.5"
                     >
-                      Ada Selisih ({stagingData.stats.total_surplus + stagingData.stats.total_deficit})
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Pilih Semua Yang Beda</span>
                     </button>
+
+                    {selectedKeys.size > 0 && (
+                      <span className="text-slate-500 font-medium">
+                        {selectedKeys.size} produk terpilih
+                      </span>
+                    )}
                   </div>
+
+                  {selectedKeys.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowBulkModal(true)}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Update Selektif Terpilih ({selectedKeys.size})</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -800,6 +1012,17 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
               Batal
             </button>
 
+            {selectedKeys.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowBulkModal(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer"
+              >
+                <Layers className="w-4 h-4" />
+                <span>Update Selektif ({selectedKeys.size})</span>
+              </button>
+            )}
+
             <button
               type="button"
               disabled={
@@ -835,6 +1058,146 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
           </div>
         </div>
       </div>
+
+      {/* Bulk Update Selective Modal Dialog (Paritas ProjectOmahBan) */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Update Selektif Produk Terpilih
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Pembaruan aman tanpa rewrite database toko.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBulkModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Summary badges */}
+            <div className="grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100 text-center">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Terpilih</span>
+                <span className="text-sm font-black text-slate-800">{bulkSummary.total} SKU</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-emerald-600 block">Cocok di DB</span>
+                <span className="text-sm font-black text-emerald-700">{bulkSummary.matched} SKU</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-indigo-600 block">Beda Stok/Harga</span>
+                <span className="text-sm font-black text-indigo-700">
+                  {bulkSummary.stockDiffs + bulkSummary.priceDiffs + bulkSummary.costDiffs}
+                </span>
+              </div>
+            </div>
+
+            {bulkSummary.matched === 0 && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>Semua produk yang dipilih berstatus Produk Baru. Gunakan tombol "Sinkronkan ke Database" untuk mendaftarkan produk baru.</span>
+              </div>
+            )}
+
+            {/* Checkbox Options */}
+            <div className="space-y-2.5 bg-slate-50/50 p-3.5 rounded-xl border border-slate-200 text-xs">
+              <label className="text-[11px] font-bold uppercase text-slate-500 block mb-1">
+                Pilih Aspek yang Ingin Diperbarui:
+              </label>
+
+              <label className="flex items-center gap-2.5 font-semibold text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={bulkUpdateCost}
+                  onChange={(e) => setBulkUpdateCost(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                />
+                <span>Perbarui Modal / HPP (<span className="font-mono text-slate-500">{bulkSummary.costDiffs} selisih</span>)</span>
+              </label>
+
+              <label className="flex items-center gap-2.5 font-semibold text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={bulkUpdatePrice}
+                  onChange={(e) => setBulkUpdatePrice(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                />
+                <span>Perbarui Harga Jual (<span className="font-mono text-slate-500">{bulkSummary.priceDiffs} selisih</span>)</span>
+              </label>
+
+              <label className="flex items-center gap-2.5 font-semibold text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={bulkUpdateStock}
+                  onChange={(e) => setBulkUpdateStock(e.target.checked)}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                />
+                <span>Perbarui Stok Fisik & Batch FIFO (<span className="font-mono text-slate-500">{bulkSummary.stockDiffs} selisih</span>)</span>
+              </label>
+            </div>
+
+            {/* Reason Textarea */}
+            <div className="space-y-1 text-xs">
+              <label className="font-bold text-slate-700 block">
+                Alasan / Keterangan Perubahan <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={2}
+                value={bulkReason}
+                onChange={(e) => setBulkReason(e.target.value)}
+                placeholder="Contoh: Penyesuaian stok dan kenaikan harga distributor..."
+                className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 font-medium"
+              />
+              <span className="text-[10px] text-slate-400">Minimal 3 karakter untuk audit trail.</span>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowBulkModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isBulkUpdating || bulkSummary.matched === 0}
+                onClick={handleExecuteBulkUpdate}
+                className={`px-5 py-2 rounded-xl text-xs font-black text-white shadow-xs transition-all flex items-center gap-1.5 ${
+                  isBulkUpdating || bulkSummary.matched === 0
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'
+                }`}
+              >
+                {isBulkUpdating ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Menyimpan Perubahan...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Terapkan Update ({bulkSummary.matched} SKU)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Result Breakdown Dialog */}
       {commitResult && (
