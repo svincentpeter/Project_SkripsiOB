@@ -58,7 +58,8 @@ import {
   CartLineEditModal,
   ParkedOrdersDrawer,
   CheckoutModal,
-  ManualItemForm
+  ManualItemForm,
+  PosSuccessModal,
 } from './components';
 import { useToast } from '../../shared/components';
 
@@ -229,6 +230,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [showBookingListDrawer, setShowBookingListDrawer] = useState<boolean>(false);
   const [showParkedDrawer, setShowParkedDrawer] = useState<boolean>(false);
   const [printTransaction, setPrintTransaction] = useState<PosTransaction | null>(null);
+  const [completedSaleTx, setCompletedSaleTx] = useState<PosTransaction | null>(null);
 
   const [cartMode, setCartMode] = useState<'REGULAR' | 'BON' | 'DP'>('REGULAR');
   const [showCheckoutModal, setShowCheckoutModal] = useState<boolean>(false);
@@ -467,6 +469,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     }
 
     onCompleteSale(transaction);
+    setCompletedSaleTx(transaction);
     setCart([]);
     setCashTenderedInput('');
     setManualDiscount(0);
@@ -630,6 +633,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       false
     );
     setPrintTransaction(tempTx);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const handlePrintReceiptFromSuccessModal = (tx: PosTransaction) => {
+    setPrintTransaction(tx);
     setTimeout(() => {
       window.print();
     }, 150);
@@ -1543,6 +1553,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         onPrintPhysicalNota={handlePrintCurrentCartNota}
         onParkCart={handleParkCurrentCart}
         onConfirmCheckout={handleConfirmCheckoutFromModal}
+      />
+
+      {/* Modern POS Transaction Success & Instant Receipt Modal */}
+      <PosSuccessModal
+        isOpen={Boolean(completedSaleTx)}
+        transaction={completedSaleTx}
+        onClose={() => setCompletedSaleTx(null)}
+        onPrintReceipt={handlePrintReceiptFromSuccessModal}
+        onNavigateToReceipts={onNavigateToReceipts}
+        storeSettings={storeSettings}
       />
 
       {/* Hidden printable block for instant physical print of official Nota Penjualan */}

@@ -661,11 +661,10 @@ function MainAppContent() {
       setCashInDrawer((prev) => prev + actualCashIn);
     }
 
-    // 5. Clear cart and redirect to thermal receipt screen
+    // 5. Clear cart and keep current transaction reference without forcing navigation
     setCart([]);
     setCurrentReceiptTx(newTx);
-    setActiveScreen('receipt');
-    toast.success('Transaksi Kasir Berhasil!', `Nota ${newTx.invoice_number} berhasil diproses dan struk thermal siap dicetak.`);
+    toast.success('Transaksi Kasir Berhasil!', `Nota ${newTx.invoice_number} berhasil diproses.`);
 
     // 6. Asynchronously synchronize with Laravel Backend API
     posApi.checkout({
