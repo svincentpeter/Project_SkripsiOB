@@ -1,0 +1,249 @@
+PERANCANGAN SISTEM INFORMASI AKUNTANSI BERBASIS WEBSITE DENGAN METODE RAPID APPLICATION DEVELOPMENT PADA TOKO BAN DAN VELG OMAH BAN
+Disusun Oleh:
+CATHERINE WONG
+23.G4.0007
+PROGRAM STUDI AKUNTANSI
+FAKULTAS EKONOMI DAN BISNIS
+UNIVERSITAS KATOLIK SOEGIJAPRANATA
+SEMARANG
+2026
+DAFTAR ISI
+DAFTAR ISIi
+BAB I PENDAHULUAN1
+1.1.Latar Belakang1
+1.2.Rumusan Masalah3
+1.3.Tujuan Penelitian4
+1.4.Manfaat Penelitian4
+1.4.1.Manfaat Teoritis4
+1.4.2.Manfaat Praktis5
+1.5.Kerangka Berpikir6
+BAB II TINJAUAN PUSTAKA8
+2.1.Sistem Informasi8
+2.2.Sistem Informasi Akuntansi (SIA)8
+2.3.Laporan Keuangan10
+2.4.Website11
+2.5.Point of Sale (POS)11
+2.6.Rapid Application Development12
+2.7.Framework Laravel13
+2.8.Database MySQL13
+BAB III METODE PENELITIAN14
+3.1.Rasionalitas Pemilihan Jenis Penelitian14
+3.2.Objek dan Subjek Penelitian14
+3.2.1.Objek Penelitian14
+3.2.2.Subjek Penelitian15
+3.3.Metode Pengumpulan Data15
+3.3.1.Jenis dan Sumber Data15
+3.3.2.Teknik Pengumpulan Data16
+3.4.Metode Analisis Data17
+3.5.Metode Pengembangan Sistem18
+3.5.1.Requirement Planning18
+3.5.2.User Design19
+3.5.3.Construction19
+3.5.4.Cutover / Implementation20
+3.6.Pengujian dan Evaluasi Sistem20
+DAFTAR PUSTAKA21
+BAB I PENDAHULUAN
+Latar Belakang
+Pada era digital saat ini, perkembangan teknologi informasi sudah memudahkan banyak pelaku usaha untuk mengubah proses bisnis mereka menjadi digital, termasuk dalam hal penjualan barang dan jasa. Langkah digitalisasi ini sangat penting karena terbukti bisa membuat kegiatan operasional toko jadi lebih mudah, proses transaksi lebih cepat, dan pengelolaan data menjadi jauh lebih rapi (Farina & Opti, 2023; Fitriani et al., 2023). Dalam dunia bisnis, sistem informasi yang baik tidak cuma dipakai untuk melayani pembeli di kasir saja, tapi juga harus bisa menghasilkan data laporan keuangan yang akurat dan gampang dipahami oleh pemilik toko.
+Menurut Romney dan Steinbart (2018), Sistem Informasi Akuntansi adalah sebuah sistem yang dibuat untuk mengumpulkan, mencatat, menyimpan, dan menyajikan data transaksi keuangan menjadi laporan akuntansi yang berguna bagi penggunanya. Bagi usaha kecil dan menengah, sistem ini punya peran besar untuk merapikan pembukuan dan mencegah terjadinya kesalahan catat. Banyak penelitian juga sudah membuktikan bahwa toko retail yang memanfaatkan sistem informasi akuntansi bisa bekerja lebih produktif dan memiliki kualitas laporan keuangan yang jauh lebih bagus  (Fitriani et al., 2023; Jufri et al., 2024; Susetyo et al., 2024).
+Toko Ban dan Velg Omah Ban adalah salah satu toko retail suku cadang dan servis kendaraan yang ada di Semarang. Dalam operasional sehari-hari, Toko Omah Ban sebenarnya sudah mengikuti tren teknologi dengan menggunakan aplikasi kasir digital berbasis Point of Sale (POS) untuk melayani transaksi jual beli dan melihat jumlah stok barang. Tapi, setelah dilakukan wawancara dan pengamatan langsung, sistem POS yang ada sekarang ternyata baru sebatas untuk mencatat penjualan saja dan belum bisa dipakai untuk kebutuhan akuntansi. Akibatnya, proses pembukuan penting seperti membuat jurnal umum, buku besar, laporan laba rugi, neraca, hingga laporan arus kas terpaksa masih harus dibuat secara manual.
+Permasalahan utama yang diangkat dalam penelitian ini adalah karena sistem kasir POS yang lama belum terhubung sama sekali dengan pembukuan keuangan toko. Dampak nyatanya langsung terasa setiap kali toko selesai beroperasi. Pemilik toko harus mencocokkan ulang transaksi harian di nota global dengan nota kuning satu per satu secara manual. Proses rekonsiliasi ini membuang banyak waktu dan butuh ketelitian yang sangat tinggi, sehingga sangat rawan terjadi salah hitung (human error). Masalah ini jadi makin rumit karena catatan pengeluaran biaya, utang ke supplier, dan piutang pelanggan masih ditulis secara terpisah di buku-buku kertas. Pembukuan yang terpisah-pisah ini akhirnya memicu banyak masalah baru, mulai dari risiko selisih angka, laporan keuangan bulanan yang sering terlambat dibuat, penumpukan berkas fisik di toko, sampai pemilik yang kesulitan untuk melihat kondisi keuangan asli tokonya secara cepat dan real-time.
+Masalah pembukuan yang masih manual dan belum terintegrasi ini memang menjadi kendala klasik yang sering dihadapi oleh UMKM, padahal digitalisasi akuntansi sangat dibutuhkan agar bisnis bisa bertahan lama (Fitriani et al., 2023; Farina & Opti, 2023; Jufri et al., 2024). Berdasarkan masalah nyata yang ada di Toko Omah Ban tersebut, hubungan antara kendala lapangan, dampaknya, serta solusi sistem yang akan dibuat digambarkan melalui tabel berikut.
+Tabel 1. 1 Hubungan Masalah, Dampak, dan Solusi Sistem
+Masalah
+Dampak
+Solusi Sistem
+Nota global dan nota kuning perlu dicocokkan ulang setiap hari
+Membutuhkan waktu lama dan rawan selisih
+Modul rekap transaksi harian otomatis
+Pencatatan penjualan masih manual
+Data penjualan tidak langsung masuk laporan
+Modul penjualan terintegrasi POS
+Pencatatan pengeluaran terpisah
+Data biaya tidak langsung masuk laporan keuangan
+Modul pengeluaran
+Hutang dan piutang belum terintegrasi
+Risiko salah catat tagihan
+Modul hutang dan piutang
+Laporan keuangan belum otomatis
+Pemilik sulit melihat kondisi keuangan secara cepat
+Modul laporan keuangan (laba rugi, neraca, arus kas)
+Dokumen fisik menumpuk
+Sulit mencari data historis
+Arsip transaksi berbasis database
+Sumber: Peneliti (2026)
+Melihat kondisi tersebut, Toko Omah Ban membutuhkan sebuah sistem baru yang bisa langsung mengubah data transaksi penjualan dari kasir menjadi laporan keuangan yang otomatis. Oleh karena itu, solusi yang ditawarkan dalam penelitian ini adalah merancang Sistem Informasi Akuntansi berbasis website yang bisa menarik data transaksi dari POS existing sebagai dasar pembukuan akuntansi. Platform website sengaja dipilih karena sifatnya yang fleksibel, bisa menyimpan data dengan aman di satu tempat terpusat, dan memudahkan pemilik toko untuk memantau laporan keuangan kapan saja dan dari mana saja lewat internet (Husodo et al., 2025; Krisnata et al., 2025; Delvia et al., 2025).
+Sistem yang dibuat ini juga dirancang dengan memperhatikan keamanan data melalui pembatasan hak akses bagi pengguna di Toko Omah Ban, yaitu pemilik, kasir, dan admin gudang. Pemilik toko punya akses penuh untuk melihat semua fitur dan laporan keuangan. Kasir hanya bisa membuka layar transaksi penjualan POS. Sedangkan admin gudang bertugas untuk mengelola stok, mengubah data produk, dan menginput hasil stock opname. Dengan pembatasan ini, setiap karyawan hanya bisa membuka fitur yang sesuai dengan tugasnya masing-masing.
+Metode Rapid Application Development  dipilih sebagai cara pengembangan sistem karena metode ini mengutamakan kecepatan pembuatan aplikasi lewat bantuan prototype (rancangan awal sistem) dan masukan langsung dari pengguna. Cara ini dinilai sangat pas untuk menerjemahkan kebutuhan pemilik, kasir, dan admin gudang menjadi aplikasi yang benar-benar sesuai dengan alur kerja Toko Omah Ban. Menggunakan metode Rapid Application Development dalam membuat pembukuan berbasis web terbukti bisa memangkas waktu pembuatan sistem dan memastikan aplikasi yang jadi sesuai dengan keinginan pengguna  (Apriani et al., 2025; Husodo et al., 2025; Haerani et al., 2024).
+Dengan demikian, penelitian ini akan berfokus pada perancangan Sistem Informasi Akuntansi berbasis website dengan menggunakan metode Rapid Application Development pada Toko Ban dan Velg Omah Ban. Lewat sistem ini, diharapkan semua proses rekap manual yang bersiko hilang, alur data penjualan bisa langsung jadi laporan keuangan otomatis, dan pemilik toko bisa mengambil keputusan bisnis dengan lebih cepat dan tepat berdasarkan data keuangan yang akurat.
+Rumusan Masalah
+Berdasarkan uraian latar belakang di atas, rumusan masalah dalam penelitian ini adalah sebagai berikut:
+Bagaimana proses transformasi dan pengolahan data transaksi dari sistem Point of Sale (POS) existing menjadi laporan keuangan pada Toko Ban dan Velg Omah Ban?
+Apa saja kebutuhan fungsional dalam merancang Sistem Informasi Akuntansi berbasis website yang berfokus pada modul akuntansi dan pelaporan keuangan di Toko Ban dan Velg Omah Ban?
+Bagaimana mengimplementasikan metode Rapid Application Development untuk membangun Sistem Informasi Akuntansi berbasis website yang terintegrasi dengan data transaksi POS harian Toko Ban dan Velg Omah Ban? 
+Tujuan Penelitian
+Menganalisis alur pengolahan data transaksi dari sistem POS existing hingga siap diproses menjadi pelaporan keuangan yang akurat pada Toko Ban dan Velg Omah Ban.
+Merumuskan kebutuhan spesifik sistem dalam merancang modul akuntansi berbasis website yang sesuai dengan karakteristik operasional Toko Ban dan Velg Omah Ban.
+Merancang Sistem Informasi Akuntansi berbasis website yang mengintegrasikan data POS menggunakan metode Rapid Application Development guna mendukung efektivitas pelaporan keuangan toko.
+Manfaat Penelitian
+Manfaat Teoritis
+Secara teoritis, penelitian ini diharapkan dapat memperkaya kajian ilmiah mengenai Sistem Informasi Akuntansi berbasis website, terutama pada konteks UMKM dan usaha ritel. Selain itu, hasil penelitian ini juga dapat digunakan sebagai bahan rujukan bagi peneliti selanjutnya yang membahas perancangan atau pengembangan sistem informasi akuntansi dengan pendekatan Rapid Application Development.
+Manfaat Praktis
+Secara praktis, penelitian ini diharapkan dapat membantu Toko Ban dan Velg Omah Ban dalam merancang sistem yang mampu mendukung pencatatan transaksi, pengelolaan data keuangan, pencatatan utang dan piutang, serta penyajian laporan keuangan secara lebih tertata dan terintegrasi. Penerapan sistem informasi berbasis web juga dapat mempermudah akses data secara terpusat serta mendukung proses pengelolaan transaksi usaha agar berjalan lebih efektif.
+Kerangka Berpikir
+Kondisi Toko Ban dan Velg Omah Ban
+Sudah menggunakan POS untuk transaksi penjualan, namun pencatatan akuntansi masih dilakukan secara manual
+↓
+Permasalahan Pencatatan Manual
+Selisih nota global vs nota kuning, dokumen fisik menumpuk, laporan keuangan lambat dan kurang akurat, pemilik kesulitan mengawasi kondisi keuangan
+↓
+Perancangan Sistem Informasi Akuntansi Berbasis Website
+↓
+↓
+↓
+Modul POS dan Penjualan
+Mencatat transaksi penjualan, terhubung langsung dengan modul akuntansi
+Modul Akuntansi
+Jurnal umum, buku besar, integrasi data pembelian, dan pengeluaran
+Modul Pelaporan
+Laporan laba rugi, neraca, arus kas, utang, piutang, dan persediaan
+↓
+↓
+↓
+Metode Pengembangan: Rapid Application Development 
+Requirement Planning → User Design → Construction → Cutover/Implementation
+↓
+Hasil
+Sistem Informasi Akuntansi berbasis website yang terintegrasi, mempermudah pencatatan transaksi, mempercepat penyusunan laporan keuangan, dan mendukung pengambilan keputusan pemilik
+Gambar 1.1 menunjukkan alur kerangka berpikir penelitian yang disusun secara sistematis dari atas ke bawah mengikuti arah panah. Alur berpikir ini dibagi menjadi beberapa tahapan berikut:
+Pertama, alur dimulai dari kotak paling atas yang menggambarkan kondisi nyata Toko Omah Ban, di mana sistem POS sudah digunakan di lini depan, tetapi pencatatan akuntansinya masih manual. Kondisi ini menurunkan panah ke kotak kedua, yaitu munculnya permasalahan nyata akibat pencatatan manual, seperti risiko salah hitung nota, dokumen fisik yang menumpuk, serta sulitnya pemilik memantau keuangan toko.
+Kedua, rentetan masalah tersebut menjadi dasar diturunkannya panah ke tahap ketiga, yaitu keputusan untuk melakukan perancangan Sistem Informasi Akuntansi berbasis website. Pada tahap ini, panah di dalam bagan bercabang secara paralel ke dalam tiga fokus modul utama yang akan dibangun, yaitu Modul POS dan Penjualan, Modul Akuntansi, dan Modul Pelaporan.
+Ketiga, dari ketiga modul tersebut, arah panah kembali menyatu menuju kotak metode pengembangan sistem, yaitu metode Rapid Application Development. Metode ini dijalankan secara berurutan mulai dari tahap Requirement Planning, User Design, Construction, hingga Cutover/Implementation. Alur kerangka berpikir ini bermuara pada kotak terakhir, yaitu hasil akhir berupa sistem informasi akuntansi berbasis website yang terintegrasi untuk mempercepat pelaporan keuangan dan mendukung pengambilan keputusan pemilik.
+BAB II TINJAUAN PUSTAKA
+Bab ini membahas teori yang menjadi landasan dalam penelitian mengenai perancangan sistem informasi akuntansi berbasis website pada Toko Ban dan Velg Omah Ban. Teori yang dibahas meliputi sistem informasi, sistem informasi akuntansi, laporan keuangan, website, Point of Sale (POS), dan metode Rapid Application Development. Pembahasan ini digunakan untuk memperkuat dasar perancangan sistem agar sesuai dengan kebutuhan pencatatan akuntansi dan operasional toko.
+Sistem Informasi
+Sistem informasi merupakan sekumpulan komponen yang saling berhubungan untuk mengumpulkan, mengolah, menyimpan, dan menyajikan data menjadi informasi yang berguna untuk mendukung pengambilan keputusan dan pengendalian dalam suatu organisasi (Laudon & Laudon, 2020; O'Brien & Marakas, 2011). Menurut O'Brien dan Marakas (2011), sistem informasi tidak hanya mencakup teknologi perangkat keras dan lunak, melainkan juga melibatkan manusia, jaringan komunikasi, dan sumber data yang terorganisasi untuk mentransformasikan sumber daya data menjadi produk informasi yang bernilai bagi bisnis.Dalam lanskap bisnis modern, sistem informasi harus dipandang sebagai sistem sosioteknis yang memerlukan keselarasan antara dimensi organisasi, manajemen, dan teknologi. Laudon dan Laudon (2020) menegaskan bahwa efektivitas sebuah sistem informasi sangat bergantung pada bagaimana teknologi tersebut beradaptasi dengan struktur organisasi, budaya kerja, gaya kepemimpinan, dan kebutuhan operasional perusahaan. Pada toko retail seperti Toko Ban dan Velg Omah Ban, penerapan sistem informasi menjadi jembatan krusial untuk menghubungkan transaksi harian kasir dengan manajemen persediaan di gudang, sehingga mengeliminasi batas-batas informasi (information silos) yang menghambat pertumbuhan usaha.
+Sistem Informasi Akuntansi (SIA)
+Sistem Informasi Akuntansi (SIA) merupakan bagian atau subsistem khusus dari sistem informasi yang digunakan untuk mengelola data transaksi keuangan menjadi informasi akuntansi yang bermanfaat bagi pengguna. Sistem ini mencakup proses pencatatan, pengolahan, penyimpanan, dan pelaporan transaksi seperti penjualan, pembelian, kas, utang, piutang, dan persediaan. Menurut Romney dan Steinbart (2018), SIA terdiri atas enam komponen utama yang meliputi manusia (pengguna), prosedur dan instruksi, data transaksi, perangkat lunak pengolah, infrastruktur teknologi informasi, serta pengendalian internal. Pengendalian internal yang memadai, sebagaimana dikemukakan oleh Hall (2013), sangat penting diintegrasikan ke dalam SIA berbasis komputer untuk memastikan keandalan laporan keuangan, mencegah tindakan kecurangan (fraud), menjaga aset entitas, dan membatasi hak akses pengguna sesuai dengan tanggung jawab masing-masing. Informasi yang dihasilkan dari sistem informasi akuntansi dapat digunakan sebagai dasar dalam pengambilan keputusan (Jufri et al., 2024; Hanifah et al., 2024; Susetyo et al., 2024).  
+Pemanfaatan sistem informasi akuntansi dan teknologi informasi dapat membantu UMKM dalam meningkatkan pengelolaan informasi keuangan dan kinerja usaha (Farina & Opti, 2023; Jufri et al., 2024; Susetyo et al., 2024). Selain itu, digitalisasi akuntansi pada UMKM dapat mempercepat proses pencatatan, meningkatkan kualitas informasi, dan mendukung efektivitas pengambilan keputusan (Itsnaini et al., 2024; Saragih et al., 2023; Salsabila et al., 2024). Pelaku UMKM yang masih mengandalkan pencatatan manual sering menghadapi ancaman keberlanjutan bisnis karena tidak mengetahui posisi keuangan riil dan tidak terkontrolnya arus kas secara akurat. Digitalisasi ini menjadi solusi taktis bagi usaha retail untuk berkembang secara berkelanjutan.  
+Dalam penelitian ini, sistem informasi akuntansi dipahami sebagai sistem yang mengintegrasikan data transaksi harian dengan proses pencatatan akuntansi. Integrasi tersebut diperlukan agar data penjualan, pembelian, persediaan, utang, piutang, dan laporan keuangan tidak dikelola secara terpisah (Hanifah et al., 2024; Husodo et al., 2024; Delvia et al., 2024). Dalam konteks penelitian ini, Point of Sale (POS) dipahami sebagai salah satu modul dalam SIA yang berfungsi untuk mencatat transaksi penjualan, sehingga data transaksi dapat langsung terhubung dengan modul akuntansi lainnya seperti jurnal umum, buku besar, dan laporan keuangan. Dengan demikian, integrasi ini mengeliminasi kebutuhan pencocokan nota manual harian yang rawan selisih dan memakan waktu.
+Laporan Keuangan
+Laporan keuangan merupakan hasil akhir dari proses akuntansi yang menggambarkan kondisi keuangan dan hasil usaha suatu entitas dalam periode tertentu (Ikatan Akuntan Indonesia, 2016). Laporan keuangan digunakan oleh pemilik usaha untuk melakukan pengawasan, evaluasi, dan pengambilan keputusan bisnis. Berdasarkan Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM), laporan keuangan minimal terdiri atas laporan posisi keuangan, laporan laba rugi, dan catatan atas laporan keuangan (Ikatan Akuntan Indonesia, 2016).Dalam penelitian ini, laporan keuangan yang menjadi fokus meliputi jurnal umum, buku besar, laporan laba rugi, neraca, laporan arus kas, utang, piutang, dan persediaan. Jurnal umum digunakan untuk mencatat transaksi secara kronologis, buku besar untuk mengelompokkan transaksi ke dalam akun tertentu, laporan laba rugi untuk mengetahui hasil usaha, neraca untuk melihat posisi keuangan, dan laporan arus kas untuk memantau pergerakan kas. Sementara itu, data utang, piutang, dan persediaan digunakan untuk membantu pengendalian kewajiban, tagihan, dan stok barang.Bagi Toko Ban dan Velg Omah Ban, laporan keuangan dibutuhkan agar pemilik dapat mengetahui kondisi usaha secara lebih jelas. Oleh karena itu, sistem informasi akuntansi yang dirancang dalam penelitian ini tidak hanya mencatat transaksi, tetapi juga mengolah data transaksi menjadi laporan keuangan yang dapat digunakan untuk evaluasi usaha. Dalam merancang sistem, prinsip dasar persamaan akuntansi ditanamkan secara otomatis ke dalam baris kode program untuk menyusun laporan posisi keuangan:
+Aset = Liabilitas + Ekuitas
+Sementara itu, pengelolaan data persediaan di dalam perancangan sistem ini tidak diarahkan untuk melakukan kalkulasi Harga Pokok Penjualan (HPP) secara otomatis, melainkan difokuskan pada pencatatan dan pelaporan nilai akuntansi persediaan berbasis penyesuaian fisik (stock opname). Di sisi lain, integrasi nilai persediaan akhir hasil penyesuaian ini sangat krusial guna memastikan bahwa nilai aset lancar yang disajikan dalam laporan posisi keuangan tetap mencerminkan kondisi riil di lapangan. Sejalan dengan hal tersebut, proses rekapitulasi data stock opname yang terhubung langsung dengan modul akuntansi akan meminimalkan risiko selisih pencatatan fisik dan buku, sehingga pemilik dapat memantau pergerakan nilai aset secara lebih akurat saat melakukan evaluasi operasional toko.
+Website
+Website merupakan media berbasis jaringan yang memungkinkan suatu sistem diakses melalui browser tanpa bergantung pada satu perangkat tertentu. Sistem berbasis website banyak digunakan karena fleksibel, mudah diakses, dan mendukung penyimpanan data secara terpusat (Sommerville, 2016). Dalam konteks Omah Ban, sistem berbasis website sesuai digunakan karena terdapat beberapa pengguna dengan hak akses berbeda, yaitu pemilik, kasir, dan admin gudang. Penelitian mengenai sistem informasi akuntansi berbasis web menunjukkan bahwa sistem tersebut dapat membantu aktivitas operasional dan penyusunan laporan untuk mendukung pengambilan keputusan pemilik usaha (Husodo et al., 2024; Krisnata et al., 2024; Delvia et al., 2024). Oleh karena itu, website dipilih sebagai platform sistem agar proses pencatatan, pelaporan, dan pengelolaan data dapat dilakukan secara lebih terintegrasi pada Toko Omah Ban.
+Point of Sale (POS)
+Point of Sale (POS) adalah sistem yang digunakan untuk membantu transaksi penjualan, mulai dari input barang, perhitungan total transaksi, hingga penerbitan bukti transaksi (Apriani et al., 2025). Dalam usaha dagang, POS membantu mempercepat pelayanan dan mengurangi kesalahan saat transaksi berlangsung (Apriani et al., 2025). Pada Toko Ban dan Velg Omah Ban, sistem POS telah digunakan untuk mendukung aktivitas kasir, namun belum sepenuhnya mencakup kebutuhan akuntansi, sehingga data transaksi dari POS masih perlu diperiksa dan dicatat ulang secara manual untuk penyusunan laporan keuangan. Penelitian pengembangan POS berbasis web pada usaha ritel menunjukkan bahwa sistem seperti ini dapat membantu pengelolaan stok dan transaksi secara lebih efektif (Apriani et al., 2025; Khusnah et al., 2025).Dalam penelitian ini, POS dipahami sebagai salah satu modul dalam Sistem Informasi Akuntansi (SIA) yang berfungsi untuk mencatat transaksi penjualan. Data transaksi yang masuk melalui modul POS akan langsung terintegrasi dengan modul akuntansi lainnya seperti jurnal umum, buku besar, dan laporan keuangan, sehingga proses pencatatan menjadi lebih efisien dan tidak perlu dilakukan berulang secara manual. POS tidak menjadi fokus akhir, tetapi berperan sebagai sumber data transaksi yang dihubungkan dengan sistem informasi akuntansi. Dengan integrasi tersebut, transaksi penjualan dari POS dapat langsung menjadi dasar pencatatan akuntansi dan penyusunan laporan keuangan secara otomatis.
+Rapid Application Development 
+Rapid Application Development adalah metode pengembangan sistem yang menekankan kecepatan pembangunan aplikasi melalui pembuatan prototype, umpan balik pengguna, dan perbaikan secara bertahap (Sommerville, 2016). Metode ini cocok digunakan ketika kebutuhan sistem cukup jelas dan pengguna perlu dilibatkan secara aktif selama proses pengembangan (Sommerville, 2016). Penerapan Rapid Application Development dalam pengembangan sistem informasi persediaan dan sistem informasi akuntansi berbasis web menunjukkan bahwa metode ini dapat membantu sistem menyesuaikan kebutuhan pengguna secara lebih cepat (Apriani et al., 2025; Husodo et al., 2024; Haerani et al., 2024).Dalam penelitian ini, Rapid Application Development dipilih karena sesuai dengan kondisi Toko Ban dan Velg Omah Ban. Kebutuhan sistem berasal dari permasalahan nyata yang ditemukan melalui wawancara dan observasi, sehingga keterlibatan pengguna menjadi penting. Penelitian terdahulu menunjukkan bahwa penggunaan metode Rapid Application Development dalam pengembangan sistem informasi akuntansi berbasis website dapat membantu aktivitas operasional dan penyusunan laporan untuk mendukung keputusan pemilik usaha (Husodo et al., 2024; Krisnata et al., 2024; Haerani et al., 2024). Pengembangan sistem dilakukan melalui empat tahapan utama Rapid Application Development, yaitu perencanaan kebutuhan (requirement planning), desain pengguna (user design), konstruksi (construction), dan implementasi (cutover) (Sommerville, 2016).
+Framework Laravel
+Framework Laravel merupakan sebuah kerangka kerja pengembangan aplikasi website berbasis bahasa pemrograman PHP yang menggunakan arsitektur Model-View-Controller (MVC) (Sommerville, 2016). Laravel dipilih dalam pengembangan sistem informasi akuntansi karena menyediakan berbagai pustaka (library) keamanan yang matang, mendukung skalabilitas aplikasi, serta mempercepat proses pengkodean selama tahap konstruksi perangkat lunak dijalankan.
+Database MySQL 
+MySQL adalah sistem manajemen basis data relasional (Relational Database Management System) berbasis SQL yang digunakan untuk menyimpan, mengelola, dan mengorganisasikan data transaksi secara terstruktur (O'Brien & Marakas, 2011). Di dalam sistem informasi akuntansi, MySQL berfungsi sebagai repositori pusat data untuk mengunci dan menghubungkan tabel transaksi kasir dengan tabel jurnal umum akuntansi secara konsisten.
+BAB III METODE PENELITIAN
+Rasionalitas Pemilihan Jenis Penelitian
+Penelitian ini bertujuan untuk memahami proses pencatatan transaksi dan pembuatan laporan keuangan Toko Ban dan Velg Omah Ban secara menyeluruh. Pendekatan kualitatif dipilih karena penelitian ini berfokus pada pemahaman proses, konteks, dan pengalaman informan secara menyeluruh (Creswell & Poth, 2018). Penelitian ini tidak bertujuan untuk menguji hubungan antar variabel secara statistik, melainkan untuk memahami fenomena pencatatan akuntansi yang terjadi dan menggunakan pemahaman tersebut sebagai dasar perancangan sistem.
+Karena penelitian ini berfokus pada satu subjek, pendekatan studi kasus digunakan, yaitu Toko Ban dan Velg Omah Ban. Studi kasus merupakan metode penelitian yang cocok untuk meneliti secara mendalam fenomena dunia nyata, terutama ketika tujuan penelitian adalah untuk menjawab pertanyaan "bagaimana" (Yin, 2018). Dalam penelitian ini, studi kasus digunakan untuk menjawab bagaimana proses pencatatan yang berjalan, bagaimana kebutuhan sistem, dan bagaimana perancangan sistem dilakukan.
+Selanjutnya, data yang diperoleh dari observasi, dokumentasi, dan wawancara digunakan untuk membuat Sistem Informasi Akuntansi berbasis web. Dengan demikian, penelitian ini menggabungkan pendekatan kualitatif untuk memahami masalah dan kebutuhan, dengan metode pengembangan sistem Rapid Application Development untuk merancang solusi.
+Objek dan Subjek Penelitian
+Objek Penelitian
+Objek dalam penelitian ini adalah Toko Ban dan Velg Omah Ban, yaitu sebuah usaha retail yang berlokasi di Semarang dan bergerak pada bidang penjualan ban, velg, serta layanan pendukung lainnya. Toko ini telah menggunakan sistem POS untuk transaksi penjualan, namun pencatatan akuntansi masih dilakukan secara manual.
+Subjek Penelitian
+Subjek penelitian adalah orang-orang langsung yang terlibat dalam transaksi, pencatatan, pengelolaan stok, dan penyusunan laporan keuangan. Pemilihan informan dilakukan secara selektif, artinya mereka dipilih berdasarkan keterlibatan langsung mereka dalam proses bisnis dan kemampuan mereka untuk memberikan informasi yang diperlukan sistem (Creswell & Poth, 2018). Daftar informan penelitian tersedia di sini.
+Tabel 3.1 Daftar Informan Penelitian
+No
+Informan
+Jabatan
+Peran dalam Penelitian
+1
+Owner
+Pemilik Omah Ban
+Memberikan informasi kebutuhan laporan, proses pengambilan keputusan, dan evaluasi sistem
+2
+Kasir
+Pengguna POS
+Menjelaskan proses transaksi penjualan harian dan penggunaan POS
+3
+Admin Gudang
+Pengelola stok
+Menjelaskan proses stok, pembelian, penyesuaian barang, dan kebutuhan modul persediaan
+Sumber: Peneliti (2026)
+Informasi dipilih karena masing-masing memiliki peran unik dalam menjalankan toko dan memiliki pemahaman langsung terhadap proses bisnis yang akan didukung oleh sistem. Owner dipilih karena memiliki otoritas tertinggi dan kebutuhan terhadap laporan keuangan. Kasir dipilih karena menjadi pengguna utama POS. Admin gudang dipilih karena mengelola data stok yang menjadi bagian dari sistem.
+Metode Pengumpulan Data
+Jenis dan Sumber Data
+Data kualitatif digunakan dalam penelitian ini. Data primer diperoleh langsung dari Toko Ban dan Velg Omah Ban melalui wawancara dengan narasumber, melihat proses operasional secara langsung, dan melihat dokumen transaksi. Data sekunder diperoleh dari nota transaksi, laporan penjualan, catatan pengeluaran, stok, laporan manual sebelumnya, buku teori, dan jurnal yang relevan (Creswell & Poth, 2018; Miles et al., 2014).
+Teknik Pengumpulan Data
+Teknik pengumpulan data dalam penelitian ini dilakukan melalui tiga metode utama:
+Wawancara: Hal ini dilakukan kepada owner, kasir, dan admin gudang untuk menggali informasi mengenai proses pencatatan transaksi yang berjalan, permasalahan yang dihadapi, dan kebutuhan sistem yang diharapkan. Agar informan dapat memberikan informasi secara efektif, wawancara dilakukan secara semi-terstruktur lebih leluasa namun tetap terarah pada topik penelitian. Pertanyaan wawancara mencakup: proses transaksi harian, proses rekap nota, proses pencatatan pengeluaran, proses pencatatan hutang dan piutang, proses penyusunan laporan, dan harapan terhadap sistem baru.
+Observasi: Observasi dilakukan dengan mengamati langsung proses operasional di Toko Ban dan Velg Omah Ban. Hal yang diamati meliputi: proses transaksi penjualan menggunakan POS, proses pencatatan nota global dan nota kuning, proses rekap harian oleh pemilik, proses pencatatan pengeluaran, dan proses pengelolaan stok oleh admin gudang. Observasi bertujuan untuk memperoleh gambaran nyata mengenai kondisi pencatatan yang berjalan dan mengidentifikasi permasalahan yang mungkin tidak terungkap melalui wawancara.
+Dokumentasi: Dokumentasi dilakukan dengan mengumpulkan data yang relevan dengan proses pencatatan transaksi, seperti: nota penjualan, nota global, nota kuning, catatan pengeluaran harian, catatan hutang dan piutang, data stok barang, dan laporan manual yang sudah ada. Dokumentasi bertujuan untuk memperoleh bukti konkret mengenai proses pencatatan yang berjalan dan menjadi dasar dalam mengidentifikasi kebutuhan sistem.
+Metode Analisis Data
+Penelitian ini menggunakan analisis deskriptif kualitatif, yang didasarkan pada model Miles dan Huberman (Miles et al., 2014). Data dianalisis dalam tiga tahapan utama:
+Reduksi Data: Data yang direduksi diperoleh dengan memilih, menyederhanakan, dan mengubah data yang dikumpulkan dari observasi, dokumentasi, dan wawancara. Data dikelompokkan menurut tema atau masalah, dan data yang relevan disisihkan untuk tujuan penelitian.
+Penyajian Data: Proses menyusun informasi yang telah direduksi ke dalam bentuk yang lebih terstruktur, seperti tabel, matriks, atau narasi deskriptif, dikenal sebagai penyajian data. Tujuan penyajian data adalah untuk membantu peneliti memahami pola, hubungan, dan hasil yang dihasilkan dari data tersebut. Deskripsi proses pencatatan, penemuan masalah, dan penemuan kebutuhan sistem adalah bagian dari penyajian data dalam penelitian ini.
+Penarikan Kesimpulan dan Verifikasi: Pola penyajian data dan hasilnya menentukan pengambilan kesimpulan. Selanjutnya, hasil wawancara dibandingkan dengan hasil observasi, hasil wawancara dengan dokumen yang tersedia, dan hasil wawancara antar informan digunakan untuk memvalidasi kesimpulan yang dibuat. Proses verifikasi dilakukan untuk memastikan bahwa kesimpulan yang dibuat akurat dan dapat diandalkan.
+Tabel 3.2 Contoh Analisis Kebutuhan Sistem
+Temuan Lapangan
+Dampak
+Kebutuhan Sistem
+Rekap nota masih manual
+Rawan salah hitung
+Modul rekap penjualan harian
+Nota global dan nota kuning perlu dicocokkan ulang
+Membutuhkan waktu lama
+Sistem pencatatan transaksi terintegrasi
+Laporan keuangan belum otomatis
+Owner sulit melihat kondisi keuangan
+Modul laporan keuangan
+Piutang belum terintegrasi
+Risiko salah catat tagihan
+Modul piutang
+Pengeluaran dicatat terpisah
+Data biaya tidak langsung masuk laporan
+Modul pengeluaran
+Stok belum terhubung akuntansi
+Penyesuaian nilai fisik persediaan (stock opname) belum terekam di modul keuangan secara langsung
+Modul persediaan untuk rekapitulasi data stock opname
+Sumber: Peneliti (2026)
+Sejalan dengan analisis kebutuhan sistem pada Tabel 3.2, penyebutan "Modul Persediaan" dalam perancangan sistem ini difokuskan secara spesifik untuk merekam data penyesuaian nilai fisik persediaan (stock opname) ke dalam modul keuangan secara langsung. Modul ini dirancang khusus untuk menangani aspek rekapitulasi data persediaan agar hasil penyesuaian fisik dapat terintegrasi dengan pencatatan akuntansi. 
+Sementara itu, fitur administratif seperti penambahan Master Data Barang baru maupun pengelolaan Data Supplier tidak akan dibangun ulang dari nol, melainkan sepenuhnya mengandalkan integrasi dan penarikan data dari sistem Point of Sale (POS) existing yang sudah berjalan. Di sisi lain, pendekatan ini diambil guna menjaga efektivitas pengembangan sistem agar tetap berpusat pada fungsi pelaporan keuangan tanpa mereplikasi fitur operasional yang telah tersedia di toko.
+Metode Pengembangan Sistem
+Studi ini menggunakan Rapid Application Development sebagai metode pengembangan sistem. Metode ini dipilih karena sesuai dengan kondisi Toko Ban dan Velg Omah Ban yang membutuhkan sistem yang dikembangkan secara cepat, bertahap, dan melibatkan pengguna secara aktif. Kebutuhan sistem berasal dari permasalahan nyata yang ditemukan melalui wawancara dan observasi, sehingga keterlibatan pengguna menjadi penting dalam proses pengembangan (Sommerville, 2016; Husodo et al., 2025).
+Requirement Planning
+Sebagai hasil dari observasi, dokumentasi, dan wawancara, tahap perencanaan kebutuhan dilakukan untuk mengidentifikasi kebutuhan sistem. Pada tahap ini, peneliti menganalisis proses bisnis yang berjalan, menemukan masalah, dan merumuskan kebutuhan fungsional sistem. Kebutuhan sistem yang diidentifikasi meliputi: pencatatan penjualan, integrasi data pembelian, pencatatan pengeluaran, pencatatan hutang, pencatatan piutang, buku besar, laporan laba rugi, neraca, arus kas, dan laporan stok. Tahap penting dalam merancang sistem untuk memenuhi kebutuhan pengguna adalah mengidentifikasi apa yang diperlukan dan proses bisnis yang berjalan (Sommerville, 2016; Husodo et al., 2025).
+Proses pengolahan data dalam sistem yang dirancang ini dibuat mengalir secara otomatis guna meminimalkan keterlibatan manual dari pihak pengguna. Alur kerjanya dirancang sedemikian rupa agar sistem informasi akuntansi berbasis website ini dapat langsung "berkomunikasi" dengan sistem POS existing melalui teknologi Application Programming Interface (API). Dalam sistem ini, API bertindak sebagai jembatan digital otomatis yang menghubungkan kedua aplikasi tersebut secara real-time. 
+Alur perpindahan datanya dapat dipahami secara sederhana dalam tiga tahap. Pertama, begitu kasir menyelesaikan transaksi penjualan di layar POS dan menerbitkan bukti potong nota, jembatan digital (API) akan langsung mendeteksi aktivitas tersebut. Kedua, pada detik yang sama, API akan menyalin dan mengirimkan data parameter transaksi seperti nilai nominal penjualan, kuantitas produk yang terjual, hingga metode pembayarannya menuju sistem informasi akuntansi. Ketiga, setelah data penjualan diterima, sistem informasi akuntansi secara mandiri akan langsung memprosesnya menjadi entri jurnal umum, memperbarui buku besar, hingga menyusun laporan laba rugi dan neraca. Melalui alur terintegrasi ini, seluruh output pelaporan keuangan dapat terwujud secara instan dan otomatis tanpa membutuhkan proses input ulang atau intervensi manual dari staf toko.
+User Design
+Menyusun rancangan sistem berdasarkan kebutuhan yang telah diidentifikasi adalah tahap user design. Dalam perancangan sistem, Anda dapat menemukan diagram aliran sistem, diagram tugas, diagram aktivitas, diagram hubungan entitas, diagram antarmuka pengguna, dan diagram input dan output sistem. Perancangan sistem diperlukan agar kebutuhan pengguna dapat diterjemahkan menjadi model sistem yang lebih terstruktur sebelum proses pembangunan dilakukan. Pada tahap ini, pengguna diberi kesempatan untuk memberikan komentar tentang rancangan yang dibuat (Sommerville, 2016; Husodo et al., 2025).
+Construction
+Tahap construction dilakukan dengan membangun sistem berdasarkan rancangan yang telah dibuat dan disetujui pengguna. Pembangunan sistem mencakup: pembuatan modul-modul aplikasi, pembuatan database, pembuatan tampilan antarmuka, dan integrasi antar modul. Sistem dikembangkan menggunakan framework Laravel dan database MySQL karena mendukung pengembangan aplikasi web yang terstruktur dan scalable (Apriani et al., 2025; Husodo et al., 2025).
+Cutover / Implementation
+Untuk mencapai tahap cutover, sistem diuji dan dinilai oleh pengguna menggunakan metode black box testing untuk memastikan bahwa setiap fitur berjalan sesuai kebutuhan. Pemilik, kasir, dan admin gudang menilai sistem melalui umpan balik mereka. Berdasarkan hasil evaluasi, dilakukan perbaikan sistem sebelum sistem diterapkan pada objek penelitian (Sommerville, 2016; Husodo et al., 2025).
+Pengujian dan Evaluasi Sistem
+Penelitian ini menggunakan pengujian black-box testing untuk menguji fungsionalitas sistem tanpa memperhatikan struktur internal kode program. Pengujian dilakukan dengan memberikan input tertentu dan memeriksa apakah output sesuai dengan yang diharapkan.
+Evaluasi sistem dilakukan melalui umpan balik pengguna setelah sistem selesai dibangun. Pengguna yang terlibat dalam evaluasi adalah pemilik, kasir, dan admin gudang. Evaluasi mencakup: kemudahan penggunaan sistem, kesesuaian fitur dengan kebutuhan, kecepatan akses, dan kelengkapan informasi yang dihasilkan. Hasil evaluasi digunakan sebagai dasar perbaikan sistem sebelum penerapan final.
+DAFTAR PUSTAKA
+Apriani, R., Haerani, R., Nugroho, P. A., & Farisi, I. (2025). Development of a web-based point of sale application using the Laravel framework. JURTEKSI (Jurnal Teknologi dan Sistem Informasi), 11(3), 549–556. https://doi.org/10.33330/jurteksi.v11i3.3918
+Bertalanffy, L. von. (1950). An outline of general system theory. The British Journal for the Philosophy of Science, 1(2), 134–165. https://doi.org/10.1093/bjps/I.2.134
+Creswell, J. W., & Poth, C. N. (2018). Qualitative inquiry and research design: Choosing among five approaches (4th ed.). SAGE Publications.
+Delvia, N., Nugroho, A. C., & Koeswoyo, G. F. (2024). Development of a web-based school budget planning and revenue accounting information system using Agile method. SISFORMA: Journal of Information Systems, 11(2), 120–126. https://doi.org/10.24167/sisforma.v11i2.11116
+Farina, K., & Opti, S. (2023). Pengaruh pemanfaatan sistem informasi akuntansi dan penggunaan teknologi informasi terhadap kinerja UMKM. Jesya, 6(1), 704–713. https://doi.org/10.36778/jesya.v6i1.1007
+Fitriani, F. S., Harahap, R. D., & Nurlaila. (2023). Perkembangan UMKM di Indonesia: Peran pemahaman akuntansi, teknologi informasi dan sistem informasi akuntansi. Owner: Riset dan Jurnal Akuntansi, 7(3), 2518–2527. https://doi.org/10.33395/owner.v7i3.1427
+Haerani, R., Nugroho, P. A., & Ansor, A. S. (2024). Implementation of the FAST method in a web-based inventory information system. JURTEKSI (Jurnal Teknologi dan Sistem Informasi), 10(3), 483–490. https://doi.org/10.3330/jurteksi.v10i3.3089
+Hall, J. A. (2013). Accounting information systems (8th ed.). South-Western Cengage Learning.
+Hanifah, R. U., Rizkiana, C., Agusrina, Y., Sulistyawati, A. I., & Santoso, A. (2024). Implikasi peran financial technology dalam meningkatkan efektivitas Sistem Informasi Akuntansi. Owner: Riset dan Jurnal Akuntansi, 8(1), 355–362. https://doi.org/10.33395/owner.v8i1.1792
+Husodo, C., Nugroho, A. C., & Widjaja, A. A. (2024). Implementation of web based accounting information system using Rapid Application Development (RAD). SISFORMA: Journal of Information Systems, 11(2), 91–101. https://doi.org/10.24167/sisforma.v11i2.4579
+Ikatan Akuntan Indonesia. (2016). Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah. Ikatan Akuntan Indonesia.
+Itsnaini, F. M., Setiawan, D., & Aryani, Y. A. (2024). Determinant implementation of accounting digitalization in MSMEs. The Asian Journal of Technology Management, 17(1), 1–13. https://doi.org/10.12695/ajtm.2024.17.1.1
+Jufri, A., Hadiwibowo, I., Safitri, N., & Dewi, V. A. K. (2024). The influence of accounting information systems and HR competence on the performance of MSMEs mediated by e-commerce. Jurnal Riset Akuntansi dan Keuangan, 12(2), 979–996. https://doi.org/10.17509/jrak.v12i2.70044
+Khusnah, M., Gernowo, R., & Surarso, B. (2025). Implementasi e-commerce dengan sistem informasi rekomendasi menggunakan metode collaborative filtering untuk pengembangan penjualan pada UMKM. Jurnal Sistem Informasi Bisnis, 15(1), 134–141. https://doi.org/10.14710/vol15iss1pp134-141
+Krisnata, F. A., Nugroho, A. C., & Koeswoyo, G. F. (2024). Application of Agile method in web-based accounting information system innovation to support decision making at Canisius Foundation Surakarta Branch. SISFORMA: Journal of Information Systems, 11(2), 127–134. https://doi.org/10.24167/sisforma.v11i2.11119
+Laudon, K. C., & Laudon, J. P. (2020). Management information systems: Managing the digital firm (16th ed.). Pearson.
+Miles, M. B., Huberman, A. M., & Saldaña, J. (2014). Qualitative data analysis: A methods sourcebook (3rd ed.). SAGE Publications.
+O’Brien, J. A., & Marakas, G. M. (2011). Management information systems (10th ed.). McGraw-Hill/Irwin.
+Romney, M. B., & Steinbart, P. J. (2018). Accounting information systems (14th ed.). Pearson.
+Salsabila, M., Nasution, Y. S. J., & Hasibuan, N. A. (2024). Penerapan sistem informasi akuntansi berbasis mobile bagi peningkatan kinerja UMKM. Keberlanjutan: Jurnal Manajemen dan Jurnal Akuntansi, 9(1), 49–60. https://doi.org/10.32493/keberlanjutan.v9i1.y2024.p49-60
+Sommerville, I. (2016). Software engineering (10th ed.). Pearson.
+Susetyo, A., Suliyanto, S., Susilowati, D., Herwiyanti, E., & Lestari, P. (2024). Sistem Informasi Akuntansi Manajemen, orientasi pasar dan kinerja UMKM: Peran mediasi kemampuan inovasi. Owner: Riset dan Jurnal Akuntansi, 8(3), 3018–3027. https://doi.org/10.33395/owner.v8i3.2135
+Yin, R. K. (2018). Case study research and applications: Design and methods (6th ed.). SAGE Publications.

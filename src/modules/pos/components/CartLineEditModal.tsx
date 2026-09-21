@@ -52,7 +52,6 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
   const [specMotif, setSpecMotif] = useState<string>('');
   const [specDotYear, setSpecDotYear] = useState<string>('');
   const [specPcd, setSpecPcd] = useState<string>('');
-  const [specCondition, setSpecCondition] = useState<string>('BARU');
 
   useEffect(() => {
     if (!isOpen || !item) return;
@@ -80,7 +79,6 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
       setSpecMotif(item.product.motif || '');
       setSpecDotYear(item.product.product_year ? String(item.product.product_year) : '');
       setSpecPcd(item.product.pcd || '');
-      setSpecCondition(item.product.condition_code || 'BARU');
     } else if (item.item_type === 'SERVICE' && item.service) {
       setSpecBrand('JASA');
       setSpecMotif(item.service.service_name);
@@ -129,7 +127,7 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
       if (specMotif && specMotif !== '-') parts.push(specMotif);
       if (specSizeWidth && specSizeRatio) parts.push(`${specSizeWidth}/${specSizeRatio}`);
       if (specRing) parts.push(specRing);
-      if (specDotYear) parts.push(`(${specCondition}, ${specDotYear})`);
+      if (specDotYear) parts.push(`(DOT ${specDotYear})`);
       return parts.join(' ');
     } else if (itemCategory === 'VELG') {
       const parts = ['Velg'];
@@ -337,7 +335,7 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
             />
 
             {itemCategory === 'BAN_BARU' && (
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 grid grid-cols-3 sm:grid-cols-5 gap-2 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <div>
                   <span className="text-[10px] text-slate-400 block">Lebar</span>
                   <input
@@ -371,15 +369,6 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
                     type="text"
                     value={specDotYear}
                     onChange={(e) => setSpecDotYear(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-slate-800 font-semibold text-xs"
-                  />
-                </div>
-                <div>
-                  <span className="text-[10px] text-slate-400 block">Kondisi</span>
-                  <input
-                    type="text"
-                    value={specCondition}
-                    onChange={(e) => setSpecCondition(e.target.value)}
                     className="w-full bg-white border border-slate-200 rounded-md px-2 py-1 text-slate-800 font-semibold text-xs"
                   />
                 </div>

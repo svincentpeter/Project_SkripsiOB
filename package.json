@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
+    "dev:backend": "cd backend && php artisan serve",
+    "dev:all": "concurrently -n \"FRONTEND,BACKEND\" -c \"cyan,magenta\" \"npm run dev\" \"npm run dev:backend\"",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
@@ -32,6 +34,7 @@
     "@types/node": "^22.14.0",
     "@types/pdfmake": "^0.2.13",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^10.0.5",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",

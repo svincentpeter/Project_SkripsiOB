@@ -19,7 +19,6 @@ import { useToast } from '../../../shared/components';
 export type ManualItemType =
   | 'jasa'
   | 'ban_baru'
-  | 'ban_bekas'
   | 'velg'
   | 'oli_pelumas'
   | 'ban_dalam';
@@ -39,7 +38,6 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
   const [banRing, setBanRing] = useState('15');
   const [banBrand, setBanBrand] = useState('Bridgestone');
   const [banMotif, setBanMotif] = useState('Ecopia EP150');
-  const [banCondition, setBanCondition] = useState('BARU');
 
   // Fields for Velg
   const [velgBrand, setVelgBrand] = useState('Standar OEM');
@@ -65,14 +63,13 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
   const grossProfit = totalSales - totalCost;
   const profitMargin = totalSales > 0 ? ((grossProfit / totalSales) * 100).toFixed(1) : '0.0';
 
-  const isBan = itemType === 'ban_baru' || itemType === 'ban_bekas';
+  const isBan = itemType === 'ban_baru';
   const isVelg = itemType === 'velg';
 
   const getComputedName = (): string => {
     if (isBan) {
       const size = `${banWidth}/${banRatio} R${banRing}`;
-      const prefix = itemType === 'ban_bekas' ? '(Bekas/Copotan) ' : '';
-      return `${prefix}${banBrand} ${banMotif} ${size} [${banCondition}]`.trim();
+      return `${banBrand} ${banMotif} ${size}`.trim();
     }
     if (isVelg) {
       return `Velg ${velgBrand} R${velgRing} PCD ${velgPcd} (${velgColor})`.trim();
@@ -147,7 +144,6 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
     } else {
       const categoryMap = {
         ban_baru: 'BAN_BARU',
-        ban_bekas: 'BAN_BARU',
         velg: 'VELG',
         oli_pelumas: 'OLI_PELUMAS',
         ban_dalam: 'BAN_DALAM',
@@ -222,7 +218,7 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
               Form Input Manual Transaksi Kasir
             </h3>
             <p className="text-[11px] text-slate-500">
-              Gunakan jika ada barang titipan, copotan, atau jasa dadakan yang belum terdaftar di master produk.
+              Gunakan jika ada produk non-katalog atau jasa servis dadakan yang belum terdaftar di master data.
             </p>
           </div>
         </div>
@@ -238,7 +234,7 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
           <label className="text-xs font-black uppercase tracking-wider text-slate-700 block mb-1.5">
             1. Pilih Kategori Item
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5">
             <button
               type="button"
               onClick={() => setItemType('jasa')}
@@ -263,19 +259,6 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
             >
               <Disc className="w-4 h-4 text-blue-600" />
               <span>Ban Baru</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setItemType('ban_bekas')}
-              className={`p-2 rounded-xl border text-xs font-extrabold flex flex-col items-center gap-1 transition-all cursor-pointer ${
-                itemType === 'ban_bekas'
-                  ? 'bg-slate-100 border-slate-500 text-slate-900 shadow-xs ring-2 ring-slate-400/20'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <CircleDot className="w-4 h-4 text-slate-600" />
-              <span>Ban Bekas</span>
             </button>
 
             <button
@@ -360,7 +343,7 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="text-[11px] font-bold text-slate-600 block mb-0.5">Merek Ban</label>
                   <input
@@ -380,20 +363,6 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
                     placeholder="Ecopia EP150"
                     className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-semibold focus:border-blue-600 focus:outline-none"
                   />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-600 block mb-0.5">Kondisi</label>
-                  <select
-                    value={banCondition}
-                    onChange={(e) => setBanCondition(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
-                  >
-                    <option value="BARU">BARU (Gress Pabrik)</option>
-                    <option value="ORS">Orisinil (ORS 90%+)</option>
-                    <option value="SEREP">Serep / Cadangan</option>
-                    <option value="PRESS">Press / Tambalan Tubeless</option>
-                    <option value="VULKANISIR">Vulkanisir</option>
-                  </select>
                 </div>
               </div>
             </div>
@@ -581,7 +550,7 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Cth: Titipan pelanggan Pak Agus / Garansi 1 pekan"
+              placeholder="Cth: Catatan request ukuran khusus / Garansi 1 pekan"
               className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:bg-white focus:border-blue-600 focus:outline-none"
             />
           </div>
