@@ -582,7 +582,7 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
           className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm shadow-md shadow-purple-600/20 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Masukkan Item Manual ke Keranjang ({formatRupiah(totalSales)})</span>
+          <span>Masukkan Item Manual ke Keranjang ({formatRupiah(totalSales)})</span>
         </button>
       </form>
     </div>

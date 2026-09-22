@@ -30,7 +30,8 @@ import {
   LogOut,
   Receipt,
   HelpCircle,
-  UserCheck
+  UserCheck,
+  RotateCcw,
 } from 'lucide-react';
 import { 
   CartItem, 
@@ -60,6 +61,7 @@ import {
   CheckoutModal,
   ManualItemForm,
   PosSuccessModal,
+  ReceiptPreviewModal,
 } from './components';
 import { useToast } from '../../shared/components';
 
@@ -231,6 +233,8 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [showParkedDrawer, setShowParkedDrawer] = useState<boolean>(false);
   const [printTransaction, setPrintTransaction] = useState<PosTransaction | null>(null);
   const [completedSaleTx, setCompletedSaleTx] = useState<PosTransaction | null>(null);
+  const [showReceiptPreviewModal, setShowReceiptPreviewModal] = useState<boolean>(false);
+  const [previewReceiptTx, setPreviewReceiptTx] = useState<PosTransaction | null>(null);
 
   const [cartMode, setCartMode] = useState<'REGULAR' | 'BON' | 'DP'>('REGULAR');
   const [showCheckoutModal, setShowCheckoutModal] = useState<boolean>(false);
@@ -593,7 +597,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     toast.success('Antrian Dipanggil', `Nota mobil ${order.vehicle_plate} dimuat kembali ke keranjang kasir.`);
   };
 
-  const handlePrintCurrentCartNota = () => {
+  const handleOpenReceiptPreview = (customTx?: PosTransaction) => {
+    if (customTx) {
+      setPreviewReceiptTx(customTx);
+      setShowReceiptPreviewModal(true);
+      return;
+    }
+
     if (cart.length === 0) {
       toast.warning('Keranjang Kosong', 'Tambahkan item ke keranjang terlebih dahulu sebelum mencetak nota.');
       return;
@@ -605,17 +615,28 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       customerName,
       vehiclePlate,
       vehicleModel,
-      paymentMethod,
+      cartMode === 'BON' ? 'HUTANG_BON' : paymentMethod,
       netPayable,
       cashierName,
       applyTax ? 11 : 0,
       manualDiscount,
-      false
+      cartMode === 'BON'
     );
-    setPrintTransaction(tempTx);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    setPreviewReceiptTx(tempTx);
+    setShowReceiptPreviewModal(true);
+  };
+
+  const handlePrintCurrentCartNota = () => {
+    handleOpenReceiptPreview();
+  };
+
+  const handleExecutePrintFromPreview = () => {
+    if (previewReceiptTx) {
+      setPrintTransaction(previewReceiptTx);
+      setTimeout(() => {
+        window.print();
+      }, 150);
+    }
   };
 
   const handlePrintParkedOrder = (order: ParkedTransaction) => {
@@ -632,17 +653,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       order.total_discount,
       false
     );
-    setPrintTransaction(tempTx);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    handleOpenReceiptPreview(tempTx);
   };
 
   const handlePrintReceiptFromSuccessModal = (tx: PosTransaction) => {
-    setPrintTransaction(tx);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    handleOpenReceiptPreview(tx);
   };
 
   const activeBookingsCount = bookings.filter((b) => b.status === 'ACTIVE').length;
@@ -1097,6 +1112,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 <div
                   key={srv.id}
                   onClick={() => handleAddServiceToCart(srv)}
+                  title={`${srv.service_name} - ${srv.description || 'Layanan servis & pengerjaan bengkel OB3'}`}
                   className="bg-white border border-slate-200 hover:border-cyan-500 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all shadow-xs hover:shadow-md active:scale-[0.98] group"
                 >
                   <div>
@@ -1131,10 +1147,29 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               ))}
 
               {catalogTab !== 'SERVICES' && filteredProducts.length === 0 && (
-                <div className="col-span-full py-16 text-center text-slate-500">
-                  <Package className="w-12 h-12 mx-auto text-slate-300 mb-2 stroke-[1.5]" />
-                  <p className="font-bold text-slate-700">Tidak ada produk dalam kategori ini</p>
-                  <p className="text-xs text-slate-400 mt-1">Coba pilih tab kategori lain atau sesuaikan filter Ring & kata kunci pencarian Anda.</p>
+                <div className="col-span-full py-16 text-center text-slate-500 space-y-3">
+                  <Package className="w-12 h-12 mx-auto text-slate-300 stroke-[1.5]" />
+                  <div>
+                    <p className="font-bold text-slate-700">Tidak ada produk ditemukan</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                      Tidak ada item yang cocok dengan kombinasi filter tab, ukuran Ring ({selectedRing}), merk, atau kata kunci pencarian &quot;{searchQuery}&quot;.
+                    </p>
+                  </div>
+                  {(searchQuery || selectedRing !== 'ALL' || selectedBrand !== 'ALL' || catalogTab !== 'ALL') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedRing('ALL');
+                        setSelectedBrand('ALL');
+                        setCatalogTab('ALL');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Reset Semua Filter &amp; Pencarian</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1253,7 +1288,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 type="text"
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Pelanggan Umum (Opsional)"
+                placeholder="Pelanggan Umum"
                 className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-semibold shadow-2xs focus:border-blue-600 focus:outline-none placeholder:text-slate-400"
               />
             </div>
@@ -1263,7 +1298,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 type="text"
                 value={vehiclePlate}
                 onChange={(e) => setVehiclePlate(e.target.value)}
-                placeholder="Contoh: AA 1234 XY (Opsional)"
+                placeholder="AA 1234 XY"
                 className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-mono font-bold shadow-2xs focus:border-blue-600 focus:outline-none placeholder:text-slate-400 uppercase"
               />
             </div>
@@ -1273,7 +1308,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 type="text"
                 value={vehicleModel}
                 onChange={(e) => setVehicleModel(e.target.value)}
-                placeholder="Contoh: Avanza (Opsional)"
+                placeholder="Avanza / Innova"
                 className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-semibold shadow-2xs focus:border-blue-600 focus:outline-none placeholder:text-slate-400"
               />
             </div>
@@ -1444,16 +1479,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             </button>
           </div>
 
-          {/* Tombol Aksi 1: Cetak Nota Fisik Langsung (Pra-Bayar untuk Customer/Kantor) */}
+          {/* Tombol Aksi 1: Cetak & Pratinjau Nota Fisik Langsung */}
           <button
             type="button"
             onClick={handlePrintCurrentCartNota}
             disabled={cart.length === 0}
             className="w-full py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-900 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-2xs transition-colors"
-            title="Cetak fisik Nota Penjualan untuk dibawa customer/kantor sebelum bayar"
+            title="Buka pratinjau fisik nota kasir thermal 80mm sebelum bayar"
           >
             <Printer className="w-4 h-4 text-sky-700" />
-            <span>Cetak Nota Fisik Langsung</span>
+            <span>Pratinjau &amp; Cetak Struk (80mm)</span>
           </button>
 
           {/* Tombol Aksi 2: Proses Utama Sesuai Mode Terpilih */}
@@ -1563,6 +1598,15 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         onPrintReceipt={handlePrintReceiptFromSuccessModal}
         onNavigateToReceipts={onNavigateToReceipts}
         storeSettings={storeSettings}
+      />
+
+      {/* Interactive 80mm Thermal Receipt Fast Preview Modal */}
+      <ReceiptPreviewModal
+        isOpen={showReceiptPreviewModal}
+        transaction={previewReceiptTx}
+        storeSettings={storeSettings}
+        onClose={() => setShowReceiptPreviewModal(false)}
+        onPrintPhysical={handleExecutePrintFromPreview}
       />
 
       {/* Hidden printable block for instant physical print of official Nota Penjualan */}

@@ -16,6 +16,7 @@ const supabaseAnonKey: string | undefined =
 export const isSupabaseConfigured = (): boolean => {
   if (!supabaseUrl || !supabaseAnonKey) return false;
   if (supabaseUrl.includes('your-project') || supabaseAnonKey.includes('your-anon-key')) return false;
+  if (supabaseUrl.includes('tgicdfugemwsrbdbtgda')) return false; // Domain unresolvable
   return supabaseUrl.startsWith('https://') && supabaseAnonKey.length > 20;
 };
 

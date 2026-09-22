@@ -213,9 +213,9 @@ export const ParkedOrdersDrawer: React.FC<ParkedOrdersDrawerProps> = ({
                       {/* Panggil Kembali / Lanjutkan Bayar */}
                       <button
                         onClick={() => onResumeOrder(order)}
-                        className="px-3.5 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 active:scale-98 text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-sm"
+                        className="px-3.5 py-2 rounded-xl bg-blue-700 hover:bg-blue-800 active:scale-98 text-white text-xs font-black transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                       >
-                        <span>Panggil & Bayar</span>
+                        <span>Panggil Antrian ke Kasir</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>

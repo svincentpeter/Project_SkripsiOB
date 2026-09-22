@@ -32,7 +32,10 @@ import {
   DEFAULT_ROLE_PERMISSIONS,
   DEFAULT_USERS,
   INITIAL_PERIOD_INFO,
-  INITIAL_STORE_SETTINGS
+  INITIAL_STORE_SETTINGS,
+  INITIAL_PRODUCTS,
+  INITIAL_SERVICES,
+  INITIAL_SUPPLIERS
 } from './shared/data/mockData';
 import { LoginScreen } from './modules/auth';
 import { formatRupiah, generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
@@ -229,15 +232,36 @@ function MainAppContent() {
     }
   });
 
-  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [products, setProducts] = useState<ProductItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_products');
+      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    } catch {
+      return INITIAL_PRODUCTS;
+    }
+  });
   const [productCategories, setProductCategories] = useState<ProductCategory[]>(() =>
     fetchProductCategoriesFromStorage()
   );
-  const [services, setServices] = useState<ServiceMasterItem[]>([]);
+  const [services, setServices] = useState<ServiceMasterItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_services');
+      return saved ? JSON.parse(saved) : INITIAL_SERVICES;
+    } catch {
+      return INITIAL_SERVICES;
+    }
+  });
   const [serviceCategories, setServiceCategories] = useState<ServiceCategoryItem[]>(() =>
     fetchServiceCategoriesFromStorage()
   );
-  const [suppliers, setSuppliers] = useState<SupplierItem[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_suppliers');
+      return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
+    } catch {
+      return INITIAL_SUPPLIERS;
+    }
+  });
   const [bookings, setBookings] = useState<SalesBookingRecord[]>([]);
   const [transactions, setTransactions] = useState<PosTransaction[]>([]);
 
@@ -481,13 +505,13 @@ function MainAppContent() {
         }
       }
 
-      // 2. Fallback: Coba koneksi ke backend lokal Laravel MySQL HANYA jika berjalan di localhost dan Supabase belum terkonfigurasi
+      // 2. Fallback: Coba koneksi ke backend lokal Laravel MySQL jika berjalan di localhost
       const isLocalDev = typeof window !== 'undefined' && (
         window.location.hostname === 'localhost' ||
         window.location.hostname === '127.0.0.1'
       );
 
-      if (isLocalDev && !isSupabaseConfigured()) {
+      if (isLocalDev) {
         try {
           const health = await apiClient.get<{ status: string; database: string; database_status: string }>('/health');
           if (health.status === 'healthy' && health.database_status === 'connected' && isMounted) {
@@ -499,6 +523,12 @@ function MainAppContent() {
             const apiProds = await productApi.list().catch(() => null);
             if (apiProds && apiProds.length > 0 && isMounted) {
               setProducts(apiProds);
+            } else if (isMounted) {
+              setProducts(INITIAL_PRODUCTS);
+            }
+            if (isMounted) {
+              setServices(INITIAL_SERVICES);
+              setSuppliers(INITIAL_SUPPLIERS);
             }
             return;
           } else if (isMounted) {
@@ -509,6 +539,13 @@ function MainAppContent() {
             setBackendStatus('offline');
           }
         }
+      }
+
+      // 3. Fallback Mandiri (Offline / Demo) jika kedua koneksi database belum siap
+      if (isMounted) {
+        setProducts((prev) => (prev.length > 0 ? prev : INITIAL_PRODUCTS));
+        setServices((prev) => (prev.length > 0 ? prev : INITIAL_SERVICES));
+        setSuppliers((prev) => (prev.length > 0 ? prev : INITIAL_SUPPLIERS));
       }
     };
     syncBackend();

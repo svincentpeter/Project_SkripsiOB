@@ -17,6 +17,7 @@ import {
   Trash2,
   Layers,
   Sparkles,
+  Calendar,
 } from 'lucide-react';
 import { CartItem, PaymentMethod, StoreSettings, SplitPaymentLine } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
@@ -83,6 +84,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [selectedEdcType, setSelectedEdcType] = useState<'Debit' | 'Credit'>('Debit');
   const [cashTenderedInput, setCashTenderedInput] = useState<string>('');
   const [transactionNotes, setTransactionNotes] = useState<string>('');
+
+  // Piutang Usaha (Faktur BON) Due Date State
+  const calcDefaultDueDate = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  };
+  const [bonTermDays, setBonTermDays] = useState<number>(14);
+  const [bonDueDate, setBonDueDate] = useState<string>(() => calcDefaultDueDate(14));
+
+  const handleSelectBonTerm = (days: number) => {
+    setBonTermDays(days);
+    setBonDueDate(calcDefaultDueDate(days));
+  };
 
   // Fintech QRIS Dinamis Midtrans State
   const [qrisFlowType, setQrisFlowType] = useState<'DYNAMIC' | 'MANUAL'>('DYNAMIC');
@@ -340,22 +355,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
-    let finalMethod: PaymentMethod = paymentMethod;
-    if (paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA') {
-      finalMethod = selectedBank === 'BCA' ? 'TRANSFER_BCA' : 'TRANSFER';
-    } else if (paymentMethod === 'EDC') {
-      finalMethod = selectedEdcType === 'Credit' ? 'EDC_CREDIT' : 'EDC_DEBIT';
-    }
+    const isBon = tag === 'BON';
+    const finalMethod: PaymentMethod = isBon
+      ? 'HUTANG_BON'
+      : paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA'
+      ? selectedBank === 'BCA' ? 'TRANSFER_BCA' : 'TRANSFER'
+      : paymentMethod === 'EDC'
+      ? selectedEdcType === 'Credit' ? 'EDC_CREDIT' : 'EDC_DEBIT'
+      : paymentMethod;
 
-    const tenderedAmount = paymentMethod === 'TUNAI' ? cashTenderedVal : effectivePayable;
+    const tenderedAmount = isBon ? 0 : paymentMethod === 'TUNAI' ? cashTenderedVal : effectivePayable;
+
+    const notePrefix = isBon
+      ? `[Faktur BON - Jatuh Tempo: ${bonDueDate} (${bonTermDays} Hari)]`
+      : '';
+    const finalNotes = [notePrefix, transactionNotes.trim()].filter(Boolean).join(' ');
 
     const paymentMeta = {
-      provider_name:
-        paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA'
-          ? selectedBank
-          : paymentMethod === 'QRIS'
-          ? selectedQris
-          : undefined,
+      provider_name: isBon
+        ? `BON_TEMPO_${bonTermDays}D`
+        : paymentMethod === 'TRANSFER' || paymentMethod === 'TRANSFER_BCA'
+        ? selectedBank
+        : paymentMethod === 'QRIS'
+        ? selectedQris
+        : undefined,
+      due_date: isBon ? bonDueDate : undefined,
+      term_days: isBon ? bonTermDays : undefined,
       edc_bank: (paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT') ? selectedEdcBank : undefined,
       edc_type: (paymentMethod === 'EDC' || paymentMethod === 'EDC_DEBIT' || paymentMethod === 'EDC_CREDIT') ? selectedEdcType : undefined,
       fee_percentage:
@@ -383,7 +408,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       tag === 'BON',
       finalMethod,
       tenderedAmount,
-      transactionNotes.trim() || undefined,
+      finalNotes || undefined,
       paymentMeta
     );
   };
@@ -622,22 +647,95 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
               </div>
 
-              {/* Mode BON: Penjelasan & Info Piutang */}
+              {/* Mode BON: Penjelasan & Form Jatuh Tempo Piutang */}
               {tag === 'BON' ? (
-                <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-2">
+                <div className="rounded-2xl border border-amber-300 bg-amber-50/90 p-4 space-y-4">
                   <div className="flex items-start gap-2.5">
                     <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
                     <div>
                       <h4 className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
-                        Mode Faktur BON (Tempo/Piutang)
+                        Mode Faktur BON (Tempo/Piutang Usaha)
                       </h4>
-<p className="text-xs text-amber-900 leading-relaxed mt-1">
+                      <p className="text-xs text-amber-900 leading-relaxed mt-0.5">
                         Barang/jasa dikeluarkan hari ini tanpa mensyaratkan pelunasan kas saat ini.
                         Tagihan sebesar{' '}
                         <b className="font-mono font-black">{formatRupiah(netPayable)}</b> akan otomatis
                         tercatat di <b>Buku Pembantu Piutang Usaha</b> atas nama{' '}
                         <b>{customerName.trim() || 'Pelanggan Umum'}</b>.
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Termin & Pemilih Tanggal Jatuh Tempo */}
+                  <div className="bg-white p-3.5 rounded-xl border border-amber-200 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-amber-600" />
+                        <span>Termin &amp; Tanggal Jatuh Tempo (Due Date)</span>
+                      </label>
+                      <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">
+                        SAK EMKM Ready
+                      </span>
+                    </div>
+
+                    {/* Quick Term Pills */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: '7 Hari', days: 7, desc: '1 Pekan' },
+                        { label: '14 Hari', days: 14, desc: 'Standar Toko' },
+                        { label: '30 Hari', days: 30, desc: '1 Bulan' },
+                      ].map((term) => (
+                        <button
+                          key={term.days}
+                          type="button"
+                          onClick={() => handleSelectBonTerm(term.days)}
+                          className={`py-2 px-2.5 rounded-xl text-center border transition-all cursor-pointer ${
+                            bonTermDays === term.days
+                              ? 'bg-amber-600 text-white border-amber-600 shadow-xs font-black'
+                              : 'bg-slate-50 hover:bg-amber-50 text-slate-700 border-slate-200 font-bold'
+                          }`}
+                        >
+                          <div className="text-xs">{term.label}</div>
+                          <div className={`text-[9.5px] ${bonTermDays === term.days ? 'text-amber-100' : 'text-slate-500'}`}>
+                            {term.desc}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Date Input Custom */}
+                    <div className="pt-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                        Pilih Tanggal Jatuh Tempo Kustom:
+                      </label>
+                      <input
+                        type="date"
+                        value={bonDueDate}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => {
+                          setBonDueDate(e.target.value);
+                          if (e.target.value) {
+                            const diffTime = new Date(e.target.value).getTime() - new Date().getTime();
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            setBonTermDays(Math.max(1, diffDays));
+                          }
+                        }}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-bold focus:bg-white focus:border-amber-600 focus:outline-none"
+                      />
+
+                      {/* Display Selected Due Date Summary */}
+                      <div className="mt-2.5 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 flex items-center justify-between text-xs">
+                        <span className="text-amber-900 font-medium">Batas Akhir Pelunasan:</span>
+                        <span className="font-extrabold text-amber-950 font-mono">
+                          {new Date(bonDueDate).toLocaleDateString('id-ID', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}{' '}
+                          <span className="text-amber-700 font-sans font-bold">({bonTermDays} hari lagi)</span>
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
