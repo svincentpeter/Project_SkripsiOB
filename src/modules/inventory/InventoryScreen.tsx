@@ -71,12 +71,13 @@ import {
   StockOpnameModal, 
   StockOpnameReceiptView, 
   SupplierFormModal,
-  StockReconciliationModal
+  StockReconciliationModal,
+  StockMonthlyLedgerView
 } from './components';
 import { useToast } from '../../shared/components';
 import { ExportMenu } from '../../shared/export/ExportMenu';
 
-export type InventorySubView = 'katalog' | 'kategori' | 'jasa' | 'stok_mutasi' | 'supplier';
+export type InventorySubView = 'katalog' | 'buku_fifo' | 'kategori' | 'jasa' | 'stok_mutasi' | 'supplier';
 
 interface InventoryScreenProps {
   products: ProductItem[];
@@ -420,6 +421,22 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
           <button
             type="button"
+            onClick={() => setActiveSubView('buku_fifo')}
+            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeSubView === 'buku_fifo'
+                ? 'bg-white text-indigo-700 shadow-xs font-black'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+            }`}
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>Buku Stok FIFO (Excel)</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Live Grid
+            </span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveSubView('kategori')}
             className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubView === 'kategori'
@@ -485,6 +502,19 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
       </div>
 
       {/* 3. Render Konten Sub-View Terpilih */}
+
+      {/* SUB-VIEW: BUKU STOK FIFO SPREADSHEET (PARITAS PROJECTOMAHBAN) */}
+      {activeSubView === 'buku_fifo' && (
+        <div className="w-full space-y-4 animate-in fade-in duration-200">
+          <StockMonthlyLedgerView
+            products={products}
+            transactions={transactions}
+            mutations={mutations}
+            onUpdateProductStock={onUpdateProductStock}
+            onUpdateProduct={onUpdateProduct}
+          />
+        </div>
+      )}
 
       {/* SUB-VIEW 1: KATALOG PRODUK */}
       {activeSubView === 'katalog' && (
