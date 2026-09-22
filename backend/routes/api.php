@@ -76,6 +76,13 @@ Route::prefix('v1')->group(function () {
         Route::get('template', [\App\Http\Controllers\Api\v1\StockReconciliationApiController::class, 'downloadTemplate']);
     });
 
+    // Laporan Stok Bulanan & Buku FIFO Spreadsheet (Paritas ProjectOmahBan)
+    Route::prefix('reports/stock-monthly')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\v1\ReportStockMonthlyApiController::class, 'index']);
+        Route::post('/inline-update', [\App\Http\Controllers\Api\v1\ReportStockMonthlyApiController::class, 'inlineUpdate']);
+        Route::get('/export', [\App\Http\Controllers\Api\v1\ReportStockMonthlyApiController::class, 'exportExcel']);
+    });
+
     // Expense Management (BKK) & Void Reversal
     Route::get('expense-categories', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'categories']);
     Route::get('expenses', [\App\Http\Controllers\Api\v1\ExpenseController::class, 'index']);
