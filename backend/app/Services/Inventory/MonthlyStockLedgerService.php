@@ -206,21 +206,41 @@ class MonthlyStockLedgerService
                 // Sort layers by cost ascending (FIFO cheapest/oldest)
                 ksort($groupedByCost, SORT_NUMERIC);
 
+                // 1. Calculate layer sold amounts under FIFO
                 $remainingSoldToAllocate = $sold;
+                $layerSoldAmounts = [];
+                foreach ($groupedByCost as $costKey => $group) {
+                    $layerSold = min($group['initial_qty'], $remainingSoldToAllocate);
+                    $remainingSoldToAllocate = max(0, $remainingSoldToAllocate - $layerSold);
+                    $layerSoldAmounts[$costKey] = $layerSold;
+                }
+
+                // 2. Allocate daily sales chronologically to layers
+                $layerRemainingNeeded = $layerSoldAmounts;
+                $layerDailyDist = [];
+                foreach ($groupedByCost as $costKey => $group) {
+                    $layerDailyDist[$costKey] = [];
+                }
+
+                ksort($productDaily, SORT_NUMERIC);
+                foreach ($productDaily as $d => $qty) {
+                    $qtyToDistribute = $qty;
+                    foreach ($groupedByCost as $costKey => $group) {
+                        if ($qtyToDistribute <= 0) break;
+                        if ($layerRemainingNeeded[$costKey] > 0) {
+                            $take = min($qtyToDistribute, $layerRemainingNeeded[$costKey]);
+                            $layerDailyDist[$costKey][$d] = ($layerDailyDist[$costKey][$d] ?? 0) + $take;
+                            $layerRemainingNeeded[$costKey] -= $take;
+                            $qtyToDistribute -= $take;
+                        }
+                    }
+                }
 
                 foreach ($groupedByCost as $costKey => $group) {
                     $layerRemaining = $group['remaining_qty'];
                     $layerInitial = $group['initial_qty'];
-
-                    // Allocate sales to this layer
-                    $layerSold = min($layerInitial, $remainingSoldToAllocate);
-                    $remainingSoldToAllocate = max(0, $remainingSoldToAllocate - $layerSold);
-
-                    // Daily sales for layer proportional or allocated
-                    $layerDaily = [];
-                    foreach ($productDaily as $d => $q) {
-                        $layerDaily[$d] = $q;
-                    }
+                    $layerSold = $layerSoldAmounts[$costKey];
+                    $layerDaily = $layerDailyDist[$costKey];
 
                     $layerValuation = $layerRemaining * $group['batch_cost'];
                     $totalValuationCogs += $layerValuation;

@@ -181,12 +181,42 @@ export function calculateClientStockLedger(
 
       // Sort cost layers ascending (FIFO)
       const sortedCosts = Object.keys(costGroups).map(Number).sort((a, b) => a - b);
-      let salesToDistribute = pSold;
 
+      // 1. Calculate layer sold amounts under FIFO
+      let salesToDistribute = pSold;
+      const layerSoldAmounts: Record<number, number> = {};
       sortedCosts.forEach((cost) => {
         const g = costGroups[cost];
         const layerSold = Math.min(g.initial, salesToDistribute);
         salesToDistribute = Math.max(0, salesToDistribute - layerSold);
+        layerSoldAmounts[cost] = layerSold;
+      });
+
+      // 2. Allocate daily sales chronologically to layers
+      const layerRemainingNeeded = { ...layerSoldAmounts };
+      const layerDailyDist: Record<number, Record<number, number>> = {};
+      sortedCosts.forEach((cost) => {
+        layerDailyDist[cost] = {};
+      });
+
+      const sortedDays = Object.keys(pDaily).map(Number).sort((a, b) => a - b);
+      sortedDays.forEach((day) => {
+        let qtyToDistribute = pDaily[day] || 0;
+        for (const cost of sortedCosts) {
+          if (qtyToDistribute <= 0) break;
+          if (layerRemainingNeeded[cost] > 0) {
+            const take = Math.min(qtyToDistribute, layerRemainingNeeded[cost]);
+            layerDailyDist[cost][day] = (layerDailyDist[cost][day] || 0) + take;
+            layerRemainingNeeded[cost] -= take;
+            qtyToDistribute -= take;
+          }
+        }
+      });
+
+      sortedCosts.forEach((cost) => {
+        const g = costGroups[cost];
+        const layerSold = layerSoldAmounts[cost] || 0;
+        const layerDaily = layerDailyDist[cost] || {};
         const valuation = g.remaining * cost;
         totalValuationCogs += valuation;
 
@@ -197,7 +227,7 @@ export function calculateClientStockLedger(
           remaining_qty: g.remaining,
           sold: layerSold,
           valuation,
-          daily_sales: pDaily,
+          daily_sales: layerDaily,
         });
       });
     } else {
