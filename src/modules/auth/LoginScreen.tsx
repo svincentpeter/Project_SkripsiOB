@@ -12,7 +12,8 @@ import {
   Boxes, 
   CheckCircle2, 
   ArrowRight,
-  Disc
+  Disc,
+  AlertTriangle
 } from 'lucide-react';
 import { UserAccount, UserSession } from '../../shared/types';
 import { DEFAULT_USERS } from '../../shared/data/mockData';
@@ -155,11 +156,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
                 </p>
               </div>
 
-              {errorMessage && (
-                <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-medium">
-                  {errorMessage}
-                </div>
-              )}
 
               {/* 1-Click Quick Demo User Cards */}
               <div className="space-y-2">
@@ -243,6 +239,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
 
               {/* Form Input */}
               <form onSubmit={handleFormSubmit} className="space-y-3.5">
+                {errorMessage && (
+                  <div 
+                    data-testid="login-error-alert"
+                    className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-medium flex items-center gap-2 animate-in fade-in duration-200"
+                  >
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs font-semibold text-slate-300 block mb-1">
                     Username atau Email
@@ -252,7 +258,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
                     <input
                       type="text"
                       value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
+                      onChange={(e) => {
+                        setIdentifier(e.target.value);
+                        if (errorMessage) setErrorMessage('');
+                      }}
                       placeholder="owner / kasir / gudang atau email"
                       className="w-full pl-10 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                       required
@@ -274,7 +283,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
                     <input
                       type="password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errorMessage) setErrorMessage('');
+                      }}
                       placeholder="password"
                       className="w-full pl-10 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                       required
