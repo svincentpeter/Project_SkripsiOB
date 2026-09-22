@@ -357,16 +357,20 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
 
           <div className="hidden sm:flex items-center gap-0.5 sm:gap-1">
             <button
+              type="button"
               onClick={onOpenWireframeModal}
               className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               title="Buku Panduan Pengguna Toko (User Guide)"
+              aria-label="Buku Panduan Pengguna Toko"
             >
               <HelpCircle className="w-4 h-4" />
             </button>
             <button
+              type="button"
               onClick={onResetData}
               className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
               title="Reset Data Toko"
+              aria-label="Reset Data Toko"
             >
               <RotateCcw className="w-4 h-4" />
             </button>

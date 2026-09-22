@@ -187,8 +187,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           onSavePermissions={onSavePermissions || (() => {})}
         />
       ) : (
-        /* Tab Content Form */
-        <form onSubmit={handleSave} className="space-y-6">
+        /* Tab Content Container */
+        <div className="space-y-6">
         
         {/* SUBTAB 1: PROFIL TOKO & CABANG */}
         {activeSubTab === 'profile' && (
@@ -440,30 +440,230 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
         {/* SUBTAB 4: PREFERENSI AKUNTANSI SAK EMKM */}
         {activeSubTab === 'accounting' && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
-            <div className="border-b border-slate-100 pb-3">
-              <h2 className="text-base font-bold text-slate-900">Preferensi Perpajakan & Akuntansi SAK EMKM</h2>
-              <p className="text-xs text-slate-500">Parameter default untuk perhitungan pajak PPN dan jatuh tempo hutang distributor.</p>
+          <div className="space-y-6">
+            {/* Header Standar EMKM Card */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
+                    <ShieldCheck className="w-4 h-4 text-blue-700" />
+                    <span>Konfigurasi Siklus Akuntansi SAK EMKM (IAI)</span>
+                  </div>
+                  <h2 className="text-base font-bold text-slate-900">Kebijakan Akuntansi & Bagan Akun Standar (COA)</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Pengaturan pemetaan akun buku besar otomatis untuk transaksi POS, biaya operasional, dan laporan keuangan.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full text-[11px] font-black bg-blue-50 text-blue-700 border border-blue-200">
+                    SAK EMKM IAI 2026
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    Metode FIFO Riil
+                  </span>
+                </div>
+              </div>
+
+              {/* Pajak & Termin */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Tarif Pajak Standar PPN (%)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.default_tax_rate ?? 0}
+                    onChange={(e) => handleChange('default_tax_rate', Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs font-bold shadow-2xs"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">PPN default transaksi POS (0% non-PKP)</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Termin Jatuh Tempo TOP (Hari)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.default_payment_terms_days ?? 30}
+                    onChange={(e) => handleChange('default_payment_terms_days', Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs font-bold shadow-2xs"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">Jatuh tempo faktur hutang distributor</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Bulan Pembukuan Aktif
+                  </label>
+                  <select
+                    value={formData.active_fiscal_month || 'September'}
+                    onChange={(e) => handleChange('active_fiscal_month', e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs font-bold shadow-2xs cursor-pointer"
+                  >
+                    {['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-slate-400 mt-1 block">Bulan buku berjalan</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Tahun Buku Aktif
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.active_fiscal_year || 2026}
+                    onChange={(e) => handleChange('active_fiscal_year', Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs font-bold shadow-2xs"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">Tahun kalender pelaporan SAK EMKM</span>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tarif Pajak Standar PPN (%)</label>
-                <input
-                  type="number"
-                  value={formData.default_tax_rate}
-                  onChange={(e) => handleChange('default_tax_rate', Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs"
-                />
+            {/* Pemetaan Bagan Akun (COA Mapping) */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-blue-600" />
+                  <span>Pemetaan Kode Akun COA Otomatis (Chart of Accounts)</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Setiap transaksi kasir dan mutasi operasional akan menjurnal debit/kredit ke akun-akun berikut.
+                </p>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Termin Default Jatuh Tempo Hutang (Hari)</label>
-                <input
-                  type="number"
-                  value={formData.default_payment_terms_days}
-                  onChange={(e) => handleChange('default_payment_terms_days', Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-bold shadow-2xs"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Kas Laci Kasir (Cash)</span>
+                  <input
+                    type="text"
+                    value={formData.coa_cash_account || '1-1000'}
+                    onChange={(e) => handleChange('coa_cash_account', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Akun kas fisik toko OB3</span>
+                </div>
+
+                <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Bank Rekening Operasional</span>
+                  <input
+                    type="text"
+                    value={formData.coa_bank_account || '1-1001'}
+                    onChange={(e) => handleChange('coa_bank_account', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Akun Bank BCA Operasional</span>
+                </div>
+
+                <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Piutang Pelanggan (BON)</span>
+                  <input
+                    type="text"
+                    value={formData.coa_receivable_account || '1-1002'}
+                    onChange={(e) => handleChange('coa_receivable_account', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Akun piutang tempo langganan</span>
+                </div>
+
+                <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Persediaan Ban Baru (FIFO)</span>
+                  <input
+                    type="text"
+                    value={formData.coa_inventory_account || '1-2000'}
+                    onChange={(e) => handleChange('coa_inventory_account', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Akun nilai persediaan ban toko</span>
+                </div>
+
+                <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Hutang Usaha Distributor</span>
+                  <input
+                    type="text"
+                    value={formData.coa_payable_account || '2-1000'}
+                    onChange={(e) => handleChange('coa_payable_account', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Akun tagihan tempo distributor</span>
+                </div>
+
+                <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Modal Usaha Pemilik</span>
+                  <input
+                    type="text"
+                    value={formData.coa_equity_account || '3-1000'}
+                    onChange={(e) => handleChange('coa_equity_account', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Akun modal disetor pemilik</span>
+                </div>
+
+                <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Pendapatan Penjualan Ban</span>
+                  <input
+                    type="text"
+                    value={formData.coa_sales_account || '4-1000'}
+                    onChange={(e) => handleChange('coa_sales_account', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Akun omzet penjualan kasir</span>
+                </div>
+
+                <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Beban Pokok Penjualan (HPP)</span>
+                  <input
+                    type="text"
+                    value={formData.coa_cogs_account || '5-1000'}
+                    onChange={(e) => handleChange('coa_cogs_account', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-900"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Akun HPP FIFO ban terjual</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Saldo Awal Buku Kas */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="border-b border-slate-100 pb-3">
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-blue-600" />
+                  <span>Saldo Kas Awal Pembukuan Toko</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Saldo pembuka kas laci dan rekening bank sebelum mutasi transaksi harian.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Saldo Awal Kas Laci / Kasir (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.initial_cash_drawer ?? 1500000}
+                    onChange={(e) => handleChange('initial_cash_drawer', Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-mono font-bold shadow-2xs"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">Petty cash uang kembalian kasir di laci</span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Saldo Awal Rekening Bank Operasional (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.initial_bank_balance ?? 85000000}
+                    onChange={(e) => handleChange('initial_bank_balance', Number(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-mono font-bold shadow-2xs"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">Saldo rekening Bank BCA operasional</span>
+                </div>
               </div>
             </div>
           </div>
@@ -471,14 +671,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
         <div className="flex items-center justify-end gap-3 pt-4">
           <button
-            type="submit"
-            className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 flex items-center gap-2"
+            type="button"
+            onClick={handleSave}
+            className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 flex items-center gap-2 cursor-pointer transition-all active:scale-98"
           >
             <Save className="w-4 h-4" />
             <span>Simpan Seluruh Perubahan Pengaturan</span>
           </button>
         </div>
-      </form>
+      </div>
       )}
     </div>
   );

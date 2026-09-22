@@ -771,30 +771,39 @@ export const calculateDynamicSakEmkmFinancials = (
   const grossProfitMargin = netSales > 0 ? (grossProfit / netSales) * 100 : 0;
 
   // B. ELEMEN POSISI KEUANGAN (NERACA / BALANCE SHEET)
+  const getNetDebit = (code: string) => {
+    const row = findRow(code);
+    return row ? (row.debit_balance - row.credit_balance) : 0;
+  };
+  const getNetCredit = (code: string) => {
+    const row = findRow(code);
+    return row ? (row.credit_balance - row.debit_balance) : 0;
+  };
+
   // 1. Aset Lancar
-  const kasLaci = findRow('1-1000')?.debit_balance ?? 0;
-  const bankBca = findRow('1-1001')?.debit_balance ?? 0;
-  const piutangDagang = findRow('1-1002')?.debit_balance ?? 0;
-  const persediaanBuku = findRow('1-2000')?.debit_balance ?? 0;
+  const kasLaci = getNetDebit('1-1000');
+  const bankBca = getNetDebit('1-1001');
+  const piutangDagang = getNetDebit('1-1002');
+  const persediaanBuku = getNetDebit('1-2000');
   const totalCurrentAssets = kasLaci + bankBca + piutangDagang + persediaanBuku;
   const liquidCash = kasLaci + bankBca;
 
   // 2. Aset Tetap
-  const peralatanMesin = findRow('1-3000')?.debit_balance ?? 0;
-  const akumulasiPenyusutan = findRow('1-3999')?.credit_balance ?? 0; // Bersifat pengurang
+  const peralatanMesin = getNetDebit('1-3000');
+  const akumulasiPenyusutan = getNetCredit('1-3999'); // Bersifat pengurang
   const netFixedAssets = peralatanMesin - akumulasiPenyusutan;
 
   const totalAssets = totalCurrentAssets + netFixedAssets;
 
   // 3. Liabilitas
-  const hutangSupplier = findRow('2-1000')?.credit_balance ?? 0;
-  const ppnKeluaran = findRow('2-1003')?.credit_balance ?? 0;
-  const uangMukaDp = findRow('2-1004')?.credit_balance ?? 0;
+  const hutangSupplier = getNetCredit('2-1000');
+  const ppnKeluaran = getNetCredit('2-1003');
+  const uangMukaDp = getNetCredit('2-1004');
   const totalLiabilities = hutangSupplier + ppnKeluaran + uangMukaDp;
 
   // 4. Ekuitas
-  const modalPemilik = findRow('3-1000')?.credit_balance ?? 0;
-  const labaDitahan = findRow('3-2000')?.credit_balance ?? 0;
+  const modalPemilik = getNetCredit('3-1000');
+  const labaDitahan = getNetCredit('3-2000');
   const currentNetIncome = netIncome;
   const totalEquity = modalPemilik + labaDitahan + currentNetIncome;
 

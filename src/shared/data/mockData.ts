@@ -1078,6 +1078,20 @@ export const INITIAL_STORE_SETTINGS: StoreSettings = {
   bank_providers: INITIAL_BANK_PROVIDERS,
   qris_providers: INITIAL_QRIS_PROVIDERS,
   edc_settings: INITIAL_EDC_SETTINGS,
+
+  // SAK EMKM Defaults
+  coa_cash_account: '1-1000',
+  coa_bank_account: '1-1001',
+  coa_receivable_account: '1-1002',
+  coa_inventory_account: '1-2000',
+  coa_payable_account: '2-1000',
+  coa_equity_account: '3-1000',
+  coa_sales_account: '4-1000',
+  coa_cogs_account: '5-1000',
+  initial_cash_drawer: 1500000,
+  initial_bank_balance: 85000000,
+  active_fiscal_month: 'September',
+  active_fiscal_year: 2026,
 };
 
 export const INITIAL_BOOKINGS: SalesBookingRecord[] = [
@@ -1562,7 +1576,7 @@ export const INITIAL_PAYABLE_INVOICES: PayableInvoice[] = [
 ];
 
 export const INITIAL_ACCOUNT_BALANCES: Record<string, number> = {
-  '1-1000': 0, // Kas Laci (dimutasi dari transaksi jurnal)
+  '1-1000': 1500000, // Kas Laci Toko OB3 (Petty cash awal kasir)
   '1-1001': 35000000, // Bank BCA Cabang 3
   '1-1002': 1200000, // Piutang Usaha
   '1-2000': 94500000, // Persediaan Ban Baru Cabang 3
@@ -1571,7 +1585,7 @@ export const INITIAL_ACCOUNT_BALANCES: Record<string, number> = {
   '2-1000': 15400000, // Hutang Dagang Supplier (Kredit)
   '2-1003': 0, // PPN Keluaran
   '2-1004': 0, // Uang Muka Penjualan / Titipan DP Konsumen (Kredit)
-  '3-1000': 150000000, // Modal Disetor Pemilik (Kredit)
+  '3-1000': 151500000, // Modal Disetor Pemilik (Kredit)
   '3-2000': 114300000, // Laba Ditahan Cabang 3 (Kredit)
   '4-1000': 0,
   '4-9000': 0,

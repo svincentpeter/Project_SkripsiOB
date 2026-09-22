@@ -384,6 +384,20 @@ export interface StoreSettings {
   bank_providers?: PaymentProviderSetting[];
   qris_providers?: PaymentProviderSetting[];
   edc_settings?: EdcSetting[];
+
+  // SAK EMKM Accounting Preferences
+  coa_cash_account?: string;
+  coa_bank_account?: string;
+  coa_receivable_account?: string;
+  coa_inventory_account?: string;
+  coa_payable_account?: string;
+  coa_equity_account?: string;
+  coa_sales_account?: string;
+  coa_cogs_account?: string;
+  initial_cash_drawer?: number;
+  initial_bank_balance?: number;
+  active_fiscal_month?: string;
+  active_fiscal_year?: number;
 }
 
 export interface CreateProductInput {

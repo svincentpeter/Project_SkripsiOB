@@ -41,7 +41,9 @@ import {
   INITIAL_PAYABLE_INVOICES,
   INITIAL_RECEIVABLES,
   INITIAL_ACCOUNT_BALANCES,
-  INITIAL_STOCK_MUTATIONS
+  INITIAL_STOCK_MUTATIONS,
+  INITIAL_BOOKINGS,
+  INITIAL_TRANSACTIONS
 } from './shared/data/mockData';
 import { LoginScreen } from './modules/auth';
 import { formatRupiah, generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
@@ -268,8 +270,22 @@ function MainAppContent() {
       return INITIAL_SUPPLIERS;
     }
   });
-  const [bookings, setBookings] = useState<SalesBookingRecord[]>([]);
-  const [transactions, setTransactions] = useState<PosTransaction[]>([]);
+  const [bookings, setBookings] = useState<SalesBookingRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_bookings');
+      return saved ? JSON.parse(saved) : INITIAL_BOOKINGS;
+    } catch {
+      return INITIAL_BOOKINGS;
+    }
+  });
+  const [transactions, setTransactions] = useState<PosTransaction[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_transactions');
+      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    } catch {
+      return INITIAL_TRANSACTIONS;
+    }
+  });
 
   const [parkedOrders, setParkedOrders] = useState<ParkedTransaction[]>(() => {
     try {
@@ -371,7 +387,18 @@ function MainAppContent() {
   });
 
   // Selected transaction for receipt view
-  const [currentReceiptTx, setCurrentReceiptTx] = useState<PosTransaction | null>(null);
+  const [currentReceiptTx, setCurrentReceiptTx] = useState<PosTransaction | null>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_transactions');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+      }
+      return INITIAL_TRANSACTIONS.length > 0 ? INITIAL_TRANSACTIONS[0] : null;
+    } catch {
+      return INITIAL_TRANSACTIONS.length > 0 ? INITIAL_TRANSACTIONS[0] : null;
+    }
+  });
 
   // Simulation & Modal states
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -590,6 +617,8 @@ function MainAppContent() {
               setReceivableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_RECEIVABLES));
               setAccountBalances((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_ACCOUNT_BALANCES));
               setMutations((prev) => (prev.length > 0 ? prev : INITIAL_STOCK_MUTATIONS));
+              setBookings((prev) => (prev.length > 0 ? prev : INITIAL_BOOKINGS));
+              setTransactions((prev) => (prev.length > 0 ? prev : INITIAL_TRANSACTIONS));
             }
             return;
           } else if (isMounted) {
@@ -613,6 +642,8 @@ function MainAppContent() {
         setReceivableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_RECEIVABLES));
         setAccountBalances((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_ACCOUNT_BALANCES));
         setMutations((prev) => (prev.length > 0 ? prev : INITIAL_STOCK_MUTATIONS));
+        setBookings((prev) => (prev.length > 0 ? prev : INITIAL_BOOKINGS));
+        setTransactions((prev) => (prev.length > 0 ? prev : INITIAL_TRANSACTIONS));
       }
     };
     syncBackend();
@@ -662,6 +693,14 @@ function MainAppContent() {
   useEffect(() => {
     localStorage.setItem('ob3_mutations', JSON.stringify(mutations));
   }, [mutations]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_transactions', JSON.stringify(transactions));
+  }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_bookings', JSON.stringify(bookings));
+  }, [bookings]);
 
   // Handle Sales Completion from POS Screen
   const handleCompleteSale = (newTx: PosTransaction) => {

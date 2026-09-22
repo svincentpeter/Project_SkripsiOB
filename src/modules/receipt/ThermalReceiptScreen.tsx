@@ -69,7 +69,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
   const [voidError, setVoidError] = useState('');
 
   // Selected Transaction: if prop is given, use it, else use latest from history
-  const activeTx = currentTransaction || (transactionsHistory.length > 0 ? transactionsHistory[transactionsHistory.length - 1] : null);
+  const activeTx = currentTransaction || (transactionsHistory.length > 0 ? transactionsHistory[0] : null);
 
   // Store profile with Magelang defaults
   const headerText = storeSettings?.invoice_header || 'OMAH BAN CABANG 3 (OB3)\nPUSAT BAN BARU, VELG & SPOORING 3D';
