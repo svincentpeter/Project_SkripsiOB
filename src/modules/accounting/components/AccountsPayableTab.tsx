@@ -176,12 +176,27 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
             <tbody className="divide-y divide-slate-100 font-mono">
               {filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center font-sans">
-                    <span className="text-xs italic text-slate-400">
-                      {invoices.length === 0
-                        ? 'Belum ada faktur hutang dagang tersimpan di database.'
-                        : 'Belum ada faktur yang cocok dengan filter status ini.'}
-                    </span>
+                  <td colSpan={9} className="py-10 text-center font-sans">
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      <AlertCircle className="w-7 h-7 text-slate-300 mb-1" />
+                      <span className="text-xs font-bold text-slate-600">
+                        {invoices.length === 0
+                          ? 'Belum ada faktur hutang dagang tersimpan di database.'
+                          : 'Belum ada faktur yang cocok dengan pencarian / filter ini.'}
+                      </span>
+                      {(searchQuery || statusFilter !== 'ALL') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setStatusFilter('ALL');
+                          }}
+                          className="mt-2 px-3 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Reset Filter
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (

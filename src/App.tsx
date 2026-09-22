@@ -35,7 +35,13 @@ import {
   INITIAL_STORE_SETTINGS,
   INITIAL_PRODUCTS,
   INITIAL_SERVICES,
-  INITIAL_SUPPLIERS
+  INITIAL_SUPPLIERS,
+  INITIAL_EXPENSES,
+  INITIAL_JOURNALS,
+  INITIAL_PAYABLE_INVOICES,
+  INITIAL_RECEIVABLES,
+  INITIAL_ACCOUNT_BALANCES,
+  INITIAL_STOCK_MUTATIONS
 } from './shared/data/mockData';
 import { LoginScreen } from './modules/auth';
 import { formatRupiah, generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
@@ -288,13 +294,62 @@ function MainAppContent() {
     deleteParkedOrderFromSupabase(orderId);
   };
 
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
-  const [mutations, setMutations] = useState<StockMutation[]>([]);
-  const [journals, setJournals] = useState<JournalEntry[]>([]);
-  const [cashInDrawer, setCashInDrawer] = useState<number>(0);
-  const [payableInvoices, setPayableInvoices] = useState<PayableInvoice[]>([]);
-  const [accountBalances, setAccountBalances] = useState<Record<string, number>>({});
-  const [receivableInvoices, setReceivableInvoices] = useState<ReceivableInvoice[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_expenses');
+      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+    } catch {
+      return INITIAL_EXPENSES;
+    }
+  });
+  const [mutations, setMutations] = useState<StockMutation[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_mutations');
+      return saved ? JSON.parse(saved) : INITIAL_STOCK_MUTATIONS;
+    } catch {
+      return INITIAL_STOCK_MUTATIONS;
+    }
+  });
+  const [journals, setJournals] = useState<JournalEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_journals');
+      return saved ? JSON.parse(saved) : INITIAL_JOURNALS;
+    } catch {
+      return INITIAL_JOURNALS;
+    }
+  });
+  const [cashInDrawer, setCashInDrawer] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_cash_drawer');
+      return saved ? Number(saved) : 2450000;
+    } catch {
+      return 2450000;
+    }
+  });
+  const [payableInvoices, setPayableInvoices] = useState<PayableInvoice[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_payables');
+      return saved ? JSON.parse(saved) : INITIAL_PAYABLE_INVOICES;
+    } catch {
+      return INITIAL_PAYABLE_INVOICES;
+    }
+  });
+  const [accountBalances, setAccountBalances] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_account_balances');
+      return saved ? JSON.parse(saved) : INITIAL_ACCOUNT_BALANCES;
+    } catch {
+      return INITIAL_ACCOUNT_BALANCES;
+    }
+  });
+  const [receivableInvoices, setReceivableInvoices] = useState<ReceivableInvoice[]>(() => {
+    try {
+      const saved = localStorage.getItem('ob3_receivables');
+      return saved ? JSON.parse(saved) : INITIAL_RECEIVABLES;
+    } catch {
+      return INITIAL_RECEIVABLES;
+    }
+  });
 
   const [periodInfo, setPeriodInfo] = useState<AccountingPeriodInfo>(() => {
     try {
@@ -529,6 +584,12 @@ function MainAppContent() {
             if (isMounted) {
               setServices(INITIAL_SERVICES);
               setSuppliers(INITIAL_SUPPLIERS);
+              setExpenses((prev) => (prev.length > 0 ? prev : INITIAL_EXPENSES));
+              setJournals((prev) => (prev.length > 0 ? prev : INITIAL_JOURNALS));
+              setPayableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_PAYABLE_INVOICES));
+              setReceivableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_RECEIVABLES));
+              setAccountBalances((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_ACCOUNT_BALANCES));
+              setMutations((prev) => (prev.length > 0 ? prev : INITIAL_STOCK_MUTATIONS));
             }
             return;
           } else if (isMounted) {
@@ -546,6 +607,12 @@ function MainAppContent() {
         setProducts((prev) => (prev.length > 0 ? prev : INITIAL_PRODUCTS));
         setServices((prev) => (prev.length > 0 ? prev : INITIAL_SERVICES));
         setSuppliers((prev) => (prev.length > 0 ? prev : INITIAL_SUPPLIERS));
+        setExpenses((prev) => (prev.length > 0 ? prev : INITIAL_EXPENSES));
+        setJournals((prev) => (prev.length > 0 ? prev : INITIAL_JOURNALS));
+        setPayableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_PAYABLE_INVOICES));
+        setReceivableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_RECEIVABLES));
+        setAccountBalances((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_ACCOUNT_BALANCES));
+        setMutations((prev) => (prev.length > 0 ? prev : INITIAL_STOCK_MUTATIONS));
       }
     };
     syncBackend();
@@ -567,6 +634,34 @@ function MainAppContent() {
   useEffect(() => {
     localStorage.setItem('ob3_period_info', JSON.stringify(periodInfo));
   }, [periodInfo]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_expenses', JSON.stringify(expenses));
+  }, [expenses]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_journals', JSON.stringify(journals));
+  }, [journals]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_cash_drawer', String(cashInDrawer));
+  }, [cashInDrawer]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_payables', JSON.stringify(payableInvoices));
+  }, [payableInvoices]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_receivables', JSON.stringify(receivableInvoices));
+  }, [receivableInvoices]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_account_balances', JSON.stringify(accountBalances));
+  }, [accountBalances]);
+
+  useEffect(() => {
+    localStorage.setItem('ob3_mutations', JSON.stringify(mutations));
+  }, [mutations]);
 
   // Handle Sales Completion from POS Screen
   const handleCompleteSale = (newTx: PosTransaction) => {
@@ -1566,6 +1661,7 @@ function MainAppContent() {
                 cashInDrawer={cashInDrawer}
                 bankBalance={accountBalances['1-1001'] || 35000000}
                 onVoidExpense={handleVoidExpense}
+                storeSettings={storeSettings}
               />
             )}
 

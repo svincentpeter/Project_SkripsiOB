@@ -251,7 +251,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
         <div className="text-center border-b border-slate-200 pb-4 mb-5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider mb-2">
             <Building2 className="w-3.5 h-3.5 text-blue-700" />
-            Omah Ban BSD Cabang 3 — Bengkel & Toko Ban
+            Omah Ban Cabang 3 Magelang — Bengkel & Toko Ban
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             {activeReportSubTab === 'income' && 'LAPORAN LABA RUGI'}

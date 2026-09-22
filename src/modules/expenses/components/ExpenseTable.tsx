@@ -4,6 +4,7 @@ import {
   Eye, 
   Printer, 
   Plus, 
+  PlusCircle, 
   ChevronLeft, 
   ChevronRight, 
   Wallet, 
@@ -37,7 +38,8 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 8;
 
-  const categories = Object.keys(EXPENSE_CATEGORY_CONFIG) as ExpenseCategory[];
+  const allCategories = Object.keys(EXPENSE_CATEGORY_CONFIG) as ExpenseCategory[];
+  const categories = allCategories;
 
   // Quick stats
   const activeExpenses = expenses.filter((e) => e.status !== 'VOID');
@@ -86,11 +88,21 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
     currentPage * rowsPerPage
   );
 
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setCategoryFilter('ALL');
+    setSourceFilter('ALL');
+    setStatusFilter('ALL');
+    setCurrentPage(1);
+  };
+
+  const isFiltered = searchQuery !== '' || categoryFilter !== 'ALL' || sourceFilter !== 'ALL' || statusFilter !== 'ALL';
+
   return (
     <div className="w-full">
-      {/* Main Unified Table Card ("Terbungkus Rapi") */}
+      {/* Main Unified Card ("Terbungkus Rapi") */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
-        {/* Table Top Controls & Action CTA */}
+        {/* Card Header & Controls */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
@@ -103,86 +115,84 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <ExportMenu reportId="expenses" data={filteredExpenses} ctx={{ periodLabel: 'Semua Periode' }} />
-
-            {onAddNew && (
-              <button
-                type="button"
-                onClick={onAddNew}
-                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Catat Pengeluaran Baru</span>
-              </button>
-            )}
+            <ExportMenu
+              reportId="expense_recap"
+              data={expenses}
+              ctx={{ periodLabel: 'Periode Berjalan' }}
+            />
+            <button
+              type="button"
+              onClick={onAddNew}
+              className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Catat Pengeluaran Baru</span>
+            </button>
           </div>
         </div>
 
-        {/* Quick Metrics Strip */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* 4 Metric Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-              Total Beban Bulan Ini
-            </span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Beban Bulan Ini</span>
             <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
               {formatRupiah(totalActiveAmount)}
             </span>
-            <span className="text-[10px] text-slate-400 block mt-0.5">
+            <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
               {activeExpenses.length} transaksi aktif
             </span>
           </div>
 
           <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
               <Wallet className="w-3 h-3 text-amber-600" />
-              Kas Laci Toko
+              <span>Kas Laci Toko</span>
             </span>
             <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
               {formatRupiah(cashAmount)}
             </span>
-            <span className="text-[10px] text-slate-400 block mt-0.5">
+            <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
               Pengeluaran tunai kasir
             </span>
           </div>
 
           <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
               <Building2 className="w-3 h-3 text-blue-600" />
-              Bank BCA Cabang 3
+              <span>Bank BCA Cabang 3</span>
             </span>
             <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
               {formatRupiah(bankAmount)}
             </span>
-            <span className="text-[10px] text-slate-400 block mt-0.5">
+            <span className="text-[10px] text-slate-500 font-medium mt-0.5 block">
               Transfer operasional & mesin
             </span>
           </div>
 
-          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-              Status Pembukuan
-            </span>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                {activeExpenses.length} Aktif
-              </span>
-              {voidExpenses.length > 0 && (
-                <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded">
-                  {voidExpenses.length} Void
+          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Status Pembukuan</span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  {activeExpenses.length} Aktif
                 </span>
-              )}
+                {voidExpenses.length > 0 && (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                    {voidExpenses.length} Void
+                  </span>
+                )}
+              </div>
             </div>
-            <span className="text-[10px] text-slate-400 block mt-0.5">
+            <span className="text-[10px] text-slate-500 mt-1 block">
               Standar SAK EMKM Terpadu
             </span>
           </div>
         </div>
 
-        {/* Filter and Search Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        {/* Filters & Search Toolbar */}
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
+          <div className="sm:col-span-4 relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
@@ -191,22 +201,21 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                 setCurrentPage(1);
               }}
               placeholder="Cari no BKK, keterangan, penerima..."
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
+              className="w-full pl-9 pr-3 py-2 text-xs font-medium text-slate-800 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-400 placeholder:font-light"
             />
           </div>
 
-          {/* Category Filter */}
-          <div>
+          <div className="sm:col-span-3">
             <select
               value={categoryFilter}
               onChange={(e) => {
-                setCategoryFilter(e.target.value);
+                setCategoryFilter(e.target.value as any);
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring"
+              className="w-full px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="ALL">Semua Kategori Beban</option>
-              {categories.map((c) => (
+              {allCategories.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -214,15 +223,14 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             </select>
           </div>
 
-          {/* Source Filter */}
-          <div>
+          <div className="sm:col-span-3">
             <select
               value={sourceFilter}
               onChange={(e) => {
-                setSourceFilter(e.target.value);
+                setSourceFilter(e.target.value as any);
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring"
+              className="w-full px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="ALL">Semua Sumber Kas</option>
               <option value="CASH">Kas Tunai Laci Kasir</option>
@@ -230,19 +238,18 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             </select>
           </div>
 
-          {/* Status Filter */}
-          <div>
+          <div className="sm:col-span-2">
             <select
               value={statusFilter}
               onChange={(e) => {
-                setStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'VOID');
+                setStatusFilter(e.target.value as any);
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring"
+              className="w-full px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="ALL">Semua Status Transaksi</option>
-              <option value="ACTIVE">Hanya Aktif / Posted</option>
-              <option value="VOID">Hanya Batal / Void</option>
+              <option value="ACTIVE">Aktif (Posted)</option>
+              <option value="VOID">Dibatalkan (Void)</option>
             </select>
           </div>
         </div>
@@ -266,7 +273,30 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
                     <AlertCircle className="w-8 h-8 mx-auto text-slate-300 mb-2" />
-                    <p className="font-medium text-xs">Tidak ada data biaya yang sesuai dengan kriteria pencarian.</p>
+                    <p className="font-bold text-xs text-slate-600">
+                      {expenses.length === 0 ? 'Belum ada bukti kas keluar (BKK) tersimpan' : 'Tidak ada data biaya yang sesuai dengan kriteria pencarian'}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1 mb-3">
+                      {expenses.length === 0 ? 'Mulai bukukan biaya operasional toko dengan tombol di bawah' : 'Coba ubah kata kunci atau bersihkan filter'}
+                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      {isFiltered && (
+                        <button
+                          type="button"
+                          onClick={handleResetFilters}
+                          className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Reset Semua Filter
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={onAddNew}
+                        className="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer shadow-xs"
+                      >
+                        + Input Biaya Baru
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -390,7 +420,9 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
         {/* Pagination Footer */}
         <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
           <span>
-            Menampilkan data {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredExpenses.length)} dari {filteredExpenses.length} transaksi
+            {filteredExpenses.length === 0
+              ? 'Menampilkan 0 transaksi'
+              : `Menampilkan data ${(currentPage - 1) * rowsPerPage + 1} - ${Math.min(currentPage * rowsPerPage, filteredExpenses.length)} dari ${filteredExpenses.length} transaksi`}
           </span>
 
           <div className="flex items-center gap-1.5">

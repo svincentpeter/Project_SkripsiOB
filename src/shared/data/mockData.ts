@@ -1280,7 +1280,7 @@ export const INITIAL_EXPENSES: ExpenseRecord[] = [
     amount: 320000,
     cash_source: 'Kas Tunai Laci Kasir',
     payment_method: 'Cash',
-    paid_to: 'Toko Sumber Perkakas BSD',
+    paid_to: 'Toko Sumber Perkakas Magelang',
     description: 'Beli kertas struk thermal 80mm (1 dus/50 roll) dan timbel timah balancing tempel',
     approved_by: 'Kasir - Fani A.',
     status: 'ACTIVE',
@@ -1604,7 +1604,7 @@ export const INITIAL_RECEIVABLES: ReceivableInvoice[] = [
   {
     id: 'rec-inv-02',
     invoice_number: 'OB3-INV-202608-112',
-    customer_name: 'Pak Denny Sumargo (Rental Mobil BSD)',
+    customer_name: 'Pak Denny Sumargo (Rental Mobil Magelang)',
     customer_phone: '0813-1122-3344',
     vehicle_plate: 'B 1088 RNT (Innova Reborn)',
     date: '2026-08-30',

@@ -68,14 +68,14 @@ export const LedgerPrintModal: React.FC<LedgerPrintModalProps> = ({
               <div className="flex items-center gap-2">
                 <Building2 className="w-6 h-6 text-blue-700 print:text-black" />
                 <h1 className="text-lg font-black tracking-tight text-slate-900 uppercase">
-                  BENGKEL OMAH BAN BSD CABANG 3
+                  BENGKEL OMAH BAN CABANG 3 - MAGELANG
                 </h1>
               </div>
               <p className="text-xs text-slate-600">
                 Pusat Servis Ban Mobil, Spooring 3D & Balancing • SAK EMKM Standard
               </p>
               <p className="text-[11px] text-slate-500">
-                Jl. Raya Serpong No. 88, Tangerang Selatan | Telp: (021) 555-8901 | NPWP: 01.345.678.9-411.000
+                Jl. Magelang - Yogyakarta Km. 8, Kabupaten Magelang | Telp: 0822-2786-3969 | NPWP: 01.345.678.9-411.000
               </p>
             </div>
             <div className="text-right">

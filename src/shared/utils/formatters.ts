@@ -385,3 +385,31 @@ export const generateExpenseJournal = (expense: ExpenseRecord, journalIdCounter:
     ],
   };
 };
+
+/**
+ * Konversi angka nominal ke ejaan kalimat Rupiah resmi Bahasa Indonesia
+ * Contoh: 350000 -> "Tiga ratus lima puluh ribu rupiah"
+ */
+export const terbilangRupiah = (amount: number): string => {
+  if (isNaN(amount) || amount === 0) return 'Nol rupiah';
+
+  const angka = Math.floor(Math.abs(amount));
+  const units = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+
+  const convert = (n: number): string => {
+    if (n < 12) return units[n];
+    if (n < 20) return `${convert(n - 10)} belas`;
+    if (n < 100) return `${convert(Math.floor(n / 10))} puluh ${convert(n % 10)}`.trim();
+    if (n < 200) return `seratus ${convert(n - 100)}`.trim();
+    if (n < 1000) return `${convert(Math.floor(n / 100))} ratus ${convert(n % 100)}`.trim();
+    if (n < 2000) return `seribu ${convert(n - 1000)}`.trim();
+    if (n < 1000000) return `${convert(Math.floor(n / 1000))} ribu ${convert(n % 1000)}`.trim();
+    if (n < 1000000000) return `${convert(Math.floor(n / 1000000))} juta ${convert(n % 1000000)}`.trim();
+    if (n < 1000000000000) return `${convert(Math.floor(n / 1000000000))} milyar ${convert(n % 1000000000)}`.trim();
+    return `${convert(Math.floor(n / 1000000000000))} triliun ${convert(n % 1000000000000)}`.trim();
+  };
+
+  const rawWords = convert(angka).replace(/\s+/g, ' ').trim();
+  const capitalized = rawWords.charAt(0).toUpperCase() + rawWords.slice(1);
+  return `${capitalized} rupiah`;
+};

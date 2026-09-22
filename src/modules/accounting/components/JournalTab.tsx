@@ -105,91 +105,104 @@ export const JournalTab: React.FC<JournalTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <ExportMenu reportId="journal" data={filteredJournals} ctx={{ periodLabel: 'Seluruh Periode' }} />
-            <button
-              onClick={onOpenManualModal}
-              className="px-3.5 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Jurnal Penyesuaian</span>
-            </button>
+            <ExportMenu
+              reportId="general_journal"
+              data={journals}
+              ctx={{ periodLabel: 'Periode Berjalan' }}
+            />
+            {onOpenManualModal && (
+              <button
+                onClick={onOpenManualModal}
+                className="px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Jurnal Penyesuaian</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Quick Metrics Strip */}
+        {/* 3 Metric Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Akumulasi Debit</span>
-              <span className="text-base sm:text-lg font-black font-mono text-blue-700">{formatRupiah(totalDebit)}</span>
+              <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
+                {formatRupiah(totalDebit)}
+              </span>
             </div>
-            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+            <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
               <ArrowUpRight className="w-4 h-4" />
-            </div>
+            </span>
           </div>
 
           <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Akumulasi Kredit</span>
-              <span className="text-base sm:text-lg font-black font-mono text-emerald-700">{formatRupiah(totalCredit)}</span>
+              <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
+                {formatRupiah(totalCredit)}
+              </span>
             </div>
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
               <ArrowDownRight className="w-4 h-4" />
-            </div>
+            </span>
           </div>
 
-          <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5 flex items-center justify-between">
+          <div className={`border rounded-xl p-3.5 flex items-center justify-between ${
+            isBalanced ? 'bg-emerald-50/60 border-emerald-200' : 'bg-rose-50/60 border-rose-200'
+          }`}>
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Status Keseimbangan</span>
-              {isBalanced ? (
-                <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> SEIMBANG (0 Selisih)
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs font-black text-amber-700">
-                  <AlertCircle className="w-3.5 h-3.5" /> SELISIH: {formatRupiah(balanceDiff)}
-                </span>
-              )}
+              <span className="text-[10px] font-bold uppercase tracking-wider block text-slate-600">Status Keseimbangan</span>
+              <span className={`text-xs font-black block mt-0.5 ${
+                isBalanced ? 'text-emerald-700' : 'text-rose-700'
+              }`}>
+                {isBalanced ? '✓ SEIMBANG (0 Selisih)' : `✗ TIDAK SEIMBANG (${formatRupiah(Math.abs(totalDebit - totalCredit))})`}
+              </span>
             </div>
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isBalanced ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+            <span className={`p-2 rounded-xl ${
+              isBalanced ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+            }`}>
               <Layers className="w-4 h-4" />
-            </div>
+            </span>
           </div>
         </div>
 
-        {/* Filter and Search Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 text-xs">
+        {/* Search & Filter Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari no. jurnal, nota ref, akun, atau deskripsi..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
+              placeholder="Cari no. jurnal, nota ref, akun, atau deskripsi..."
+              className="w-full pl-9 pr-3 py-2 text-xs font-medium text-slate-800 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-400 placeholder:font-light"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
-            <Filter className="w-3.5 h-3.5 text-slate-500 ml-1.5 mr-0.5" />
-            {(['ALL', 'SALE', 'PURCHASE', 'EXPENSE', 'DEBT', 'RECEIVABLE', 'CLOSING', 'ADJUSTMENT'] as const).map((cat) => (
+          {/* Category Filter Chips */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none text-xs">
+            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1 mr-1" />
+            {[
+              { id: 'ALL', label: 'Semua' },
+              { id: 'SALE', label: 'Penjualan' },
+              { id: 'PURCHASE', label: 'Beli Ban' },
+              { id: 'EXPENSE', label: 'Biaya' },
+              { id: 'DEBT', label: 'Bayar AP' },
+              { id: 'RECEIVABLE', label: 'Piutang AR' },
+              { id: 'CLOSING', label: 'Penutup' },
+              { id: 'ADJUSTMENT', label: 'Penyesuaian' },
+            ].map((cat) => (
               <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  categoryFilter === cat
-                    ? 'bg-white text-blue-700 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                key={cat.id}
+                onClick={() => setCategoryFilter(cat.id as any)}
+                className={`px-2.5 py-1.5 rounded-lg font-bold text-xs whitespace-nowrap transition-colors cursor-pointer ${
+                  categoryFilter === cat.id
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                 }`}
               >
-                {cat === 'ALL' && 'Semua'}
-                {cat === 'SALE' && 'Penjualan'}
-                {cat === 'PURCHASE' && 'Beli Ban'}
-                {cat === 'EXPENSE' && 'Biaya'}
-                {cat === 'DEBT' && 'Bayar AP'}
-                {cat === 'RECEIVABLE' && 'Piutang AR'}
-                {cat === 'CLOSING' && 'Penutup'}
-                {cat === 'ADJUSTMENT' && 'Penyesuaian'}
+                {cat.label}
               </button>
             ))}
           </div>
@@ -203,14 +216,29 @@ export const JournalTab: React.FC<JournalTabProps> = ({
               {journals.length === 0 ? (
                 <>
                   <p className="text-xs font-bold text-slate-600">Belum ada ayat jurnal di database</p>
-                  <p className="text-[11px] italic text-slate-400 mt-1">
+                  <p className="text-[11px] italic text-slate-400 mt-1 mb-3">
                     Jurnal terbentuk otomatis dari transaksi POS, penerimaan barang, beban, atau penyesuaian periode.
                   </p>
+                  {onOpenManualModal && (
+                    <button
+                      onClick={onOpenManualModal}
+                      className="px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors cursor-pointer shadow-xs inline-flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Buat Jurnal Penyesuaian</span>
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
                   <p className="text-xs font-bold text-slate-600">Tidak ada ayat jurnal yang cocok dengan kriteria pencarian</p>
-                  <p className="text-[11px] italic text-slate-400 mt-1">Coba ubah kata kunci atau filter kategori di atas</p>
+                  <p className="text-[11px] italic text-slate-400 mt-1 mb-3">Coba ubah kata kunci atau filter kategori di atas</p>
+                  <button
+                    onClick={handleResetFilters}
+                    className="px-3.5 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                  >
+                    Reset Filter Pencarian
+                  </button>
                 </>
               )}
             </div>
@@ -340,7 +368,12 @@ export const JournalTab: React.FC<JournalTabProps> = ({
 
       {/* Reversal Confirmation Modal */}
       {journalToReverse && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6">
+        <div 
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setJournalToReverse(null);
+          }}
+        >
           <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
             <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2.5">

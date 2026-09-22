@@ -109,7 +109,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
               <span>Buku Besar & Siklus Akuntansi</span>
               <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                Cabang 3 BSD
+                Cabang 3 - Magelang
               </span>
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -325,7 +325,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
                     <span>Laporan Keuangan Eksekutif Resmi</span>
                   </span>
                   <h3 className="text-lg font-black text-slate-900">
-                    Pusat Laporan Eksekutif SAK EMKM Omah Ban BSD
+                    Pusat Laporan Eksekutif SAK EMKM Omah Ban Magelang
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
                     Laporan Keuangan Resmi (Laba Rugi, Posisi Neraca, Arus Kas & Lembar Cetak Pengesahan) kini dipusatkan di modul tersendiri untuk kenyamanan pemilik usaha.
@@ -351,38 +351,40 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
                 </div>
               </div>
 
-              {/* 3 Executive Metric Preview Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Omzet Bersih Berjalan</span>
-                  <span className="text-base font-black font-mono text-slate-900 block mt-0.5">
-                    {formatRupiah(quickFinancials.netSales)}
-                  </span>
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">
-                    Penjualan ban & jasa servis
-                  </span>
-                </div>
+              {/* 3 Executive Metric Preview Cards (Disembunyikan saat pratinjau penuh aktif agar tidak terjadi tumpuk ganda / duplicate cards) */}
+              {!showInlineReport && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Omzet Bersih Berjalan</span>
+                    <span className="text-base font-black font-mono text-slate-900 block mt-0.5">
+                      {formatRupiah(quickFinancials.netSales)}
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Penjualan ban & jasa servis
+                    </span>
+                  </div>
 
-                <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl">
-                  <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Laba Bersih Berjalan</span>
-                  <span className="text-base font-black font-mono text-emerald-800 block mt-0.5">
-                    {formatRupiah(quickFinancials.netIncome)}
-                  </span>
-                  <span className="text-[10px] text-emerald-700 mt-0.5 block">
-                    Margin: {quickFinancials.netProfitMargin.toFixed(1)}% dari omzet
-                  </span>
-                </div>
+                  <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl">
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Laba Bersih Berjalan</span>
+                    <span className="text-base font-black font-mono text-emerald-800 block mt-0.5">
+                      {formatRupiah(quickFinancials.netIncome)}
+                    </span>
+                    <span className="text-[10px] text-emerald-700 mt-0.5 block">
+                      Margin: {quickFinancials.netProfitMargin.toFixed(1)}% dari omzet
+                    </span>
+                  </div>
 
-                <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl">
-                  <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Uang Kas & Bank Siap Pakai</span>
-                  <span className="text-base font-black font-mono text-blue-800 block mt-0.5">
-                    {formatRupiah(quickFinancials.liquidCash)}
-                  </span>
-                  <span className="text-[10px] text-blue-700 mt-0.5 block">
-                    Kas Laci Kasir + Saldo Bank BCA
-                  </span>
+                  <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl">
+                    <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Uang Kas & Bank Siap Pakai</span>
+                    <span className="text-base font-black font-mono text-blue-800 block mt-0.5">
+                      {formatRupiah(quickFinancials.liquidCash)}
+                    </span>
+                    <span className="text-[10px] text-blue-700 mt-0.5 block">
+                      Kas Laci Kasir + Saldo Bank BCA
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Inline Full Report View when toggled or fallback */}

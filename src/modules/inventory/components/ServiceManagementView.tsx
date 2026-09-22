@@ -12,7 +12,8 @@ import {
   Clock, 
   AlertCircle,
   Sparkles,
-  Tag
+  Tag,
+  RotateCcw
 } from 'lucide-react';
 import { ServiceCategoryItem, ServiceMasterItem } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
@@ -218,12 +219,27 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                 {filteredServices.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-slate-500">
-                      <div className="max-w-sm mx-auto space-y-2">
+                      <div className="max-w-sm mx-auto space-y-3 py-4 text-center">
                         <Wrench className="w-10 h-10 text-slate-300 mx-auto" />
                         <p className="font-semibold text-slate-700">Tidak ada layanan jasa ditemukan</p>
                         <p className="text-xs text-slate-400">
-                          {searchQuery ? 'Coba ubah filter atau kata kunci pencarian.' : 'Klik tombol "+ Tambah Jasa Baru" untuk membuat layanan baru.'}
+                          {searchQuery || selectedCategoryFilter !== 'ALL'
+                            ? 'Filter atau kata kunci pencarian aktif tidak cocok dengan layanan jasa manapun.'
+                            : 'Klik tombol "+ Tambah Jasa Baru" untuk membuat layanan baru.'}
                         </p>
+                        {(searchQuery || selectedCategoryFilter !== 'ALL') && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSearchQuery('');
+                              setSelectedCategoryFilter('ALL');
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Reset Filter & Pencarian Jasa
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

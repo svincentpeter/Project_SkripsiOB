@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Plus, Trash2, CheckCircle2, AlertTriangle, Scale } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Plus, Trash2, CheckCircle2, AlertTriangle, Scale, AlertCircle } from 'lucide-react';
 import { ManualJournalInput } from '../../../shared/types';
 import { SAK_EMKM_COA } from '../../../services/accountingService';
 import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
@@ -18,6 +18,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
   const [date, setDate] = useState(() => new Date().toISOString().substring(0, 10));
   const [refDoc, setRefDoc] = useState(`MEM-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-01`);
   const [description, setDescription] = useState('');
+  const [formError, setFormError] = useState('');
   const [lines, setLines] = useState<
     { account_code: string; debit: number; credit: number; note: string }[]
   >([
@@ -25,12 +26,19 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
     { account_code: '1-3999', debit: 0, credit: 1500000, note: 'Akumulasi Penyusutan Mesin' },
   ]);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const totalDebit = lines.reduce((acc, l) => acc + (Number(l.debit) || 0), 0);
   const totalCredit = lines.reduce((acc, l) => acc + (Number(l.credit) || 0), 0);
   const difference = Math.abs(totalDebit - totalCredit);
-  const isBalanced = totalDebit > 0 && totalCredit > 0 && difference < 1;
+  const isBalanced = totalDebit > 0 && totalDebit === totalCredit;
 
   const handleAddLine = () => {
     setLines([
@@ -45,6 +53,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
   };
 
   const handleUpdateLine = (index: number, field: string, value: any) => {
+    setFormError('');
     setLines(
       lines.map((line, i) => {
         if (i === index) {
@@ -57,7 +66,19 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isBalanced || !description.trim()) return;
+    if (!description.trim()) {
+      setFormError('Keterangan transaksi / jurnal penyesuaian wajib diisi!');
+      return;
+    }
+    if (!isBalanced) {
+      setFormError(`Ayat jurnal tidak seimbang! Total Debit (${formatRupiah(totalDebit)}) harus sama persis dengan Total Kredit (${formatRupiah(totalCredit)}).`);
+      return;
+    }
+    if (totalDebit <= 0) {
+      setFormError('Nominal jurnal harus lebih besar dari Rp 0!');
+      return;
+    }
+    setFormError('');
 
     onSubmit({
       date,
@@ -78,8 +99,15 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
     onClose();
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="bg-slate-50 px-6 py-4 flex items-center justify-between text-slate-900 border-b border-slate-200">
@@ -102,6 +130,12 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({
 
         {/* Modal Body */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 custom-scrollbar flex-1">
+          {formError && (
+            <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-800 flex items-center gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span className="font-semibold">{formError}</span>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase mb-1">

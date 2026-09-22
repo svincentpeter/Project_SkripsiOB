@@ -205,7 +205,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   type="text"
                   value={formData.store_name}
                   onChange={(e) => handleChange('store_name', e.target.value)}
-                  placeholder="Contoh: Omah Ban BSD"
+                  placeholder="Contoh: Omah Ban Magelang"
                   className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 font-bold text-sm focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
@@ -216,7 +216,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   type="text"
                   value={formData.branch_name}
                   onChange={(e) => handleChange('branch_name', e.target.value)}
-                  placeholder="Contoh: Cabang 3 - Tangerang"
+                  placeholder="Contoh: Cabang 3 - Magelang"
                   className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 font-bold text-sm focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>
@@ -273,7 +273,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   type="text"
                   value={formData.address}
                   onChange={(e) => handleChange('address', e.target.value)}
-                  placeholder="Contoh: Jl. Raya Serpong No. 88, BSD"
+                  placeholder="Contoh: Jl. Magelang - Yogyakarta Km. 8, Magelang"
                   className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2 text-slate-900 text-xs font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>

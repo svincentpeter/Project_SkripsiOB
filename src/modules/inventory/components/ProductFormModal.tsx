@@ -46,6 +46,7 @@ const BRANDS_BAN = ['Bridgestone', 'Accelera', 'Dunlop', 'Forceum', 'Hankook', '
 const BRANDS_VELG = ['HSR', 'Enkei', 'Rays', 'Work', 'BBS', 'SSW', 'OEM'];
 const BRANDS_TUBE = ['GTRadial', 'Swallow', 'Kingland', 'IRC'];
 const BRANDS_OIL = ['Shell', 'Pertamina', 'Castrol', 'Motul', 'Total', 'Mobil 1'];
+const BRANDS_ACC = ['Brembo', 'Sparco', 'TRD', 'Mugen', 'HKS', 'Universal'];
 const RINGS = ['R13', 'R14', 'R15', 'R16', 'R17', 'R18', 'R19', 'R20+'];
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
@@ -112,12 +113,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setStockAlert(productToEdit.product_stock_alert ?? productToEdit.min_stock ?? 5);
       setHasInitialStock(false);
     } else {
-      setCategory('BAN_BARU');
-      setBrand('Bridgestone');
-      setProductName('');
-      setSizeWidth(185);
-      setSizeRatio('65');
-      setRing('R15');
+      const initialCat: ItemCategory = 'BAN_BARU';
+      const initialBrand = 'Bridgestone';
+      const initialWidth = 185;
+      const initialRatio = '65';
+      const initialRing = 'R15';
+      setCategory(initialCat);
+      setBrand(initialBrand);
+      setSizeWidth(initialWidth);
+      setSizeRatio(initialRatio);
+      setRing(initialRing);
       setMotif('');
       setProductYear(2025);
       setPcd('4x100');
@@ -131,6 +136,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setHasInitialStock(false);
       setInitialQty(10);
       setSupplierName('PT Bridgestone Tire Indonesia');
+      setProductName(`${initialBrand} ${initialWidth}/${initialRatio} ${initialRing}`);
+      setProductCode(generateProductSku(initialBrand, initialWidth, initialRatio, initialRing, 'STD', initialCat));
       
       const existingBarcodes = existingProducts.map((p) => p.barcode).filter(Boolean);
       setBarcode(generateBarcodeEan13(existingBarcodes));
@@ -138,7 +145,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   }, [isOpen, mode, productToEdit, existingProducts]);
 
   useEffect(() => {
-    if (mode === 'CREATE') {
+    if (isOpen && mode === 'CREATE') {
       if (category === 'BAN_BARU') {
         const autoName = `${brand} ${motif ? motif.trim() + ' ' : ''}${sizeWidth}/${sizeRatio} ${ring}`.trim();
         setProductName(autoName);
@@ -151,9 +158,17 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         const autoName = `Ban Dalam ${brand} ${sizeRatio || '14'} (${valveType})`.trim();
         setProductName(autoName);
         setProductCode(generateProductSku(brand, undefined, sizeRatio || '14', ring, motif || 'STD', 'BAN_DALAM'));
+      } else if (category === 'OLI_PELUMAS') {
+        const autoName = `Oli ${brand} ${motif ? motif.trim() : 'Helix HX7 10W-40 4L'}`.trim();
+        setProductName(autoName);
+        setProductCode(generateProductSku(brand, undefined, undefined, undefined, motif || 'OIL', 'OLI_PELUMAS'));
+      } else {
+        const autoName = `${brand} ${motif ? motif.trim() : 'Sparepart / Aksesoris'}`.trim();
+        setProductName(autoName);
+        setProductCode(generateProductSku(brand, undefined, undefined, undefined, motif || 'ACC', 'AKSESORIS'));
       }
     }
-  }, [category, brand, sizeWidth, sizeRatio, ring, motif, pcd, rimWidth, colorFinish, valveType, mode]);
+  }, [isOpen, category, brand, sizeWidth, sizeRatio, ring, motif, pcd, rimWidth, colorFinish, valveType, mode]);
 
   if (!isOpen) return null;
 
@@ -241,6 +256,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       ? BRANDS_TUBE
       : category === 'OLI_PELUMAS'
       ? BRANDS_OIL
+      : category === 'AKSESORIS'
+      ? BRANDS_ACC
       : BRANDS_BAN;
 
   return (

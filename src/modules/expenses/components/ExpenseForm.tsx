@@ -16,7 +16,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { CashSource, ExpenseCategory, ExpenseRecord } from '../../../shared/types';
-import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
+import { formatRupiah, parseRupiahInput, terbilangRupiah } from '../../../shared/utils/formatters';
 import { MoneyInput } from '../../../shared/components/MoneyInput';
 import { compressImageFile, getBase64SizeKb } from '../../../shared/utils/imageCompressor';
 import { EXPENSE_CATEGORY_CONFIG, generateBkkNumber } from '../../../services/accountingService';
@@ -284,8 +284,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   className="w-full pr-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-mono font-bold text-sm focus-ring placeholder:text-slate-300 placeholder:font-light"
                 />
                 {numericAmount > 0 && (
-                  <span className="text-[11px] text-amber-800 font-mono mt-1 block font-bold">
-                    Terbilang: {formatRupiah(numericAmount)}
+                  <span className="text-[11px] text-amber-800 font-medium mt-1 block italic bg-amber-50/80 p-1.5 rounded-lg border border-amber-200/60">
+                    <strong className="not-italic text-amber-900 font-bold">Terbilang: </strong>
+                    {terbilangRupiah(numericAmount)}
                   </span>
                 )}
               </div>
@@ -310,6 +311,12 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                 <span className="text-[10px] text-slate-500 mt-1 block">
                   Sisa saldo tersedia: <strong className="text-slate-700 font-mono">{formatRupiah(currentSourceBalance)}</strong>
                 </span>
+                {isCash && numericAmount > cashInDrawer && (
+                  <div className="mt-2 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-700 flex items-center gap-1.5 font-bold animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span>Perhatian: Nominal pengeluaran melebihi uang fisik di laci kasir!</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -323,7 +330,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   type="text"
                   value={paidTo}
                   onChange={(e) => setPaidTo(e.target.value)}
-                  placeholder="Contoh: Toko Perkakas BSD / Montir Agus / PLN..."
+                  placeholder="Contoh: Toko Perkakas Magelang / Montir Agus / PLN..."
                   className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>

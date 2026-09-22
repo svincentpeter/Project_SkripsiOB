@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Search, 
@@ -6,12 +6,12 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Clock, 
-  DollarSign,
-  ArrowDownRight,
-  Filter,
-  Car,
-  X,
-  Wallet
+  DollarSign, 
+  ArrowDownRight, 
+  Filter, 
+  Car, 
+  X, 
+  Wallet 
 } from 'lucide-react';
 import { ReceivableInvoice, ReceivablePaymentInput } from '../../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
@@ -36,6 +36,17 @@ export const AccountsReceivableTab: React.FC<AccountsReceivableTabProps> = ({
   const [destinationAccount, setDestinationAccount] = useState<'1-1000' | '1-1001'>('1-1000');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [operator, setOperator] = useState('Kasir Toko Cabang 3');
+
+  // Escape key listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedInvoice) {
+        setSelectedInvoice(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedInvoice]);
 
   // Metrics Calculation
   const totalAmount = invoices.reduce((acc, inv) => acc + inv.total_amount, 0);
@@ -188,12 +199,27 @@ export const AccountsReceivableTab: React.FC<AccountsReceivableTabProps> = ({
             <tbody className="divide-y divide-slate-100 font-mono">
               {filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center font-sans">
-                    <span className="text-xs italic text-slate-400">
-                      {invoices.length === 0
-                        ? 'Belum ada faktur piutang dagang tersimpan di database.'
-                        : 'Belum ada faktur piutang yang cocok dengan kriteria filter.'}
-                    </span>
+                  <td colSpan={8} className="py-10 text-center font-sans">
+                    <div className="flex flex-col items-center justify-center gap-1.5">
+                      <AlertCircle className="w-7 h-7 text-slate-300 mb-1" />
+                      <span className="text-xs font-bold text-slate-600">
+                        {invoices.length === 0
+                          ? 'Belum ada faktur piutang dagang tersimpan di database.'
+                          : 'Belum ada faktur piutang yang cocok dengan kriteria filter.'}
+                      </span>
+                      {(searchQuery || statusFilter !== 'ALL') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setStatusFilter('ALL');
+                          }}
+                          className="mt-2 px-3 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Reset Filter
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -273,7 +299,10 @@ export const AccountsReceivableTab: React.FC<AccountsReceivableTabProps> = ({
 
       {/* Payment Received Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6">
+        <div 
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedInvoice(null); }}
+          className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6"
+        >
           <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
             <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-2.5">

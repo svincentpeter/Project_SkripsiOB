@@ -8,7 +8,7 @@ import {
   Building2,
   Calendar
 } from 'lucide-react';
-import { ExpenseRecord } from '../../shared/types';
+import { ExpenseRecord, StoreSettings } from '../../shared/types';
 import { 
   ExpenseForm, 
   ExpenseTable, 
@@ -25,6 +25,7 @@ interface ExpensesScreenProps {
   cashInDrawer: number;
   bankBalance?: number;
   onVoidExpense?: (expense: ExpenseRecord, reason: string, voidedBy: string) => void;
+  storeSettings?: StoreSettings;
 }
 
 export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
@@ -33,6 +34,7 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
   cashInDrawer,
   bankBalance = 35000000,
   onVoidExpense,
+  storeSettings,
 }) => {
   const [activeTab, setActiveTab] = useState<ExpenseSubTabKey>('history');
 
@@ -198,8 +200,8 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
           setIsPrintModalOpen(false);
           setSelectedExpenseForPrint(null);
         }}
-        storeName="OMAH BAN BSD"
-        branchName="CABANG 3 - BSD SERPONG"
+        storeName={storeSettings?.store_name || "Omah Ban Cabang 3 - Magelang"}
+        branchName={storeSettings?.branch_name || "Cabang 3 - Magelang"}
       />
     </div>
   );

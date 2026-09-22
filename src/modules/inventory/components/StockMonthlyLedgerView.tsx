@@ -424,7 +424,14 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                               }`}
                               title={row.product_name}
                             >
-                              {row.brand_name} {row.motif !== '-' ? row.motif : row.product_name}
+                              {(() => {
+                                const brand = (row.brand_name || '').trim();
+                                const raw = (row.motif && row.motif !== '-' ? row.motif : row.product_name || '').trim();
+                                if (brand && raw.toLowerCase().startsWith(brand.toLowerCase())) {
+                                  return raw;
+                                }
+                                return brand ? `${brand} ${raw}`.trim() : raw;
+                              })()}
                             </span>
 
                             <div className="flex items-center gap-1 shrink-0">
@@ -472,11 +479,11 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                             })
                           }
                           className="py-2 px-3 text-right font-mono font-bold text-slate-800 border-r border-slate-200 sticky left-[420px] z-20 bg-white group-hover:bg-indigo-50/80 cursor-pointer"
-                          title="Klik untuk koreksi modal"
+                          title="Klik untuk koreksi modal (HPP)"
                         >
                           <div className="flex items-center justify-end gap-1">
-                            <span>{formatNumber(row.product_cost)}</span>
-                            <Edit2 className="w-2.5 h-2.5 text-indigo-400 opacity-0 group-hover:opacity-100" />
+                            <span className="border-b border-dashed border-indigo-300/80">{formatNumber(row.product_cost)}</span>
+                            <Edit2 className="w-2.5 h-2.5 text-indigo-400 opacity-40 group-hover:opacity-100 group-hover:text-indigo-600 transition-opacity" />
                           </div>
                         </td>
 
@@ -497,9 +504,9 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                           className="py-2 px-2 text-center font-mono font-bold text-indigo-950 bg-indigo-50/40 hover:bg-indigo-100/70 border-r border-slate-200 cursor-pointer transition-colors"
                           title="Klik untuk koreksi stok fisik awal"
                         >
-                          <div className="flex items-center justify-center gap-0.5">
-                            <span>{row.opening}</span>
-                            <Edit2 className="w-2.5 h-2.5 text-indigo-500 opacity-0 group-hover:opacity-100" />
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="border-b border-dashed border-indigo-400/80">{row.opening}</span>
+                            <Edit2 className="w-2.5 h-2.5 text-indigo-500 opacity-40 group-hover:opacity-100 group-hover:text-indigo-700 transition-opacity" />
                           </div>
                         </td>
 
@@ -572,9 +579,13 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                                     batchId: layer.batch_id,
                                   })
                                 }
-                                className="py-1.5 px-3 text-right font-mono font-bold text-indigo-900 border-r border-slate-200 sticky left-[420px] z-20 bg-slate-50/40 cursor-pointer hover:underline"
+                                className="py-1.5 px-3 text-right font-mono font-bold text-indigo-900 border-r border-slate-200 sticky left-[420px] z-20 bg-slate-50/40 cursor-pointer"
+                                title="Klik untuk koreksi modal batch ini"
                               >
-                                {formatNumber(layer.batch_cost)}
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className="border-b border-dashed border-indigo-300/80">{formatNumber(layer.batch_cost)}</span>
+                                  <Edit2 className="w-2 h-2 text-indigo-400 opacity-40 group-hover:opacity-100 group-hover:text-indigo-600 transition-opacity" />
+                                </div>
                               </td>
 
                               {/* Empty price */}

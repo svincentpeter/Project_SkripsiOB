@@ -1,0 +1,202 @@
+[
+  {
+    "category": "VERIFIED",
+    "subview": "Navigasi",
+    "title": "Navigasi ke Modul Inventori Berhasil",
+    "description": "Halaman Inventori terbuka dengan baik.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:26.385Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Header",
+    "title": "Valuasi HPP Terdeteksi",
+    "description": "Header menampilkan perhitungan valuasi HPP persediaan.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:26.398Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Katalog - KPI",
+    "title": "Semua 4 KPI Card Hadir",
+    "description": "Total Unit Fisik, Nilai HPP, Stok Kritis, dan Stok Habis tampil.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:26.427Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Katalog - Filter",
+    "title": "Filter Bar Lengkap",
+    "description": "Input pencarian, select kategori, select merk, dan select status stok tersedia.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:26.583Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Katalog - Tabel",
+    "title": "Tabel Produk Memuat Data",
+    "description": "Terdeteksi 10 baris produk dalam katalog.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:26.587Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Modal Produk",
+    "title": "Modal Tambah Produk Terbuka",
+    "description": "Modal create master produk terbuka dengan judul dan elemen form lengkap.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:27.661Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Modal Produk",
+    "title": "Spesifikasi Velg Dinamis Berfungsi",
+    "description": "Input PCD, Lebar Velg, dan Offset muncul dinamis.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:28.260Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Modal Restock",
+    "title": "Modal Penerimaan Barang Terbuka",
+    "description": "Modal restock terbuka dengan input qty, HPP beli, dan pilihan distributor.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:30.065Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Drawer Kartu Stok",
+    "title": "Kartu Stok Berhasil Dibuka",
+    "description": "Header kartu stok, ringkasan saldo gudang, dan rincian transaksi tampil.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:31.872Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Drawer Kartu Stok",
+    "title": "Lapisan Batch FIFO Terdeteksi",
+    "description": "Komponen ProductFifoBatchList aktif merender layer FIFO.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:31.880Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Modal Rekonsiliasi",
+    "title": "Modal Rekonsiliasi Excel Siap",
+    "description": "Fitur upload berkas Excel stok, penentuan kolom qty, dan staging aktif.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:34.068Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Buku FIFO",
+    "title": "Grid Spreadsheet FIFO Terbuka",
+    "description": "Tabel multi-layer buku stok bulanan dengan kolom tanggal 1-31 terdeteksi.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:36.755Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Kategori",
+    "title": "Tampilan Manajemen Kategori Siap",
+    "description": "Tabel kategori master dan tombol tambah kategori tersedia.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:39.752Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Kategori - Modal",
+    "title": "Modal Form Kategori Berfungsi",
+    "description": "Form input kode kategori, nama, deskripsi, dan toggle aktif terbuka.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:40.643Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Jasa",
+    "title": "Manajemen Jasa & Servis Siap",
+    "description": "Tabel tarif layanan dan tombol penambahan layanan siap digunakan.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:41.979Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Mutasi & Opname",
+    "title": "Tampilan Mutasi Siap",
+    "description": "Tabel mutasi kartu stok dan tombol aksi opname/restock hadir.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:44.201Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Modal Opname",
+    "title": "Modal Opname Fisik Berfungsi",
+    "description": "Nomor dokumen otomatis dan tabel input fisik tampil.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:45.342Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Supplier",
+    "title": "Tabel Distributor Siap",
+    "description": "Tabel rekanan distributor dan tombol penambahan supplier tersedia.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:46.501Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Supplier - Modal",
+    "title": "Modal Form Supplier Berfungsi",
+    "description": "Form input supplier, kode auto-generated, telepon, dan TOP terbuka.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:47.460Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Seluruh Modul Inventori",
+    "title": "Bebas dari Lorem Ipsum",
+    "description": "Tidak ditemukan pola cacat \"Lorem Ipsum\".",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:47.845Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Seluruh Modul Inventori",
+    "title": "Bebas dari NaN Rupiah",
+    "description": "Tidak ditemukan pola cacat \"NaN Rupiah\".",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:47.846Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Seluruh Modul Inventori",
+    "title": "Bebas dari Undefined Rupiah",
+    "description": "Tidak ditemukan pola cacat \"Undefined Rupiah\".",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:47.846Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Seluruh Modul Inventori",
+    "title": "Bebas dari Object Object",
+    "description": "Tidak ditemukan pola cacat \"Object Object\".",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:47.846Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Seluruh Modul Inventori",
+    "title": "Bebas dari Ban Bekas Terlarang",
+    "description": "Tidak ditemukan pola cacat \"Ban Bekas Terlarang\".",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:47.846Z"
+  },
+  {
+    "category": "VERIFIED",
+    "subview": "Browser Console",
+    "title": "Konsol Bersih Bebas Error",
+    "description": "0 error terdeteksi di konsol peramban.",
+    "status": "OK",
+    "timestamp": "2026-09-22T15:13:47.846Z"
+  }
+]

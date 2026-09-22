@@ -18,6 +18,14 @@ export const PayDebtModal: React.FC<PayDebtModalProps> = ({
 }) => {
   if (!invoice) return null;
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().substring(0, 10));
   const [amount, setAmount] = useState<number>(invoice.remaining_amount);
   const [sourceAccount, setSourceAccount] = useState<'1-1000' | '1-1001'>('1-1001'); // Default Bank BCA
@@ -46,7 +54,12 @@ export const PayDebtModal: React.FC<PayDebtModalProps> = ({
   const isInvalidAmount = amount <= 0 || amount > invoice.remaining_amount;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
         {/* Modal Header */}
         <div className="bg-slate-50 px-6 py-4 flex items-center justify-between text-slate-900 border-b border-slate-200">

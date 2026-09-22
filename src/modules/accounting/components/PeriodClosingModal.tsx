@@ -26,6 +26,15 @@ export const PeriodClosingModal: React.FC<PeriodClosingModalProps> = ({
   const [notes, setNotes] = useState('Tutup buku bulanan SAK EMKM terotorisasi');
   const [isConfirmed, setIsConfirmed] = useState(false);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const financials = calculateDynamicSakEmkmFinancials(journals, initialBalances);
@@ -40,7 +49,12 @@ export const PeriodClosingModal: React.FC<PeriodClosingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6">
+    <div 
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
         {/* Modal Header */}
         <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">

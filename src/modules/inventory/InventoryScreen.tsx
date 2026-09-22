@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Package, 
   Tag, 
@@ -14,6 +14,7 @@ import {
   CheckCircle2, 
   Layers, 
   Clock, 
+  ChevronLeft,
   ChevronRight, 
   FileText, 
   Info,
@@ -239,6 +240,20 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
       return true;
     });
   }, [products, isEmptyState, selectedCategoryFilter, selectedBrand, selectedRing, stockFilter, searchQuery]);
+
+  // Pagination for Catalog Tab
+  const [catalogPage, setCatalogPage] = useState<number>(1);
+  const [catalogPageSize, setCatalogPageSize] = useState<number>(10);
+
+  useEffect(() => {
+    setCatalogPage(1);
+  }, [searchQuery, selectedCategoryFilter, selectedBrand, selectedRing, stockFilter]);
+
+  const totalCatalogPages = Math.ceil(filteredProducts.length / catalogPageSize) || 1;
+  const paginatedProducts = useMemo(() => {
+    const start = (catalogPage - 1) * catalogPageSize;
+    return filteredProducts.slice(start, start + catalogPageSize);
+  }, [filteredProducts, catalogPage, catalogPageSize]);
 
   // Category CRUD Handlers
   const handleSaveCategory = (
@@ -676,21 +691,40 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   {filteredProducts.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-12 text-center text-slate-500">
-                        <div className="max-w-sm mx-auto space-y-2">
+                        <div className="max-w-sm mx-auto space-y-3 py-4 text-center">
                           <Package className="w-10 h-10 text-slate-300 mx-auto" />
                           <p className="font-semibold text-slate-700">Tidak ada produk ditemukan</p>
                           <p className="text-xs text-slate-400">
-                            {searchQuery ? 'Coba ubah filter atau kata kunci pencarian.' : 'Klik tombol "+ Tambah Master Produk" untuk membuat SKU baru.'}
+                            {searchQuery || selectedCategoryFilter !== 'ALL' || selectedBrand !== 'ALL' || selectedRing !== 'ALL' || stockFilter !== 'ALL'
+                              ? 'Filter atau kata kunci pencarian aktif tidak cocok dengan produk manapun.'
+                              : 'Klik tombol "+ Tambah Master Produk" untuk membuat SKU baru.'}
                           </p>
+                          {(searchQuery || selectedCategoryFilter !== 'ALL' || selectedBrand !== 'ALL' || selectedRing !== 'ALL' || stockFilter !== 'ALL') && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSearchQuery('');
+                                setSelectedCategoryFilter('ALL');
+                                setSelectedBrand('ALL');
+                                setSelectedRing('ALL');
+                                setStockFilter('ALL');
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Reset Semua Filter & Pencarian
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    filteredProducts.map((p, idx) => {
+                    paginatedProducts.map((p, idx) => {
                       const stock = p.stock || p.product_quantity || 0;
                       const minAlert = p.product_stock_alert ?? p.min_stock ?? 5;
                       const isLow = stock > 0 && stock < minAlert;
                       const isOut = stock <= 0;
+                      const itemIndex = (catalogPage - 1) * catalogPageSize + idx + 1;
 
                       const categoryObj = categories.find(
                         (c) => c.category_code.toUpperCase() === (p.category || '').toUpperCase()
@@ -698,7 +732,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
                       return (
                         <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
+                          <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{itemIndex}</td>
                           <td className="py-3 px-4">
                             <div className="font-bold text-slate-900">{p.product_name || p.name}</div>
                             <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
@@ -788,10 +822,88 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
             </div>
           </div>
 
-            {/* Footer Summary Strip */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
-              <span>Menampilkan {filteredProducts.length} dari {products.length} total produk SKU</span>
-              <span className="font-semibold">Omah Ban Cabang 3 • Sistem Inventori SAK EMKM</span>
+            {/* Footer Summary Strip & Pagination Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs text-slate-500">
+              <div className="flex items-center gap-3">
+                <span>
+                  Menampilkan{' '}
+                  <span className="font-bold text-slate-700">
+                    {filteredProducts.length > 0 ? (catalogPage - 1) * catalogPageSize + 1 : 0} -{' '}
+                    {Math.min(catalogPage * catalogPageSize, filteredProducts.length)}
+                  </span>{' '}
+                  dari <span className="font-bold text-slate-700">{filteredProducts.length}</span> produk SKU (Total {products.length})
+                </span>
+                <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                  <span className="text-[11px] text-slate-400">Baris:</span>
+                  <select
+                    value={catalogPageSize}
+                    onChange={(e) => {
+                      setCatalogPageSize(Number(e.target.value));
+                      setCatalogPage(1);
+                    }}
+                    className="py-1 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-hidden"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
+              </div>
+
+              {totalCatalogPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setCatalogPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={catalogPage <= 1}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Halaman Sebelumnya"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  {Array.from({ length: totalCatalogPages }, (_, i) => i + 1).map((pageNum) => {
+                    if (
+                      pageNum === 1 ||
+                      pageNum === totalCatalogPages ||
+                      (pageNum >= catalogPage - 1 && pageNum <= catalogPage + 1)
+                    ) {
+                      return (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => setCatalogPage(pageNum)}
+                          className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                            catalogPage === pageNum
+                              ? 'bg-blue-600 text-white shadow-2xs'
+                              : 'border border-slate-200 text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    }
+                    if (pageNum === catalogPage - 2 || pageNum === catalogPage + 2) {
+                      return (
+                        <span key={pageNum} className="text-slate-400 px-0.5">
+                          ...
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => setCatalogPage((prev) => Math.min(prev + 1, totalCatalogPages))}
+                    disabled={catalogPage >= totalCatalogPages}
+                    className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Halaman Selanjutnya"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -9,7 +9,7 @@ import {
   Copy
 } from 'lucide-react';
 import { ExpenseRecord } from '../../../shared/types';
-import { formatDateIndo, formatDateTimeIndo, formatRupiah } from '../../../shared/utils/formatters';
+import { formatDateIndo, formatDateTimeIndo, formatRupiah, terbilangRupiah } from '../../../shared/utils/formatters';
 
 interface ExpenseVoucherModalProps {
   expense: ExpenseRecord | null;
@@ -24,10 +24,19 @@ export const ExpenseVoucherModal: React.FC<ExpenseVoucherModalProps> = ({
   isOpen,
   onClose,
   storeName = 'OMAH BAN',
-  branchName = 'CABANG 3 - BSD SERPONG',
+  branchName = 'CABANG 3 - MAGELANG',
 }) => {
   const [printFormat, setPrintFormat] = useState<'thermal' | 'formal'>('formal');
   const [copied, setCopied] = useState(false);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !expense) return null;
 
@@ -42,7 +51,12 @@ export const ExpenseVoucherModal: React.FC<ExpenseVoucherModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-xs animate-in fade-in">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-xs animate-in fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
         {/* Modal Top Control Bar */}
         <div className="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
@@ -141,6 +155,10 @@ export const ExpenseVoucherModal: React.FC<ExpenseVoucherModalProps> = ({
                   <span className="text-base font-mono font-black text-slate-950">
                     {formatRupiah(expense.amount)}
                   </span>
+                </div>
+                <div className="text-[10px] text-slate-600 italic bg-white p-1.5 rounded border border-slate-200">
+                  <span className="font-bold text-slate-800 not-italic">Terbilang: </span>
+                  {terbilangRupiah(expense.amount)}
                 </div>
               </div>
 
