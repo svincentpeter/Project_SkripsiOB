@@ -2,12 +2,9 @@ import ExcelJS from 'exceljs';
 import { StockMonthlyReportData } from '../../services/stockMonthlyLedgerService';
 
 /**
- * Generate and download an Excel (.xlsx) file matching the exact spreadsheet layout of ProjectOmahBan.
+ * Build the Excel workbook instance for Stock Monthly Ledger.
  */
-export async function exportStockLedgerToExcel(
-  data: StockMonthlyReportData,
-  filename: string = 'Laporan_Stok_FIFO'
-): Promise<void> {
+export function buildStockLedgerWorkbook(data: StockMonthlyReportData): ExcelJS.Workbook {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Omah Ban POS & SIA SAK EMKM';
   wb.created = new Date();
@@ -248,7 +245,22 @@ export async function exportStockLedgerToExcel(
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
   }
 
-  // Trigger browser download
+  return wb;
+}
+
+/**
+ * Generate and trigger download of an Excel (.xlsx) file matching the spreadsheet layout.
+ */
+export async function exportStockLedgerToExcel(
+  data: StockMonthlyReportData,
+  filename: string = 'Laporan_Stok_FIFO'
+): Promise<void> {
+  const wb = buildStockLedgerWorkbook(data);
+
+  if (typeof window === 'undefined' || !window.URL) {
+    return;
+  }
+
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

@@ -106,6 +106,7 @@ describe('stockMonthlyLedgerService', () => {
       total_amount: 3400000,
       payment_method: 'TUNAI',
       status: 'LUNAS',
+      stock_deducted: true,
     },
   ];
 
