@@ -112,10 +112,13 @@ export function calculateClientStockLedger(
     if (txDate >= startDate && txDate <= endDate) {
       const day = txDate.getDate();
       tx.items.forEach((item) => {
-        if (!dailySalesMap[item.product_id]) {
-          dailySalesMap[item.product_id] = {};
+        const prodId = item.product?.id || (item as any).product_id;
+        const qty = item.qty ?? (item as any).quantity ?? 0;
+        if (!prodId) return;
+        if (!dailySalesMap[prodId]) {
+          dailySalesMap[prodId] = {};
         }
-        dailySalesMap[item.product_id][day] = (dailySalesMap[item.product_id][day] || 0) + item.quantity;
+        dailySalesMap[prodId][day] = (dailySalesMap[prodId][day] || 0) + qty;
       });
     }
   });
@@ -125,8 +128,11 @@ export function calculateClientStockLedger(
   mutations.forEach((mut) => {
     const mutDate = new Date(mut.date);
     if (mutDate >= startDate && mutDate <= endDate) {
-      if (mut.type === 'IN') {
-        restockMap[mut.product_id] = (restockMap[mut.product_id] || 0) + mut.quantity;
+      const isRestock = mut.type === 'MASUK' || (mut.type as string) === 'IN';
+      const prodId = mut.tire_id || mut.product_id;
+      const qty = mut.qty ?? (mut as any).quantity ?? 0;
+      if (isRestock && prodId) {
+        restockMap[prodId] = (restockMap[prodId] || 0) + qty;
       }
     }
   });

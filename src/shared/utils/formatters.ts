@@ -14,6 +14,10 @@ export const parseRupiahInput = (input: string): number => {
   return clean ? parseInt(clean, 10) : 0;
 };
 
+export const formatNumber = (value: number): string => {
+  return new Intl.NumberFormat('id-ID').format(value);
+};
+
 export const formatDateIndo = (dateStr: string): string => {
   if (!dateStr) return '';
   const date = new Date(dateStr);

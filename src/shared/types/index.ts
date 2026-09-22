@@ -74,6 +74,8 @@ export interface ProductItem {
   size?: string;
   is_active?: boolean;
   is_old_stock?: boolean;
+  reference_price?: number;
+  stok_awal?: number;
   image_placeholder_color?: string;
   batches?: ProductBatch[];
 }
