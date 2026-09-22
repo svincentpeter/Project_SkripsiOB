@@ -46,6 +46,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [showBatchDetails, setShowBatchDetails] = useState<boolean>(true);
   const [reportData, setReportData] = useState<StockMonthlyReportData | null>(null);
 
   // Modal edit state
@@ -308,11 +309,26 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Toggle FIFO Batch Details */}
+          <button
+            type="button"
+            onClick={() => setShowBatchDetails((prev) => !prev)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
+              showBatchDetails
+                ? 'bg-indigo-50 text-indigo-700 border-indigo-300 shadow-xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+            }`}
+            title="Tampilkan / Sembunyikan Rincian Sub-Baris Lapisan FIFO"
+          >
+            <Layers className="w-3.5 h-3.5 text-indigo-600" />
+            <span>{showBatchDetails ? 'Sembunyikan Rincian Batch' : 'Tampilkan Rincian Batch'}</span>
+          </button>
+
           <button
             onClick={loadLedgerData}
             disabled={loading}
-            className="p-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+            className="p-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
             title="Muat Ulang"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -330,39 +346,57 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
 
       {/* 3. Spreadsheet Table Grid */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto max-h-[620px] relative">
-          <table className="w-full text-xs text-left border-collapse select-text">
+        <div className="overflow-x-auto max-h-[640px] relative">
+          <table className="w-full text-xs text-left border-collapse select-text table-fixed">
+            <colgroup>
+              <col style={{ width: 44 }} />
+              <col style={{ width: 240 }} />
+              <col style={{ width: 90 }} />
+              <col style={{ width: 56 }} />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 100 }} />
+              <col style={{ width: 60 }} />
+              <col style={{ width: 60 }} />
+              <col style={{ width: 60 }} />
+              {dayColumns.map((day) => (
+                <col key={day} style={{ width: 34 }} />
+              ))}
+              <col style={{ width: 65 }} />
+            </colgroup>
+
             {/* Table Header */}
-            <thead className="text-[11px] uppercase bg-slate-800 text-slate-200 sticky top-0 z-30 shadow-xs">
+            <thead className="text-[11px] uppercase bg-slate-800 text-slate-200 sticky top-0 z-30 shadow-sm">
               <tr>
-                {/* Frozen Left Headers */}
-                <th className="py-2.5 px-2 font-extrabold text-center border-r border-slate-700 sticky left-0 z-40 bg-slate-800 w-11">
+                {/* Frozen Left Headers (Identity: No, Merk, Ukuran, Ring) */}
+                <th className="py-2.5 px-2 font-extrabold text-center border-r border-slate-700 sticky left-0 z-40 bg-slate-800">
                   No
                 </th>
-                <th className="py-2.5 px-3 font-extrabold border-r border-slate-700 sticky left-11 z-40 bg-slate-800 min-w-[240px]">
+                <th className="py-2.5 px-3 font-extrabold border-r border-slate-700 sticky left-[44px] z-40 bg-slate-800">
                   Merk &amp; Nama Ban
                 </th>
-                <th className="py-2.5 px-2 font-extrabold text-center border-r border-slate-700 sticky left-[284px] z-40 bg-slate-800 w-20">
+                <th className="py-2.5 px-2 font-extrabold text-center border-r border-slate-700 sticky left-[284px] z-40 bg-slate-800">
                   Ukuran
                 </th>
-                <th className="py-2.5 px-2 font-extrabold text-center border-r border-slate-700 sticky left-[364px] z-40 bg-slate-800 w-14">
+                <th className="py-2.5 px-2 font-extrabold text-center border-r-2 border-slate-600 shadow-[3px_0_6px_-1px_rgba(0,0,0,0.25)] sticky left-[374px] z-40 bg-slate-800">
                   Ring
                 </th>
-                <th className="py-2.5 px-3 font-extrabold text-right border-r border-slate-700 sticky left-[420px] z-40 bg-slate-800 w-24">
+
+                {/* Pricing Columns */}
+                <th className="py-2.5 px-3 font-extrabold text-right border-r border-slate-700 bg-slate-800 text-amber-300">
                   Modal
                 </th>
-                <th className="py-2.5 px-3 font-extrabold text-right border-r border-slate-700 sticky left-[516px] z-40 bg-slate-800 w-24 shadow-r">
+                <th className="py-2.5 px-3 font-extrabold text-right border-r border-slate-700 bg-slate-800 text-blue-300">
                   Harga
                 </th>
 
-                {/* Middle Stock Headers */}
-                <th className="py-2.5 px-2 font-extrabold text-center bg-indigo-950 text-indigo-200 border-r border-indigo-800 w-16">
+                {/* Stock Quantity Headers */}
+                <th className="py-2.5 px-2 font-extrabold text-center bg-indigo-950 text-indigo-200 border-r border-indigo-900">
                   Awal
                 </th>
-                <th className="py-2.5 px-2 font-extrabold text-center bg-indigo-950 text-indigo-200 border-r border-indigo-800 w-16">
+                <th className="py-2.5 px-2 font-extrabold text-center bg-indigo-950 text-indigo-200 border-r border-indigo-900">
                   Masuk
                 </th>
-                <th className="py-2.5 px-2 font-extrabold text-center bg-indigo-950 text-indigo-200 border-r border-indigo-800 w-16">
+                <th className="py-2.5 px-2 font-extrabold text-center bg-indigo-950 text-indigo-200 border-r border-indigo-900">
                   Sisa
                 </th>
 
@@ -370,14 +404,14 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                 {dayColumns.map((day) => (
                   <th
                     key={day}
-                    className="py-2.5 px-1 font-bold text-center border-r border-slate-700 w-9 text-[10px] text-slate-300"
+                    className="py-2.5 px-1 font-bold text-center border-r border-slate-700 text-[10px] text-slate-300"
                   >
                     {day}
                   </th>
                 ))}
 
                 {/* Right Total Header */}
-                <th className="py-2.5 px-2.5 font-extrabold text-center bg-emerald-950 text-emerald-200 border-l border-emerald-800 w-20">
+                <th className="py-2.5 px-2.5 font-extrabold text-center bg-emerald-950 text-emerald-200 border-l border-emerald-900">
                   Total
                 </th>
               </tr>
@@ -387,11 +421,11 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
             <tbody className="divide-y divide-slate-200 text-slate-800">
               {displayRows.length === 0 ? (
                 <tr>
-                  <td colSpan={10 + daysInMonth} className="text-center py-12 text-slate-500">
+                  <td colSpan={9 + daysInMonth + 1} className="text-center py-12 text-slate-500">
                     <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="font-semibold text-sm">Tidak ada data stok untuk periode ini</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Coba pilih merk lain atau sesuaikan pencarian.
+                      Coba pilih merk lain atau sesuaikan kata kunci pencarian.
                     </p>
                   </td>
                 </tr>
@@ -416,55 +450,70 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                         </td>
 
                         {/* 2. Brand & Tire Name */}
-                        <td className="py-2 px-3 border-r border-slate-200 sticky left-11 z-20 bg-white group-hover:bg-slate-50">
-                          <div className="flex items-center justify-between gap-1.5">
-                            <span
-                              className={`truncate font-medium ${
-                                row.is_old_stock ? 'text-rose-600 font-bold' : 'text-slate-900 font-semibold'
-                              }`}
-                              title={row.product_name}
-                            >
-                              {(() => {
-                                const brand = (row.brand_name || '').trim();
-                                const raw = (row.motif && row.motif !== '-' ? row.motif : row.product_name || '').trim();
-                                if (brand && raw.toLowerCase().startsWith(brand.toLowerCase())) {
-                                  return raw;
-                                }
-                                return brand ? `${brand} ${raw}`.trim() : raw;
-                              })()}
-                            </span>
-
-                            <div className="flex items-center gap-1 shrink-0">
-                              {row.is_old_stock && row.reference_price && (
-                                <span className="bg-rose-50 text-rose-700 text-[10px] font-mono px-1.5 py-0.5 rounded border border-rose-200">
-                                  @{formatRupiah(row.reference_price)}
-                                </span>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setActiveModal({
-                                    isOpen: true,
-                                    row,
-                                    field: 'old_stock_tag',
-                                  })
-                                }
-                                className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 rounded transition-opacity"
-                                title="Tandai Stok Lama / Promo"
+                        <td className="py-2 px-3 border-r border-slate-200 sticky left-[44px] z-20 bg-white group-hover:bg-slate-50">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span
+                                className={`truncate font-semibold text-xs ${
+                                  row.is_old_stock ? 'text-rose-600 font-bold' : 'text-slate-900'
+                                }`}
+                                title={row.product_name}
                               >
-                                <Tag className="w-3 h-3" />
-                              </button>
+                                {(() => {
+                                  const brand = (row.brand_name || '').trim();
+                                  const raw = (row.motif && row.motif !== '-' ? row.motif : row.product_name || '').trim();
+                                  if (brand && raw.toLowerCase().startsWith(brand.toLowerCase())) {
+                                    return raw;
+                                  }
+                                  return brand ? `${brand} ${raw}`.trim() : raw;
+                                })()}
+                              </span>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                {row.is_old_stock && row.reference_price && (
+                                  <span className="bg-rose-50 text-rose-700 text-[10px] font-mono px-1.5 py-0.5 rounded border border-rose-200">
+                                    @{formatRupiah(row.reference_price)}
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActiveModal({
+                                      isOpen: true,
+                                      row,
+                                      field: 'old_stock_tag',
+                                    })
+                                  }
+                                  className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 rounded transition-opacity cursor-pointer"
+                                  title="Tandai Stok Lama / Promo"
+                                >
+                                  <Tag className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
+
+                            {/* Multi-Batch Indicator Chip */}
+                            {hasMultipleLayers && (
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.5 rounded">
+                                  <Layers className="w-2.5 h-2.5" />
+                                  {row.layers.length} Batch FIFO
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono">
+                                  HPP Rata2: Rp {formatNumber(row.product_cost)}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </td>
 
                         {/* 3. Size */}
-                        <td className="py-2 px-2 text-center font-mono text-[11px] text-slate-700 border-r border-slate-200 sticky left-[284px] z-20 bg-white group-hover:bg-slate-50">
+                        <td className="py-2 px-2 text-center font-mono text-[11px] text-slate-700 border-r border-slate-200 sticky left-[284px] z-20 bg-white group-hover:bg-slate-50 whitespace-nowrap">
                           {row.product_size}
                         </td>
 
-                        {/* 4. Ring */}
-                        <td className="py-2 px-2 text-center font-mono text-[11px] font-bold text-slate-700 border-r border-slate-200 sticky left-[364px] z-20 bg-white group-hover:bg-slate-50">
+                        {/* 4. Ring (Frozen Boundary Divider) */}
+                        <td className="py-2 px-2 text-center font-mono text-[11px] font-bold text-slate-700 border-r-2 border-slate-300 shadow-[3px_0_6px_-1px_rgba(0,0,0,0.1)] sticky left-[374px] z-20 bg-white group-hover:bg-slate-50">
                           {row.ring ? `R${String(row.ring).replace(/\D/g, '')}` : '-'}
                         </td>
 
@@ -478,17 +527,17 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                               batchId: row.layers[0]?.batch_id,
                             })
                           }
-                          className="py-2 px-3 text-right font-mono font-bold text-slate-800 border-r border-slate-200 sticky left-[420px] z-20 bg-white group-hover:bg-indigo-50/80 cursor-pointer"
+                          className="py-2 px-2.5 text-right font-mono font-bold text-slate-800 border-r border-slate-200 hover:bg-amber-50/70 transition-colors cursor-pointer group/modal"
                           title="Klik untuk koreksi modal (HPP)"
                         >
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="border-b border-dashed border-indigo-300/80">{formatNumber(row.product_cost)}</span>
-                            <Edit2 className="w-2.5 h-2.5 text-indigo-400 opacity-40 group-hover:opacity-100 group-hover:text-indigo-600 transition-opacity" />
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span className="border-b border-dashed border-amber-400/80">{formatNumber(row.product_cost)}</span>
+                            <Edit2 className="w-2.5 h-2.5 text-amber-500 opacity-0 group-hover/modal:opacity-100 transition-opacity" />
                           </div>
                         </td>
 
                         {/* 6. Price */}
-                        <td className="py-2 px-3 text-right font-mono text-slate-700 border-r border-slate-200 sticky left-[516px] z-20 bg-white group-hover:bg-slate-50 shadow-r">
+                        <td className="py-2 px-2.5 text-right font-mono text-slate-700 border-r border-slate-200">
                           {formatNumber(row.product_price)}
                         </td>
 
@@ -501,17 +550,17 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                               field: 'opening_stock',
                             })
                           }
-                          className="py-2 px-2 text-center font-mono font-bold text-indigo-950 bg-indigo-50/40 hover:bg-indigo-100/70 border-r border-slate-200 cursor-pointer transition-colors"
+                          className="py-2 px-2 text-center font-mono font-bold text-indigo-950 bg-indigo-50/30 hover:bg-indigo-100/70 border-r border-slate-200 cursor-pointer transition-colors group/open"
                           title="Klik untuk koreksi stok fisik awal"
                         >
                           <div className="flex items-center justify-center gap-1">
                             <span className="border-b border-dashed border-indigo-400/80">{row.opening}</span>
-                            <Edit2 className="w-2.5 h-2.5 text-indigo-500 opacity-40 group-hover:opacity-100 group-hover:text-indigo-700 transition-opacity" />
+                            <Edit2 className="w-2.5 h-2.5 text-indigo-500 opacity-0 group-hover/open:opacity-100 transition-opacity" />
                           </div>
                         </td>
 
                         {/* 8. Restock */}
-                        <td className="py-2 px-2 text-center font-mono font-semibold text-slate-700 bg-indigo-50/20 border-r border-slate-200">
+                        <td className="py-2 px-2 text-center font-mono font-semibold text-slate-700 bg-indigo-50/15 border-r border-slate-200">
                           {row.restock > 0 ? `+${row.restock}` : '0'}
                         </td>
 
@@ -540,99 +589,157 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                         })}
 
                         {/* 11. Total Sold */}
-                        <td className="py-2 px-2.5 text-center font-mono font-extrabold text-emerald-800 bg-emerald-50/60 border-l border-emerald-200">
+                        <td className="py-2 px-2.5 text-center font-mono font-black text-emerald-800 bg-emerald-50/60 border-l border-emerald-200">
                           {row.sold}
                         </td>
                       </tr>
 
-                      {/* Sub-rows for Multi-Layer FIFO Batches (Mode Buku) */}
-                      {hasMultipleLayers &&
-                        row.layers.slice(1).map((layer, lIdx) => {
-                          const layerSisaColor =
-                            layer.remaining_qty <= 0
-                              ? 'text-rose-700 font-bold'
-                              : layer.remaining_qty <= 2
-                              ? 'text-amber-700 font-bold'
-                              : 'text-emerald-700 font-bold';
+                      {/* Sub-rows for Multi-Layer FIFO Batches (when toggled on) */}
+                      {showBatchDetails &&
+                        hasMultipleLayers &&
+                        row.layers.map((layer, lIdx) => (
+                          <tr key={`${row.id}-batch-${lIdx}`} className="bg-slate-50/80 hover:bg-slate-100/70 transition-colors text-[11px]">
+                            {/* Empty No */}
+                            <td className="py-1.5 px-2 border-r border-slate-200 sticky left-0 z-20 bg-slate-50 text-center font-mono text-[10px] text-slate-400">
+                              •
+                            </td>
 
-                          return (
-                            <tr key={`${row.id}-layer-${lIdx}`} className="bg-slate-50/40 text-[11px]">
-                              {/* Empty No */}
-                              <td className="py-1.5 px-2 border-r border-slate-200 sticky left-0 z-20 bg-slate-50/40" />
+                            {/* Batch Title */}
+                            <td className="py-1.5 px-3 border-r border-slate-200 sticky left-[44px] z-20 bg-slate-50">
+                              <div className="pl-3 flex items-center gap-1.5">
+                                <span className="font-semibold text-indigo-700">↳ Batch #{lIdx + 1}</span>
+                                {layer.batch_id && (
+                                  <span className="text-[10px] text-slate-400 font-mono bg-slate-200/60 px-1 py-0.2 rounded">
+                                    ID: {layer.batch_id}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
 
-                              {/* Indented Layer label */}
-                              <td className="py-1.5 px-3 pl-8 text-slate-500 italic border-r border-slate-200 sticky left-11 z-20 bg-slate-50/40">
-                                ↳ Lapisan Batch #{lIdx + 2}
-                              </td>
+                            {/* Empty size & ring */}
+                            <td className="py-1.5 px-2 border-r border-slate-200 sticky left-[284px] z-20 bg-slate-50 text-center text-slate-400 font-mono">
+                              -
+                            </td>
+                            <td className="py-1.5 px-2 border-r-2 border-slate-300 shadow-[3px_0_6px_-1px_rgba(0,0,0,0.06)] sticky left-[374px] z-20 bg-slate-50 text-center text-slate-400 font-mono">
+                              -
+                            </td>
 
-                              {/* Empty size/ring */}
-                              <td className="py-1.5 px-2 border-r border-slate-200 sticky left-[284px] z-20 bg-slate-50/40" />
-                              <td className="py-1.5 px-2 border-r border-slate-200 sticky left-[364px] z-20 bg-slate-50/40" />
+                            {/* Layer Cost (Editable) */}
+                            <td
+                              onClick={() =>
+                                setActiveModal({
+                                  isOpen: true,
+                                  row,
+                                  field: 'batch_cost',
+                                  batchId: layer.batch_id,
+                                })
+                              }
+                              className="py-1.5 px-2.5 text-right font-mono font-bold text-amber-800 border-r border-slate-200 bg-slate-50 cursor-pointer hover:bg-amber-100/60 transition-colors group/layercost"
+                              title="Klik untuk koreksi modal batch ini"
+                            >
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="border-b border-dashed border-amber-400/80">{formatNumber(layer.batch_cost)}</span>
+                                <Edit2 className="w-2.5 h-2.5 text-amber-500 opacity-0 group-hover/layercost:opacity-100 transition-opacity" />
+                              </div>
+                            </td>
 
-                              {/* Layer Cost */}
-                              <td
-                                onClick={() =>
-                                  setActiveModal({
-                                    isOpen: true,
-                                    row,
-                                    field: 'batch_cost',
-                                    batchId: layer.batch_id,
-                                  })
-                                }
-                                className="py-1.5 px-3 text-right font-mono font-bold text-indigo-900 border-r border-slate-200 sticky left-[420px] z-20 bg-slate-50/40 cursor-pointer"
-                                title="Klik untuk koreksi modal batch ini"
-                              >
-                                <div className="flex items-center justify-end gap-1">
-                                  <span className="border-b border-dashed border-indigo-300/80">{formatNumber(layer.batch_cost)}</span>
-                                  <Edit2 className="w-2 h-2 text-indigo-400 opacity-40 group-hover:opacity-100 group-hover:text-indigo-600 transition-opacity" />
-                                </div>
-                              </td>
+                            {/* Empty price */}
+                            <td className="py-1.5 px-2.5 border-r border-slate-200 bg-slate-50 text-center font-mono text-slate-400">
+                              -
+                            </td>
 
-                              {/* Empty price */}
-                              <td className="py-1.5 px-3 border-r border-slate-200 sticky left-[516px] z-20 bg-slate-50/40 shadow-r" />
+                            {/* Layer Opening Qty */}
+                            <td className="py-1.5 px-2 text-center font-mono text-slate-600 border-r border-slate-200 bg-slate-50 font-semibold">
+                              {layer.initial_qty}
+                            </td>
 
-                              {/* Layer Opening */}
-                              <td className="py-1.5 px-2 text-center font-mono text-slate-600 border-r border-slate-200">
-                                {layer.initial_qty}
-                              </td>
+                            {/* Empty restock */}
+                            <td className="py-1.5 px-2 text-center font-mono text-slate-400 border-r border-slate-200 bg-slate-50">
+                              -
+                            </td>
 
-                              {/* Empty restock */}
-                              <td className="py-1.5 px-2 text-center font-mono text-slate-400 border-r border-slate-200">
-                                -
-                              </td>
+                            {/* Layer Remaining Qty */}
+                            <td className="py-1.5 px-2 text-center border-r border-slate-200 bg-slate-50">
+                              <span className="font-mono font-bold text-slate-700 bg-slate-200/80 px-1.5 py-0.5 rounded text-[10px]">
+                                {layer.remaining_qty}
+                              </span>
+                            </td>
 
-                              {/* Layer Remaining */}
-                              <td className="py-1.5 px-2 text-center font-mono border-r border-slate-200">
-                                <span className={layerSisaColor}>{layer.remaining_qty}</span>
-                              </td>
+                            {/* Daily Sales */}
+                            {dayColumns.map((day) => {
+                              const q = layer.daily_sales[day] || 0;
+                              return (
+                                <td
+                                  key={day}
+                                  className={`py-1.5 px-1 text-center font-mono text-[10px] border-r border-slate-200 bg-slate-50 ${
+                                    q > 0 ? 'text-emerald-800 font-bold bg-emerald-50' : 'text-slate-300'
+                                  }`}
+                                >
+                                  {q > 0 ? q : ''}
+                                </td>
+                              );
+                            })}
 
-                              {/* Layer Daily Sales */}
-                              {dayColumns.map((day) => {
-                                const q = layer.daily_sales[day] || 0;
-                                return (
-                                  <td
-                                    key={day}
-                                    className={`py-1.5 px-1 text-center font-mono text-[10px] border-r border-slate-200 ${
-                                      q > 0 ? 'text-emerald-800 font-bold' : 'text-slate-300'
-                                    }`}
-                                  >
-                                    {q > 0 ? q : ''}
-                                  </td>
-                                );
-                              })}
-
-                              {/* Layer Sold */}
-                              <td className="py-1.5 px-2.5 text-center font-mono font-bold text-slate-600 border-l border-slate-200">
-                                {layer.sold}
-                              </td>
-                            </tr>
-                          );
-                        })}
+                            {/* Layer Sold */}
+                            <td className="py-1.5 px-2.5 text-center font-mono font-bold text-slate-600 border-l border-slate-200 bg-slate-50">
+                              {layer.sold}
+                            </td>
+                          </tr>
+                        ))}
                     </React.Fragment>
                   );
                 })
               )}
             </tbody>
+
+            {/* Table Footer: Totals */}
+            <tfoot className="text-[11px] font-bold bg-slate-100 border-t-2 border-slate-300 sticky bottom-0 z-30">
+              <tr>
+                <td className="py-2.5 px-2 text-center font-mono text-slate-500 border-r border-slate-200 sticky left-0 z-40 bg-slate-100">
+                  ∑
+                </td>
+                <td className="py-2.5 px-3 font-extrabold text-slate-800 border-r border-slate-200 sticky left-[44px] z-40 bg-slate-100">
+                  TOTAL KESELURUHAN ({displayRows.length} Produk)
+                </td>
+                <td className="py-2.5 px-2 text-center border-r border-slate-200 sticky left-[284px] z-40 bg-slate-100 text-slate-400">
+                  -
+                </td>
+                <td className="py-2.5 px-2 text-center border-r-2 border-slate-300 shadow-[3px_0_6px_-1px_rgba(0,0,0,0.1)] sticky left-[374px] z-40 bg-slate-100 text-slate-400">
+                  -
+                </td>
+                <td className="py-2.5 px-3 text-right font-mono font-extrabold text-amber-900 border-r border-slate-200 bg-slate-100">
+                  -
+                </td>
+                <td className="py-2.5 px-3 text-right font-mono font-extrabold text-blue-900 border-r border-slate-200 bg-slate-100">
+                  -
+                </td>
+                <td className="py-2.5 px-2 text-center font-mono font-extrabold text-indigo-950 border-r border-slate-200 bg-indigo-50/60">
+                  {reportData?.summary?.total_opening || 0}
+                </td>
+                <td className="py-2.5 px-2 text-center font-mono font-extrabold text-slate-800 border-r border-slate-200 bg-indigo-50/40">
+                  +{reportData?.summary?.total_restock || 0}
+                </td>
+                <td className="py-2.5 px-2 text-center font-mono font-extrabold text-emerald-800 border-r border-slate-200 bg-emerald-50/60">
+                  {reportData?.summary?.total_remaining || 0}
+                </td>
+                {dayColumns.map((day) => {
+                  const dayTotal = displayRows.reduce((sum, r) => sum + (r.daily_sales[day] || 0), 0);
+                  return (
+                    <td
+                      key={day}
+                      className={`py-2.5 px-1 text-center font-mono text-[10px] border-r border-slate-200 ${
+                        dayTotal > 0 ? 'bg-emerald-100 text-emerald-900 font-extrabold' : 'text-slate-400'
+                      }`}
+                    >
+                      {dayTotal > 0 ? dayTotal : ''}
+                    </td>
+                  );
+                })}
+                <td className="py-2.5 px-2.5 text-center font-mono font-black text-emerald-900 bg-emerald-100 border-l border-emerald-300">
+                  {reportData?.summary?.total_sold || 0}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>

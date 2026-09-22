@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-09-22T16:25:38.458Z",
+  "findings": [
+    {
+      "type": "VERIFIED",
+      "moduleName": "Buku Stok - Header",
+      "item": "Header Stok Awal Terbaca Utuh",
+      "detail": "Kolom \"Awal\" tampil utuh tanpa terpotong menjadi \"WAL\".",
+      "severity": "OK"
+    },
+    {
+      "type": "VERIFIED",
+      "moduleName": "Buku Stok - Integritas Data",
+      "item": "Data Bebas dari Sampah Test",
+      "detail": "Semua produk yang tampil adalah produk riil toko tanpa duplikasi sampah test.",
+      "severity": "OK"
+    },
+    {
+      "type": "VERIFIED",
+      "moduleName": "Buku Stok - Footer",
+      "item": "Baris Total Keseluruhan Hadir",
+      "detail": "Footer agregasi total unit awal, restock, sisa, dan terjual tampil rapi.",
+      "severity": "OK"
+    },
+    {
+      "type": "VERIFIED",
+      "moduleName": "Buku Stok - Freeze Panes",
+      "item": "Kolom Identitas Membeku Sempurna",
+      "detail": "No, Merk, Ukuran, dan Ring tetap terkunci di kiri saat pengguna menggulir tanggal.",
+      "severity": "OK"
+    },
+    {
+      "type": "VERIFIED",
+      "moduleName": "Buku Stok - Interaktivitas",
+      "item": "Toggle Rincian Batch Berfungsi",
+      "detail": "Sub-baris batch FIFO dapat dibuka/tutup dengan 1-klik.",
+      "severity": "OK"
+    },
+    {
+      "type": "VERIFIED",
+      "moduleName": "Global Sanity",
+      "item": "Bebas dari Ban Bekas Terlarang",
+      "detail": "Tidak ditemukan pola cacat \"Ban Bekas Terlarang\".",
+      "severity": "OK"
+    },
+    {
+      "type": "VERIFIED",
+      "moduleName": "Global Sanity",
+      "item": "Bebas dari Hardcoded BSD",
+      "detail": "Tidak ditemukan pola cacat \"Hardcoded BSD\".",
+      "severity": "OK"
+    },
+    {
+      "type": "VERIFIED",
+      "moduleName": "Global Sanity",
+      "item": "Bebas dari NaN Rupiah",
+      "detail": "Tidak ditemukan pola cacat \"NaN Rupiah\".",
+      "severity": "OK"
+    },
+    {
+      "type": "VERIFIED",
+      "moduleName": "Global Sanity",
+      "item": "Bebas dari Object Object",
+      "detail": "Tidak ditemukan pola cacat \"Object Object\".",
+      "severity": "OK"
+    },
+    {
+      "type": "VERIFIED",
+      "moduleName": "Browser Console",
+      "item": "Konsol Bersih Bebas Error",
+      "detail": "0 error konsol peramban.",
+      "severity": "OK"
+    }
+  ],
+  "consoleErrors": []
+}

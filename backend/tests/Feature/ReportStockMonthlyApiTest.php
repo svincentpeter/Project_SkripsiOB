@@ -8,6 +8,8 @@ use Tests\TestCase;
 
 class ReportStockMonthlyApiTest extends TestCase
 {
+    use \Illuminate\Foundation\Testing\DatabaseTransactions;
+
     public function test_get_stock_monthly_endpoint_returns_success_and_matrix_data(): void
     {
         $unique = time() . '_' . rand(100, 999);

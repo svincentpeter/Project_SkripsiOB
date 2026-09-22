@@ -156,12 +156,15 @@ class MonthlyStockLedgerService
             $agg = $movementsAggregated->get($id);
             $monthRestock = $agg ? (int) $agg->restock_month : 0;
 
-            if ($hasOpnameThisMonth) {
-                $opening = (int) ($opnameBatches[$id] ?? $product->stok_awal ?? 0);
+            $initialStock = (int) (($product->stok_awal !== null && (int)$product->stok_awal > 0) 
+                ? $product->stok_awal 
+                : ($product->product_quantity ?? 0));
+
+            if ($hasOpnameThisMonth && isset($opnameBatches[$id])) {
+                $opening = (int) $opnameBatches[$id];
             } else {
-                $baseStock = (int) ($product->stok_awal ?? 0);
                 $deltaBefore = $agg ? (int) $agg->balance_before : 0;
-                $opening = max(0, $baseStock + $deltaBefore);
+                $opening = max(0, $initialStock + $deltaBefore);
             }
 
             $productDaily = $dailySales[$id] ?? [];
