@@ -35,4 +35,29 @@ class JournalEntry extends Model
     {
         return $this->hasMany(JournalItem::class);
     }
+
+    /**
+     * Bentuk jurnal untuk frontend (disalin ke tampilan akuntansi selama masa transisi).
+     */
+    public function toApiArray(): array
+    {
+        $this->loadMissing('items.account');
+
+        return [
+            'entry_number' => $this->entry_number,
+            'entry_date' => $this->entry_date?->toDateString(),
+            'reference_type' => $this->reference_type,
+            'reference_id' => $this->reference_id,
+            'description' => $this->description,
+            'total_debit' => (float) $this->total_debit,
+            'total_credit' => (float) $this->total_credit,
+            'lines' => $this->items->map(fn (JournalItem $item) => [
+                'account_code' => $item->account?->account_code,
+                'account_name' => $item->account?->account_name,
+                'debit' => (float) $item->debit,
+                'credit' => (float) $item->credit,
+                'note' => $item->note,
+            ])->values()->all(),
+        ];
+    }
 }
