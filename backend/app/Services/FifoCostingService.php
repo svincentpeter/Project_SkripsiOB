@@ -118,7 +118,7 @@ class FifoCostingService
                 'reference_type' => 'SALE',
                 'reference_id' => $referenceNumber ?: 'POS-SALE',
                 'description' => 'Penjualan ban POS Kasir (FIFO allocation)',
-                'operator_name' => 'Kasir POS',
+                'operator_name' => auth()->user()?->name ?? 'Kasir POS',
                 'branch_id' => $product->branch_id ?? 3,
             ]);
 
@@ -164,7 +164,7 @@ class FifoCostingService
                 'reference_type' => 'GOODS_RECEIPT',
                 'reference_id' => $batchCode,
                 'description' => 'Penerimaan barang dari ' . $sourceName,
-                'operator_name' => 'Admin Gudang',
+                'operator_name' => auth()->user()?->name ?? 'Admin Gudang',
                 'branch_id' => $branchId,
             ]);
 

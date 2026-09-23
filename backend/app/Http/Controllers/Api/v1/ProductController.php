@@ -74,7 +74,7 @@ class ProductController extends Controller
                     'reference_type' => 'INITIAL_STOCK',
                     'reference_id' => $batchCode,
                     'description' => 'Stok awal produk baru: ' . $product->product_name,
-                    'operator_name' => 'Admin Gudang',
+                    'operator_name' => auth()->user()?->name ?? 'Admin Gudang',
                     'branch_id' => $product->branch_id ?? 3,
                 ]);
             }

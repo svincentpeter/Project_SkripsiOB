@@ -135,7 +135,7 @@ class InventoryController extends Controller
                 'reference_type' => 'STOCK_OPNAME',
                 'reference_id' => 'OPNAME-' . date('Ymd-His'),
                 'description' => 'Penyesuaian Stock Opname: ' . ($validated['notes'] ?? 'Fisik vs Sistem'),
-                'operator_name' => 'Admin Opname',
+                'operator_name' => auth()->user()?->name ?? 'Admin Opname',
                 'branch_id' => 3,
             ]);
         });

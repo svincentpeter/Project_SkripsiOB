@@ -11,6 +11,8 @@ class AuthApiTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected bool $authenticateAsOwner = false;
+
     private function user(array $attrs = []): User
     {
         return User::factory()->create($attrs + [

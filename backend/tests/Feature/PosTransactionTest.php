@@ -71,7 +71,8 @@ class PosTransactionTest extends TestCase
 
         // Verify journal entries and items exist
         $ref = $response->json('data.reference');
-        $this->assertDatabaseHas('sales', ['reference' => $ref]);
+        $this->assertDatabaseHas('sales', ['reference' => $ref, 'cashier_name' => 'Test OWNER']);
+        $this->assertDatabaseHas('stock_movements', ['reference_id' => $ref, 'operator_name' => 'Test OWNER']);
         $this->assertDatabaseHas('journal_entries', ['reference_id' => $ref, 'status' => 'POSTED']);
     }
 }

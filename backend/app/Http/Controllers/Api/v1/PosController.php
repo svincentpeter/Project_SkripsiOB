@@ -112,7 +112,7 @@ class PosController extends Controller
                 'date' => $date,
                 'customer_name' => $validated['customer_name'] ?? 'Pelanggan Walk-In',
                 'vehicle_plate' => $validated['vehicle_plate'] ?? 'Umum',
-                'cashier_name' => $validated['cashier_name'] ?? 'Fani A.',
+                'cashier_name' => auth()->user()?->name ?? $validated['cashier_name'] ?? 'Kasir POS',
                 'gross_sales_amount' => $grossSales,
                 'discount_amount' => $totalDiscount,
                 'tax_percentage' => $taxAmount > 0 ? 11.00 : 0.00,
