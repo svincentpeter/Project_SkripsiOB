@@ -18,41 +18,7 @@ import {
   StockMutation, 
   StoreSettings, 
   SupplierItem,
-  UserSession 
 } from '../types';
-
-export const DEFAULT_USERS: (UserSession & { password?: string })[] = [
-  {
-    id: 'user-owner',
-    username: 'owner',
-    name: 'Agus Subagyo',
-    email: 'owner@omahban.com',
-    password: 'password',
-    role: 'OWNER',
-    branch_name: 'Cabang 3 Magelang',
-    phone: '0822-2786-3969',
-  },
-  {
-    id: 'user-kasir',
-    username: 'kasir',
-    name: 'Kasir OB3',
-    email: 'kasir@omahban.com',
-    password: 'password',
-    role: 'KASIR',
-    branch_name: 'Cabang 3 Magelang',
-    phone: '0812-3456-7893',
-  },
-  {
-    id: 'user-gudang',
-    username: 'gudang',
-    name: 'Admin Gudang OB3',
-    email: 'gudang@omahban.com',
-    password: 'password',
-    role: 'GUDANG',
-    branch_name: 'Cabang 3 Magelang',
-    phone: '0812-3456-7892',
-  },
-];
 
 export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
   KASIR: {

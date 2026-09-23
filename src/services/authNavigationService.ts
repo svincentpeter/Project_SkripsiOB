@@ -1,4 +1,4 @@
-import { ActiveScreen, RolePermissionsConfig } from '../shared/types';
+import { ActiveScreen, PermissionKey, RolePermissionsConfig, UserSession } from '../shared/types';
 import { DEFAULT_ROLE_PERMISSIONS } from '../shared/data/mockData';
 
 /**
@@ -12,8 +12,8 @@ export function isScreenPermittedForRole(
   if (!role) return false;
   if (role === 'OWNER') return true;
 
-  const roleConfig = rolePermissions[role];
-  if (!roleConfig) return true;
+  const roleConfig = rolePermissions[role as keyof RolePermissionsConfig];
+  if (!roleConfig) return false;
 
   switch (screen) {
     case 'dashboard':
@@ -44,12 +44,9 @@ export function getDefaultScreenForUser(
   role?: string,
   rolePermissions: RolePermissionsConfig = DEFAULT_ROLE_PERMISSIONS
 ): ActiveScreen {
-  if (!role) return 'dashboard';
-  if (role === 'KASIR') return 'pos';
-  if (role === 'GUDANG') return 'inventory';
-  if (role === 'OWNER') return 'dashboard';
+  if (!role || role === 'OWNER') return 'dashboard';
 
-  // Fallback berdasarkan izin yang tersedia
+  // Layar pertama yang diizinkan, mengikuti konfigurasi Owner
   if (isScreenPermittedForRole('pos', role, rolePermissions)) return 'pos';
   if (isScreenPermittedForRole('inventory', role, rolePermissions)) return 'inventory';
   if (isScreenPermittedForRole('dashboard', role, rolePermissions)) return 'dashboard';
@@ -73,4 +70,18 @@ export function canUserAccessBackoffice(
     isScreenPermittedForRole('financials', role, rolePermissions) ||
     isScreenPermittedForRole('settings', role, rolePermissions)
   );
+}
+
+/**
+ * Memeriksa satu kunci izin untuk pengguna yang sedang login (Owner selalu diizinkan).
+ */
+export function hasPermission(
+  user: UserSession | null | undefined,
+  rolePermissions: RolePermissionsConfig,
+  key: PermissionKey
+): boolean {
+  if (!user) return false;
+  if (user.role === 'OWNER') return true;
+  const roleConfig = rolePermissions[user.role as keyof RolePermissionsConfig];
+  return !!roleConfig?.[key];
 }

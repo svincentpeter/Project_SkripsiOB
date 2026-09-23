@@ -20,22 +20,22 @@ import {
   FileText
 } from 'lucide-react';
 import { RolePermissionsConfig, StoreSettings, UserSession } from '../../shared/types';
-import { DEFAULT_ROLE_PERMISSIONS, DEFAULT_USERS, INITIAL_STORE_SETTINGS } from '../../shared/data/mockData';
+import { DEFAULT_ROLE_PERMISSIONS, INITIAL_STORE_SETTINGS } from '../../shared/data/mockData';
 import { RolePermissionsTab } from './components/RolePermissionsTab';
 import { PaymentMethodsTab } from './components/PaymentMethodsTab';
 
 interface SettingsScreenProps {
   settings: StoreSettings;
   onSaveSettings: (newSettings: StoreSettings) => void;
-  currentUser?: UserSession;
+  currentUser: UserSession;
   currentPermissions?: RolePermissionsConfig;
-  onSavePermissions?: (newConfig: RolePermissionsConfig) => void;
+  onSavePermissions?: (newConfig: RolePermissionsConfig) => void | Promise<void>;
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   settings,
   onSaveSettings,
-  currentUser = DEFAULT_USERS[0],
+  currentUser,
   currentPermissions = DEFAULT_ROLE_PERMISSIONS,
   onSavePermissions,
 }) => {

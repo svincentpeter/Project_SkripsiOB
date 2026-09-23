@@ -12,8 +12,6 @@ import {
   PayableInvoice,
   ReceivableInvoice,
   StoreSettings,
-  UserAccount,
-  RolePermissionsConfig,
   AccountingPeriodInfo,
 } from '../shared/types';
 
@@ -457,69 +455,6 @@ export const saveStoreSettingsToSupabase = async (settings: StoreSettings): Prom
     };
     const { error } = await supabase.from('store_settings').upsert(payload);
     return !error;
-  } catch {
-    return false;
-  }
-};
-
-// ============================================================================
-// 11. USERS & AUTH
-// ============================================================================
-export const fetchUsersFromSupabase = async (): Promise<UserAccount[] | null> => {
-  if (!isSupabaseConfigured() || !supabase) return null;
-  try {
-    const { data, error } = await supabase.from('users').select('*').order('role', { ascending: true });
-    if (error || !data) {
-      console.warn('[Supabase] Gagal fetch users:', error?.message);
-      return null;
-    }
-    return data as UserAccount[];
-  } catch (err) {
-    console.warn('[Supabase] Error fetchUsers:', err);
-    return null;
-  }
-};
-
-export const upsertUserToSupabase = async (user: UserAccount): Promise<boolean> => {
-  if (!isSupabaseConfigured() || !supabase) return false;
-  try {
-    const { error } = await supabase.from('users').upsert(user);
-    return !error;
-  } catch {
-    return false;
-  }
-};
-
-// ============================================================================
-// 12. ROLE PERMISSIONS
-// ============================================================================
-export const fetchRolePermissionsFromSupabase = async (): Promise<RolePermissionsConfig | null> => {
-  if (!isSupabaseConfigured() || !supabase) return null;
-  try {
-    const { data, error } = await supabase.from('role_permissions').select('*');
-    if (error || !data || data.length === 0) return null;
-    const config: any = {};
-    data.forEach((row: any) => {
-      config[row.role] = row.permissions;
-    });
-    return config as RolePermissionsConfig;
-  } catch {
-    return null;
-  }
-};
-
-export const saveRolePermissionsToSupabase = async (config: RolePermissionsConfig): Promise<boolean> => {
-  if (!isSupabaseConfigured() || !supabase) return false;
-  try {
-    const promises = Object.entries(config).map(([role, permissions]) =>
-      supabase.from('role_permissions').upsert({
-        role,
-        permissions,
-        updated_at: new Date().toISOString(),
-      })
-    );
-    await Promise.all(promises);
-    return true;
   } catch {
     return false;
   }

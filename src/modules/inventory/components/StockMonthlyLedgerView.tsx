@@ -16,6 +16,7 @@ import {
   Info
 } from 'lucide-react';
 import { ProductItem, PosTransaction, StockMutation } from '../../../shared/types';
+import { apiClient } from '../../../services/api';
 import { formatRupiah, formatNumber } from '../../../shared/utils/formatters';
 import {
   calculateClientStockLedger,
@@ -66,16 +67,14 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
     setLoading(true);
     try {
       // Try backend API first
-      const brandParam = selectedBrand !== 'ALL' ? `&brand=${encodeURIComponent(selectedBrand)}` : '';
-      const response = await fetch(`/api/v1/reports/stock-monthly?month=${selectedMonth}${brandParam}`);
-
-      if (response.ok) {
-        const json = await response.json();
-        if (json.success && json.data) {
-          setReportData(json.data);
-          setLoading(false);
-          return;
-        }
+      const json = await apiClient.get<{ success: boolean; data: any }>('/reports/stock-monthly', {
+        month: selectedMonth,
+        brand: selectedBrand !== 'ALL' ? selectedBrand : undefined,
+      });
+      if (json.success && json.data) {
+        setReportData(json.data);
+        setLoading(false);
+        return;
       }
     } catch (e) {
       // Fallback to client computation
@@ -128,17 +127,13 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
 
     try {
       // 1. Send to backend if available
-      await fetch('/api/v1/reports/stock-monthly/inline-update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          product_id: row.id,
-          field: payload.field,
-          value: payload.value,
-          month: selectedMonth,
-          batch_id: payload.batch_id,
-          reference_price: payload.reference_price,
-        }),
+      await apiClient.post('/reports/stock-monthly/inline-update', {
+        product_id: row.id,
+        field: payload.field,
+        value: payload.value,
+        month: selectedMonth,
+        batch_id: payload.batch_id,
+        reference_price: payload.reference_price,
       });
     } catch (e) {
       // Offline / client fallback

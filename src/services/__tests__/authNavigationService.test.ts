@@ -3,8 +3,41 @@ import { DEFAULT_ROLE_PERMISSIONS } from '../../shared/data/mockData';
 import {
   isScreenPermittedForRole,
   getDefaultScreenForUser,
-  canUserAccessBackoffice
+  canUserAccessBackoffice,
+  hasPermission
 } from '../authNavigationService';
+import { UserSession } from '../../shared/types';
+
+const makeUser = (role: UserSession['role']): UserSession => ({
+  id: 1,
+  name: 'Test',
+  email: 'test@omahban.com',
+  role,
+  branch_name: 'Cabang 3 Magelang',
+});
+
+describe('deny by default', () => {
+  it('denies screens for roles without a permission config', () => {
+    expect(isScreenPermittedForRole('dashboard', 'TAMU', DEFAULT_ROLE_PERMISSIONS)).toBe(false);
+    expect(isScreenPermittedForRole('pos', 'TAMU', DEFAULT_ROLE_PERMISSIONS)).toBe(false);
+  });
+
+  it('hasPermission: owner gets all, other roles follow config, no user gets none', () => {
+    expect(hasPermission(makeUser('OWNER'), DEFAULT_ROLE_PERMISSIONS, 'accounting_hub')).toBe(true);
+    expect(hasPermission(makeUser('KASIR'), DEFAULT_ROLE_PERMISSIONS, 'booking_dp')).toBe(true);
+    expect(hasPermission(makeUser('KASIR'), DEFAULT_ROLE_PERMISSIONS, 'goods_receipt')).toBe(false);
+    expect(hasPermission(makeUser('GUDANG'), DEFAULT_ROLE_PERMISSIONS, 'stock_opname')).toBe(true);
+    expect(hasPermission(null, DEFAULT_ROLE_PERMISSIONS, 'pos')).toBe(false);
+  });
+
+  it('default screen follows the configured permissions, not the role name', () => {
+    const noPos = {
+      ...DEFAULT_ROLE_PERMISSIONS,
+      KASIR: { ...DEFAULT_ROLE_PERMISSIONS.KASIR, pos: false },
+    };
+    expect(getDefaultScreenForUser('KASIR', noPos)).toBe('receipt');
+  });
+});
 
 describe('authNavigationService', () => {
   describe('isScreenPermittedForRole', () => {

@@ -23,7 +23,7 @@ import {
   X
 } from 'lucide-react';
 import { ActiveScreen, PermissionKey, RolePermissionsConfig, UserSession } from '../types';
-import { DEFAULT_ROLE_PERMISSIONS, DEFAULT_USERS } from '../data/mockData';
+import { DEFAULT_ROLE_PERMISSIONS } from '../data/mockData';
 import { formatRupiah } from '../utils/formatters';
 import { NotificationBellDropdown } from './NotificationBellDropdown';
 import { isScreenPermittedForRole } from '../../services/authNavigationService';
@@ -42,9 +42,8 @@ interface HeaderNavbarProps {
   currentTimeStr: string;
   backendStatus?: 'supabase' | 'connected' | 'offline' | 'checking';
   databaseName?: string;
-  currentUser?: UserSession;
+  currentUser: UserSession;
   rolePermissions?: RolePermissionsConfig;
-  onSwitchUser?: (user: UserSession) => void;
   onLogout?: () => void;
 }
 
@@ -62,9 +61,8 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   currentTimeStr,
   backendStatus = 'checking',
   databaseName = 'project-skripsi_ob',
-  currentUser = DEFAULT_USERS[0],
+  currentUser,
   rolePermissions = DEFAULT_ROLE_PERMISSIONS,
-  onSwitchUser,
   onLogout,
 }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -277,43 +275,6 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
                   <span className="text-[11px] text-slate-500 font-mono block">
                     {currentUser.email}
                   </span>
-                </div>
-
-                {/* Quick Role Switcher (Especially useful for Owner & Demo) */}
-                <div className="p-2">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 px-2 py-1 block tracking-wider">
-                    Ganti Peran Pengguna (Demo):
-                  </span>
-                  <div className="space-y-1">
-                    {DEFAULT_USERS.map((u) => {
-                      const isSelected = u.id === currentUser.id;
-                      return (
-                        <button
-                          key={u.id}
-                          type="button"
-                          onClick={() => {
-                            onSwitchUser?.(u);
-                            setIsUserMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-colors cursor-pointer ${
-                            isSelected
-                              ? 'bg-blue-50 text-blue-700 font-bold'
-                              : 'hover:bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className={`w-2 h-2 rounded-full ${
-                              u.role === 'OWNER' ? 'bg-blue-600' : u.role === 'KASIR' ? 'bg-emerald-600' : 'bg-amber-600'
-                            }`} />
-                            <span>{u.name}</span>
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-400 font-mono">
-                            {u.role}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
                 <div className="border-t border-slate-100 p-2 space-y-1">

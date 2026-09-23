@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   AccountingPeriodInfo,
   ActiveScreen, 
@@ -25,12 +25,10 @@ import {
   SupplierItem, 
   TireProduct, 
   UpdateProductInput,
-  UserAccount,
   UserSession 
 } from './shared/types';
 import { 
   DEFAULT_ROLE_PERMISSIONS,
-  DEFAULT_USERS,
   INITIAL_PERIOD_INFO,
   INITIAL_STORE_SETTINGS,
   INITIAL_PRODUCTS,
@@ -96,7 +94,7 @@ import { SettingsScreen } from './modules/settings';
 import { ToastProvider, useToast, AppNotification } from './shared/components';
 import { WireframeGuideModal } from './shared/components/WireframeGuideModal';
 import { HeaderNavbar } from './shared/components/HeaderNavbar';
-import { apiClient, productApi, posApi, expenseApi, inventoryApi } from './services/api';
+import { apiClient, productApi, posApi, expenseApi, inventoryApi, authApi, authToken, setUnauthorizedHandler } from './services/api';
 import { 
   isSupabaseConfigured,
   testSupabaseConnection,
@@ -112,10 +110,6 @@ import {
   fetchReceivablesFromSupabase,
   fetchParkedOrdersFromSupabase,
   fetchStoreSettingsFromSupabase,
-  fetchUsersFromSupabase,
-  upsertUserToSupabase,
-  fetchRolePermissionsFromSupabase,
-  saveRolePermissionsToSupabase,
   fetchAccountBalancesFromSupabase,
   saveAccountBalancesToSupabase,
   fetchAccountingPeriodFromSupabase,
@@ -150,23 +144,10 @@ export default function App() {
 function MainAppContent() {
   const toast = useToast();
 
-  const [currentUser, setCurrentUser] = useState<UserSession | null>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_user_session');
-      return saved ? JSON.parse(saved) : DEFAULT_USERS[0];
-    } catch {
-      return DEFAULT_USERS[0];
-    }
-  });
-
-  const [rolePermissions, setRolePermissions] = useState<RolePermissionsConfig>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_role_permissions');
-      return saved ? JSON.parse(saved) : DEFAULT_ROLE_PERMISSIONS;
-    } catch {
-      return DEFAULT_ROLE_PERMISSIONS;
-    }
-  });
+  // Sesi login dari server (Laravel Sanctum); dipulihkan lewat /auth/me bila token masih ada.
+  const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
+  const [authChecking, setAuthChecking] = useState<boolean>(() => !!authToken.get());
+  const [rolePermissions, setRolePermissions] = useState<RolePermissionsConfig>(DEFAULT_ROLE_PERMISSIONS);
 
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('dashboard');
   const [backendStatus, setBackendStatus] = useState<'supabase' | 'connected' | 'offline' | 'checking'>('checking');
@@ -185,23 +166,32 @@ function MainAppContent() {
     }
   }, [currentUser, rolePermissions, activeScreen]);
 
-  useEffect(() => {
-    localStorage.setItem('ob3_role_permissions', JSON.stringify(rolePermissions));
-  }, [rolePermissions]);
-
-  // Master Users State (Synchronized with Supabase Database)
-  const [users, setUsers] = useState<UserAccount[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_users');
-      return saved ? JSON.parse(saved) : DEFAULT_USERS;
-    } catch {
-      return DEFAULT_USERS;
-    }
-  });
+  const startSession = useCallback(async (user: UserSession) => {
+    const permissions = await authApi.getRolePermissions().catch(() => DEFAULT_ROLE_PERMISSIONS);
+    setRolePermissions(permissions);
+    setCurrentUser(user);
+    setActiveScreen(getDefaultScreenForUser(user.role, permissions));
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('ob3_users', JSON.stringify(users));
-  }, [users]);
+    if (!authToken.get()) return;
+    authApi
+      .me()
+      .then(startSession)
+      .catch(() => authToken.clear())
+      .finally(() => setAuthChecking(false));
+  }, [startSession]);
+
+  // Token ditolak server (kedaluwarsa/dicabut) → kembali ke layar login.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (!currentUser) return;
+      setCurrentUser(null);
+      setActiveScreen('dashboard');
+      toast.warning('Sesi Berakhir', 'Sesi berakhir, silakan login kembali.');
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [currentUser, toast]);
 
   // Notification Read & Dismiss Tracking
   const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
@@ -509,8 +499,10 @@ function MainAppContent() {
     return list;
   }, [products, bookings, payableInvoices, receivableInvoices, readNotifIds, dismissedNotifIds]);
 
-  // Synchronize state with Supabase PostgreSQL Cloud or Laravel REST API on mount
+  // Synchronize state with Supabase PostgreSQL Cloud or Laravel REST API setelah login
+  const sessionUserId = currentUser?.id;
   useEffect(() => {
+    if (sessionUserId === undefined) return;
     let isMounted = true;
     const syncBackend = async () => {
       // 1. Cek koneksi ke Supabase PostgreSQL Cloud jika kredensial ada
@@ -536,8 +528,6 @@ function MainAppContent() {
               sbReceivables,
               sbParked,
               sbSettings,
-              sbUsers,
-              sbPerms,
               sbBalances,
               sbPeriod,
             ] = await Promise.all([
@@ -553,8 +543,6 @@ function MainAppContent() {
               fetchReceivablesFromSupabase(),
               fetchParkedOrdersFromSupabase(),
               fetchStoreSettingsFromSupabase(),
-              fetchUsersFromSupabase(),
-              fetchRolePermissionsFromSupabase(),
               fetchAccountBalancesFromSupabase(),
               fetchAccountingPeriodFromSupabase(),
             ]);
@@ -572,8 +560,6 @@ function MainAppContent() {
               if (sbReceivables) setReceivableInvoices(sbReceivables);
               if (sbParked) setParkedOrders(sbParked);
               if (sbSettings) setStoreSettings(sbSettings);
-              if (sbUsers && sbUsers.length > 0) setUsers(sbUsers);
-              if (sbPerms) setRolePermissions(sbPerms);
               if (sbBalances) {
                 setAccountBalances(sbBalances);
                 if (sbBalances['1-1000'] !== undefined) setCashInDrawer(sbBalances['1-1000']);
@@ -648,7 +634,7 @@ function MainAppContent() {
     };
     syncBackend();
     return () => { isMounted = false; };
-  }, []);
+  }, [sessionUserId]);
 
   useEffect(() => {
     localStorage.setItem('ob3_store_settings', JSON.stringify(storeSettings));
@@ -1535,9 +1521,9 @@ function MainAppContent() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authApi.logout();
     setCurrentUser(null);
-    localStorage.removeItem('ob3_user_session');
     setActiveScreen('dashboard');
     toast.info('Sesi Ditutup', 'Anda telah keluar dari sistem Omah Ban Cabang 3.');
   };
@@ -1545,18 +1531,23 @@ function MainAppContent() {
   const lowStockCount = products.filter((p) => p.stock < 5).length;
   const cartTotalQty = cart.reduce((acc, c) => acc + c.qty, 0);
 
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3 text-slate-300">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+        <span className="text-sm font-semibold">Memeriksa sesi login...</span>
+      </div>
+    );
+  }
+
   // Jika belum login, tampilkan layar Login Omah Ban Cabang 3
   if (!currentUser) {
     return (
       <LoginScreen
-        onLogin={(user) => {
-          setCurrentUser(user);
-          localStorage.setItem('ob3_user_session', JSON.stringify(user));
-          const targetScreen = getDefaultScreenForUser(user.role, rolePermissions);
-          setActiveScreen(targetScreen);
+        onLogin={async (user) => {
+          await startSession(user);
           toast.success(`Selamat Datang, ${user.name}!`, `Berhasil masuk sebagai ${user.role} (${user.branch_name}).`);
         }}
-        users={users}
       />
     );
   }
@@ -1630,14 +1621,6 @@ function MainAppContent() {
             databaseName={databaseName}
             currentUser={currentUser}
             rolePermissions={rolePermissions}
-            onSwitchUser={(user) => {
-              setCurrentUser(user);
-              localStorage.setItem('ob3_user_session', JSON.stringify(user));
-              if (!isScreenPermittedForRole(activeScreen, user.role, rolePermissions)) {
-                setActiveScreen(getDefaultScreenForUser(user.role, rolePermissions));
-              }
-              toast.info('Beralih Peran', `Kini melihat antarmuka sebagai ${user.name} (${user.role}).`);
-            }}
             onLogout={handleLogout}
           />
 
@@ -1743,9 +1726,8 @@ function MainAppContent() {
                 }}
                 currentUser={currentUser}
                 currentPermissions={rolePermissions}
-                onSavePermissions={(newPerms) => {
-                  setRolePermissions(newPerms);
-                  saveRolePermissionsToSupabase(newPerms);
+                onSavePermissions={async (newPerms) => {
+                  setRolePermissions(await authApi.updateRolePermissions(newPerms));
                 }}
               />
             )}

@@ -6,53 +6,46 @@ import {
   LogIn, 
   Sparkles, 
   Award, 
-  Building2, 
-  Store, 
-  Wrench, 
-  Boxes, 
-  CheckCircle2, 
-  ArrowRight,
+  Building2,
+  Wrench,
+  CheckCircle2,
   Disc,
   AlertTriangle
 } from 'lucide-react';
-import { UserAccount, UserSession } from '../../shared/types';
-import { DEFAULT_USERS } from '../../shared/data/mockData';
+import { UserSession } from '../../shared/types';
+import { ApiError, authApi } from '../../services/api';
 
 interface LoginScreenProps {
-  onLogin: (user: UserSession) => void;
-  users?: UserAccount[];
+  onLogin: (user: UserSession) => void | Promise<void>;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAULT_USERS }) => {
-  const [identifier, setIdentifier] = useState('owner');
-  const [password, setPassword] = useState('password');
+const describeLoginError = (err: unknown): string => {
+  if (!(err instanceof ApiError)) return 'Login gagal. Silakan coba lagi.';
+  if (err.status === 0 || err.status === 408) {
+    return 'Server tidak dapat dihubungi. Pastikan backend Laravel berjalan.';
+  }
+  if (err.status === 429) return 'Terlalu banyak percobaan. Coba lagi dalam 1 menit.';
+  return err.message;
+};
+
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanId = identifier.trim().toLowerCase();
-    const matchedUser = users.find(
-      (u) =>
-        (u.username && u.username.toLowerCase() === cleanId) ||
-        (u.email && u.email.toLowerCase() === cleanId)
-    );
-
-    if (!matchedUser) {
-      setErrorMessage(`Username atau Email "${identifier}" tidak terdaftar di sistem.`);
-      return;
+    setErrorMessage('');
+    setIsSubmitting(true);
+    try {
+      const { user } = await authApi.login(identifier.trim(), password);
+      await onLogin(user);
+    } catch (err) {
+      setErrorMessage(describeLoginError(err));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const expectedPassword = matchedUser.password || 'password';
-    if (password !== expectedPassword && password !== 'password') {
-      setErrorMessage('Password salah. Gunakan password default: "password"');
-      return;
-    }
-
-    onLogin(matchedUser);
-  };
-
-  const handleQuickLogin = (user: UserSession) => {
-    onLogin(user);
   };
 
   return (
@@ -143,7 +136,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
             </div>
           </div>
 
-          {/* Right Column: Interactive Login & Quick Demo Card */}
+          {/* Right Column: Login Form */}
           <div className="lg:col-span-6">
             <div className="bg-slate-900/95 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl backdrop-blur-xl space-y-6">
               <div>
@@ -152,90 +145,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
                   <span>Masuk ke Sistem Omah Ban</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-1">
-                  Pilih akun di bawah atau masuk dengan kredensial terdaftar.
+                  Masuk dengan username atau email dan password akun Anda.
                 </p>
               </div>
 
-
-              {/* 1-Click Quick Demo User Cards */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400 block">
-                    Pilih Akun Sistem (Tersinkron Database):
-                  </label>
-                  <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-md font-semibold">
-                    Pass: password
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2.5">
-                  {users.map((u) => {
-                    const isOwner = u.role === 'OWNER';
-                    const isKasir = u.role === 'KASIR';
-
-                    return (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => handleQuickLogin(u)}
-                        className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between group ${
-                          isOwner
-                            ? 'bg-gradient-to-r from-blue-950/40 to-slate-900 border-blue-600/40 hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/10'
-                            : isKasir
-                            ? 'bg-gradient-to-r from-emerald-950/40 to-slate-900 border-emerald-600/40 hover:border-emerald-500 hover:shadow-lg hover:shadow-emerald-500/10'
-                            : 'bg-gradient-to-r from-amber-950/40 to-slate-900 border-amber-600/40 hover:border-amber-500 hover:shadow-lg hover:shadow-amber-500/10'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-sm ${
-                            isOwner 
-                              ? 'bg-blue-600 ring-2 ring-blue-400/30' 
-                              : isKasir 
-                              ? 'bg-emerald-600 ring-2 ring-emerald-400/30' 
-                              : 'bg-amber-600 ring-2 ring-amber-400/30'
-                          }`}>
-                            {isOwner ? <ShieldCheck className="w-5 h-5" /> : isKasir ? <Store className="w-5 h-5" /> : <Boxes className="w-5 h-5" />}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-white group-hover:text-blue-300 transition-colors">
-                                {u.name}
-                              </span>
-                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
-                                isOwner 
-                                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' 
-                                  : isKasir 
-                                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                              }`}>
-                                {u.role}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5 font-mono">
-                              <span>User: <strong className="text-slate-200">{u.username || u.email.split('@')[0]}</strong></span>
-                              <span>•</span>
-                              <span>{u.email}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 text-xs font-bold text-slate-400 group-hover:text-white transition-colors">
-                          <span className="hidden sm:inline text-[11px]">Masuk</span>
-                          <ArrowRight className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-slate-800" />
-                <span className="flex-shrink mx-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Atau Ketik Manual
-                </span>
-                <div className="flex-grow border-t border-slate-800" />
-              </div>
 
               {/* Form Input */}
               <form onSubmit={handleFormSubmit} className="space-y-3.5">
@@ -262,7 +175,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
                         setIdentifier(e.target.value);
                         if (errorMessage) setErrorMessage('');
                       }}
-                      placeholder="owner / kasir / gudang atau email"
+                      placeholder="username atau email"
+                      autoComplete="username"
                       className="w-full pl-10 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                       required
                     />
@@ -274,9 +188,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
                     <label className="text-xs font-semibold text-slate-300">
                       Password
                     </label>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      (Bawaan: password)
-                    </span>
                   </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -287,7 +198,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
                         setPassword(e.target.value);
                         if (errorMessage) setErrorMessage('');
                       }}
-                      placeholder="password"
+                      placeholder="••••••••"
+                      autoComplete="current-password"
                       className="w-full pl-10 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all font-mono"
                       required
                     />
@@ -296,10 +208,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, users = DEFAU
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={isSubmitting}
+                  className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-lg shadow-blue-600/25 hover:shadow-blue-600/40 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>Masuk Sesuai Kredensial</span>
+                  <span>{isSubmitting ? 'Memeriksa...' : 'Masuk'}</span>
                 </button>
               </form>
             </div>

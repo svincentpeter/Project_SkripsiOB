@@ -32,7 +32,7 @@ import { useToast } from '../../../shared/components';
 interface RolePermissionsTabProps {
   currentUser: UserSession;
   currentPermissions: RolePermissionsConfig;
-  onSavePermissions: (newConfig: RolePermissionsConfig) => void;
+  onSavePermissions: (newConfig: RolePermissionsConfig) => void | Promise<void>;
 }
 
 interface PermissionDefinition {
@@ -178,10 +178,14 @@ export const RolePermissionsTab: React.FC<RolePermissionsTabProps> = ({
     setIsDirty(true);
   };
 
-  const handleSave = () => {
-    onSavePermissions(config);
-    setIsDirty(false);
-    toast.success('Pengaturan Wewenang Disimpan!', 'Matriks izin peran Kasir dan Gudang berhasil diperbarui dan langsung aktif.');
+  const handleSave = async () => {
+    try {
+      await onSavePermissions(config);
+      setIsDirty(false);
+      toast.success('Pengaturan Wewenang Disimpan!', 'Matriks izin peran Kasir dan Gudang berhasil diperbarui dan langsung aktif.');
+    } catch (err) {
+      toast.error('Gagal Menyimpan Wewenang', err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan ke server.');
+    }
   };
 
   const handleReset = () => {

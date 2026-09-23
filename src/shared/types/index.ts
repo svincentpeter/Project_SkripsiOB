@@ -639,10 +639,6 @@ export interface UserSession {
   permissions?: Record<PermissionKey, boolean>;
 }
 
-export interface UserAccount extends UserSession {
-  password?: string;
-}
-
 export type RolePermissionsConfig = {
   KASIR: Record<PermissionKey, boolean>;
   GUDANG: Record<PermissionKey, boolean>;
