@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\v1\PaymentApiController;
 use App\Http\Controllers\Api\v1\PaymentMethodSettingController;
 use App\Http\Controllers\Api\v1\PosController;
 use App\Http\Controllers\Api\v1\ProductController;
+use App\Http\Controllers\Api\v1\ReceivableController;
 use App\Http\Controllers\Api\v1\ReportStockMonthlyApiController;
 use App\Http\Controllers\Api\v1\RolePermissionController;
 use App\Http\Controllers\Api\v1\ServiceMasterController;
@@ -82,6 +83,12 @@ Route::prefix('v1')->group(function () {
             Route::get('pos/transactions/{id}', [PosController::class, 'show']);
         });
         Route::post('pos/transactions/{id}/void', [PosController::class, 'void'])->middleware('permission:sale_void');
+
+        // Piutang BON pelanggan
+        Route::middleware('permission:bon_receivable,accounting_hub')->group(function () {
+            Route::get('receivables', [ReceivableController::class, 'index']);
+            Route::post('receivables/{saleId}/payments', [ReceivableController::class, 'pay']);
+        });
 
         // Payment Method Settings (Parity ProjectOmahBan)
         Route::middleware('permission:role_settings,pos')->group(function () {
