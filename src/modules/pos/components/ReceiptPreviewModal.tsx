@@ -116,9 +116,9 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
                     </span>
                     <span className="font-bold text-black font-mono">{formatRupiah(subtotal)}</span>
                   </div>
-                  {item.notes && (
+                  {item.note && (
                     <div className="text-[9px] text-slate-500 italic pl-1 border-l border-slate-300">
-                      * {item.notes}
+                      * {item.note}
                     </div>
                   )}
                 </div>

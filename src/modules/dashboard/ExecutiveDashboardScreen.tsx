@@ -84,8 +84,10 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
   const productSalesMap: Record<string, { product: any; totalQty: number; totalOmzet: number }> = {};
 
   transactions.forEach((tx) => {
+    if (tx.status === 'VOID') return;
     tx.items.forEach((item) => {
-      const prodId = item.product?.id || item.product_id || 'unknown';
+      if (item.item_type === 'SERVICE') return;
+      const prodId = item.product?.id || 'unknown';
       if (!productSalesMap[prodId]) {
         productSalesMap[prodId] = {
           product: item.product,
@@ -189,7 +191,8 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
   };
 
   transactions.forEach((tx) => {
-    const method = tx.payment_method || (tx.status === 'BON' ? 'BON' : 'TUNAI');
+    if (tx.status === 'VOID') return;
+    const method = tx.payment_method === 'HUTANG_BON' ? 'BON' : tx.payment_method || 'TUNAI';
     if (!paymentBreakdown[method]) {
       paymentBreakdown[method] = { count: 0, total: 0 };
     }

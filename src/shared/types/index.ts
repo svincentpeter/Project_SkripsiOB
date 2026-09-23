@@ -180,7 +180,9 @@ export type PaymentMethod =
   | 'EDC'
   | 'EDC_DEBIT'
   | 'EDC_CREDIT'
-  | 'SPLIT';
+  | 'SPLIT'
+  /** Nota BON (piutang pelanggan), tanpa pembayaran saat checkout. */
+  | 'HUTANG_BON';
 
 export interface SplitPaymentLine {
   id: string;
