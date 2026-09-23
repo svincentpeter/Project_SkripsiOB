@@ -7,9 +7,10 @@ use App\Http\Requests\ManualJournalRequest;
 use App\Http\Requests\PayDebtRequest;
 use App\Models\Account;
 use App\Models\JournalEntry;
-use App\Models\ProductBatch;
+use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Services\AccountingEngine;
+use App\Services\Inventory\PayableService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -117,93 +118,62 @@ class AccountingReportController extends Controller
         ]);
     }
 
+    /**
+     * Hutang supplier per pemasok, dihitung dari faktur pembelian TEMPO.
+     */
     public function accountsPayable(): JsonResponse
     {
-        // Compute supplier debts from batches purchased with TEMPO or remaining amounts
-        $suppliers = Supplier::where('is_active', true)->get();
+        $rows = Purchase::where('payment_method', 'TEMPO')
+            ->selectRaw('supplier_id, supplier_name, SUM(total_amount) as purchased, SUM(paid_amount) as paid')
+            ->groupBy('supplier_id', 'supplier_name')
+            ->get();
 
-        $debts = [];
-        $totalOutstanding = 0.00;
+        $debts = $rows->map(function ($row) {
+            $supplier = $row->supplier_id ? Supplier::find($row->supplier_id) : null;
+            $remaining = round((float) $row->purchased - (float) $row->paid, 2);
 
-        foreach ($suppliers as $sup) {
-            // Find total credit for this supplier from product batches or journals
-            $totalPurchased = (float) ProductBatch::where('source_name', 'like', "%{$sup->supplier_name}%")->sum(DB::raw('initial_qty * batch_cost'));
-
-            // Find payments made
-            $totalPaid = (float) JournalEntry::where('reference_type', 'DEBT_PAYMENT')
-                ->where('description', 'like', "%{$sup->supplier_name}%")
-                ->sum('total_debit');
-
-            $balance = max(0, $totalPurchased - $totalPaid);
-            $totalOutstanding += $balance;
-
-            $debts[] = [
-                'supplier_id' => $sup->id,
-                'supplier_name' => $sup->supplier_name,
-                'supplier_code' => $sup->supplier_code,
-                'phone' => $sup->phone,
-                'total_purchased' => round($totalPurchased, 2),
-                'total_paid' => round($totalPaid, 2),
-                'remaining_debt' => round($balance, 2),
-                'status' => $balance > 0 ? 'BELUM_LUNAS' : 'LUNAS',
+            return [
+                'supplier_id' => $row->supplier_id,
+                'supplier_name' => $row->supplier_name,
+                'supplier_code' => $supplier?->supplier_code,
+                'phone' => $supplier?->phone,
+                'total_purchased' => round((float) $row->purchased, 2),
+                'total_paid' => round((float) $row->paid, 2),
+                'remaining_debt' => $remaining,
+                'status' => $remaining > 0 ? 'BELUM_LUNAS' : 'LUNAS',
             ];
-        }
+        })->values();
 
         return response()->json([
             'success' => true,
             'data' => [
-                'total_outstanding' => round($totalOutstanding, 2),
+                'total_outstanding' => round($debts->sum('remaining_debt'), 2),
                 'suppliers' => $debts,
-            ]
+            ],
         ]);
     }
 
-    public function payDebt(PayDebtRequest $request): JsonResponse
+    /**
+     * Pembayaran hutang per supplier; dialokasikan ke faktur tempo dengan jatuh tempo terawal.
+     */
+    public function payDebt(PayDebtRequest $request, PayableService $payables): JsonResponse
     {
         $validated = $request->validated();
-        $supplier = Supplier::findOrFail($validated['supplier_id']);
-        $amount = (float) $validated['amount'];
-        $date = $validated['payment_date'] ?? now()->toDateString();
+        $account = in_array($validated['payment_method'], ['KAS_LACI', 'TUNAI']) ? '1-1000' : '1-1001';
 
-        $journal = DB::transaction(function () use ($supplier, $amount, $date, $validated) {
-            $refId = 'PAY-DEBT-' . date('Ymd-His');
-
-            // [DEBIT] Hutang Dagang Supplier (2-1000)
-            $accAp = Account::where('account_code', '2-1000')->firstOrFail();
-
-            // [KREDIT] Kas Laci (1-1000) or Bank BCA (1-1001)
-            $creditAccCode = in_array($validated['payment_method'], ['KAS_LACI', 'TUNAI']) ? '1-1000' : '1-1001';
-            $accCashBank = Account::where('account_code', $creditAccCode)->firstOrFail();
-
-            $items = [
-                [
-                    'account_id' => $accAp->id,
-                    'debit' => $amount,
-                    'credit' => 0.00,
-                    'note' => "Pelunasan Hutang Distributor {$supplier->supplier_name}",
-                ],
-                [
-                    'account_id' => $accCashBank->id,
-                    'debit' => 0.00,
-                    'credit' => $amount,
-                    'note' => "Pembayaran {$validated['payment_method']} untuk pelunasan hutang",
-                ],
-            ];
-
-            return $this->accountingEngine->createEntry(
-                'DEBT_PAYMENT',
-                $refId,
-                "Pelunasan Hutang Supplier {$supplier->supplier_name}" . ($validated['notes'] ? " ({$validated['notes']})" : ""),
-                $items,
-                $date,
-                3
-            );
-        });
+        $journals = $payables->paySupplier(
+            (int) $validated['supplier_id'],
+            (float) $validated['amount'],
+            $account,
+            $validated['payment_date'] ?? null,
+            $validated['notes'] ?? null,
+            $request->user()
+        );
 
         return response()->json([
             'success' => true,
             'message' => 'Pelunasan hutang berhasil dicatat dan dibukukan ke jurnal',
-            'data' => $journal,
+            'data' => array_map(fn ($j) => $j->toApiArray(), $journals),
         ]);
     }
 }

@@ -105,6 +105,16 @@ class AccountingReportApiTest extends TestCase
             ['supplier_name' => 'PT Supplier Hutang Test', 'phone' => '08123456789']
         );
 
+        // Hutang berasal dari penerimaan barang TEMPO.
+        $product = \App\Models\Product::create([
+            'product_name' => 'Ban Hutang '.uniqid(), 'product_code' => 'AP-'.uniqid(), 'barcode' => 'BC-AP-'.uniqid(),
+            'brand' => 'Bridgestone', 'product_cost' => 500000, 'product_price' => 700000, 'product_quantity' => 0,
+        ]);
+        $this->postJson('/api/v1/inventory/restock', [
+            'product_id' => $product->id, 'quantity' => 4, 'batch_cost' => 500000,
+            'supplier_id' => $supplier->id, 'payment_method' => 'TEMPO',
+        ])->assertCreated();
+
         $payload = [
             'supplier_id' => $supplier->id,
             'amount' => 1000000,

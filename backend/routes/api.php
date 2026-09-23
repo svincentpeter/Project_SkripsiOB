@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\v1\PaymentMethodSettingController;
 use App\Http\Controllers\Api\v1\PosController;
 use App\Http\Controllers\Api\v1\ProductCategoryController;
 use App\Http\Controllers\Api\v1\ProductController;
+use App\Http\Controllers\Api\v1\PurchaseController;
 use App\Http\Controllers\Api\v1\ReceivableController;
 use App\Http\Controllers\Api\v1\ReportStockMonthlyApiController;
 use App\Http\Controllers\Api\v1\RolePermissionController;
@@ -120,6 +121,8 @@ Route::prefix('v1')->group(function () {
 
         // Inventory Restock, Movements & Opname
         Route::post('inventory/restock', [InventoryController::class, 'restock'])->middleware('permission:goods_receipt');
+        Route::get('purchases', [PurchaseController::class, 'index'])->middleware('permission:goods_receipt,accounts_payable');
+        Route::post('purchases/{id}/payments', [PurchaseController::class, 'pay'])->middleware('permission:accounts_payable');
         Route::get('inventory/stock-movements', [InventoryController::class, 'stockMovements'])->middleware('permission:inventory_view');
         Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->middleware('permission:inventory_view');
         Route::post('inventory/opening-balance', [InventoryController::class, 'openingBalance'])->middleware('permission:accounting_hub');

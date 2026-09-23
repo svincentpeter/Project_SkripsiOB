@@ -3,92 +3,41 @@
 namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
-use App\Models\Account;
-use App\Models\Product;
 use App\Models\StockMovement;
-use App\Services\AccountingEngine;
-use App\Services\FifoCostingService;
+use App\Services\Inventory\GoodsReceiptService;
 use App\Services\Inventory\InventoryValueJournal;
+use App\Services\Inventory\StockOpnameService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class InventoryController extends Controller
 {
-    protected FifoCostingService $fifoService;
-    protected AccountingEngine $accountingEngine;
-
-    public function __construct(FifoCostingService $fifoService, AccountingEngine $accountingEngine)
-    {
-        $this->fifoService = $fifoService;
-        $this->accountingEngine = $accountingEngine;
-    }
-
-    public function restock(Request $request): JsonResponse
+    public function restock(Request $request, GoodsReceiptService $receipts): JsonResponse
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1',
             'batch_cost' => 'required|numeric|min:0',
-            'source_name' => 'required|string|max:150',
+            'supplier_id' => 'nullable|integer|exists:suppliers,id',
+            'source_name' => 'required_without:supplier_id|nullable|string|max:150',
+            'supplier_invoice' => 'nullable|string|max:100',
             'purchase_date' => 'nullable|date',
             'payment_method' => 'required|string|in:TUNAI,TRANSFER_BCA,TEMPO',
+            'due_date' => 'nullable|date',
+            'notes' => 'nullable|string|max:255',
         ]);
 
-        $result = DB::transaction(function () use ($validated) {
-            $batch = $this->fifoService->addBatch(
-                (int) $validated['product_id'],
-                (int) $validated['quantity'],
-                (float) $validated['batch_cost'],
-                $validated['source_name'],
-                $validated['purchase_date'] ?? null
-            );
-
-            $totalPurchase = round($validated['quantity'] * $validated['batch_cost'], 2);
-
-            // Auto-Journaling Double-Entry
-            $accInventory = Account::where('account_code', '1-2000')->firstOrFail();
-            $creditAccountCode = match ($validated['payment_method']) {
-                'TUNAI' => '1-1000',
-                'TRANSFER_BCA' => '1-1001',
-                'TEMPO' => '2-1000',
-                default => '2-1000',
-            };
-            $accCredit = Account::where('account_code', $creditAccountCode)->firstOrFail();
-
-            $journalItems = [
-                [
-                    'account_id' => $accInventory->id,
-                    'debit' => $totalPurchase,
-                    'credit' => 0.00,
-                    'note' => "Pembelian Persediaan Ban Baru ({$batch->batch_code})",
-                ],
-                [
-                    'account_id' => $accCredit->id,
-                    'debit' => 0.00,
-                    'credit' => $totalPurchase,
-                    'note' => "Pembayaran {$validated['payment_method']} ke {$validated['source_name']}",
-                ],
-            ];
-
-            $journal = $this->accountingEngine->createEntry(
-                'PURCHASE',
-                $batch->batch_code,
-                "Penerimaan Stok {$validated['source_name']} ({$batch->batch_code})",
-                $journalItems,
-                $validated['purchase_date'] ?? null
-            );
-
-            return [
-                'batch' => $batch,
-                'journal_entry_number' => $journal->entry_number,
-            ];
-        });
+        $out = $receipts->receive($validated, $request->user());
 
         return response()->json([
             'success' => true,
-            'message' => 'Restock barang dan pencatatan akuntansi berhasil',
-            'data' => $result,
+            'message' => "Penerimaan barang {$out['purchase']->purchase_number} dibukukan.",
+            'data' => [
+                'purchase' => $out['purchase']->toApiArray(),
+                'batch' => $out['batch'],
+                'journal_entry_number' => $out['journal']->entry_number,
+                'journal' => $out['journal']->toApiArray(),
+            ],
         ], 201);
     }
 
@@ -115,8 +64,9 @@ class InventoryController extends Controller
 
     public function stockMovements(Request $request): JsonResponse
     {
-        $query = StockMovement::with('product')
-            ->orderBy('created_at', 'desc');
+        $query = StockMovement::with('product:id,product_name,product_size,brand')
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc');
 
         if ($request->filled('product_id')) {
             $query->where('product_id', $request->product_id);
@@ -126,7 +76,7 @@ class InventoryController extends Controller
             $query->where('movement_type', $request->type);
         }
 
-        $movements = $query->paginate($request->input('per_page', 25));
+        $movements = $query->paginate(min((int) $request->input('per_page', 25), 1000));
 
         return response()->json([
             'success' => true,
@@ -134,38 +84,27 @@ class InventoryController extends Controller
         ]);
     }
 
-    public function stockOpname(Request $request): JsonResponse
+    public function stockOpname(Request $request, StockOpnameService $opname): JsonResponse
     {
         $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'physical_qty' => 'required|integer|min:0',
-            'notes' => 'nullable|string',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer|distinct|exists:products,id',
+            'items.*.physical_qty' => 'required|integer|min:0',
+            'notes' => 'nullable|string|max:255',
         ]);
 
-        $movement = DB::transaction(function () use ($validated) {
-            $product = Product::lockForUpdate()->findOrFail($validated['product_id']);
-            $diff = $validated['physical_qty'] - $product->product_quantity;
-
-            $product->product_quantity = $validated['physical_qty'];
-            $product->save();
-
-            return StockMovement::create([
-                'product_id' => $product->id,
-                'movement_type' => 'PENYESUAIAN',
-                'quantity' => $diff,
-                'balance_after' => $validated['physical_qty'],
-                'reference_type' => 'STOCK_OPNAME',
-                'reference_id' => 'OPNAME-' . date('Ymd-His'),
-                'description' => 'Penyesuaian Stock Opname: ' . ($validated['notes'] ?? 'Fisik vs Sistem'),
-                'operator_name' => auth()->user()?->name ?? 'Admin Opname',
-                'branch_id' => 3,
-            ]);
-        });
+        $out = $opname->adjust($validated['items'], $validated['notes'] ?? null, $request->user());
 
         return response()->json([
             'success' => true,
-            'message' => 'Stock opname berhasil disesuaikan',
-            'data' => $movement,
+            'message' => count($out['adjustments'])
+                ? "Stock opname {$out['reference']} dibukukan (".count($out['adjustments']).' produk berselisih).'
+                : 'Tidak ada selisih stok.',
+            'data' => [
+                'reference' => $out['reference'],
+                'adjustments' => $out['adjustments'],
+                'journal' => $out['journal']?->toApiArray(),
+            ],
         ]);
     }
 }
