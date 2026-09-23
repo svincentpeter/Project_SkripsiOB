@@ -53,7 +53,8 @@ class StockOpnameCommitService
             'snapshot_path' => $snapshotPath,
         ];
 
-        DB::transaction(function () use ($products, $onlyKeys, $effectiveDate, $branchId, $userId, $period, &$result) {
+        // Perubahan nilai persediaan dijurnal: produk lama → selisih opname (5-2000), produk baru → saldo awal (3-1000).
+        $journal = app(InventoryValueJournal::class)->record(function () use ($products, $onlyKeys, $effectiveDate, $branchId, $userId, $period, &$result) {
             $touchedIds = [];
             $batchCode = 'OPNAME-'.$effectiveDate->format('Ym');
             $index = $this->buildProductIndex();
@@ -133,7 +134,9 @@ class StockOpnameCommitService
             if ($onlyKeys === null) {
                 $this->handleAbsentProducts($touchedIds, $branchId, $userId, $effectiveDate, $result);
             }
-        });
+        }, 'STOCK_IMPORT', 'IMPORT-'.$period, 'Sinkronisasi stok opname Excel periode '.$period)['journal'];
+
+        $result['journal'] = $journal?->toApiArray();
 
         return $result;
     }

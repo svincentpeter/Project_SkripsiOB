@@ -69,7 +69,8 @@ class StockSelectiveUpdateService
         $userId = $options['user_id'] ?? (auth()->id() ?? 1);
         $contextMonth = now()->format('Y-m');
 
-        return DB::transaction(function () use (
+        // Perubahan stok/biaya batch dijurnal sebagai selisih persediaan (5-2000).
+        $out = app(InventoryValueJournal::class)->record(function () use (
             $items,
             $updateCost,
             $updatePrice,
@@ -298,6 +299,8 @@ class StockSelectiveUpdateService
             }
 
             return $summary;
-        });
+        }, 'STOCK_RECONCILIATION', 'RECON-'.now()->format('YmdHis'), 'Rekonsiliasi stok selektif: '.$reason);
+
+        return $out['result'] + ['journal' => $out['journal']?->toApiArray()];
     }
 }
