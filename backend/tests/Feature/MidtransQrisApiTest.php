@@ -88,4 +88,22 @@ class MidtransQrisApiTest extends TestCase
             ],
         ]);
     }
+
+    public function test_webhook_with_valid_signature_marks_order_settled(): void
+    {
+        $payload = ['order_id' => 'POS-WH-'.uniqid(), 'status_code' => '200', 'gross_amount' => '150000.00', 'transaction_status' => 'settlement'];
+        $payload['signature_key'] = hash('sha512', $payload['order_id'].$payload['status_code'].$payload['gross_amount'].config('midtrans.server_key'));
+
+        $this->postJson('/api/v1/payment/midtrans/webhook', $payload)->assertOk();
+        $this->getJson("/api/v1/payment/qris/status/{$payload['order_id']}")->assertJsonPath('data.transaction_status', 'settlement');
+    }
+
+    public function test_webhook_with_forged_signature_is_rejected(): void
+    {
+        $payload = ['order_id' => 'POS-WH-'.uniqid(), 'status_code' => '200', 'gross_amount' => '150000.00', 'transaction_status' => 'settlement', 'signature_key' => str_repeat('a', 128)];
+
+        $this->postJson('/api/v1/payment/midtrans/webhook', $payload)->assertForbidden();
+        $this->postJson('/api/v1/payment/midtrans/webhook', ['order_id' => $payload['order_id'], 'transaction_status' => 'settlement'])->assertForbidden();
+        $this->getJson("/api/v1/payment/qris/status/{$payload['order_id']}")->assertJsonPath('data.transaction_status', 'pending');
+    }
 }

@@ -108,6 +108,14 @@ class PaymentApiController extends Controller
         $orderId = $payload['order_id'] ?? null;
         $transactionStatus = $payload['transaction_status'] ?? null;
 
+        // Notifikasi Midtrans sah hanya bila signature_key = sha512(order_id + status_code + gross_amount + server_key).
+        $expected = hash('sha512', ($payload['order_id'] ?? '').($payload['status_code'] ?? '').($payload['gross_amount'] ?? '').config('midtrans.server_key'));
+        if (! is_string($payload['signature_key'] ?? null) || ! hash_equals($expected, $payload['signature_key'])) {
+            Log::warning('Midtrans webhook ditolak: signature tidak valid', ['order_id' => $orderId]);
+
+            return response()->json(['success' => false, 'message' => 'Signature notifikasi tidak valid.'], 403);
+        }
+
         Log::info('Midtrans webhook diterima', ['order_id' => $orderId, 'status' => $transactionStatus]);
 
         if ($orderId && in_array($transactionStatus, ['settlement', 'capture'])) {
