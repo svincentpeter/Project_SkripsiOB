@@ -76,11 +76,24 @@ class ServiceMasterController extends Controller
     public function destroy($id): JsonResponse
     {
         $service = ServiceMaster::findOrFail($id);
+
+        // Jasa yang pernah tercatat di nota hanya dinonaktifkan agar riwayat penjualan tetap utuh.
+        if (\App\Models\SaleDetail::where('service_id', $service->id)->exists()) {
+            $service->update(['is_active' => false]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jasa sudah pernah dijual sehingga dinonaktifkan, bukan dihapus.',
+                'data' => ['deleted' => false, 'deactivated' => true],
+            ]);
+        }
+
         $service->delete();
 
         return response()->json([
             'success' => true,
             'message' => 'Layanan jasa berhasil dihapus',
+            'data' => ['deleted' => true, 'deactivated' => false],
         ]);
     }
 }

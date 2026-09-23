@@ -78,11 +78,24 @@ class SupplierController extends Controller
     public function destroy($id): JsonResponse
     {
         $supplier = Supplier::findOrFail($id);
+
+        // Supplier dengan riwayat pembelian hanya dinonaktifkan agar hutang & histori tetap utuh.
+        if (\App\Models\Purchase::where('supplier_id', $supplier->id)->exists()) {
+            $supplier->update(['is_active' => false]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Supplier memiliki riwayat pembelian sehingga dinonaktifkan, bukan dihapus.',
+                'data' => ['deleted' => false, 'deactivated' => true],
+            ]);
+        }
+
         $supplier->delete();
 
         return response()->json([
             'success' => true,
             'message' => 'Supplier berhasil dihapus',
+            'data' => ['deleted' => true, 'deactivated' => false],
         ]);
     }
 }

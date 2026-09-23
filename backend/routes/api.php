@@ -9,10 +9,12 @@ use App\Http\Controllers\Api\v1\InventoryController;
 use App\Http\Controllers\Api\v1\PaymentApiController;
 use App\Http\Controllers\Api\v1\PaymentMethodSettingController;
 use App\Http\Controllers\Api\v1\PosController;
+use App\Http\Controllers\Api\v1\ProductCategoryController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\ReceivableController;
 use App\Http\Controllers\Api\v1\ReportStockMonthlyApiController;
 use App\Http\Controllers\Api\v1\RolePermissionController;
+use App\Http\Controllers\Api\v1\ServiceCategoryController;
 use App\Http\Controllers\Api\v1\ServiceMasterController;
 use App\Http\Controllers\Api\v1\StockReconciliationApiController;
 use App\Http\Controllers\Api\v1\SupplierController;
@@ -60,12 +62,16 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('products', ProductController::class)->only(['index', 'show']);
             Route::apiResource('services', ServiceMasterController::class)->only(['index', 'show']);
             Route::apiResource('suppliers', SupplierController::class)->only(['index', 'show']);
+            Route::get('product-categories', [ProductCategoryController::class, 'index']);
+            Route::get('service-categories', [ServiceCategoryController::class, 'index']);
             Route::get('accounts', [AccountController::class, 'index']);
         });
         Route::middleware('permission:inventory_manage')->group(function () {
             Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('services', ServiceMasterController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('suppliers', SupplierController::class)->only(['store', 'update', 'destroy']);
+            Route::apiResource('product-categories', ProductCategoryController::class)->only(['store', 'update', 'destroy']);
+            Route::apiResource('service-categories', ServiceCategoryController::class)->only(['store', 'update', 'destroy']);
         });
 
         // POS Kiosk & Transactions
