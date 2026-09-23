@@ -6,9 +6,12 @@ use App\Models\PaymentProviderSetting;
 use App\Models\EdcSetting;
 use App\Models\Supplier;
 use App\Models\Product;
+use App\Models\ProductBatch;
+use App\Models\StockMovement;
 use App\Models\ServiceMaster;
 use App\Models\Brand;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class DatabaseSeeder extends Seeder
 {
@@ -111,6 +114,9 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $this->seedOpeningBatch('BAN-BS-185-65-R15', 'PT Bridgestone Tire Indonesia');
+        $this->seedOpeningBatch('BAN-ACC-195-50-R16', 'PT Elangperdana Tyre Industry (Accelera)');
+
         // 6. Service Master
         ServiceMaster::firstOrCreate(
             ['service_code' => 'JASA-SPOORING-3D'],
@@ -135,5 +141,48 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+
+        // 7. Master data ban baru Omah Ban (produk + batch FIFO saldo awal, jasa, supplier)
+        $this->call(OmahBanBanBaruSeeder::class);
+    }
+
+    /**
+     * Batch FIFO saldo awal untuk produk contoh, agar product_quantity
+     * sama dengan SUM(remaining_qty) dan checkout bisa memotong HPP.
+     * Dilewati bila produk sudah punya batch.
+     */
+    private function seedOpeningBatch(string $productCode, string $sourceName): void
+    {
+        $product = Product::where('product_code', $productCode)->first();
+        if (! $product || $product->product_quantity <= 0 || $product->batches()->exists()) {
+            return;
+        }
+
+        $batchCode = 'OB3-OPEN-'.$productCode;
+
+        DB::transaction(function () use ($product, $batchCode, $sourceName) {
+            ProductBatch::create([
+                'product_id' => $product->id,
+                'batch_code' => $batchCode,
+                'source_name' => $sourceName,
+                'purchase_date' => $product->created_at?->toDateString() ?? now()->toDateString(),
+                'batch_cost' => $product->product_cost,
+                'initial_qty' => $product->product_quantity,
+                'remaining_qty' => $product->product_quantity,
+                'branch_id' => $product->branch_id,
+            ]);
+
+            StockMovement::create([
+                'product_id' => $product->id,
+                'movement_type' => 'MASUK',
+                'quantity' => $product->product_quantity,
+                'balance_after' => $product->product_quantity,
+                'reference_type' => 'INITIAL_STOCK',
+                'reference_id' => $batchCode,
+                'description' => 'Saldo awal stok ban baru: '.$product->product_name,
+                'operator_name' => 'Seeder Saldo Awal',
+                'branch_id' => $product->branch_id,
+            ]);
+        });
     }
 }
