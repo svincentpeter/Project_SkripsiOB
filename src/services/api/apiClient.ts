@@ -14,19 +14,48 @@ export class ApiError extends Error {
   }
 }
 
+const TOKEN_KEY = 'ob3_auth_token';
+
+const safeStorage = (): Storage | null => {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Token Sanctum sesi login; masa berlakunya dibatasi server. */
+export const authToken = {
+  get: (): string | null => safeStorage()?.getItem(TOKEN_KEY) ?? null,
+  set: (token: string) => safeStorage()?.setItem(TOKEN_KEY, token),
+  clear: () => safeStorage()?.removeItem(TOKEN_KEY),
+};
+
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Dipanggil saat server menolak token (401) agar App kembali ke layar login. */
+export const setUnauthorizedHandler = (handler: (() => void) | null) => {
+  unauthorizedHandler = handler;
+};
+
 async function request<T>(endpoint: string, options: RequestInit & { timeoutMs?: number } = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-  
+
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const headers: Record<string, string> = {
     'Accept': 'application/json',
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string> || {}),
   };
+  const token = authToken.get();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const timeoutMs = options.timeoutMs ?? (isFormData ? 30000 : 10000);
 
   try {
     const controller = new AbortController();
-    const timeoutMs = options.timeoutMs ?? (isFormData ? 30000 : 10000);
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const response = await fetch(url, {
@@ -40,6 +69,10 @@ async function request<T>(endpoint: string, options: RequestInit & { timeoutMs?:
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
+      if (response.status === 401) {
+        authToken.clear();
+        unauthorizedHandler?.();
+      }
       const errorMsg = data?.message || `Request gagal dengan status ${response.status}`;
       throw new ApiError(errorMsg, response.status, data);
     }
@@ -47,7 +80,7 @@ async function request<T>(endpoint: string, options: RequestInit & { timeoutMs?:
     return data;
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      throw new ApiError('Koneksi ke backend Laravel timeout (melebihi 10 detik)', 408);
+      throw new ApiError(`Koneksi ke backend Laravel timeout (melebihi ${timeoutMs / 1000} detik)`, 408);
     }
     if (error instanceof ApiError) {
       throw error;

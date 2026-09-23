@@ -626,7 +626,7 @@ export type PermissionKey =
   | 'role_settings';
 
 export interface UserSession {
-  id: string;
+  id: string | number;
   username?: string;
   name: string;
   email: string;
@@ -634,6 +634,9 @@ export interface UserSession {
   avatar_url?: string;
   branch_name: string;
   phone?: string;
+  is_active?: boolean;
+  /** Izin efektif pengguna, dihitung server. */
+  permissions?: Record<PermissionKey, boolean>;
 }
 
 export interface UserAccount extends UserSession {
