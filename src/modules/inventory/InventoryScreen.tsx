@@ -108,6 +108,8 @@ interface InventoryScreenProps {
   onDeleteServiceCategory?: (id: string) => void;
   onRefreshProducts?: () => void;
   isEmptyState?: boolean;
+  /** Izin detail peran: kelola master data, penerimaan barang, stock opname. */
+  permissions?: { manage: boolean; goodsReceipt: boolean; stockOpname: boolean };
 }
 
 export const InventoryScreen: React.FC<InventoryScreenProps> = ({
@@ -135,6 +137,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   onDeleteServiceCategory: propDeleteServiceCategory,
   onRefreshProducts,
   isEmptyState = false,
+  permissions = { manage: true, goodsReceipt: true, stockOpname: true },
 }) => {
   const toast = useToast();
 
@@ -590,6 +593,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   data={filteredProducts}
                   ctx={{ periodLabel: `Kategori: ${selectedCategoryFilter}` }}
                 />
+                {permissions.stockOpname && (
                 <button
                   type="button"
                   onClick={() => setShowReconciliationModal(true)}
@@ -599,6 +603,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   <FileSpreadsheet className="w-4 h-4" />
                   <span>Import Excel Stok Ban</span>
                 </button>
+                )}
+                {permissions.manage && (
                 <button
                   type="button"
                   onClick={handleOpenCreateProduct}
@@ -607,6 +613,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   <Plus className="w-4 h-4" />
                   <span>Tambah Master Produk</span>
                 </button>
+                )}
               </div>
             </div>
 
@@ -788,6 +795,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
+                              {permissions.goodsReceipt && (
                               <button
                                 onClick={() => handleOpenRestock(p)}
                                 className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
@@ -795,6 +803,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                               >
                                 <ArrowDownLeft className="w-4 h-4" />
                               </button>
+                              )}
+                              {permissions.manage && (
                               <button
                                 onClick={() => handleOpenEditProduct(p)}
                                 className="p-1.5 rounded-lg text-slate-500 hover:text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
@@ -802,7 +812,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                               >
                                 <Edit3 className="w-4 h-4" />
                               </button>
-                              {onDeleteOrDeactivateProduct && (
+                              )}
+                              {permissions.manage && onDeleteOrDeactivateProduct && (
                                 <button
                                   onClick={() => onDeleteOrDeactivateProduct(p.id)}
                                   className="p-1.5 rounded-lg text-slate-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
@@ -917,6 +928,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           onSaveCategory={handleSaveCategory}
           onDeleteCategory={handleDeleteCategory}
           onToggleCategoryStatus={handleToggleCategoryStatus}
+          readOnly={!permissions.manage}
         />
       )}
 
@@ -935,6 +947,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           onDeleteServicePermanent={handleDeleteServicePermanent}
           onSaveServiceCategory={handleSaveServiceCategory}
           onDeleteServiceCategory={handleDeleteServiceCategory}
+          readOnly={!permissions.manage}
         />
       )}
 
@@ -943,8 +956,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         <StockOpnameReceiptView
           mutations={mutations}
           products={products}
-          onOpenRestock={() => handleOpenRestock()}
-          onOpenOpname={() => setShowOpnameModal(true)}
+          onOpenRestock={permissions.goodsReceipt ? () => handleOpenRestock() : undefined}
+          onOpenOpname={permissions.stockOpname ? () => setShowOpnameModal(true) : undefined}
         />
       )}
 
@@ -966,6 +979,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
               <div className="flex flex-wrap items-center gap-2">
                 <ExportMenu reportId="inventory_suppliers" data={suppliers} ctx={{ periodLabel: 'Seluruh Rekanan' }} />
+                {permissions.manage && (
                 <button
                   type="button"
                   onClick={() => {
@@ -978,6 +992,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   <Plus className="w-4 h-4" />
                   <span>Tambah Supplier</span>
                 </button>
+                )}
               </div>
             </div>
 
@@ -1046,6 +1061,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                           </td>
                           <td className="py-3 px-4 text-right">
                             <div className="inline-flex items-center gap-1">
+                              {permissions.manage && (
                               <button
                                 onClick={() => {
                                   setSupplierFormMode('EDIT');
@@ -1057,7 +1073,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                               >
                                 <Edit3 className="w-4 h-4" />
                               </button>
-                              {onToggleSupplier && (
+                              )}
+                              {permissions.manage && onToggleSupplier && (
                                 <button
                                   onClick={() => onToggleSupplier(sup.id)}
                                   className="p-1.5 rounded-lg text-slate-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"

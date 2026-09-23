@@ -28,6 +28,8 @@ interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTag?: 'REGULAR' | 'BON';
+  /** Izin membuat faktur BON (piutang) untuk pengguna saat ini. */
+  canCreateBon?: boolean;
   cart: CartItem[];
   customerName: string;
   vehiclePlate: string;
@@ -64,6 +66,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   isOpen,
   onClose,
   initialTag = 'REGULAR',
+  canCreateBon = true,
   cart,
   customerName,
   vehiclePlate,
@@ -618,7 +621,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
                   Tipe Faktur / Status Pembayaran
                 </label>
-                <div className="grid grid-cols-2 gap-2 bg-slate-200/80 p-1 rounded-xl">
+                <div className={`grid ${canCreateBon ? 'grid-cols-2' : 'grid-cols-1'} gap-2 bg-slate-200/80 p-1 rounded-xl`}>
                   <button
                     type="button"
                     onClick={() => setTag('REGULAR')}
@@ -632,6 +635,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <span>Faktur Reguler (Lunas)</span>
                   </button>
 
+                  {canCreateBon && (
                   <button
                     type="button"
                     onClick={() => setTag('BON')}
@@ -644,6 +648,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <Tag className="w-3.5 h-3.5 text-amber-600" />
                     <span>Faktur BON (Piutang)</span>
                   </button>
+                  )}
                 </div>
               </div>
 

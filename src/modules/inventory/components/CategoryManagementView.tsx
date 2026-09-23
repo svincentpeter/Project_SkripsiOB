@@ -24,6 +24,8 @@ interface CategoryManagementViewProps {
   ) => void;
   onDeleteCategory: (categoryId: string) => void;
   onToggleCategoryStatus: (categoryId: string) => void;
+  /** Sembunyikan aksi ubah data bila pengguna tidak berizin mengelola inventori. */
+  readOnly?: boolean;
 }
 
 export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
@@ -32,6 +34,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   onSaveCategory,
   onDeleteCategory,
   onToggleCategoryStatus,
+  readOnly = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
@@ -187,6 +190,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {!readOnly && (
             <button
               type="button"
               onClick={handleOpenCreate}
@@ -195,6 +199,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
               <Plus className="w-4 h-4" />
               <span>Tambah Kategori Baru</span>
             </button>
+            )}
           </div>
         </div>
 
@@ -294,6 +299,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                       <td className="py-3 px-4 text-center">
                         <button
                           onClick={() => onToggleCategoryStatus(cat.id)}
+                          disabled={readOnly}
                           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                             cat.is_active
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
@@ -315,6 +321,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                         </button>
                       </td>
                       <td className="py-3 px-4 text-right">
+                        {!readOnly && (
                         <div className="inline-flex items-center gap-1">
                           <button
                             onClick={() => handleOpenEdit(cat)}
@@ -331,6 +338,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
+                        )}
                       </td>
                     </tr>
                   ))

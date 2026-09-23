@@ -18,8 +18,8 @@ import { ExportMenu } from '../../../shared/export/ExportMenu';
 interface StockOpnameReceiptViewProps {
   mutations: StockMutation[];
   products: ProductItem[];
-  onOpenRestock: () => void;
-  onOpenOpname: () => void;
+  onOpenRestock?: () => void;
+  onOpenOpname?: () => void;
 }
 
 export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
@@ -85,6 +85,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
 
           <div className="flex flex-wrap items-center gap-2">
             <ExportMenu reportId="goods_receipts" data={mutations} ctx={{ periodLabel: 'Seluruh Riwayat Mutasi' }} />
+            {onOpenRestock && (
             <button
               type="button"
               onClick={onOpenRestock}
@@ -93,6 +94,8 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
               <Truck className="w-4 h-4" />
               <span>Penerimaan Barang</span>
             </button>
+            )}
+            {onOpenOpname && (
             <button
               type="button"
               onClick={onOpenOpname}
@@ -101,6 +104,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
               <ClipboardList className="w-4 h-4" />
               <span>Stock Opname</span>
             </button>
+            )}
           </div>
         </div>
 

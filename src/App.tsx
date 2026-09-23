@@ -10,6 +10,7 @@ import {
   JournalEntry, 
   ManualJournalInput, 
   PayableInvoice, 
+  PermissionKey,
   PosTransaction, 
   ProductCategory,
   ProductItem, 
@@ -130,6 +131,7 @@ import {
   saveStoreSettingsToSupabase,
   isScreenPermittedForRole,
   getDefaultScreenForUser,
+  hasPermission,
 } from './services';
 import { Loader2 } from 'lucide-react';
 
@@ -157,6 +159,7 @@ function MainAppContent() {
   const isScreenPermitted = (screen: ActiveScreen): boolean => {
     return isScreenPermittedForRole(screen, currentUser?.role, rolePermissions);
   };
+  const can = (key: PermissionKey): boolean => hasPermission(currentUser, rolePermissions, key);
 
   // Auto-redirect if activeScreen is not permitted for current user
   useEffect(() => {
@@ -1583,6 +1586,7 @@ function MainAppContent() {
           currentUser={currentUser}
           canAccessBackoffice={isScreenPermitted('dashboard')}
           canAccessReceipts={isScreenPermitted('receipt')}
+          permissions={{ bookingDp: can('booking_dp'), bon: can('bon_receivable') }}
           onNavigateToReceipts={() => setActiveScreen('receipt')}
           onExitToBackoffice={() => {
             if (isScreenPermitted('dashboard')) {
@@ -1649,6 +1653,11 @@ function MainAppContent() {
 
             {activeScreen === 'inventory' && (
               <InventoryScreen
+                permissions={{
+                  manage: can('inventory_manage'),
+                  goodsReceipt: can('goods_receipt'),
+                  stockOpname: can('stock_opname'),
+                }}
                 products={products}
                 services={services}
                 suppliers={suppliers}

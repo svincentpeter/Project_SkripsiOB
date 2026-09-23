@@ -27,6 +27,8 @@ interface ServiceManagementViewProps {
   onDeleteServicePermanent?: (serviceId: string) => void;
   onSaveServiceCategory: (categoryData: { code: string; name: string; description?: string }, id?: string) => void;
   onDeleteServiceCategory: (id: string) => void;
+  /** Sembunyikan aksi ubah data bila pengguna tidak berizin mengelola inventori. */
+  readOnly?: boolean;
 }
 
 export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
@@ -37,6 +39,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
   onDeleteServicePermanent,
   onSaveServiceCategory,
   onDeleteServiceCategory,
+  readOnly = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
@@ -131,6 +134,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
             </p>
           </div>
 
+          {!readOnly && (
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -152,6 +156,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
               <span>Tambah Jasa Baru</span>
             </button>
           </div>
+          )}
         </div>
 
         {/* Filter and Search Bar */}
@@ -287,6 +292,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                         <td className="py-3 px-4 text-center">
                           <button
                             onClick={() => onToggleService(srv.id)}
+                            disabled={readOnly}
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                               srv.is_active
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
@@ -308,6 +314,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                           </button>
                         </td>
                         <td className="py-3 px-4 text-right">
+                          {!readOnly && (
                           <div className="inline-flex items-center gap-1">
                             <button
                               onClick={() => handleOpenEditService(srv)}
@@ -326,6 +333,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                               </button>
                             )}
                           </div>
+                          )}
                         </td>
                       </tr>
                     );

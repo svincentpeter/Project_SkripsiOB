@@ -88,6 +88,8 @@ interface PosScreenProps {
   currentUser?: UserSession | null;
   canAccessBackoffice?: boolean;
   canAccessReceipts?: boolean;
+  /** Izin detail peran: Booking DP & faktur BON. */
+  permissions?: { bookingDp: boolean; bon: boolean };
   onNavigateToReceipts?: () => void;
   onLogout?: () => void;
 }
@@ -153,6 +155,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   currentUser,
   canAccessBackoffice = true,
   canAccessReceipts = false,
+  permissions = { bookingDp: true, bon: true },
   onNavigateToReceipts,
   onLogout,
 }) => {
@@ -237,6 +240,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [previewReceiptTx, setPreviewReceiptTx] = useState<PosTransaction | null>(null);
 
   const [cartMode, setCartMode] = useState<'REGULAR' | 'BON' | 'DP'>('REGULAR');
+
+  // Mode yang tidak diizinkan untuk peran ini kembali ke transaksi reguler
+  useEffect(() => {
+    if ((cartMode === 'BON' && !permissions.bon) || (cartMode === 'DP' && !permissions.bookingDp)) {
+      setCartMode('REGULAR');
+    }
+  }, [cartMode, permissions.bon, permissions.bookingDp]);
   const [showCheckoutModal, setShowCheckoutModal] = useState<boolean>(false);
   const [checkoutInitialTag, setCheckoutInitialTag] = useState<'REGULAR' | 'BON'>('REGULAR');
 
@@ -725,6 +735,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             )}
           </button>
 
+          {permissions.bookingDp && (
           <button
             type="button"
             onClick={() => setShowBookingListDrawer(true)}
@@ -739,6 +750,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               </span>
             )}
           </button>
+          )}
 
           <div 
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-800 font-semibold shadow-2xs"
@@ -1455,6 +1467,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             >
               Reguler (Lunas)
             </button>
+            {permissions.bon && (
             <button
               type="button"
               onClick={() => setCartMode('BON')}
@@ -1466,6 +1479,8 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             >
               BON (Piutang)
             </button>
+            )}
+            {permissions.bookingDp && (
             <button
               type="button"
               onClick={() => setCartMode('DP')}
@@ -1477,6 +1492,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             >
               Booking DP
             </button>
+            )}
           </div>
 
           {/* Tombol Aksi 1: Cetak & Pratinjau Nota Fisik Langsung */}
@@ -1577,6 +1593,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         isOpen={showCheckoutModal}
         onClose={() => setShowCheckoutModal(false)}
         initialTag={checkoutInitialTag}
+        canCreateBon={permissions.bon}
         cart={cart}
         customerName={customerName}
         vehiclePlate={vehiclePlate}
