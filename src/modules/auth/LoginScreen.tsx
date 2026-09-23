@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
-import { 
-  ShieldCheck, 
-  User, 
-  Lock, 
-  LogIn, 
-  Sparkles, 
-  Award, 
+import React, { useRef, useState } from 'react';
+import {
+  ShieldCheck,
+  User,
+  Lock,
+  LogIn,
+  Sparkles,
+  Award,
   Building2,
   Wrench,
   CheckCircle2,
   Disc,
-  AlertTriangle
+  AlertTriangle,
+  Store,
+  Boxes,
+  ArrowRight
 } from 'lucide-react';
 import { UserSession } from '../../shared/types';
 import { ApiError, authApi } from '../../services/api';
@@ -28,23 +31,53 @@ const describeLoginError = (err: unknown): string => {
   return err.message;
 };
 
+// Kartu login cepat hanya untuk `npm run dev`; tetap login lewat server.
+const DEV_QUICK_LOGIN = import.meta.env.DEV;
+const DEV_LOGIN_PASSWORD: string | undefined = import.meta.env.VITE_DEV_LOGIN_PASSWORD;
+
+const QUICK_ACCOUNTS = [
+  { username: 'owner', label: 'Agus Subagyo', role: 'OWNER', Icon: ShieldCheck, tone: 'blue' },
+  { username: 'kasir', label: 'Kasir OB3', role: 'KASIR', Icon: Store, tone: 'emerald' },
+  { username: 'gudang', label: 'Admin Gudang OB3', role: 'GUDANG', Icon: Boxes, tone: 'amber' },
+] as const;
+
+const QUICK_TONES = {
+  blue: 'border-blue-600/40 hover:border-blue-500 bg-blue-950/30 text-blue-300',
+  emerald: 'border-emerald-600/40 hover:border-emerald-500 bg-emerald-950/30 text-emerald-300',
+  amber: 'border-amber-600/40 hover:border-amber-500 bg-amber-950/30 text-amber-300',
+} as const;
+
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitLogin = async (login: string, secret: string) => {
     setErrorMessage('');
     setIsSubmitting(true);
     try {
-      const { user } = await authApi.login(identifier.trim(), password);
+      const { user } = await authApi.login(login, secret);
       await onLogin(user);
     } catch (err) {
       setErrorMessage(describeLoginError(err));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitLogin(identifier.trim(), password);
+  };
+
+  const handleQuickLogin = (username: string) => {
+    setIdentifier(username);
+    if (DEV_LOGIN_PASSWORD) {
+      submitLogin(username, DEV_LOGIN_PASSWORD);
+    } else {
+      passwordRef.current?.focus();
     }
   };
 
@@ -149,6 +182,36 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                 </p>
               </div>
 
+              {DEV_QUICK_LOGIN && (
+                <div className="space-y-2" data-testid="dev-quick-login">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Login Cepat (Mode Dev)
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      {DEV_LOGIN_PASSWORD ? 'Password dari .env.local' : 'Isi VITE_DEV_LOGIN_PASSWORD di .env.local'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {QUICK_ACCOUNTS.map(({ username, label, role, Icon, tone }) => (
+                      <button
+                        key={username}
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => handleQuickLogin(username)}
+                        className={`p-2.5 rounded-xl border text-left transition-colors cursor-pointer disabled:opacity-60 group ${QUICK_TONES[tone]}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Icon className="w-4 h-4" />
+                          <ArrowRight className="w-3.5 h-3.5 opacity-60 group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                        <span className="block text-xs font-bold text-white mt-1.5">{label}</span>
+                        <span className="block text-[10px] font-mono">{role} · {username}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Form Input */}
               <form onSubmit={handleFormSubmit} className="space-y-3.5">
@@ -192,6 +255,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                   <div className="relative">
                     <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
+                      ref={passwordRef}
                       type="password"
                       value={password}
                       onChange={(e) => {
