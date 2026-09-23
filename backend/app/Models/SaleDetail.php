@@ -16,6 +16,10 @@ class SaleDetail extends Model
     protected $fillable = [
         'sale_id',
         'product_id',
+        'item_type',
+        'item_name',
+        'service_id',
+        'is_manual',
         'quantity',
         'unit_price',
         'sub_total',
@@ -27,6 +31,7 @@ class SaleDetail extends Model
 
     protected $casts = [
         'quantity' => 'integer',
+        'is_manual' => 'boolean',
         'unit_price' => 'decimal:2',
         'sub_total' => 'decimal:2',
         'unit_cost_hpp' => 'decimal:2',

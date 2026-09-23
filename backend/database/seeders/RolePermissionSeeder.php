@@ -13,12 +13,19 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
+        $existing = RolePermission::get(['role', 'permission_key'])
+            ->map(fn ($row) => $row->role.'|'.$row->permission_key)
+            ->all();
+
         foreach (Permissions::CONFIGURABLE_ROLES as $role) {
             foreach (Permissions::KEYS as $key) {
-                RolePermission::firstOrCreate(
-                    ['role' => $role, 'permission_key' => $key],
-                    ['allowed' => in_array($key, Permissions::DEFAULTS[$role], true)]
-                );
+                if (! in_array($role.'|'.$key, $existing, true)) {
+                    RolePermission::create([
+                        'role' => $role,
+                        'permission_key' => $key,
+                        'allowed' => in_array($key, Permissions::DEFAULTS[$role], true),
+                    ]);
+                }
             }
         }
     }

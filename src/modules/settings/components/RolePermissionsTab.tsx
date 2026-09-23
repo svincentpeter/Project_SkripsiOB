@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   ShoppingCart,
   Receipt,
+  Ban,
   CalendarCheck,
   CreditCard,
   Package,
@@ -58,6 +59,13 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     category: 'KASIR_POS',
     description: 'Melihat riwayat nota transaksi dan mencetak ulang struk thermal 80mm.',
     icon: <Receipt className="w-4 h-4 text-blue-600" />,
+  },
+  {
+    key: 'sale_void',
+    label: 'Void / Batalkan Nota Penjualan',
+    category: 'KASIR_POS',
+    description: 'Membatalkan nota: jurnal pembalik dibukukan dan stok dikembalikan ke batch FIFO asal. Titik kontrol internal — sebaiknya hanya Owner.',
+    icon: <Ban className="w-4 h-4 text-rose-600" />,
   },
   {
     key: 'booking_dp',

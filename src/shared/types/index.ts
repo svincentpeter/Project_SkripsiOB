@@ -613,6 +613,7 @@ export type PermissionKey =
   | 'dashboard'
   | 'pos'
   | 'receipt'
+  | 'sale_void'
   | 'booking_dp'
   | 'bon_receivable'
   | 'inventory_view'

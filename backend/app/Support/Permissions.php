@@ -8,7 +8,7 @@ namespace App\Support;
 final class Permissions
 {
     public const KEYS = [
-        'dashboard', 'pos', 'receipt', 'booking_dp', 'bon_receivable',
+        'dashboard', 'pos', 'receipt', 'sale_void', 'booking_dp', 'bon_receivable',
         'inventory_view', 'inventory_manage', 'goods_receipt', 'stock_opname',
         'expenses', 'accounts_payable', 'accounting_hub', 'financial_reports', 'role_settings',
     ];
