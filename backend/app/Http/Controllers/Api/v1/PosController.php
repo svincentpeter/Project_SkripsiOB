@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PosCheckoutRequest;
 use App\Models\Sale;
 use App\Services\Pos\CheckoutService;
+use App\Services\Pos\SaleVoidService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -43,6 +44,18 @@ class PosController extends Controller
         return response()->json([
             'success' => true,
             'data' => Sale::findOrFail($id)->toReceiptArray(),
+        ]);
+    }
+
+    public function void(Request $request, int $id, SaleVoidService $voider): JsonResponse
+    {
+        $data = $request->validate(['reason' => 'required|string|min:5|max:255']);
+        $sale = $voider->void($id, $data['reason'], $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => "Nota {$sale->reference} dibatalkan.",
+            'data' => $sale->toReceiptArray(),
         ]);
     }
 

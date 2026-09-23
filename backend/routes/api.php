@@ -81,6 +81,7 @@ Route::prefix('v1')->group(function () {
             Route::get('pos/transactions', [PosController::class, 'index']);
             Route::get('pos/transactions/{id}', [PosController::class, 'show']);
         });
+        Route::post('pos/transactions/{id}/void', [PosController::class, 'void'])->middleware('permission:sale_void');
 
         // Payment Method Settings (Parity ProjectOmahBan)
         Route::middleware('permission:role_settings,pos')->group(function () {
