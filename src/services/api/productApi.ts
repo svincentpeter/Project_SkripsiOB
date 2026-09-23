@@ -14,7 +14,9 @@ export const productApi = {
 
       return {
         id: String(p.id),
-        category: (p.category as any) || 'BAN_BARU',
+        // Kode kategori server (mis. BAN-MOBIL); jenis tampilannya diturunkan lewat categoryKind().
+        category: p.category_code || '',
+        category_id: p.category_id ? Number(p.category_id) : undefined,
         product_name: name,
         name: name,
         product_code: p.product_code,
@@ -36,7 +38,10 @@ export const productApi = {
         stock: stock,
         product_stock_alert: minStock,
         min_stock: minStock,
-        is_active: true,
+        is_active: p.is_active !== false,
+        stok_awal: p.stok_awal !== undefined ? Number(p.stok_awal) : undefined,
+        is_old_stock: !!p.is_old_stock,
+        reference_price: p.reference_price !== null && p.reference_price !== undefined ? Number(p.reference_price) : undefined,
         batches: (p.active_batches || []).map((b: any) => ({
           id: String(b.id),
           product_id: String(p.id),
@@ -49,17 +54,5 @@ export const productApi = {
         })),
       } as ProductItem;
     });
-  },
-
-  create: async (payload: any) => {
-    return apiClient.post<{ success: boolean; message: string; data: any }>('/products', payload);
-  },
-
-  update: async (id: string | number, payload: any) => {
-    return apiClient.put<{ success: boolean; message: string; data: any }>(`/products/${id}`, payload);
-  },
-
-  delete: async (id: string | number) => {
-    return apiClient.delete<{ success: boolean; message: string }>(`/products/${id}`);
   },
 };
