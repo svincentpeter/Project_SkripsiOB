@@ -58,8 +58,10 @@ interface CheckoutModalProps {
       surcharge_amount?: number;
       net_received?: number;
       split_payments?: SplitPaymentLine[];
+      term_days?: number;
+      reference?: string;
     }
-  ) => void;
+  ) => void | Promise<void>;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -311,6 +313,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       transactionNotes.trim() || undefined,
       {
         provider_name: 'Midtrans QRIS',
+        reference: qrisOrderId,
         fee_percentage: qrisFeePct,
         fee_amount: qrisFeeAmount,
         net_received: qrisNetReceived,

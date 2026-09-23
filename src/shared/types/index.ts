@@ -242,6 +242,11 @@ export interface PosTransaction {
   voided_by?: string;
   customer_phone?: string;
   mechanic_name?: string;
+  is_bon?: boolean;
+  /** DP booking yang dipakai melunasi nota ini. */
+  dp_applied?: number;
+  /** Jatuh tempo nota BON. */
+  due_date?: string;
 }
 
 export interface StockMutation {

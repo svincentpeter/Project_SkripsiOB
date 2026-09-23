@@ -35,7 +35,9 @@ interface ThermalReceiptScreenProps {
   currentUser?: UserSession | null;
   onBackToPos: () => void;
   onSelectTransaction: (tx: PosTransaction) => void;
-  onVoidTransaction?: (transactionId: string, reason: string) => void;
+  onVoidTransaction?: (transactionId: string, reason: string) => void | Promise<void>;
+  /** Izin sale_void: tanpa izin ini tombol VOID tidak ditampilkan. */
+  canVoid?: boolean;
 }
 
 type PreviewMode = 'THERMAL_80MM' | 'FAKTUR_A4';
@@ -50,6 +52,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
   onBackToPos,
   onSelectTransaction,
   onVoidTransaction,
+  canVoid = false,
 }) => {
   // State
   const [drawerKicked, setDrawerKicked] = useState(false);
@@ -557,6 +560,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                   </button>
 
                   {/* Tombol VOID Transaksi */}
+                  {canVoid && (
                   <button
                     onClick={() => setIsVoidModalOpen(true)}
                     disabled={isCurrentVoid}
@@ -570,6 +574,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                     <Ban className="w-3.5 h-3.5 text-red-600" />
                     <span>{isCurrentVoid ? 'Sudah VOID' : 'Batalkan (VOID)'}</span>
                   </button>
+                  )}
 
                   {/* Tombol Cetak (Print) */}
                   <button

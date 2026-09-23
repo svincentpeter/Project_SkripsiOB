@@ -264,8 +264,6 @@ export const BookingDpModal: React.FC<BookingDpModalProps> = ({
                       QRIS {q.provider_name} ({q.fee_percentage}%)
                     </option>
                   ))}
-                  <option value="EDC_DEBIT">EDC Kartu Debit</option>
-                  <option value="EDC_CREDIT">EDC Kartu Kredit</option>
                 </select>
               </div>
             </div>

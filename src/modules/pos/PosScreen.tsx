@@ -48,6 +48,14 @@ import {
 } from '../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../shared/utils/formatters';
 import { MoneyInput } from '../../shared/components/MoneyInput';
+import {
+  BookingPayload,
+  CheckoutPayload,
+  CheckoutPaymentMeta,
+  buildPayments,
+  cartLineToPayload,
+  serviceCartProduct,
+} from '../../services/api';
 import { 
   calculateCartTotals, 
   createPosTransactionRecord, 
@@ -72,9 +80,10 @@ interface PosScreenProps {
   parkedOrders?: ParkedTransaction[];
   cart: CartItem[];
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
-  onCompleteSale: (transaction: PosTransaction) => void;
-  onSaveBooking?: (booking: SalesBookingRecord) => void;
-  onConvertBooking?: (bookingId: string) => void;
+  /** Checkout dibukukan server; mengembalikan nota resmi atau melempar error. */
+  onCheckout: (payload: CheckoutPayload) => Promise<PosTransaction>;
+  onSaveBooking?: (payload: BookingPayload) => Promise<void>;
+  onCancelBooking?: (booking: SalesBookingRecord) => void;
   onSaveParkedOrder?: (order: ParkedTransaction) => void;
   onDeleteParkedOrder?: (orderId: string) => void;
   cashierName: string;
@@ -139,9 +148,9 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   parkedOrders = [],
   cart,
   setCart,
-  onCompleteSale,
+  onCheckout,
   onSaveBooking,
-  onConvertBooking,
+  onCancelBooking,
   onSaveParkedOrder,
   onDeleteParkedOrder,
   cashierName,
@@ -252,6 +261,12 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
   const [activeBookingSourceId, setActiveBookingSourceId] = useState<string | null>(null);
   const [appliedDpAmount, setAppliedDpAmount] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const clearBookingSource = () => {
+    setAppliedDpAmount(0);
+    setActiveBookingSourceId(null);
+  };
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -359,7 +374,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           ...prevCart,
           {
             item_type: 'SERVICE',
-            product: products[0] || ({} as ProductItem),
+            product: serviceCartProduct(service),
             service,
             qty: 1,
             discount_per_item: 0,
@@ -406,92 +421,47 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const cashTenderedVal = parseRupiahInput(cashTenderedInput);
   const changeAmount = paymentMethod === 'TUNAI' ? Math.max(0, cashTenderedVal - netPayable) : 0;
 
-  const handleCheckoutSale = (
-    isBon: boolean = false,
-    overrideMethod?: PaymentMethod,
-    overrideCash?: number,
-    overrideNotes?: string,
-    overridePaymentMeta?: {
-      provider_name?: string;
-      edc_bank?: string;
-      edc_type?: 'Debit' | 'Credit';
-      fee_percentage?: number;
-      fee_amount?: number;
-      surcharge_amount?: number;
-      net_received?: number;
-      split_payments?: SplitPaymentLine[];
+  const handleCheckoutSale = async (
+    isBon: boolean,
+    method: PaymentMethod,
+    cashTendered: number,
+    notes?: string,
+    paymentMeta: CheckoutPaymentMeta = {}
+  ): Promise<boolean> => {
+    if (cart.length === 0 || isSubmitting) return false;
+
+    const termDays = paymentMeta.term_days === 7 || paymentMeta.term_days === 30 ? paymentMeta.term_days : 14;
+    const payload: CheckoutPayload = {
+      customer_name: customerName.trim() || undefined,
+      vehicle_plate: vehiclePlate.trim() || undefined,
+      vehicle_model: vehicleModel.trim() || undefined,
+      notes,
+      tax_rate: applyTax ? 11 : 0,
+      discount_amount: manualDiscount,
+      booking_id: activeBookingSourceId ? Number(activeBookingSourceId) : undefined,
+      bon: isBon ? { term_days: termDays } : undefined,
+      items: cart.map(cartLineToPayload),
+      payments: isBon ? [] : buildPayments(method, netPayable, cashTendered, paymentMeta),
+    };
+
+    setIsSubmitting(true);
+    try {
+      const transaction = await onCheckout(payload);
+      setCompletedSaleTx(transaction);
+      setCart([]);
+      setCashTenderedInput('');
+      setManualDiscount(0);
+      clearBookingSource();
+      setCustomerName('');
+      setVehiclePlate('');
+      setVehicleModel('');
+      return true;
+    } catch (err) {
+      toast.error('Transaksi Gagal Dibukukan', err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
+      return false;
+    } finally {
+      setIsSubmitting(false);
     }
-  ) => {
-    if (cart.length === 0) return;
-    const finalMethod = overrideMethod || paymentMethod;
-    const finalCash = overrideCash !== undefined ? overrideCash : cashTenderedVal;
-    if (!isBon && finalMethod === 'TUNAI' && finalCash < netPayable) return;
-
-    const invoiceNo = generateInvoiceNumber();
-    const transaction = createPosTransactionRecord(
-      invoiceNo,
-      cart,
-      customerName,
-      vehiclePlate,
-      vehicleModel,
-      finalMethod,
-      isBon ? 0 : finalMethod === 'TUNAI' ? finalCash : netPayable,
-      cashierName,
-      applyTax ? 11 : 0,
-      manualDiscount,
-      isBon
-    );
-
-    if (overridePaymentMeta) {
-      transaction.payment_provider = overridePaymentMeta.provider_name;
-      transaction.edc_bank = overridePaymentMeta.edc_bank;
-      transaction.edc_type = overridePaymentMeta.edc_type;
-      transaction.fee_percentage = overridePaymentMeta.fee_percentage;
-      transaction.fee_amount = overridePaymentMeta.fee_amount;
-      transaction.surcharge_amount = overridePaymentMeta.surcharge_amount;
-      transaction.net_received = overridePaymentMeta.net_received;
-
-      if (overridePaymentMeta.split_payments && overridePaymentMeta.split_payments.length > 0) {
-        transaction.payment_method = 'SPLIT';
-        transaction.split_payments = overridePaymentMeta.split_payments;
-        const totalSplit = overridePaymentMeta.split_payments.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-        transaction.amount_paid = totalSplit;
-        transaction.paid_amount = totalSplit;
-        transaction.change_amount = Math.max(0, totalSplit - transaction.grand_total);
-      }
-
-      if (overridePaymentMeta.surcharge_amount && overridePaymentMeta.surcharge_amount > 0) {
-        transaction.grand_total += overridePaymentMeta.surcharge_amount;
-        transaction.total_amount = transaction.grand_total;
-        if (!isBon && !overridePaymentMeta.split_payments) {
-          transaction.amount_paid = transaction.grand_total;
-          transaction.paid_amount = transaction.grand_total;
-        }
-      }
-    }
-
-    if (overrideNotes) {
-      transaction.notes = `${transaction.notes ? transaction.notes + ' | ' : ''}${overrideNotes}`;
-    }
-
-    if (appliedDpAmount > 0) {
-      transaction.notes = `${transaction.notes ? transaction.notes + ' | ' : ''}Pelunasan DP Booking Rp ${appliedDpAmount.toLocaleString()}`;
-    }
-
-    if (activeBookingSourceId && onConvertBooking) {
-      onConvertBooking(activeBookingSourceId);
-    }
-
-    onCompleteSale(transaction);
-    setCompletedSaleTx(transaction);
-    setCart([]);
-    setCashTenderedInput('');
-    setManualDiscount(0);
-    setAppliedDpAmount(0);
-    setActiveBookingSourceId(null);
-    setCustomerName('');
-    setVehiclePlate('');
-    setVehicleModel('');
   };
 
   const handleOpenCheckout = (initialTag: 'REGULAR' | 'BON' = 'REGULAR') => {
@@ -503,27 +473,19 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     setShowCheckoutModal(true);
   };
 
-  const handleConfirmCheckoutFromModal = (
+  const handleConfirmCheckoutFromModal = async (
     isBon: boolean,
     pm: PaymentMethod,
     cashTendered: number,
     notes?: string,
-    paymentMeta?: {
-      provider_name?: string;
-      edc_bank?: string;
-      edc_type?: 'Debit' | 'Credit';
-      fee_percentage?: number;
-      fee_amount?: number;
-      surcharge_amount?: number;
-      net_received?: number;
-      split_payments?: SplitPaymentLine[];
-    }
+    paymentMeta?: CheckoutPaymentMeta
   ) => {
-    handleCheckoutSale(isBon, pm, cashTendered, notes, paymentMeta);
-    setShowCheckoutModal(false);
+    if (await handleCheckoutSale(isBon, pm, cashTendered, notes, paymentMeta)) {
+      setShowCheckoutModal(false);
+    }
   };
 
-  const handleSaveBookingFromModal = (
+  const handleSaveBookingFromModal = async (
     cName: string,
     cPhone: string,
     vPlate: string,
@@ -532,28 +494,30 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     pm: PaymentMethod,
     nts?: string
   ) => {
-    const bookingRecord: SalesBookingRecord = {
-      id: `bk-${Date.now()}`,
-      booking_number: `BK-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`,
-      date: new Date().toISOString().split('T')[0],
-      customer_name: cName,
-      customer_phone: cPhone,
-      vehicle_plate: vPlate,
-      vehicle_model: vModel,
-      items: [...cart],
-      estimated_total: totals.grandTotal,
-      dp_amount: dp,
-      remaining_amount: Math.max(0, totals.grandTotal - dp),
-      payment_method: pm,
-      notes: nts,
-      status: 'ACTIVE',
-      created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
-    };
-
-    onSaveBooking?.(bookingRecord);
-    setShowBookingDpModal(false);
-    setCart([]);
-    toast.info('Booking DP Tersimpan', `Pesanan ${bookingRecord.customer_name} berhasil disimpan dengan DP Rp ${bookingRecord.dp_amount.toLocaleString()}.`);
+    if (!onSaveBooking || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onSaveBooking({
+        customer_name: cName,
+        customer_phone: cPhone,
+        vehicle_plate: vPlate || undefined,
+        vehicle_model: vModel || undefined,
+        notes: nts,
+        items: cart.map(cartLineToPayload),
+        dp_amount: dp,
+        payment_method: pm as BookingPayload['payment_method'],
+      });
+      setShowBookingDpModal(false);
+      setCart([]);
+      clearBookingSource();
+      setCustomerName('');
+      setVehiclePlate('');
+      setVehicleModel('');
+    } catch (err) {
+      toast.error('Booking Gagal Disimpan', err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleConvertBookingToCart = (booking: SalesBookingRecord) => {
@@ -586,6 +550,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
     onSaveParkedOrder?.(newParked);
     setCart([]);
+    clearBookingSource();
     toast.info(
       'Nota Berhasil Ditahan',
       `Nota mobil ${newParked.vehicle_plate} (${newParked.customer_name}) telah disimpan di antrian tahan.`
@@ -1578,6 +1543,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         bookings={bookings}
         onClose={() => setShowBookingListDrawer(false)}
         onConvertBooking={handleConvertBookingToCart}
+        onCancelBooking={permissions.bookingDp ? onCancelBooking : undefined}
       />
 
       <ParkedOrdersDrawer

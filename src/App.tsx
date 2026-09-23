@@ -32,30 +32,23 @@ import {
   DEFAULT_ROLE_PERMISSIONS,
   INITIAL_PERIOD_INFO,
   INITIAL_STORE_SETTINGS,
-  INITIAL_PRODUCTS,
-  INITIAL_SERVICES,
   INITIAL_SUPPLIERS,
   INITIAL_EXPENSES,
   INITIAL_JOURNALS,
   INITIAL_PAYABLE_INVOICES,
-  INITIAL_RECEIVABLES,
   INITIAL_ACCOUNT_BALANCES,
   INITIAL_STOCK_MUTATIONS,
-  INITIAL_BOOKINGS,
-  INITIAL_TRANSACTIONS
 } from './shared/data/mockData';
 import { LoginScreen } from './modules/auth';
-import { formatRupiah, generateExpenseJournal, generateSalesJournal } from './shared/utils/formatters';
+import { formatRupiah, generateExpenseJournal } from './shared/utils/formatters';
 import { setExportConfig } from './shared/export/exportConfig';
 import { 
   generatePurchaseJournal, 
   generateDebtPaymentJournal, 
   generateManualJournal,
   generateVoidExpenseJournal,
-  generateVoidSalesJournal,
   generateClosingJournal,
-  generateReversingJournal,
-  generateReceivablePaymentJournal
+  generateReversingJournal
 } from './services/accountingService';
 import { 
   canSafelyDeleteProduct, 
@@ -95,28 +88,20 @@ import { SettingsScreen } from './modules/settings';
 import { ToastProvider, useToast, AppNotification } from './shared/components';
 import { WireframeGuideModal } from './shared/components/WireframeGuideModal';
 import { HeaderNavbar } from './shared/components/HeaderNavbar';
-import { apiClient, productApi, posApi, expenseApi, inventoryApi, authApi, authToken, setUnauthorizedHandler } from './services/api';
+import {
+  apiClient,
+  productApi,
+  posApi,
+  authApi,
+  authToken,
+  setUnauthorizedHandler,
+  mapBooking,
+  mapJournal,
+  mapReceivable,
+  mapSaleToTransaction,
+} from './services/api';
+import type { ApiJournal, ApiSale, BookingPayload, CheckoutPayload } from './services/api';
 import { 
-  isSupabaseConfigured,
-  testSupabaseConnection,
-  fetchProductsFromSupabase,
-  fetchServicesFromSupabase,
-  fetchSuppliersFromSupabase,
-  fetchTransactionsFromSupabase,
-  fetchExpensesFromSupabase,
-  fetchJournalsFromSupabase,
-  fetchStockMutationsFromSupabase,
-  fetchBookingsFromSupabase,
-  fetchPayablesFromSupabase,
-  fetchReceivablesFromSupabase,
-  fetchParkedOrdersFromSupabase,
-  fetchStoreSettingsFromSupabase,
-  fetchAccountBalancesFromSupabase,
-  saveAccountBalancesToSupabase,
-  fetchAccountingPeriodFromSupabase,
-  saveAccountingPeriodToSupabase,
-  insertTransactionToSupabase,
-  updateTransactionStatusInSupabase,
   upsertParkedOrderToSupabase,
   deleteParkedOrderFromSupabase,
   insertExpenseToSupabase,
@@ -125,9 +110,7 @@ import {
   deleteProductFromSupabase,
   insertStockMutationToSupabase,
   insertJournalToSupabase,
-  upsertBookingToSupabase,
   upsertPayableToSupabase,
-  upsertReceivableToSupabase,
   saveStoreSettingsToSupabase,
   isScreenPermittedForRole,
   getDefaultScreenForUser,
@@ -233,25 +216,11 @@ function MainAppContent() {
     }
   });
 
-  const [products, setProducts] = useState<ProductItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_products');
-      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-    } catch {
-      return INITIAL_PRODUCTS;
-    }
-  });
+  const [products, setProducts] = useState<ProductItem[]>([]);
   const [productCategories, setProductCategories] = useState<ProductCategory[]>(() =>
     fetchProductCategoriesFromStorage()
   );
-  const [services, setServices] = useState<ServiceMasterItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_services');
-      return saved ? JSON.parse(saved) : INITIAL_SERVICES;
-    } catch {
-      return INITIAL_SERVICES;
-    }
-  });
+  const [services, setServices] = useState<ServiceMasterItem[]>([]);
   const [serviceCategories, setServiceCategories] = useState<ServiceCategoryItem[]>(() =>
     fetchServiceCategoriesFromStorage()
   );
@@ -263,22 +232,8 @@ function MainAppContent() {
       return INITIAL_SUPPLIERS;
     }
   });
-  const [bookings, setBookings] = useState<SalesBookingRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_bookings');
-      return saved ? JSON.parse(saved) : INITIAL_BOOKINGS;
-    } catch {
-      return INITIAL_BOOKINGS;
-    }
-  });
-  const [transactions, setTransactions] = useState<PosTransaction[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_transactions');
-      return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-    } catch {
-      return INITIAL_TRANSACTIONS;
-    }
-  });
+  const [bookings, setBookings] = useState<SalesBookingRecord[]>([]);
+  const [transactions, setTransactions] = useState<PosTransaction[]>([]);
 
   const [parkedOrders, setParkedOrders] = useState<ParkedTransaction[]>(() => {
     try {
@@ -351,14 +306,7 @@ function MainAppContent() {
       return INITIAL_ACCOUNT_BALANCES;
     }
   });
-  const [receivableInvoices, setReceivableInvoices] = useState<ReceivableInvoice[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_receivables');
-      return saved ? JSON.parse(saved) : INITIAL_RECEIVABLES;
-    } catch {
-      return INITIAL_RECEIVABLES;
-    }
-  });
+  const [receivableInvoices, setReceivableInvoices] = useState<ReceivableInvoice[]>([]);
 
   const [periodInfo, setPeriodInfo] = useState<AccountingPeriodInfo>(() => {
     try {
@@ -380,18 +328,7 @@ function MainAppContent() {
   });
 
   // Selected transaction for receipt view
-  const [currentReceiptTx, setCurrentReceiptTx] = useState<PosTransaction | null>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_transactions');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
-      }
-      return INITIAL_TRANSACTIONS.length > 0 ? INITIAL_TRANSACTIONS[0] : null;
-    } catch {
-      return INITIAL_TRANSACTIONS.length > 0 ? INITIAL_TRANSACTIONS[0] : null;
-    }
-  });
+  const [currentReceiptTx, setCurrentReceiptTx] = useState<PosTransaction | null>(null);
 
   // Simulation & Modal states
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -502,137 +439,57 @@ function MainAppContent() {
     return list;
   }, [products, bookings, payableInvoices, receivableInvoices, readNotifIds, dismissedNotifIds]);
 
-  // Synchronize state with Supabase PostgreSQL Cloud or Laravel REST API setelah login
+  // Data POS (katalog, nota, piutang, booking) selalu dari server Laravel sesuai izin peran.
+  const loadPosData = async (user: UserSession, permissions: RolePermissionsConfig) => {
+    const allowed = (...keys: PermissionKey[]) => keys.some((k) => hasPermission(user, permissions, k));
+    const [apiProducts, apiServices, apiSales, apiReceivables, apiBookings] = await Promise.all([
+      allowed('pos', 'inventory_view') ? productApi.list().catch(() => null) : null,
+      allowed('pos', 'inventory_view') ? posApi.listServices().catch(() => null) : null,
+      allowed('pos', 'receipt') ? posApi.listTransactions().catch(() => null) : null,
+      allowed('bon_receivable', 'accounting_hub') ? posApi.listReceivables('all').catch(() => null) : null,
+      allowed('booking_dp', 'pos') ? posApi.listBookings('ALL').catch(() => null) : null,
+    ]);
+    if (apiProducts) setProducts(apiProducts);
+    if (apiServices) setServices(apiServices);
+    if (apiSales) {
+      const txs = apiSales.map(mapSaleToTransaction);
+      setTransactions(txs);
+      setCurrentReceiptTx((prev) => prev ?? txs[0] ?? null);
+    }
+    if (apiReceivables) setReceivableInvoices(apiReceivables.map(mapReceivable));
+    if (apiBookings) setBookings(apiBookings.map((b) => mapBooking(b, apiProducts ?? [], apiServices ?? [])));
+  };
+
+  const refreshReceivables = () => {
+    if (!can('bon_receivable') && !can('accounting_hub')) return;
+    posApi.listReceivables('all').then((rows) => setReceivableInvoices(rows.map(mapReceivable))).catch(() => {});
+  };
+
   const sessionUserId = currentUser?.id;
   useEffect(() => {
-    if (sessionUserId === undefined) return;
+    if (!currentUser) return;
     let isMounted = true;
     const syncBackend = async () => {
-      // 1. Cek koneksi ke Supabase PostgreSQL Cloud jika kredensial ada
-      if (isSupabaseConfigured()) {
-        try {
-          const sbTest = await testSupabaseConnection();
-          if (sbTest.connected && isMounted) {
-            setBackendStatus('supabase');
-            setDatabaseName('Supabase PostgreSQL');
-            console.log('[Supabase Cloud] Terhubung ke database PostgreSQL Supabase!');
-
-            // Ambil seluruh data toko dari Supabase secara paralel
-            const [
-              sbProds,
-              sbServs,
-              sbSupps,
-              sbTxs,
-              sbExps,
-              sbJournals,
-              sbMuts,
-              sbBookings,
-              sbPayables,
-              sbReceivables,
-              sbParked,
-              sbSettings,
-              sbBalances,
-              sbPeriod,
-            ] = await Promise.all([
-              fetchProductsFromSupabase(),
-              fetchServicesFromSupabase(),
-              fetchSuppliersFromSupabase(),
-              fetchTransactionsFromSupabase(),
-              fetchExpensesFromSupabase(),
-              fetchJournalsFromSupabase(),
-              fetchStockMutationsFromSupabase(),
-              fetchBookingsFromSupabase(),
-              fetchPayablesFromSupabase(),
-              fetchReceivablesFromSupabase(),
-              fetchParkedOrdersFromSupabase(),
-              fetchStoreSettingsFromSupabase(),
-              fetchAccountBalancesFromSupabase(),
-              fetchAccountingPeriodFromSupabase(),
-            ]);
-
-            if (isMounted) {
-              if (sbProds) setProducts(sbProds);
-              if (sbServs) setServices(sbServs);
-              if (sbSupps) setSuppliers(sbSupps);
-              if (sbTxs) setTransactions(sbTxs);
-              if (sbExps) setExpenses(sbExps);
-              if (sbJournals) setJournals(sbJournals);
-              if (sbMuts) setMutations(sbMuts);
-              if (sbBookings) setBookings(sbBookings);
-              if (sbPayables) setPayableInvoices(sbPayables);
-              if (sbReceivables) setReceivableInvoices(sbReceivables);
-              if (sbParked) setParkedOrders(sbParked);
-              if (sbSettings) setStoreSettings(sbSettings);
-              if (sbBalances) {
-                setAccountBalances(sbBalances);
-                if (sbBalances['1-1000'] !== undefined) setCashInDrawer(sbBalances['1-1000']);
-              }
-              if (sbPeriod) setPeriodInfo(sbPeriod);
-            }
-            return;
-          }
-        } catch (sbErr) {
-          console.warn('[Supabase Cloud] Gagal terhubung ke Supabase:', sbErr);
+      try {
+        const health = await apiClient.get<{ status: string; database: string; database_status: string }>('/health');
+        if (isMounted) {
+          setBackendStatus(health.database_status === 'connected' ? 'connected' : 'offline');
+          if (health.database) setDatabaseName(health.database);
         }
+      } catch {
+        if (isMounted) setBackendStatus('offline');
       }
 
-      // 2. Fallback: Coba koneksi ke backend lokal Laravel MySQL jika berjalan di localhost
-      const isLocalDev = typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1'
-      );
+      await loadPosData(currentUser, rolePermissions);
 
-      if (isLocalDev) {
-        try {
-          const health = await apiClient.get<{ status: string; database: string; database_status: string }>('/health');
-          if (health.status === 'healthy' && health.database_status === 'connected' && isMounted) {
-            setBackendStatus('connected');
-            if (health.database) setDatabaseName(health.database);
-            console.log('[Laravel Backend] Terhubung ke MySQL:', health.database);
-
-            // Fetch fresh products from backend MySQL
-            const apiProds = await productApi.list().catch(() => null);
-            if (apiProds && apiProds.length > 0 && isMounted) {
-              setProducts(apiProds);
-            } else if (isMounted) {
-              setProducts(INITIAL_PRODUCTS);
-            }
-            if (isMounted) {
-              setServices(INITIAL_SERVICES);
-              setSuppliers(INITIAL_SUPPLIERS);
-              setExpenses((prev) => (prev.length > 0 ? prev : INITIAL_EXPENSES));
-              setJournals((prev) => (prev.length > 0 ? prev : INITIAL_JOURNALS));
-              setPayableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_PAYABLE_INVOICES));
-              setReceivableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_RECEIVABLES));
-              setAccountBalances((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_ACCOUNT_BALANCES));
-              setMutations((prev) => (prev.length > 0 ? prev : INITIAL_STOCK_MUTATIONS));
-              setBookings((prev) => (prev.length > 0 ? prev : INITIAL_BOOKINGS));
-              setTransactions((prev) => (prev.length > 0 ? prev : INITIAL_TRANSACTIONS));
-            }
-            return;
-          } else if (isMounted) {
-            setBackendStatus('offline');
-          }
-        } catch {
-          if (isMounted) {
-            setBackendStatus('offline');
-          }
-        }
-      }
-
-      // 3. Fallback Mandiri (Offline / Demo) jika kedua koneksi database belum siap
+      // Data non-POS (supplier, beban, jurnal, hutang, mutasi) masih lokal sampai tahap berikutnya.
       if (isMounted) {
-        setProducts((prev) => (prev.length > 0 ? prev : INITIAL_PRODUCTS));
-        setServices((prev) => (prev.length > 0 ? prev : INITIAL_SERVICES));
         setSuppliers((prev) => (prev.length > 0 ? prev : INITIAL_SUPPLIERS));
         setExpenses((prev) => (prev.length > 0 ? prev : INITIAL_EXPENSES));
         setJournals((prev) => (prev.length > 0 ? prev : INITIAL_JOURNALS));
         setPayableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_PAYABLE_INVOICES));
-        setReceivableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_RECEIVABLES));
         setAccountBalances((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_ACCOUNT_BALANCES));
         setMutations((prev) => (prev.length > 0 ? prev : INITIAL_STOCK_MUTATIONS));
-        setBookings((prev) => (prev.length > 0 ? prev : INITIAL_BOOKINGS));
-        setTransactions((prev) => (prev.length > 0 ? prev : INITIAL_TRANSACTIONS));
       }
     };
     syncBackend();
@@ -672,10 +529,6 @@ function MainAppContent() {
   }, [payableInvoices]);
 
   useEffect(() => {
-    localStorage.setItem('ob3_receivables', JSON.stringify(receivableInvoices));
-  }, [receivableInvoices]);
-
-  useEffect(() => {
     localStorage.setItem('ob3_account_balances', JSON.stringify(accountBalances));
   }, [accountBalances]);
 
@@ -683,193 +536,33 @@ function MainAppContent() {
     localStorage.setItem('ob3_mutations', JSON.stringify(mutations));
   }, [mutations]);
 
-  useEffect(() => {
-    localStorage.setItem('ob3_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+  // Jurnal hasil server disalin ke tampilan akuntansi (masa transisi sampai modul akuntansi membaca API).
+  const mergeServerJournals = (apiJournals: ApiJournal[]) => {
+    if (apiJournals.length === 0) return;
+    const mapped = apiJournals.map(mapJournal);
+    setJournals((prev) => [...mapped.filter((j) => !prev.some((p) => p.id === j.id)), ...prev]);
+  };
 
-  useEffect(() => {
-    localStorage.setItem('ob3_bookings', JSON.stringify(bookings));
-  }, [bookings]);
+  /** Porsi tunai yang benar-benar masuk/keluar laci (tanpa kembalian). */
+  const cashPortion = (sale: ApiSale) =>
+    sale.payments.filter((p) => p.method === 'TUNAI').reduce((sum, p) => sum + Number(p.amount), 0);
 
-  // Handle Sales Completion from POS Screen
-  const handleCompleteSale = (newTx: PosTransaction) => {
-    // 1. Add transaction to history
-    setTransactions((prev) => [newTx, ...prev]);
+  const handleCheckout = async (payload: CheckoutPayload): Promise<PosTransaction> => {
+    const sale = await posApi.checkout(payload);
+    const tx = mapSaleToTransaction(sale);
 
-    // 2. Reduce stock from products & log mutations
-    const newMutations: StockMutation[] = [];
-
-    setProducts((prevProducts) => {
-      return prevProducts.map((prod) => {
-        const itemSold = newTx.items.find((i) => i.product.id === prod.id);
-        if (itemSold) {
-          const currentQty = prod.product_quantity ?? prod.stock;
-          const newStock = Math.max(0, currentQty - itemSold.qty);
-
-          // Real FIFO batch depletion
-          let remainingQtyToDeduct = itemSold.qty;
-          const updatedBatches = prod.batches
-            ? prod.batches.map((batch) => {
-                if (remainingQtyToDeduct <= 0) return batch;
-                const deductFromThis = Math.min(batch.remaining_qty, remainingQtyToDeduct);
-                remainingQtyToDeduct -= deductFromThis;
-                return {
-                  ...batch,
-                  remaining_qty: batch.remaining_qty - deductFromThis,
-                };
-              })
-            : undefined;
-
-          newMutations.push({
-            id: `mut-${Date.now()}-${prod.id}`,
-            tire_id: prod.id,
-            product_id: prod.id,
-            tire_name: prod.product_name || prod.name,
-            product_name: prod.product_name || prod.name,
-            tire_size: prod.product_size,
-            date: newTx.timestamp,
-            ref_doc: newTx.reference || newTx.invoice_number,
-            type: 'KELUAR',
-            qty: itemSold.qty,
-            balance: newStock,
-            notes: `Penjualan kasir ke ${newTx.customer_name} (${newTx.vehicle_plate})`,
-            operator: newTx.cashier_name,
-          });
-
-          return {
-            ...prod,
-            stock: newStock,
-            product_quantity: newStock,
-            batches: updatedBatches,
-          };
-        }
-        return prod;
-      });
-    });
-
-    if (newMutations.length > 0) {
-      setMutations((prev) => [...newMutations, ...prev]);
+    setTransactions((prev) => [tx, ...prev]);
+    setCurrentReceiptTx(tx);
+    mergeServerJournals(sale.journals);
+    setCashInDrawer((prev) => prev + cashPortion(sale));
+    if (payload.booking_id) {
+      setBookings((prev) => prev.map((b) => (b.id === String(payload.booking_id) ? { ...b, status: 'CONVERTED' } : b)));
     }
+    if (sale.payment_method === 'BON') refreshReceivables();
+    handleRefreshProducts();
 
-    // 3. Generate Double-Entry Accounting Journal
-    const newJournal = generateSalesJournal(newTx, journals.length + 1);
-
-    const isPaidWithDp = newTx.notes && newTx.notes.includes('Pelunasan DP Booking');
-    if (isPaidWithDp) {
-      const matchDp = newTx.notes?.match(/Rp\s*([\d.,]+)/);
-      const dpVal = matchDp ? parseInt(matchDp[1].replace(/[^0-9]/g, ''), 10) : 0;
-      if (dpVal > 0) {
-        const netCashPaid = Math.max(0, newTx.grand_total - dpVal);
-        newJournal.lines = [
-          {
-            account_code: newTx.payment_method === 'TUNAI' ? '1-1000' : '1-1001',
-            account_name: newTx.payment_method === 'TUNAI' ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3',
-            debit: netCashPaid,
-            credit: 0,
-            note: `Pelunasan sisa tagihan ${newTx.payment_method}`,
-          },
-          {
-            account_code: '2-1000',
-            account_name: 'Hutang Dagang & Uang Muka Pelanggan',
-            debit: dpVal,
-            credit: 0,
-            note: `Pengakuan uang muka DP yang sudah masuk sebelumnya`,
-          },
-          ...(newTx.total_discount > 0
-            ? [
-                {
-                  account_code: '4-9000',
-                  account_name: 'Potongan Diskon Penjualan',
-                  debit: newTx.total_discount,
-                  credit: 0,
-                  note: `Diskon kasir`,
-                },
-              ]
-            : []),
-          {
-            account_code: '4-1000',
-            account_name: 'Pendapatan Penjualan Ban Baru',
-            debit: 0,
-            credit: newTx.subtotal,
-            note: `Omzet penjualan kotor`,
-          },
-          {
-            account_code: '5-1000',
-            account_name: 'Harga Pokok Penjualan (HPP) Ban Baru',
-            debit: newTx.total_cost_hpp,
-            credit: 0,
-            note: `Beban pokok penjualan FIFO`,
-          },
-          {
-            account_code: '1-2000',
-            account_name: 'Persediaan Ban Baru Cabang 3',
-            debit: 0,
-            credit: newTx.total_cost_hpp,
-            note: `Pengurangan persediaan gudang`,
-          },
-        ];
-      }
-    }
-
-    setJournals((prev) => [newJournal, ...prev]);
-
-    // 4. Update Cash in Drawer if paid in Cash
-    if (newTx.payment_method === 'TUNAI') {
-      const matchDp = newTx.notes?.match(/Rp\s*([\d.,]+)/);
-      const dpVal = (isPaidWithDp && matchDp) ? parseInt(matchDp[1].replace(/[^0-9]/g, ''), 10) : 0;
-      const actualCashIn = isPaidWithDp ? Math.max(0, newTx.grand_total - dpVal) : newTx.grand_total;
-      setCashInDrawer((prev) => prev + actualCashIn);
-    }
-
-    // 5. Clear cart and keep current transaction reference without forcing navigation
-    setCart([]);
-    setCurrentReceiptTx(newTx);
-    toast.success('Transaksi Kasir Berhasil!', `Nota ${newTx.invoice_number} berhasil diproses.`);
-
-    // 6. Asynchronously synchronize with Laravel Backend API
-    posApi.checkout({
-      customer_name: newTx.customer_name,
-      vehicle_plate: newTx.vehicle_plate,
-      cashier_name: newTx.cashier_name,
-      payment_method: newTx.payment_method,
-      paid_amount: newTx.paid_amount || newTx.grand_total,
-      discount_amount: newTx.total_discount || 0,
-      tax_amount: newTx.tax_amount || 0,
-      notes: newTx.notes,
-      items: newTx.items.map((i) => {
-        const unitPrice = i.custom_price ?? i.product?.product_price ?? i.product?.price ?? 0;
-        return {
-          product_id: i.product?.id ? parseInt(String(i.product.id), 10) || null : null,
-          type: i.item_type || 'PRODUCT',
-          name: i.custom_name_override || i.product?.product_name || i.product?.name || 'Item',
-          quantity: i.qty,
-          unit_price: unitPrice,
-          sub_total: unitPrice * i.qty,
-          discount_amount: (i.discount_per_item || 0) * i.qty,
-        };
-      }),
-    }).then((res) => {
-      if (res?.data?.journal_entry_number) {
-        console.log('[Laravel Backend] POS Checkout dibukukan ke MySQL:', res.data.journal_entry_number);
-      }
-    }).catch((err) => {
-      console.warn('[Laravel Backend] Gagal sinkronisasi POS ke backend:', err);
-    });
-
-    // 7. Asynchronously synchronize with Supabase PostgreSQL Cloud
-    insertTransactionToSupabase(newTx);
-    insertJournalToSupabase(newJournal);
-    newMutations.forEach((m) => insertStockMutationToSupabase(m));
-    newTx.items.forEach((item) => {
-      if (item.product?.id) {
-        const currentP = products.find((p) => p.id === item.product.id);
-        if (currentP) {
-          const currentQty = currentP.product_quantity ?? currentP.stock;
-          const newStock = Math.max(0, currentQty - item.qty);
-          upsertProductToSupabase({ ...currentP, stock: newStock, product_quantity: newStock });
-        }
-      }
-    });
+    toast.success('Transaksi Kasir Berhasil!', `Nota ${tx.invoice_number} dibukukan di server.`);
+    return tx;
   };
 
   const handleAddExpense = (newExpense: ExpenseRecord) => {
@@ -961,126 +654,29 @@ function MainAppContent() {
     );
   };
 
-  // Handle Void Transaction (Sales Cancellation with SAK EMKM Reversal & Stock Restoral)
-  const handleVoidTransaction = (txId: string, voidReason: string) => {
-    const targetTx = transactions.find((t) => t.id === txId);
-    if (!targetTx) {
-      toast.error('Gagal Membatalkan', 'Transaksi tidak ditemukan.');
-      return;
-    }
-    if (targetTx.status === 'VOID' || targetTx.is_voided) {
-      toast.warning('Pemberitahuan', 'Transaksi ini sudah pernah dibatalkan.');
-      return;
-    }
+  // Void nota di server: jurnal pembalik + stok kembali ke batch FIFO asal
+  const handleVoidTransaction = async (txId: string, voidReason: string) => {
+    try {
+      const sale = await posApi.voidTransaction(txId, voidReason);
+      const tx = mapSaleToTransaction(sale);
 
-    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const voidedByName = currentUser?.name || 'Kasir Cabang 3';
-
-    // 1. Generate SAK EMKM Reversing Journal
-    const reversalJournal = generateVoidSalesJournal(
-      targetTx,
-      voidReason,
-      voidedByName,
-      journals.length + 1
-    );
-
-    // 2. Update Transaction Status
-    const updatedTx: PosTransaction = {
-      ...targetTx,
-      status: 'VOID',
-      is_voided: true,
-      void_reason: voidReason,
-      voided_at: timestamp,
-      voided_by: voidedByName,
-    };
-
-    setTransactions((prev) =>
-      prev.map((t) => (t.id === txId ? updatedTx : t))
-    );
-    if (currentReceiptTx?.id === txId) {
-      setCurrentReceiptTx(updatedTx);
-    }
-
-    // 3. Post reversal journal to general ledger
-    setJournals((prev) => [reversalJournal, ...prev]);
-
-    // 4. Restore physical tire stock to inventory
-    const restoredProducts = new Set<string>();
-    const newMutations: StockMutation[] = [];
-
-    targetTx.items.forEach((item, idx) => {
-      const prodId = item.product?.id;
-      if (prodId && item.qty > 0) {
-        restoredProducts.add(prodId);
-        newMutations.push({
-          id: `mut-void-${Date.now()}-${idx}`,
-          tire_id: prodId,
-          product_id: prodId,
-          tire_name: item.product.name,
-          product_name: item.product.name,
-          tire_size: item.product.product_size,
-          date: new Date().toISOString().substring(0, 10),
-          ref_doc: targetTx.invoice_number,
-          type: 'MASUK',
-          qty: item.qty,
-          balance: (item.product.product_quantity || 0) + item.qty,
-          notes: `[VOID] Pengembalian stok nota ${targetTx.invoice_number} - Alasan: ${voidReason}`,
-          operator: voidedByName,
-        });
+      setTransactions((prev) => prev.map((t) => (t.id === txId ? tx : t)));
+      if (currentReceiptTx?.id === txId) setCurrentReceiptTx(tx);
+      mergeServerJournals(sale.journals);
+      setCashInDrawer((prev) => Math.max(0, prev - cashPortion(sale)));
+      if (Number(sale.dp_applied) > 0) {
+        posApi.listBookings('ALL').then((rows) => setBookings(rows.map((b) => mapBooking(b, products, services)))).catch(() => {});
       }
-    });
+      if (sale.payment_method === 'BON') refreshReceivables();
+      handleRefreshProducts();
 
-    if (restoredProducts.size > 0) {
-      setProducts((prev) =>
-        prev.map((p) => {
-          const matchedItem = targetTx.items.find((i) => i.product?.id === p.id);
-          if (matchedItem) {
-            const newQty = (p.product_quantity || 0) + matchedItem.qty;
-            const newStock = (p.stock || 0) + matchedItem.qty;
-            return {
-              ...p,
-              product_quantity: newQty,
-              stock: newStock,
-            };
-          }
-          return p;
-        })
+      toast.warning(
+        'Transaksi Dibatalkan (VOID)',
+        `Nota ${tx.invoice_number} dibatalkan. Stok dikembalikan ke batch FIFO asal dan jurnal pembalik dibukukan.`
       );
+    } catch (err) {
+      toast.error('Gagal Membatalkan Nota', err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
     }
-
-    if (newMutations.length > 0) {
-      setMutations((prev) => [...newMutations, ...prev]);
-    }
-
-    // 5. Restore cash drawer if payment was TUNAI
-    if (targetTx.payment_method === 'TUNAI') {
-      setCashInDrawer((prev) => Math.max(0, prev - targetTx.grand_total));
-    }
-
-    // 6. Sinkronisasi ke Supabase PostgreSQL Cloud
-    updateTransactionStatusInSupabase(txId, 'VOID', {
-      is_voided: true,
-      void_reason: voidReason,
-      voided_at: timestamp,
-      voided_by: voidedByName,
-    });
-    insertJournalToSupabase(reversalJournal);
-    newMutations.forEach((m) => insertStockMutationToSupabase(m));
-    targetTx.items.forEach((item) => {
-      if (item.product?.id) {
-        const currentP = products.find((p) => p.id === item.product.id);
-        if (currentP) {
-          const newQty = (currentP.product_quantity || 0) + item.qty;
-          const newStock = (currentP.stock || 0) + item.qty;
-          upsertProductToSupabase({ ...currentP, product_quantity: newQty, stock: newStock });
-        }
-      }
-    });
-
-    toast.warning(
-      'Transaksi Dibatalkan (VOID)',
-      `Nota ${targetTx.invoice_number} berhasil dibatalkan. Stok ${targetTx.items.reduce((sum, i) => sum + i.qty, 0)} pcs ban dikembalikan dan Jurnal Pembalik telah dibukukan.`
-    );
   };
 
   // Handle Inventory Stock Opname adjustment
@@ -1248,50 +844,33 @@ function MainAppContent() {
     });
   };
 
-  // Handle Pay Receivable (Penerimaan Kas dari Piutang Pelanggan Tempo)
-  const handlePayReceivable = (paymentInput: ReceivablePaymentInput) => {
-    const targetInv = receivableInvoices.find((i) => i.id === paymentInput.receivable_invoice_id);
-    if (!targetInv) return;
+  // Pelunasan piutang BON di server (Dr Kas/Bank, Cr Piutang Dagang)
+  const handlePayReceivable = async (paymentInput: ReceivablePaymentInput) => {
+    try {
+      const res = await posApi.payReceivable(paymentInput.receivable_invoice_id, {
+        amount: paymentInput.amount,
+        account_code: paymentInput.destination_account_code,
+        payment_date: paymentInput.payment_date,
+        notes: paymentInput.notes,
+      });
+      const updated = mapReceivable(res.receivable);
 
-    // 1. Auto-generate Double-Entry Receivable Payment Journal
-    const newJournal = generateReceivablePaymentJournal(
-      paymentInput,
-      targetInv.customer_name,
-      targetInv.invoice_number,
-      journals.length + 1
-    );
-    setJournals((prev) => [newJournal, ...prev]);
-    insertJournalToSupabase(newJournal);
+      setReceivableInvoices((prev) => prev.map((inv) => (inv.id === updated.id ? updated : inv)));
+      if (res.journal) mergeServerJournals([res.journal]);
+      if (paymentInput.destination_account_code === '1-1000') {
+        setCashInDrawer((prev) => prev + paymentInput.amount);
+      }
+      if (updated.status === 'LUNAS') {
+        setTransactions((prev) => prev.map((t) => (t.id === updated.id ? { ...t, status: 'LUNAS' } : t)));
+      }
 
-    // 2. Add to cash drawer if paid cash
-    if (paymentInput.destination_account_code === '1-1000') {
-      setCashInDrawer((prev) => prev + paymentInput.amount);
+      toast.success(
+        'Pembayaran Piutang Diterima',
+        `${formatRupiah(paymentInput.amount)} dari ${updated.customer_name} telah masuk ke pembukuan.`
+      );
+    } catch (err) {
+      toast.error('Pelunasan Piutang Gagal', err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
     }
-
-    // 3. Update receivable invoice status & amounts
-    setReceivableInvoices((prev) =>
-      prev.map((inv) => {
-        if (inv.id === paymentInput.receivable_invoice_id) {
-          const newPaid = inv.paid_amount + paymentInput.amount;
-          const newRemaining = Math.max(0, inv.total_amount - newPaid);
-          const newStatus = newRemaining === 0 ? 'LUNAS' : 'SEBAGIAN';
-          const updatedInv: ReceivableInvoice = {
-            ...inv,
-            paid_amount: newPaid,
-            remaining_amount: newRemaining,
-            status: newStatus,
-          };
-          upsertReceivableToSupabase(updatedInv);
-          return updatedInv;
-        }
-        return inv;
-      })
-    );
-
-    toast.success(
-      'Pembayaran Piutang Diterima',
-      `${formatRupiah(paymentInput.amount)} dari ${targetInv.customer_name} telah masuk ke pembukuan.`
-    );
   };
 
   // Handle Close Period (Jurnal Penutup Otomatis SAK EMKM)
@@ -1460,61 +1039,36 @@ function MainAppContent() {
     setSuppliers((prev) => deleteOrToggleSupplierItem(prev, supplierId));
   };
 
-  const handleSaveBooking = (booking: SalesBookingRecord) => {
-    setBookings((prev) => [booking, ...prev]);
-
+  // Booking DP di server: DP dicatat sebagai Uang Muka Pelanggan (2-1004)
+  const handleSaveBooking = async (payload: BookingPayload) => {
+    const booking = await posApi.createBooking(payload);
+    setBookings((prev) => [mapBooking(booking, products, services), ...prev]);
+    mergeServerJournals(booking.journals);
     if (booking.payment_method === 'TUNAI') {
-      setCashInDrawer((prev) => prev + booking.dp_amount);
+      setCashInDrawer((prev) => prev + Number(booking.dp_amount));
     }
-
-    const journalId = `JU-DP-${Date.now()}`;
-    const targetCashAccount = booking.payment_method === 'TUNAI' ? '1-1000' : '1-1001';
-    const targetCashName = booking.payment_method === 'TUNAI' ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3';
-
-    const dpJournal: JournalEntry = {
-      id: journalId,
-      journal_number: `JU-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`,
-      reference_number: booking.booking_number,
-      date: booking.date,
-      ref_doc: booking.booking_number,
-      description: `Penerimaan Uang Muka (DP) Booking ${booking.customer_name} - ${booking.vehicle_plate}`,
-      status: 'POSTED',
-      total_debit: booking.dp_amount,
-      total_credit: booking.dp_amount,
-      lines: [
-        {
-          account_code: targetCashAccount,
-          account_name: targetCashName,
-          debit: booking.dp_amount,
-          credit: 0,
-          note: `DP Booking ${booking.payment_method}`,
-        },
-        {
-          account_code: '2-1000',
-          account_name: 'Hutang Dagang & Uang Muka Pelanggan',
-          debit: 0,
-          credit: booking.dp_amount,
-          note: `Uang muka pesanan ${booking.customer_name}`,
-        },
-      ],
-    };
-
-    setJournals((prev) => [dpJournal, ...prev]);
-    upsertBookingToSupabase(booking);
-    insertJournalToSupabase(dpJournal);
+    toast.info(
+      'Booking DP Tersimpan',
+      `${booking.booking_number}: DP ${formatRupiah(Number(booking.dp_amount))} dibukukan ke Uang Muka Pelanggan.`
+    );
   };
 
-  const handleConvertBooking = (bookingId: string) => {
-    setBookings((prev) =>
-      prev.map((b) => {
-        if (b.id === bookingId) {
-          const updated = { ...b, status: 'CONVERTED' as const };
-          upsertBookingToSupabase(updated);
-          return updated;
-        }
-        return b;
-      })
-    );
+  const handleCancelBooking = async (booking: SalesBookingRecord) => {
+    const refundAccount = booking.payment_method === 'TUNAI' ? '1-1000' : '1-1001';
+    try {
+      const res = await posApi.cancelBooking(booking.id, {
+        refund_account_code: refundAccount,
+        reason: 'Dibatalkan dari terminal kasir',
+      });
+      setBookings((prev) => prev.map((b) => (b.id === booking.id ? mapBooking(res, products, services) : b)));
+      mergeServerJournals(res.journals);
+      if (refundAccount === '1-1000') {
+        setCashInDrawer((prev) => Math.max(0, prev - booking.dp_amount));
+      }
+      toast.warning('Booking Dibatalkan', `${booking.booking_number}: DP ${formatRupiah(booking.dp_amount)} dikembalikan ke pelanggan.`);
+    } catch (err) {
+      toast.error('Gagal Membatalkan Booking', err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
+    }
   };
 
   const handleResetData = () => {
@@ -1577,9 +1131,9 @@ function MainAppContent() {
           onDeleteParkedOrder={handleDeleteParkedOrder}
           cart={cart}
           setCart={setCart}
-          onCompleteSale={handleCompleteSale}
+          onCheckout={handleCheckout}
           onSaveBooking={handleSaveBooking}
-          onConvertBooking={handleConvertBooking}
+          onCancelBooking={handleCancelBooking}
           cashierName={currentUser.name}
           cashInDrawer={cashInDrawer}
           timeString={timeString}
@@ -1638,6 +1192,7 @@ function MainAppContent() {
                 onBackToPos={() => setActiveScreen('pos')}
                 onSelectTransaction={(tx) => setCurrentReceiptTx(tx)}
                 onVoidTransaction={handleVoidTransaction}
+                canVoid={can('sale_void')}
               />
             )}
 

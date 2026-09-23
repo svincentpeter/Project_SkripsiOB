@@ -18,6 +18,8 @@ interface BookingListDrawerProps {
   bookings: SalesBookingRecord[];
   onClose: () => void;
   onConvertBooking: (booking: SalesBookingRecord) => void;
+  /** Batalkan booking dan kembalikan DP (jurnal refund di server). */
+  onCancelBooking?: (booking: SalesBookingRecord) => void;
 }
 
 export const BookingListDrawer: React.FC<BookingListDrawerProps> = ({
@@ -25,6 +27,7 @@ export const BookingListDrawer: React.FC<BookingListDrawerProps> = ({
   bookings,
   onClose,
   onConvertBooking,
+  onCancelBooking,
 }) => {
   if (!isOpen) return null;
 
@@ -121,7 +124,7 @@ export const BookingListDrawer: React.FC<BookingListDrawerProps> = ({
                   </p>
                 )}
 
-                <div className="flex justify-end pt-1">
+                <div className="flex flex-col sm:flex-row gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -133,6 +136,19 @@ export const BookingListDrawer: React.FC<BookingListDrawerProps> = ({
                     <span>Muat ke Kasir & Lunasi / Jadikan BON</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
+                  {onCancelBooking && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`Batalkan booking ${bk.booking_number} dan kembalikan DP ${formatRupiah(bk.dp_amount)} ke pelanggan?`)) {
+                          onCancelBooking(bk);
+                        }
+                      }}
+                      className="sm:w-auto py-2.5 px-4 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors"
+                    >
+                      Batalkan & Kembalikan DP
+                    </button>
+                  )}
                 </div>
               </div>
             ))
