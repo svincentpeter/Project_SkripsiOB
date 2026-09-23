@@ -207,11 +207,11 @@ export const AccountsReceivableTab: React.FC<AccountsReceivableTabProps> = ({
                           ? 'Belum ada faktur piutang dagang tersimpan di database.'
                           : 'Belum ada faktur piutang yang cocok dengan kriteria filter.'}
                       </span>
-                      {(searchQuery || statusFilter !== 'ALL') && (
+                      {(searchTerm || statusFilter !== 'ALL') && (
                         <button
                           type="button"
                           onClick={() => {
-                            setSearchQuery('');
+                            setSearchTerm('');
                             setStatusFilter('ALL');
                           }}
                           className="mt-2 px-3 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"

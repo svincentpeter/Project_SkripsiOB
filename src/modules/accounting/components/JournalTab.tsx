@@ -65,6 +65,11 @@ export const JournalTab: React.FC<JournalTabProps> = ({
     return matchesQuery && matchesCat;
   });
 
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setCategoryFilter('ALL');
+  };
+
   // Calculate totals
   let totalDebit = 0;
   let totalCredit = 0;
@@ -106,7 +111,7 @@ export const JournalTab: React.FC<JournalTabProps> = ({
 
           <div className="flex items-center gap-2">
             <ExportMenu
-              reportId="general_journal"
+              reportId="journal"
               data={journals}
               ctx={{ periodLabel: 'Periode Berjalan' }}
             />

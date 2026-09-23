@@ -116,7 +116,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
           <div className="flex items-center gap-2">
             <ExportMenu
-              reportId="expense_recap"
+              reportId="expenses"
               data={expenses}
               ctx={{ periodLabel: 'Periode Berjalan' }}
             />
