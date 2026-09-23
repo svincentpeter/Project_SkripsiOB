@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use App\Models\PaymentProviderSetting;
 use App\Models\EdcSetting;
 use App\Models\Supplier;
@@ -10,7 +9,6 @@ use App\Models\Product;
 use App\Models\ServiceMaster;
 use App\Models\Brand;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,22 +20,9 @@ class DatabaseSeeder extends Seeder
         // 1. Chart of Accounts (COA) SAK EMKM
         $this->call(AccountCoaSeeder::class);
 
-        // 2. Default Users (Admin & Kasir)
-        User::firstOrCreate(
-            ['email' => 'admin@omahban.com'],
-            [
-                'name' => 'Admin Utama Cabang 3',
-                'password' => Hash::make('password123'),
-            ]
-        );
-
-        User::firstOrCreate(
-            ['email' => 'kasir@omahban.com'],
-            [
-                'name' => 'Kasir Shift 1',
-                'password' => Hash::make('password123'),
-            ]
-        );
+        // 2. Akun pengguna & hak akses per peran
+        $this->call(UserSeeder::class);
+        $this->call(RolePermissionSeeder::class);
 
         // 3. Payment Providers & Surcharges
         PaymentProviderSetting::firstOrCreate(

@@ -6,7 +6,7 @@ use App\Models\Account;
 use Illuminate\Database\Seeder;
 
 /**
- * Data minimum yang diasumsikan test fitur: bagan akun SAK EMKM.
+ * Data minimum yang diasumsikan test fitur: bagan akun SAK EMKM dan izin per peran.
  */
 class TestBaselineSeeder extends Seeder
 {
@@ -15,5 +15,7 @@ class TestBaselineSeeder extends Seeder
         if (Account::count() === 0) {
             $this->call(AccountCoaSeeder::class);
         }
+
+        $this->call(RolePermissionSeeder::class);
     }
 }
