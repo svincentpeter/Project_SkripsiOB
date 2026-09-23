@@ -99,8 +99,17 @@ import {
   mapJournal,
   mapReceivable,
   mapSaleToTransaction,
+  inventoryApi,
+  mapMovement,
+  mapProductCategory,
+  mapPurchaseToPayable,
+  mapServiceCategory,
+  mapSupplier,
+  productPayload,
+  restockPayload,
+  debtPaymentPayload,
 } from './services/api';
-import type { ApiJournal, ApiSale, BookingPayload, CheckoutPayload } from './services/api';
+import type { ApiJournal, ApiSale, BookingPayload, CheckoutPayload, InventoryValuation } from './services/api';
 import { 
   upsertParkedOrderToSupabase,
   deleteParkedOrderFromSupabase,
@@ -217,21 +226,10 @@ function MainAppContent() {
   });
 
   const [products, setProducts] = useState<ProductItem[]>([]);
-  const [productCategories, setProductCategories] = useState<ProductCategory[]>(() =>
-    fetchProductCategoriesFromStorage()
-  );
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [services, setServices] = useState<ServiceMasterItem[]>([]);
-  const [serviceCategories, setServiceCategories] = useState<ServiceCategoryItem[]>(() =>
-    fetchServiceCategoriesFromStorage()
-  );
-  const [suppliers, setSuppliers] = useState<SupplierItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_suppliers');
-      return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
-    } catch {
-      return INITIAL_SUPPLIERS;
-    }
-  });
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategoryItem[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierItem[]>([]);
   const [bookings, setBookings] = useState<SalesBookingRecord[]>([]);
   const [transactions, setTransactions] = useState<PosTransaction[]>([]);
 
@@ -266,14 +264,7 @@ function MainAppContent() {
       return INITIAL_EXPENSES;
     }
   });
-  const [mutations, setMutations] = useState<StockMutation[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_mutations');
-      return saved ? JSON.parse(saved) : INITIAL_STOCK_MUTATIONS;
-    } catch {
-      return INITIAL_STOCK_MUTATIONS;
-    }
-  });
+  const [mutations, setMutations] = useState<StockMutation[]>([]);
   const [journals, setJournals] = useState<JournalEntry[]>(() => {
     try {
       const saved = localStorage.getItem('ob3_journals');
@@ -290,14 +281,7 @@ function MainAppContent() {
       return 2450000;
     }
   });
-  const [payableInvoices, setPayableInvoices] = useState<PayableInvoice[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_payables');
-      return saved ? JSON.parse(saved) : INITIAL_PAYABLE_INVOICES;
-    } catch {
-      return INITIAL_PAYABLE_INVOICES;
-    }
-  });
+  const [payableInvoices, setPayableInvoices] = useState<PayableInvoice[]>([]);
   const [accountBalances, setAccountBalances] = useState<Record<string, number>>(() => {
     try {
       const saved = localStorage.getItem('ob3_account_balances');
@@ -329,6 +313,7 @@ function MainAppContent() {
 
   // Selected transaction for receipt view
   const [currentReceiptTx, setCurrentReceiptTx] = useState<PosTransaction | null>(null);
+  const [inventoryValuation, setInventoryValuation] = useState<InventoryValuation | null>(null);
 
   // Simulation & Modal states
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -442,13 +427,22 @@ function MainAppContent() {
   // Data POS (katalog, nota, piutang, booking) selalu dari server Laravel sesuai izin peran.
   const loadPosData = async (user: UserSession, permissions: RolePermissionsConfig) => {
     const allowed = (...keys: PermissionKey[]) => keys.some((k) => hasPermission(user, permissions, k));
-    const [apiProducts, apiServices, apiSales, apiReceivables, apiBookings] = await Promise.all([
-      allowed('pos', 'inventory_view') ? productApi.list().catch(() => null) : null,
-      allowed('pos', 'inventory_view') ? posApi.listServices().catch(() => null) : null,
+    const catalog = allowed('pos', 'inventory_view');
+    const [apiProducts, apiServices, apiSales, apiReceivables, apiBookings, apiProductCats, apiServiceCats, apiSuppliers] = await Promise.all([
+      catalog ? productApi.list().catch(() => null) : null,
+      catalog ? posApi.listServices().catch(() => null) : null,
       allowed('pos', 'receipt') ? posApi.listTransactions().catch(() => null) : null,
       allowed('bon_receivable', 'accounting_hub') ? posApi.listReceivables('all').catch(() => null) : null,
       allowed('booking_dp', 'pos') ? posApi.listBookings('ALL').catch(() => null) : null,
+      catalog ? inventoryApi.listProductCategories().catch(() => null) : null,
+      catalog ? inventoryApi.listServiceCategories().catch(() => null) : null,
+      catalog ? inventoryApi.listSuppliers().catch(() => null) : null,
     ]);
+    if (apiProductCats) setProductCategories(apiProductCats.map(mapProductCategory));
+    if (apiServiceCats) setServiceCategories(apiServiceCats.map(mapServiceCategory));
+    if (apiSuppliers) setSuppliers(apiSuppliers.map(mapSupplier));
+    if (allowed('goods_receipt', 'accounts_payable')) refreshPayables();
+    if (allowed('inventory_view')) refreshStockLedger();
     if (apiProducts) setProducts(apiProducts);
     if (apiServices) setServices(apiServices);
     if (apiSales) {
@@ -458,6 +452,19 @@ function MainAppContent() {
     }
     if (apiReceivables) setReceivableInvoices(apiReceivables.map(mapReceivable));
     if (apiBookings) setBookings(apiBookings.map((b) => mapBooking(b, apiProducts ?? [], apiServices ?? [])));
+  };
+
+  const refreshPayables = () => {
+    inventoryApi
+      .listPurchases('all')
+      .then((rows) => setPayableInvoices(rows.filter((p) => p.payment_method === 'TEMPO').map(mapPurchaseToPayable)))
+      .catch(() => {});
+  };
+
+  /** Kartu stok & keselarasan nilai FIFO dengan buku besar 1-2000. */
+  const refreshStockLedger = () => {
+    inventoryApi.listMovements().then((rows) => setMutations(rows.map(mapMovement))).catch(() => {});
+    inventoryApi.valuation().then(setInventoryValuation).catch(() => {});
   };
 
   const refreshReceivables = () => {
@@ -482,14 +489,11 @@ function MainAppContent() {
 
       await loadPosData(currentUser, rolePermissions);
 
-      // Data non-POS (supplier, beban, jurnal, hutang, mutasi) masih lokal sampai tahap berikutnya.
+      // Data beban & jurnal masih lokal sampai tahap berikutnya.
       if (isMounted) {
-        setSuppliers((prev) => (prev.length > 0 ? prev : INITIAL_SUPPLIERS));
         setExpenses((prev) => (prev.length > 0 ? prev : INITIAL_EXPENSES));
         setJournals((prev) => (prev.length > 0 ? prev : INITIAL_JOURNALS));
-        setPayableInvoices((prev) => (prev.length > 0 ? prev : INITIAL_PAYABLE_INVOICES));
         setAccountBalances((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_ACCOUNT_BALANCES));
-        setMutations((prev) => (prev.length > 0 ? prev : INITIAL_STOCK_MUTATIONS));
       }
     };
     syncBackend();
@@ -525,16 +529,8 @@ function MainAppContent() {
   }, [cashInDrawer]);
 
   useEffect(() => {
-    localStorage.setItem('ob3_payables', JSON.stringify(payableInvoices));
-  }, [payableInvoices]);
-
-  useEffect(() => {
     localStorage.setItem('ob3_account_balances', JSON.stringify(accountBalances));
   }, [accountBalances]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_mutations', JSON.stringify(mutations));
-  }, [mutations]);
 
   // Jurnal hasil server disalin ke tampilan akuntansi (masa transisi sampai modul akuntansi membaca API).
   const mergeServerJournals = (apiJournals: ApiJournal[]) => {
@@ -680,153 +676,122 @@ function MainAppContent() {
   };
 
   // Handle Inventory Stock Opname adjustment
-  const handleUpdateProductStock = (updatedProducts: TireProduct[], newMutations: StockMutation[]) => {
-    setProducts(updatedProducts);
-    if (newMutations.length > 0) {
-      setMutations((prev) => [...newMutations, ...prev]);
+  /** Pesan error server untuk toast. */
+  const errorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
+
+  // Stock opname di server: FIFO + jurnal selisih persediaan (5-2000)
+  const handleStockOpname = async (items: { product_id: number; physical_qty: number }[], notes: string): Promise<boolean> => {
+    if (items.length === 0) {
+      toast.info('Tidak Ada Selisih', 'Stok fisik sama dengan stok sistem.');
+      return true;
+    }
+    try {
+      const res = await inventoryApi.stockOpname(items, notes);
+      if (res.journal) mergeServerJournals([res.journal]);
+      handleRefreshProducts();
+      toast.success('Stock Opname Dibukukan', `${res.reference}: ${res.adjustments.length} produk disesuaikan, selisih nilai dijurnal.`);
+      return true;
+    } catch (err) {
+      toast.error('Stock Opname Gagal', errorMessage(err));
+      return false;
     }
   };
 
   const handleRefreshProducts = async () => {
     try {
-      const apiProds = await productApi.list();
-      if (apiProds && apiProds.length > 0) {
-        setProducts(apiProds);
-      }
+      setProducts(await productApi.list());
     } catch (e) {
       console.warn('[Omah Ban] Gagal memuat ulang produk dari backend:', e);
     }
+    if (can('inventory_view')) refreshStockLedger();
   };
 
-  // Handle Create Product Master (with optional initial FIFO batch)
-  const handleCreateProduct = (input: CreateProductInput) => {
-    const { product, mutation } = createProductWithInitialStock(input, products, mutations);
-    setProducts((prev) => [product, ...prev]);
-    upsertProductToSupabase(product);
-    if (mutation) {
-      setMutations((prev) => [mutation, ...prev]);
-      insertStockMutationToSupabase(mutation);
+  /** Dipanggil setelah koreksi buku stok / rekonsiliasi Excel tersimpan di server. */
+  const handleInventoryServerChanged = (journal?: ApiJournal | null) => {
+    if (journal) mergeServerJournals([journal]);
+    handleRefreshProducts();
+  };
+
+  const handlePostOpeningBalance = async () => {
+    try {
+      const res = await inventoryApi.postOpeningBalance();
+      if (res.journal) mergeServerJournals([res.journal]);
+      setInventoryValuation(res.valuation);
+      toast.success('Saldo Awal Dibukukan', 'Akun Persediaan 1-2000 kini sama dengan nilai stok FIFO.');
+    } catch (err) {
+      toast.error('Gagal Membukukan Saldo Awal', errorMessage(err));
     }
   };
 
-  // Handle Update Product Master
-  const handleUpdateProduct = (productId: string, updates: UpdateProductInput) => {
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id === productId) {
-          const updatedName = updates.product_name ?? p.product_name ?? p.name;
-          const updatedSize = updates.size_width && updates.size_ratio && updates.ring
-            ? `${updates.size_width}/${updates.size_ratio} ${updates.ring}`
-            : p.product_size ?? p.size;
-          const updatedCost = updates.product_cost ?? p.cost_price ?? p.product_cost ?? 0;
-          const updatedPrice = updates.product_price ?? p.product_price ?? p.price ?? 0;
-          const updatedAlert = updates.product_stock_alert ?? p.product_stock_alert ?? p.min_stock ?? 5;
-
-          const updatedProd: ProductItem = {
-            ...p,
-            ...updates,
-            name: updatedName,
-            product_name: updatedName,
-            product_size: updatedSize,
-            size: updatedSize,
-            cost_price: updatedCost,
-            product_cost: updatedCost,
-            cost: updatedCost,
-            product_price: updatedPrice,
-            price: updatedPrice,
-            product_stock_alert: updatedAlert,
-            min_stock: updatedAlert,
-          };
-          upsertProductToSupabase(updatedProd);
-          return updatedProd;
-        }
-        return p;
-      })
-    );
-  };
-
-  // Handle Goods Receipt (Restock incoming ban from supplier + Auto-Journaling & Hutang)
-  const handleGoodsReceipt = (input: GoodsReceiptInput) => {
-    const targetProduct = products.find((p) => p.id === input.product_id);
-    if (!targetProduct) return;
-
-    // 1. Process inventory batch & stock mutation
-    const { updatedProduct, mutation } = processGoodsReceipt(targetProduct, input, mutations);
-    setProducts((prev) => prev.map((p) => (p.id === input.product_id ? updatedProduct : p)));
-    setMutations((prev) => [mutation, ...prev]);
-    upsertProductToSupabase(updatedProduct);
-    insertStockMutationToSupabase(mutation);
-
-    // 2. Auto-generate Double-Entry Purchase Journal
-    const totalCost = input.incoming_qty * input.unit_cost;
-    const newJournal = generatePurchaseJournal(input, totalCost, journals.length + 1);
-    setJournals((prev) => [newJournal, ...prev]);
-    insertJournalToSupabase(newJournal);
-
-    // 3. Deduct cash drawer if paid cash
-    if (input.payment_terms === 'TUNAI_KAS') {
-      setCashInDrawer((prev) => Math.max(0, prev - totalCost));
-    }
-
-    // 4. If tempo / credit, create new PayableInvoice
-    if (input.payment_terms === 'TEMPO_HUTANG' || !input.payment_terms) {
-      const newInvoice: PayableInvoice = {
-        id: `pay-inv-${Date.now()}`,
-        invoice_number: input.supplier_invoice || `SJ-${input.supplier_name.substring(0, 2).toUpperCase()}-${Date.now().toString().slice(-4)}`,
-        supplier_name: input.supplier_name,
-        date: input.receipt_date || new Date().toISOString().substring(0, 10),
-        due_date: input.due_date || new Date(Date.now() + 30 * 86400000).toISOString().substring(0, 10),
-        total_amount: totalCost,
-        paid_amount: 0,
-        remaining_amount: totalCost,
-        status: 'BELUM_LUNAS',
-        notes: input.notes || `Pengadaan ${input.incoming_qty} pcs ${targetProduct.product_name}`,
-        ref_doc: mutation.ref_doc,
-      };
-      setPayableInvoices((prev) => [newInvoice, ...prev]);
-      upsertPayableToSupabase(newInvoice);
+  // Produk baru; stok awal dijurnal server sebagai saldo awal (Dr 1-2000 / Cr 3-1000)
+  const handleCreateProduct = async (input: CreateProductInput): Promise<boolean> => {
+    try {
+      const res = await inventoryApi.createProduct(productPayload(input, productCategories));
+      if (res.journal) mergeServerJournals([res.journal]);
+      handleRefreshProducts();
+      toast.success('Produk Ditambahkan', `${res.data.product_name} tersimpan di katalog.`);
+      return true;
+    } catch (err) {
+      toast.error('Gagal Menyimpan Produk', errorMessage(err));
+      return false;
     }
   };
 
-  // Handle Pay Debt (Pelunasan Hutang Distributor)
-  const handlePayDebt = (paymentInput: DebtPaymentInput) => {
-    const targetInv = payableInvoices.find((i) => i.id === paymentInput.payable_invoice_id);
-    if (!targetInv) return;
-
-    // 1. Auto-generate Double-Entry Debt Payment Journal
-    const newJournal = generateDebtPaymentJournal(
-      paymentInput,
-      targetInv.supplier_name,
-      targetInv.invoice_number,
-      journals.length + 1
-    );
-    setJournals((prev) => [newJournal, ...prev]);
-    insertJournalToSupabase(newJournal);
-
-    // 2. Deduct from drawer if cash
-    if (paymentInput.source_account_code === '1-1000') {
-      setCashInDrawer((prev) => Math.max(0, prev - paymentInput.amount));
+  const handleUpdateProduct = async (productId: string, updates: UpdateProductInput): Promise<boolean> => {
+    const current = products.find((p) => p.id === productId);
+    if (!current) return false;
+    try {
+      await inventoryApi.updateProduct(
+        productId,
+        productPayload({ category: current.category, ...updates }, productCategories, {
+          product_name: current.product_name,
+          brand: current.brand,
+          product_cost: current.product_cost,
+          product_price: current.product_price,
+          product_stock_alert: current.product_stock_alert,
+        })
+      );
+      handleRefreshProducts();
+      toast.success('Produk Diperbarui', 'Informasi produk tersimpan.');
+      return true;
+    } catch (err) {
+      toast.error('Gagal Memperbarui Produk', errorMessage(err));
+      return false;
     }
+  };
 
-    // 3. Update payable invoice
-    setPayableInvoices((prev) =>
-      prev.map((inv) => {
-        if (inv.id === paymentInput.payable_invoice_id) {
-          const newPaid = inv.paid_amount + paymentInput.amount;
-          const newRemaining = Math.max(0, inv.total_amount - newPaid);
-          const newStatus = newRemaining === 0 ? 'LUNAS' : 'SEBAGIAN';
-          const updatedInv: PayableInvoice = {
-            ...inv,
-            paid_amount: newPaid,
-            remaining_amount: newRemaining,
-            status: newStatus,
-          };
-          upsertPayableToSupabase(updatedInv);
-          return updatedInv;
-        }
-        return inv;
-      })
-    );
+  // Penerimaan barang di server: dokumen GR + batch FIFO + jurnal pembelian (TEMPO → hutang supplier)
+  const handleGoodsReceipt = async (input: GoodsReceiptInput): Promise<boolean> => {
+    try {
+      const payload = restockPayload(input, suppliers);
+      const res = await inventoryApi.restock(payload);
+      mergeServerJournals([res.journal]);
+      if (payload.payment_method === 'TUNAI') {
+        setCashInDrawer((prev) => Math.max(0, prev - Number(res.purchase.total_amount)));
+      }
+      if (payload.payment_method === 'TEMPO') refreshPayables();
+      handleRefreshProducts();
+      toast.success('Penerimaan Barang Dibukukan', `${res.purchase.purchase_number}: ${formatRupiah(res.purchase.total_amount)} (${payload.payment_method}).`);
+      return true;
+    } catch (err) {
+      toast.error('Penerimaan Barang Gagal', errorMessage(err));
+      return false;
+    }
+  };
+
+  // Pelunasan hutang supplier per faktur di server (Dr 2-1000 / Cr kas atau bank)
+  const handlePayDebt = async (paymentInput: DebtPaymentInput) => {
+    try {
+      const res = await inventoryApi.payPurchase(paymentInput.payable_invoice_id, debtPaymentPayload(paymentInput));
+      mergeServerJournals([res.journal]);
+      setPayableInvoices((prev) => prev.map((inv) => (inv.id === String(res.purchase.id) ? mapPurchaseToPayable(res.purchase) : inv)));
+      if (paymentInput.source_account_code === '1-1000') {
+        setCashInDrawer((prev) => Math.max(0, prev - paymentInput.amount));
+      }
+      toast.success('Hutang Dibayar', `${formatRupiah(paymentInput.amount)} ke ${res.purchase.supplier_name} dibukukan.`);
+    } catch (err) {
+      toast.error('Pelunasan Hutang Gagal', errorMessage(err));
+    }
   };
 
   // Handle Manual Adjusting Journal
@@ -919,124 +884,140 @@ function MainAppContent() {
   };
 
   // Handle Safe Delete or Deactivate Product
-  const handleDeleteOrDeactivateProduct = (productId: string) => {
-    const targetProduct = products.find((p) => p.id === productId);
-    if (!targetProduct) return;
-
-    const check = canSafelyDeleteProduct(targetProduct, mutations, transactions);
-    if (check.canDelete) {
-      setProducts((prev) => prev.filter((p) => p.id !== productId));
-      deleteProductFromSupabase(productId);
-    } else {
-      // Toggle is_active status (soft delete / reactivate)
-      const updatedP = { ...targetProduct, is_active: !targetProduct.is_active };
-      setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? updatedP : p))
-      );
-      upsertProductToSupabase(updatedP);
+  // Produk tanpa riwayat dihapus; yang punya riwayat/stok dinonaktifkan server. Produk nonaktif diaktifkan kembali.
+  const handleDeleteOrDeactivateProduct = async (productId: string) => {
+    const target = products.find((p) => p.id === productId);
+    if (!target) return;
+    if (target.is_active === false) {
+      await handleUpdateProduct(productId, { is_active: true });
+      return;
+    }
+    if (!window.confirm(`Hapus atau nonaktifkan produk ${target.product_name}?`)) return;
+    try {
+      const res = await inventoryApi.deleteProduct(productId);
+      handleRefreshProducts();
+      toast.info(res.data.deleted ? 'Produk Dihapus' : 'Produk Dinonaktifkan', res.message ?? '');
+    } catch (err) {
+      toast.error('Gagal Menghapus Produk', errorMessage(err));
     }
   };
 
-  const handleSaveService = (serviceData: Omit<ServiceMasterItem, 'id' | 'is_active'>, serviceId?: string) => {
-    if (serviceId) {
-      setServices((prev) => updateServiceItem(prev, serviceId, serviceData));
-    } else {
-      const { updatedServices } = createServiceItem(services, serviceData);
-      setServices(updatedServices);
+  const reloadServices = async () => {
+    setServices(await posApi.listServices());
+    inventoryApi.listServiceCategories().then((rows) => setServiceCategories(rows.map(mapServiceCategory))).catch(() => {});
+  };
+
+  const handleSaveService = async (serviceData: Omit<ServiceMasterItem, 'id' | 'is_active'>, serviceId?: string) => {
+    const current = services.find((s) => s.id === serviceId);
+    try {
+      await inventoryApi.saveService({ ...serviceData, is_active: current?.is_active ?? true }, serviceId);
+      await reloadServices();
+      toast.success('Jasa Disimpan', `${serviceData.service_name} tersimpan.`);
+    } catch (err) {
+      toast.error('Gagal Menyimpan Jasa', errorMessage(err));
     }
   };
 
-  const handleToggleService = (serviceId: string) => {
-    setServices((prev) => deleteOrToggleServiceItem(prev, serviceId));
+  const handleToggleService = async (serviceId: string) => {
+    const current = services.find((s) => s.id === serviceId);
+    if (!current) return;
+    try {
+      await inventoryApi.saveService({ ...current, is_active: !current.is_active }, serviceId);
+      await reloadServices();
+    } catch (err) {
+      toast.error('Gagal Mengubah Status Jasa', errorMessage(err));
+    }
   };
 
-  const handleDeleteServicePermanent = (serviceId: string) => {
-    setServices((prev) => deleteServiceItemPermanent(prev, serviceId));
-    toast.info('Layanan Dihapus', 'Layanan jasa berhasil dihapus permanen.');
+  const handleDeleteServicePermanent = async (serviceId: string) => {
+    try {
+      const res = await inventoryApi.deleteService(serviceId);
+      await reloadServices();
+      toast.info(res.data?.deleted ? 'Jasa Dihapus' : 'Jasa Dinonaktifkan', res.message ?? '');
+    } catch (err) {
+      toast.error('Gagal Menghapus Jasa', errorMessage(err));
+    }
   };
 
-  const handleSaveProductCategory = (
+  const reloadProductCategories = async () => {
+    setProductCategories((await inventoryApi.listProductCategories()).map(mapProductCategory));
+  };
+
+  const handleSaveProductCategory = async (
     categoryData: { category_code: string; category_name: string; description?: string; is_active?: boolean },
     categoryId?: string
   ) => {
-    if (categoryId) {
-      const res = updateProductCategory(productCategories, categoryId, categoryData);
-      if (res.success) {
-        setProductCategories(res.updatedCategories);
-        toast.success('Berhasil', 'Kategori produk berhasil diperbarui.');
-      } else {
-        toast.error('Gagal', res.error || 'Terjadi kesalahan saat memperbarui kategori.');
-      }
-    } else {
-      const res = createProductCategory(productCategories, categoryData);
-      if (res.success) {
-        setProductCategories(res.updatedCategories);
-        toast.success('Berhasil', 'Kategori produk baru berhasil ditambahkan.');
-      } else {
-        toast.error('Gagal', res.error || 'Terjadi kesalahan saat menambahkan kategori.');
-      }
+    try {
+      await inventoryApi.saveProductCategory(categoryData, categoryId);
+      await reloadProductCategories();
+      toast.success('Kategori Disimpan', `${categoryData.category_name} tersimpan.`);
+    } catch (err) {
+      toast.error('Gagal Menyimpan Kategori', errorMessage(err));
     }
   };
 
-  const handleDeleteProductCategory = (categoryId: string) => {
-    const res = deleteProductCategory(productCategories, categoryId, products);
-    if (res.success) {
-      setProductCategories(res.updatedCategories);
-      toast.info('Kategori Dihapus', 'Kategori produk berhasil dihapus.');
-    } else {
-      toast.error('Gagal Menghapus', res.error || 'Kategori tidak dapat dihapus.');
+  const handleDeleteProductCategory = async (categoryId: string) => {
+    try {
+      await inventoryApi.deleteProductCategory(categoryId);
+      await reloadProductCategories();
+      toast.info('Kategori Dihapus', 'Kategori produk telah dihapus.');
+    } catch (err) {
+      toast.error('Gagal Menghapus Kategori', errorMessage(err));
     }
   };
 
-  const handleToggleProductCategoryStatus = (categoryId: string) => {
-    const updated = toggleProductCategoryStatus(productCategories, categoryId);
-    setProductCategories(updated);
+  const handleToggleProductCategoryStatus = async (categoryId: string) => {
+    const current = productCategories.find((c) => c.id === categoryId);
+    if (!current) return;
+    await handleSaveProductCategory({ ...current, description: current.description, is_active: !current.is_active }, categoryId);
   };
 
-  const handleSaveServiceCategory = (
-    categoryData: { code: string; name: string; description?: string },
-    id?: string
-  ) => {
-    if (id) {
-      const res = updateServiceCategory(serviceCategories, id, categoryData);
-      if (res.success) {
-        setServiceCategories(res.updatedCategories);
-        toast.success('Berhasil', 'Kategori jasa diperbarui.');
-      } else {
-        toast.error('Gagal', res.error || 'Gagal memperbarui kategori jasa.');
-      }
-    } else {
-      const res = createServiceCategory(serviceCategories, categoryData);
-      if (res.success) {
-        setServiceCategories(res.updatedCategories);
-        toast.success('Berhasil', 'Kategori jasa baru ditambahkan.');
-      } else {
-        toast.error('Gagal', res.error || 'Gagal menambahkan kategori jasa.');
-      }
+  const handleSaveServiceCategory = async (categoryData: { code: string; name: string; description?: string }, id?: string) => {
+    try {
+      await inventoryApi.saveServiceCategory(categoryData, id);
+      await reloadServices();
+      toast.success('Kategori Jasa Disimpan', `${categoryData.name} tersimpan.`);
+    } catch (err) {
+      toast.error('Gagal Menyimpan Kategori Jasa', errorMessage(err));
     }
   };
 
-  const handleDeleteServiceCategory = (id: string) => {
-    const res = deleteServiceCategory(serviceCategories, id, services);
-    if (res.success) {
-      setServiceCategories(res.updatedCategories);
-      toast.info('Dihapus', 'Kategori jasa telah dihapus.');
-    } else {
-      toast.error('Gagal Menghapus', res.error || 'Kategori masih digunakan oleh layanan aktif.');
+  const handleDeleteServiceCategory = async (id: string) => {
+    try {
+      await inventoryApi.deleteServiceCategory(id);
+      await reloadServices();
+      toast.info('Kategori Jasa Dihapus', 'Kategori jasa telah dihapus.');
+    } catch (err) {
+      toast.error('Gagal Menghapus Kategori Jasa', errorMessage(err));
     }
   };
 
-  const handleSaveSupplier = (supplierData: Omit<SupplierItem, 'id' | 'is_active'>, supplierId?: string) => {
-    if (supplierId) {
-      setSuppliers((prev) => updateSupplierItem(prev, supplierId, supplierData));
-    } else {
-      const { updatedSuppliers } = createSupplierItem(suppliers, supplierData);
-      setSuppliers(updatedSuppliers);
+  const reloadSuppliers = async () => {
+    setSuppliers((await inventoryApi.listSuppliers()).map(mapSupplier));
+  };
+
+  const handleSaveSupplier = async (supplierData: Omit<SupplierItem, 'id' | 'is_active'>, supplierId?: string): Promise<boolean> => {
+    const current = suppliers.find((s) => s.id === supplierId);
+    try {
+      await inventoryApi.saveSupplier({ ...supplierData, is_active: current?.is_active ?? true }, supplierId);
+      await reloadSuppliers();
+      toast.success('Supplier Disimpan', `${supplierData.supplier_name} tersimpan.`);
+      return true;
+    } catch (err) {
+      toast.error('Gagal Menyimpan Supplier', errorMessage(err));
+      return false;
     }
   };
 
-  const handleToggleSupplier = (supplierId: string) => {
-    setSuppliers((prev) => deleteOrToggleSupplierItem(prev, supplierId));
+  const handleToggleSupplier = async (supplierId: string) => {
+    const current = suppliers.find((s) => s.id === supplierId);
+    if (!current) return;
+    try {
+      await inventoryApi.saveSupplier({ ...current, is_active: !current.is_active }, supplierId);
+      await reloadSuppliers();
+    } catch (err) {
+      toast.error('Gagal Mengubah Status Supplier', errorMessage(err));
+    }
   };
 
   // Booking DP di server: DP dicatat sebagai Uang Muka Pelanggan (2-1004)
@@ -1224,7 +1205,10 @@ function MainAppContent() {
                 onUpdateProduct={handleUpdateProduct}
                 onGoodsReceipt={handleGoodsReceipt}
                 onDeleteOrDeactivateProduct={handleDeleteOrDeactivateProduct}
-                onUpdateProductStock={handleUpdateProductStock}
+                onStockOpname={handleStockOpname}
+                onServerChanged={handleInventoryServerChanged}
+                ledgerValuation={inventoryValuation}
+                onPostOpeningBalance={can('accounting_hub') ? handlePostOpeningBalance : undefined}
                 onSaveService={handleSaveService}
                 onToggleService={handleToggleService}
                 onDeleteServicePermanent={handleDeleteServicePermanent}

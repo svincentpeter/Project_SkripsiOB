@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { ProductItem, PosTransaction, StockMutation } from '../../../shared/types';
 import { apiClient } from '../../../services/api';
+import type { ApiJournal } from '../../../services/api';
+import { useToast } from '../../../shared/components';
 import { formatRupiah, formatNumber } from '../../../shared/utils/formatters';
 import {
   calculateClientStockLedger,
@@ -30,17 +32,17 @@ interface StockMonthlyLedgerViewProps {
   products: ProductItem[];
   transactions?: PosTransaction[];
   mutations?: StockMutation[];
-  onUpdateProductStock?: (updatedProducts: ProductItem[], newMutations: StockMutation[]) => void;
-  onUpdateProduct?: (productId: string, updates: Partial<ProductItem>) => void;
+  /** Dipanggil setelah server menyimpan koreksi (stok, katalog & jurnal perlu dimuat ulang). */
+  onServerChanged?: (journal?: ApiJournal | null) => void;
 }
 
 export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
   products,
   transactions = [],
   mutations = [],
-  onUpdateProductStock,
-  onUpdateProduct,
+  onServerChanged,
 }) => {
+  const toast = useToast();
   const currentMonthStr = useMemo(() => new Date().toISOString().substring(0, 7), []);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
@@ -126,8 +128,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
     if (!row) return;
 
     try {
-      // 1. Send to backend if available
-      await apiClient.post('/reports/stock-monthly/inline-update', {
+      const res = await apiClient.post<{ data?: { journal?: ApiJournal | null } }>('/reports/stock-monthly/inline-update', {
         product_id: row.id,
         field: payload.field,
         value: payload.value,
@@ -135,33 +136,11 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
         batch_id: payload.batch_id,
         reference_price: payload.reference_price,
       });
-    } catch (e) {
-      // Offline / client fallback
-    }
-
-    // 2. Update local state
-    if (payload.field === 'opening_stock') {
-      const newOpening = Number(payload.value);
-      const delta = newOpening - row.opening;
-      if (onUpdateProduct) {
-        onUpdateProduct(row.id, {
-          stok_awal: newOpening,
-          product_quantity: Math.max(0, (row.remaining || 0) + delta),
-        });
-      }
-    } else if (payload.field === 'batch_cost') {
-      if (onUpdateProduct) {
-        onUpdateProduct(row.id, {
-          product_cost: Number(payload.value),
-        });
-      }
-    } else if (payload.field === 'old_stock_tag') {
-      if (onUpdateProduct) {
-        onUpdateProduct(row.id, {
-          is_old_stock: Boolean(payload.value),
-          reference_price: payload.reference_price,
-        });
-      }
+      onServerChanged?.(res?.data?.journal ?? null);
+      toast.success('Koreksi Disimpan', 'Perubahan stok/modal dibukukan beserta jurnal selisih persediaan.');
+    } catch (err) {
+      toast.error('Koreksi Gagal', err instanceof Error ? err.message : 'Server menolak koreksi.');
+      return;
     }
 
     // Refresh ledger data

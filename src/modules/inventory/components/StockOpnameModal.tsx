@@ -20,7 +20,8 @@ interface StockOpnameModalProps {
   products: TireProduct[];
   existingMutations: StockMutation[];
   onClose: () => void;
-  onSaveOpname: (updatedProducts: TireProduct[], newMutations: StockMutation[]) => void;
+  /** Kirim hasil hitung fisik ke server; batch FIFO & jurnal selisih diproses di sana. */
+  onSaveOpname: (items: { product_id: number; physical_qty: number }[], notes: string) => Promise<boolean>;
 }
 
 export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
@@ -35,6 +36,7 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
   const [opnameNotes, setOpnameNotes] = useState('Stock Opname Fisik Bulanan Cabang 3');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrandFilter, setSelectedBrandFilter] = useState<string>('ALL');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Initialize input with current stock on open
   useEffect(() => {
@@ -96,69 +98,19 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
     }
   });
 
-  const handleSave = () => {
-    const newMutations: StockMutation[] = [];
-    const now = new Date();
-    const fullDateTime = `${now.toISOString().split('T')[0]} ${now.toTimeString().split(' ')[0]}`;
+  const handleSave = async () => {
+    const items = products
+      .filter((p) => opnameInputs[p.id] !== undefined && opnameInputs[p.id] !== p.stock)
+      .map((p) => ({ product_id: Number(p.id), physical_qty: Math.max(0, opnameInputs[p.id]) }));
 
-    const updatedProducts = products.map((p) => {
-      const physical = opnameInputs[p.id] ?? p.stock;
-      const diff = physical - p.stock;
-
-      if (diff !== 0) {
-        newMutations.push({
-          id: generateMutationId(),
-          tire_id: p.id,
-          product_id: p.id,
-          tire_name: p.name || p.product_name,
-          product_name: p.name || p.product_name,
-          tire_size: p.product_size || p.size || '',
-          date: fullDateTime,
-          ref_doc: docNumber,
-          type: 'PENYESUAIAN',
-          qty: Math.abs(diff),
-          balance: physical,
-          notes: `Opname Fisik: Fisik ${physical} vs Sistem ${p.stock} (Selisih: ${diff > 0 ? '+' : ''}${diff} pcs). Berita Acara: ${opnameNotes}`,
-          description: `Penyesuaian Opname ${docNumber} (${diff > 0 ? '+' : ''}${diff} pcs)`,
-          operator: opnameOperator,
-        });
-
-        // Adjust remaining batches if deficit or surplus
-        let updatedBatches = [...(p.batches || [])];
-        if (diff > 0) {
-          // Surplus: add to the newest batch or create adjustment batch
-          if (updatedBatches.length > 0) {
-            const lastBatch = { ...updatedBatches[updatedBatches.length - 1] };
-            lastBatch.remaining_qty += diff;
-            updatedBatches[updatedBatches.length - 1] = lastBatch;
-          }
-        } else if (diff < 0) {
-          // Deficit: reduce from earliest available batches (FIFO)
-          let toDeduct = Math.abs(diff);
-          updatedBatches = updatedBatches.map((b) => {
-            if (toDeduct <= 0) return b;
-            const take = Math.min(b.remaining_qty, toDeduct);
-            toDeduct -= take;
-            return {
-              ...b,
-              remaining_qty: b.remaining_qty - take,
-            };
-          });
-        }
-
-        return {
-          ...p,
-          stock: physical,
-          product_quantity: physical,
-          batches: updatedBatches,
-        };
+    setIsSaving(true);
+    try {
+      if (await onSaveOpname(items, `${opnameNotes} (${docNumber})`)) {
+        onClose();
       }
-
-      return p;
-    });
-
-    onSaveOpname(updatedProducts, newMutations);
-    onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const brands = Array.from(new Set(products.map((p) => p.brand)));
@@ -402,6 +354,7 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
             <button
               type="button"
               onClick={handleSave}
+              disabled={isSaving}
               className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs flex items-center gap-1.5"
             >
               <PackageCheck className="w-4 h-4" />

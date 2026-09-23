@@ -21,6 +21,7 @@ import {
   TireProduct, 
   UpdateProductInput 
 } from '../../../shared/types';
+import { categoryKind } from '../../../shared/utils/categoryKind';
 import { 
   formatRupiah, 
   parseRupiahInput 
@@ -60,6 +61,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onSaveEdit,
 }) => {
   const [category, setCategory] = useState<ItemCategory>('BAN_BARU');
+  // Jenis barang menentukan field yang tampil; kode kategori server bebas (mis. BAN-MOBIL).
+  const kind = categoryKind(category, categories.find((c) => c.category_code === category)?.category_name);
   const [brand, setBrand] = useState<string>('Bridgestone');
   const [productName, setProductName] = useState('');
   const [sizeWidth, setSizeWidth] = useState<number>(185);
@@ -113,7 +116,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setStockAlert(productToEdit.product_stock_alert ?? productToEdit.min_stock ?? 5);
       setHasInitialStock(false);
     } else {
-      const initialCat: ItemCategory = 'BAN_BARU';
+      const initialCat: ItemCategory =
+        categories.find((c) => c.is_active && categoryKind(c.category_code, c.category_name) === 'BAN_BARU')?.category_code ??
+        'BAN_BARU';
       const initialBrand = 'Bridgestone';
       const initialWidth = 185;
       const initialRatio = '65';
@@ -146,19 +151,19 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   useEffect(() => {
     if (isOpen && mode === 'CREATE') {
-      if (category === 'BAN_BARU') {
+      if (kind === 'BAN_BARU') {
         const autoName = `${brand} ${motif ? motif.trim() + ' ' : ''}${sizeWidth}/${sizeRatio} ${ring}`.trim();
         setProductName(autoName);
         setProductCode(generateProductSku(brand, sizeWidth, sizeRatio, ring, motif || 'STD', 'BAN_BARU'));
-      } else if (category === 'VELG') {
+      } else if (kind === 'VELG') {
         const autoName = `Velg ${brand} ${motif ? motif.trim() + ' ' : ''}${ring} ${pcd} (Set 4 Pcs)`.trim();
         setProductName(autoName);
         setProductCode(generateProductSku(brand, undefined, undefined, ring, motif || 'STD', 'VELG', pcd));
-      } else if (category === 'BAN_DALAM') {
+      } else if (kind === 'BAN_DALAM') {
         const autoName = `Ban Dalam ${brand} ${sizeRatio || '14'} (${valveType})`.trim();
         setProductName(autoName);
         setProductCode(generateProductSku(brand, undefined, sizeRatio || '14', ring, motif || 'STD', 'BAN_DALAM'));
-      } else if (category === 'OLI_PELUMAS') {
+      } else if (kind === 'OLI_PELUMAS') {
         const autoName = `Oli ${brand} ${motif ? motif.trim() : 'Helix HX7 10W-40 4L'}`.trim();
         setProductName(autoName);
         setProductCode(generateProductSku(brand, undefined, undefined, undefined, motif || 'OIL', 'OLI_PELUMAS'));
@@ -198,16 +203,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         product_name: productName.trim(),
         product_code: productCode.trim(),
         barcode: barcode.trim(),
-        size_width: category === 'BAN_BARU' ? sizeWidth : undefined,
-        size_ratio: category === 'BAN_BARU' ? sizeRatio : category === 'BAN_DALAM' ? sizeRatio : undefined,
-        ring: category !== 'BAN_DALAM' ? ring : undefined,
+        size_width: kind === 'BAN_BARU' ? sizeWidth : undefined,
+        size_ratio: kind === 'BAN_BARU' ? sizeRatio : kind === 'BAN_DALAM' ? sizeRatio : undefined,
+        ring: kind !== 'BAN_DALAM' ? ring : undefined,
         motif: motif.trim() || '-',
-        product_year: category === 'BAN_BARU' ? productYear : undefined,
-        pcd: category === 'VELG' ? pcd : undefined,
-        rim_width: category === 'VELG' ? rimWidth : undefined,
-        offset_et: category === 'VELG' ? offsetEt : undefined,
-        color_finish: category === 'VELG' ? colorFinish : undefined,
-        valve_type: category === 'BAN_DALAM' ? valveType : undefined,
+        product_year: kind === 'BAN_BARU' ? productYear : undefined,
+        pcd: kind === 'VELG' ? pcd : undefined,
+        rim_width: kind === 'VELG' ? rimWidth : undefined,
+        offset_et: kind === 'VELG' ? offsetEt : undefined,
+        color_finish: kind === 'VELG' ? colorFinish : undefined,
+        valve_type: kind === 'BAN_DALAM' ? valveType : undefined,
         product_cost: costPrice,
         product_price: sellingPrice,
         product_stock_alert: stockAlert,
@@ -222,16 +227,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         product_name: productName.trim(),
         product_code: productCode.trim(),
         barcode: barcode.trim(),
-        size_width: category === 'BAN_BARU' ? sizeWidth : undefined,
-        size_ratio: category === 'BAN_BARU' ? sizeRatio : category === 'BAN_DALAM' ? sizeRatio : undefined,
-        ring: category !== 'BAN_DALAM' ? ring : undefined,
+        size_width: kind === 'BAN_BARU' ? sizeWidth : undefined,
+        size_ratio: kind === 'BAN_BARU' ? sizeRatio : kind === 'BAN_DALAM' ? sizeRatio : undefined,
+        ring: kind !== 'BAN_DALAM' ? ring : undefined,
         motif: motif.trim() || '-',
-        product_year: category === 'BAN_BARU' ? productYear : undefined,
-        pcd: category === 'VELG' ? pcd : undefined,
-        rim_width: category === 'VELG' ? rimWidth : undefined,
-        offset_et: category === 'VELG' ? offsetEt : undefined,
-        color_finish: category === 'VELG' ? colorFinish : undefined,
-        valve_type: category === 'BAN_DALAM' ? valveType : undefined,
+        product_year: kind === 'BAN_BARU' ? productYear : undefined,
+        pcd: kind === 'VELG' ? pcd : undefined,
+        rim_width: kind === 'VELG' ? rimWidth : undefined,
+        offset_et: kind === 'VELG' ? offsetEt : undefined,
+        color_finish: kind === 'VELG' ? colorFinish : undefined,
+        valve_type: kind === 'BAN_DALAM' ? valveType : undefined,
         product_cost: costPrice,
         product_price: sellingPrice,
         product_stock_alert: stockAlert,
@@ -250,13 +255,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       ];
 
   const currentBrandOptions =
-    category === 'VELG'
+    kind === 'VELG'
       ? BRANDS_VELG
-      : category === 'BAN_DALAM'
+      : kind === 'BAN_DALAM'
       ? BRANDS_TUBE
-      : category === 'OLI_PELUMAS'
+      : kind === 'OLI_PELUMAS'
       ? BRANDS_OIL
-      : category === 'AKSESORIS'
+      : kind === 'AKSESORIS'
       ? BRANDS_ACC
       : BRANDS_BAN;
 
@@ -304,10 +309,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                       type="button"
                       onClick={() => {
                         setCategory(cat.category_code);
-                        if (cat.category_code === 'BAN_BARU') setBrand('Bridgestone');
-                        else if (cat.category_code === 'VELG') setBrand('HSR');
-                        else if (cat.category_code === 'BAN_DALAM') setBrand('GTRadial');
-                        else if (cat.category_code === 'OLI_PELUMAS') setBrand('Shell');
+                        if (categoryKind(cat.category_code, cat.category_name) === 'BAN_BARU') setBrand('Bridgestone');
+                        else if (categoryKind(cat.category_code, cat.category_name) === 'VELG') setBrand('HSR');
+                        else if (categoryKind(cat.category_code, cat.category_name) === 'BAN_DALAM') setBrand('GTRadial');
+                        else if (categoryKind(cat.category_code, cat.category_name) === 'OLI_PELUMAS') setBrand('Shell');
                       }}
                       className={`flex items-center gap-2 py-2 px-3.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                         isSelected
@@ -315,9 +320,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                           : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                     >
-                      {cat.category_code === 'BAN_BARU' ? (
+                      {categoryKind(cat.category_code, cat.category_name) === 'BAN_BARU' ? (
                         <Disc className="w-4 h-4 text-blue-600" />
-                      ) : cat.category_code === 'VELG' ? (
+                      ) : categoryKind(cat.category_code, cat.category_name) === 'VELG' ? (
                         <CircleDot className="w-4 h-4 text-amber-600" />
                       ) : (
                         <Package className="w-4 h-4 text-emerald-600" />
@@ -350,13 +355,13 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 type="text"
                 value={motif}
                 onChange={(e) => setMotif(e.target.value)}
-                placeholder={category === 'VELG' ? 'e.g. Myth01 / RPF1' : category === 'BAN_DALAM' ? 'e.g. Butyl Heavy Duty' : 'e.g. Turanza T005A'}
+                placeholder={kind === 'VELG' ? 'e.g. Myth01 / RPF1' : kind === 'BAN_DALAM' ? 'e.g. Butyl Heavy Duty' : 'e.g. Turanza T005A'}
                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-blue-500 shadow-2xs"
               />
             </div>
           </div>
 
-          {category === 'BAN_BARU' && (
+          {kind === 'BAN_BARU' && (
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
               <h3 className="text-xs font-bold text-blue-700 uppercase tracking-wider flex items-center gap-2">
                 <Disc className="w-4 h-4" /> Spesifikasi Ban Baru
@@ -403,7 +408,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           )}
 
-          {category === 'VELG' && (
+          {kind === 'VELG' && (
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
               <h3 className="text-xs font-bold text-amber-700 uppercase tracking-wider flex items-center gap-2">
                 <CircleDot className="w-4 h-4" /> Spesifikasi Velg Mobil
@@ -462,7 +467,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           )}
 
-          {category === 'BAN_DALAM' && (
+          {kind === 'BAN_DALAM' && (
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
               <h3 className="text-xs font-bold text-emerald-700 uppercase tracking-wider flex items-center gap-2">
                 <Package className="w-4 h-4" /> Spesifikasi Ban Dalam

@@ -77,6 +77,7 @@ import {
 } from './components';
 import { useToast } from '../../shared/components';
 import { ExportMenu } from '../../shared/export/ExportMenu';
+import type { ApiJournal, InventoryValuation } from '../../services/api';
 
 export type InventorySubView = 'katalog' | 'buku_fifo' | 'kategori' | 'jasa' | 'stok_mutasi' | 'supplier';
 
@@ -88,15 +89,19 @@ interface InventoryScreenProps {
   transactions?: PosTransaction[];
   categories?: ProductCategory[];
   serviceCategories?: ServiceCategoryItem[];
-  onCreateProduct?: (input: CreateProductInput) => void;
-  onUpdateProduct?: (productId: string, updates: UpdateProductInput) => void;
-  onGoodsReceipt?: (input: GoodsReceiptInput) => void;
+  onCreateProduct?: (input: CreateProductInput) => Promise<boolean>;
+  onUpdateProduct?: (productId: string, updates: UpdateProductInput) => Promise<boolean>;
+  onGoodsReceipt?: (input: GoodsReceiptInput) => Promise<boolean>;
   onDeleteOrDeactivateProduct?: (productId: string) => void;
-  onUpdateProductStock: (updatedProducts: ProductItem[], newMutations: StockMutation[]) => void;
+  onStockOpname: (items: { product_id: number; physical_qty: number }[], notes: string) => Promise<boolean>;
+  onServerChanged?: (journal?: ApiJournal | null) => void;
+  /** Nilai FIFO vs saldo buku 1-2000. */
+  ledgerValuation?: InventoryValuation | null;
+  onPostOpeningBalance?: () => void;
   onSaveService?: (serviceData: Omit<ServiceMasterItem, 'id' | 'is_active'>, serviceId?: string) => void;
   onToggleService?: (serviceId: string) => void;
   onDeleteServicePermanent?: (serviceId: string) => void;
-  onSaveSupplier?: (supplierData: Omit<SupplierItem, 'id' | 'is_active'>, supplierId?: string) => void;
+  onSaveSupplier?: (supplierData: Omit<SupplierItem, 'id' | 'is_active'>, supplierId?: string) => Promise<boolean>;
   onToggleSupplier?: (supplierId: string) => void;
   onSaveCategory?: (
     categoryData: { category_code: string; category_name: string; description?: string; is_active?: boolean },
@@ -124,7 +129,10 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   onUpdateProduct,
   onGoodsReceipt,
   onDeleteOrDeactivateProduct,
-  onUpdateProductStock,
+  onStockOpname,
+  onServerChanged,
+  ledgerValuation,
+  onPostOpeningBalance,
   onSaveService,
   onToggleService,
   onDeleteServicePermanent: propDeleteServicePermanent,
@@ -265,7 +273,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   ) => {
     if (propSaveCategory) {
       propSaveCategory(categoryData, categoryId);
-      toast.success('Berhasil', categoryId ? 'Kategori produk diperbarui.' : 'Kategori produk baru ditambahkan.');
       return;
     }
 
@@ -291,7 +298,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const handleDeleteCategory = (categoryId: string) => {
     if (propDeleteCategory) {
       propDeleteCategory(categoryId);
-      toast.info('Kategori Dihapus', 'Kategori produk telah dihapus.');
       return;
     }
 
@@ -320,7 +326,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   ) => {
     if (propSaveServiceCategory) {
       propSaveServiceCategory(categoryData, id);
-      toast.success('Berhasil', 'Kategori jasa berhasil disimpan.');
       return;
     }
 
@@ -346,7 +351,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const handleDeleteServiceCategory = (id: string) => {
     if (propDeleteServiceCategory) {
       propDeleteServiceCategory(id);
-      toast.info('Dihapus', 'Kategori jasa telah dihapus.');
       return;
     }
 
@@ -362,7 +366,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const handleDeleteServicePermanent = (serviceId: string) => {
     if (propDeleteServicePermanent) {
       propDeleteServicePermanent(serviceId);
-      toast.info('Layanan Dihapus', 'Layanan jasa berhasil dihapus permanen.');
       return;
     }
     const updated = deleteServiceItemPermanent(currentServices, serviceId);
@@ -528,8 +531,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
             products={products}
             transactions={transactions}
             mutations={mutations}
-            onUpdateProductStock={onUpdateProductStock}
-            onUpdateProduct={onUpdateProduct}
+            onServerChanged={onServerChanged}
           />
         </div>
       )}
@@ -537,6 +539,33 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
       {/* SUB-VIEW 1: KATALOG PRODUK */}
       {activeSubView === 'katalog' && (
         <div className="w-full space-y-4 animate-in fade-in duration-200">
+          {ledgerValuation && (
+            <div
+              className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5 rounded-xl border text-xs ${
+                Math.abs(ledgerValuation.difference) < 1
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-amber-50 border-amber-300 text-amber-900'
+              }`}
+            >
+              <span>
+                Nilai FIFO <strong>{formatRupiah(ledgerValuation.fifo_value)}</strong> · Saldo buku 1-2000{' '}
+                <strong>{formatRupiah(ledgerValuation.ledger_balance)}</strong> ·{' '}
+                {Math.abs(ledgerValuation.difference) < 1
+                  ? 'Selaras dengan buku besar'
+                  : `Selisih ${formatRupiah(ledgerValuation.difference)} belum dijurnal`}
+              </span>
+              {Math.abs(ledgerValuation.difference) >= 1 && onPostOpeningBalance && (
+                <button
+                  type="button"
+                  onClick={onPostOpeningBalance}
+                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold transition-colors cursor-pointer"
+                >
+                  Bukukan Saldo Awal Persediaan
+                </button>
+              )}
+            </div>
+          )}
+
           {/* KPI Cards Ringkas */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
             <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
@@ -939,7 +968,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           serviceCategories={serviceCategories}
           onSaveService={(serviceData, id) => {
             onSaveService?.(serviceData, id);
-            toast.success('Berhasil', id ? 'Layanan jasa diperbarui.' : 'Layanan jasa baru ditambahkan.');
           }}
           onToggleService={(id) => {
             onToggleService?.(id);
@@ -1124,15 +1152,11 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         existingProducts={products}
         existingMutations={mutations}
         onClose={() => setShowProductFormModal(false)}
-        onSaveCreate={(input) => {
-          onCreateProduct?.(input);
-          setShowProductFormModal(false);
-          toast.success('Berhasil', 'Produk baru berhasil disimpan ke katalog gudang.');
+        onSaveCreate={async (input) => {
+          if (await onCreateProduct?.(input)) setShowProductFormModal(false);
         }}
-        onSaveEdit={(id, updates) => {
-          onUpdateProduct?.(id, updates);
-          setShowProductFormModal(false);
-          toast.success('Berhasil', 'Informasi produk berhasil diperbarui.');
+        onSaveEdit={async (id, updates) => {
+          if (await onUpdateProduct?.(id, updates)) setShowProductFormModal(false);
         }}
       />
 
@@ -1146,11 +1170,11 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           setShowGoodsReceiptModal(false);
           setPreselectedRestockProduct(null);
         }}
-        onSubmitReceipt={(input) => {
-          onGoodsReceipt?.(input);
-          setShowGoodsReceiptModal(false);
-          setPreselectedRestockProduct(null);
-          toast.success('Penerimaan Berhasil', 'Stok baru telah dicatat dengan metode FIFO.');
+        onSubmitReceipt={async (input) => {
+          if (await onGoodsReceipt?.(input)) {
+            setShowGoodsReceiptModal(false);
+            setPreselectedRestockProduct(null);
+          }
         }}
       />
 
@@ -1159,11 +1183,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         products={products}
         existingMutations={mutations}
         onClose={() => setShowOpnameModal(false)}
-        onSaveOpname={(updatedProds, newMuts) => {
-          onUpdateProductStock(updatedProds, newMuts);
-          setShowOpnameModal(false);
-          toast.success('Stock Opname Berhasil', 'Penyesuaian stok fisik telah dibukukan.');
-        }}
+        onSaveOpname={onStockOpname}
       />
 
       <SupplierFormModal
@@ -1172,10 +1192,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         supplierToEdit={supplierToEdit}
         existingSuppliers={suppliers}
         onClose={() => setShowSupplierModal(false)}
-        onSave={(data, id) => {
-          onSaveSupplier?.(data, id);
-          setShowSupplierModal(false);
-          toast.success('Berhasil', id ? 'Data supplier diperbarui.' : 'Supplier baru ditambahkan.');
+        onSave={async (data, id) => {
+          if (await onSaveSupplier?.(data, id)) setShowSupplierModal(false);
         }}
       />
 
@@ -1183,6 +1201,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         isOpen={showReconciliationModal}
         onClose={() => setShowReconciliationModal(false)}
         onSuccessCommit={() => {
+          onServerChanged?.(null);
           onRefreshProducts?.();
           toast.success('Rekonsiliasi Selesai', 'Stok produk ban dan kartu mutasi berhasil disinkronkan ke database!');
         }}
