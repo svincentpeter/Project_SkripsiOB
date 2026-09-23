@@ -100,7 +100,7 @@ Nama operator yang di-hardcode pada stock movement / jurnal diganti `$request->u
 - `kasir` — Kasir OB3 — KASIR
 - `gudang` — Admin Gudang OB3 — GUDANG
 
-Password awal dari `.env` `SEED_DEFAULT_PASSWORD` (wajib ada saat seeding; bila kosong seeder gagal dengan pesan jelas). Akun lama `admin@omahban.com` dan `kasir@omahban.com` dinonaktifkan agar tidak ada kredensial `password123` yang aktif.
+Email: `owner@omahban.com`, `kasir@omahban.com`, `gudang@omahban.com` (akun dicocokkan berdasarkan email; baris lama `kasir@omahban.com` diambil alih dan password-nya diganti). Password awal dari `.env` `SEED_DEFAULT_PASSWORD` (wajib ada saat seeding; bila kosong seeder gagal dengan pesan jelas). Akun lama `admin@omahban.com` dinonaktifkan agar tidak ada kredensial `password123` yang aktif.
 
 ## 4. Frontend
 
