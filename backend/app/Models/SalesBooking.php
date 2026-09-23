@@ -39,4 +39,34 @@ class SalesBooking extends Model
         'dp_amount' => 'decimal:2',
         'remaining_amount' => 'decimal:2',
     ];
+
+    public function toApiArray(): array
+    {
+        $journals = JournalEntry::with('items.account')
+            ->where('reference_id', $this->booking_number)
+            ->whereIn('reference_type', ['BOOKING_DP', 'BOOKING_DP_REFUND'])
+            ->orderBy('id')
+            ->get();
+
+        return [
+            'id' => $this->id,
+            'booking_number' => $this->booking_number,
+            'date' => $this->date?->toDateString(),
+            'created_at' => $this->created_at?->toIso8601String(),
+            'customer_name' => $this->customer_name,
+            'customer_phone' => $this->customer_phone,
+            'vehicle_plate' => $this->vehicle_plate,
+            'vehicle_model' => $this->vehicle_model,
+            'items' => $this->items ?? [],
+            'estimated_total' => (float) $this->estimated_total,
+            'dp_amount' => (float) $this->dp_amount,
+            'remaining_amount' => (float) $this->remaining_amount,
+            'payment_method' => $this->payment_method,
+            'dp_account_code' => $this->dp_account_code,
+            'notes' => $this->notes,
+            'status' => $this->status,
+            'converted_sale_id' => $this->converted_sale_id,
+            'journals' => $journals->map(fn (JournalEntry $j) => $j->toApiArray())->values()->all(),
+        ];
+    }
 }

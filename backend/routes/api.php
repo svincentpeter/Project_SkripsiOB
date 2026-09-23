@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\v1\AccountController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
+use App\Http\Controllers\Api\v1\BookingController;
 use App\Http\Controllers\Api\v1\ExpenseController;
 use App\Http\Controllers\Api\v1\InventoryController;
 use App\Http\Controllers\Api\v1\PaymentApiController;
@@ -83,6 +84,13 @@ Route::prefix('v1')->group(function () {
             Route::get('pos/transactions/{id}', [PosController::class, 'show']);
         });
         Route::post('pos/transactions/{id}/void', [PosController::class, 'void'])->middleware('permission:sale_void');
+
+        // Booking inden & DP
+        Route::get('bookings', [BookingController::class, 'index'])->middleware('permission:booking_dp,pos');
+        Route::middleware('permission:booking_dp')->group(function () {
+            Route::post('bookings', [BookingController::class, 'store']);
+            Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel']);
+        });
 
         // Piutang BON pelanggan
         Route::middleware('permission:bon_receivable,accounting_hub')->group(function () {
