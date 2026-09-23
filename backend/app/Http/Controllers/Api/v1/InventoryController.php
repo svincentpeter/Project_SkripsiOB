@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\StockMovement;
 use App\Services\AccountingEngine;
 use App\Services\FifoCostingService;
+use App\Services\Inventory\InventoryValueJournal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -89,6 +90,27 @@ class InventoryController extends Controller
             'message' => 'Restock barang dan pencatatan akuntansi berhasil',
             'data' => $result,
         ], 201);
+    }
+
+    public function valuation(): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => InventoryValueJournal::summary()]);
+    }
+
+    public function openingBalance(InventoryValueJournal $journal): JsonResponse
+    {
+        $entry = $journal->postOpeningBalance();
+
+        return response()->json([
+            'success' => true,
+            'message' => $entry
+                ? "Saldo awal persediaan dibukukan ({$entry->entry_number})."
+                : 'Saldo buku persediaan sudah sama dengan nilai FIFO.',
+            'data' => [
+                'valuation' => InventoryValueJournal::summary(),
+                'journal' => $entry?->toApiArray(),
+            ],
+        ]);
     }
 
     public function stockMovements(Request $request): JsonResponse

@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Services\Pos;
+namespace App\Services;
 
 use App\Models\Account;
 use App\Models\JournalEntry;
-use App\Services\AccountingEngine;
 
 /**
  * Menyusun baris jurnal berdasarkan kode akun, lalu membukukannya lewat AccountingEngine

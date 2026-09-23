@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Pos;
+namespace App\Services;
 
 use Illuminate\Database\Eloquent\Model;
 

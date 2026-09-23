@@ -115,6 +115,8 @@ Route::prefix('v1')->group(function () {
         // Inventory Restock, Movements & Opname
         Route::post('inventory/restock', [InventoryController::class, 'restock'])->middleware('permission:goods_receipt');
         Route::get('inventory/stock-movements', [InventoryController::class, 'stockMovements'])->middleware('permission:inventory_view');
+        Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->middleware('permission:inventory_view');
+        Route::post('inventory/opening-balance', [InventoryController::class, 'openingBalance'])->middleware('permission:accounting_hub');
         Route::post('inventory/stock-opname', [InventoryController::class, 'stockOpname'])->middleware('permission:stock_opname');
 
         // Stock Excel Import & Reconciliation (Paritas ProjectOmahBan)

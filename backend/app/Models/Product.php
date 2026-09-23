@@ -68,6 +68,11 @@ class Product extends Model
         return $this->hasMany(ProductBatch::class);
     }
 
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ProductCategory::class, 'category_id');
+    }
+
     public function activeBatches(): HasMany
     {
         return $this->hasMany(ProductBatch::class)
