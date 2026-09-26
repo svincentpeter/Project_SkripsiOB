@@ -169,10 +169,6 @@ export const FinancialStatementsPrintModal: React.FC<FinancialStatementsPrintMod
                   <span className="font-mono text-slate-800">{formatRupiah(financials.hutangSupplier)}</span>
                 </div>
                 <div className="flex justify-between py-0.5">
-                  <span className="text-slate-600">PPN Keluaran</span>
-                  <span className="font-mono text-slate-800">{formatRupiah(financials.ppnKeluaran)}</span>
-                </div>
-                <div className="flex justify-between py-0.5">
                   <span className="text-slate-600">Modal Disetor Pemilik</span>
                   <span className="font-mono text-slate-800">{formatRupiah(financials.modalPemilik)}</span>
                 </div>

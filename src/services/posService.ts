@@ -17,8 +17,7 @@ export const generateBookingNumber = (): string => {
 
 export const calculateCartTotals = (
   cart: CartItem[],
-  discountAmount: number = 0,
-  taxRatePercent: number = 0
+  discountAmount: number = 0
 ) => {
   const subtotal = cart.reduce((acc, item) => {
     const unitPrice = item.custom_price ?? (item.item_type === 'SERVICE' && item.service ? item.service.standard_price : (item.product.product_price ?? item.product.price ?? 0));
@@ -26,9 +25,7 @@ export const calculateCartTotals = (
   }, 0);
 
   const totalDiscount = discountAmount;
-  const taxableAmount = Math.max(0, subtotal - totalDiscount);
-  const tax = Math.round((taxableAmount * taxRatePercent) / 100);
-  const grandTotal = taxableAmount + tax;
+  const grandTotal = Math.max(0, subtotal - totalDiscount);
 
   const totalHpp = cart.reduce((acc, item) => {
     if (item.custom_hpp !== undefined) {
@@ -44,7 +41,6 @@ export const calculateCartTotals = (
   return {
     subtotal,
     discount: totalDiscount,
-    tax,
     grandTotal,
     totalHpp,
   };
@@ -59,11 +55,10 @@ export const createPosTransactionRecord = (
   paymentMethod: PaymentMethod,
   cashTendered: number,
   cashierName: string,
-  taxRatePercent: number = 0,
   manualDiscount: number = 0,
   isBon: boolean = false
 ): PosTransaction => {
-  const totals = calculateCartTotals(cart, manualDiscount, taxRatePercent);
+  const totals = calculateCartTotals(cart, manualDiscount);
   const change = Math.max(0, cashTendered - totals.grandTotal);
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
@@ -95,9 +90,6 @@ export const createPosTransactionRecord = (
     gross_sales_amount: totals.subtotal,
     total_discount: totals.discount,
     discount_amount: totals.discount,
-    tax_amount: totals.tax,
-    tax_rate: taxRatePercent,
-    tax_percentage: taxRatePercent,
     grand_total: totals.grandTotal,
     total_amount: totals.grandTotal,
     total_cost_hpp: totals.totalHpp,
@@ -123,7 +115,7 @@ export const createSalesBookingRecord = (
   paymentMethod: PaymentMethod,
   notes?: string
 ): SalesBookingRecord => {
-  const totals = calculateCartTotals(cart, 0, 0);
+  const totals = calculateCartTotals(cart);
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
   const fullTime = `${dateStr} ${now.toTimeString().split(' ')[0].substring(0, 5)}`;

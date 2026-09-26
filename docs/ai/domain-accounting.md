@@ -3,11 +3,13 @@
 The thesis rests on one claim: every business event produces a balanced double-entry journal, and SAK EMKM
 reports (Laba Rugi, Posisi Keuangan/Neraca, Arus Kas) are derived from those journals. Keep that claim true.
 
-## Chart of accounts (26 accounts)
+## Chart of accounts (25 accounts)
 
 Defined in `backend/database/seeders/AccountCoaSeeder.php`. The seeder inserts only missing codes.
 Migration `2026_09_24_000003_add_pos_inventory_accounts.php` also inserts 2-1004, 4-2000, 5-2000, and 6-1009,
-so databases created before that migration get them too.
+so databases created before that migration get them too. Migration `2026_09_27_000001_remove_ppn_from_sales.php`
+removed 2-1003 PPN Keluaran: the shop is non-PKP and charges no VAT on sales. Do not add a PPN account back.
+PPN on supplier invoices belongs in the batch cost (1-2000), as in the reference system ProjectOmahBan.
 
 | Code | Name | Type | Normal |
 |---|---|---|---|
@@ -18,7 +20,6 @@ so databases created before that migration get them too.
 | 1-3000 | Peralatan Bengkel & Mesin Spooring | ASSET | D |
 | 1-3999 | Akumulasi Penyusutan Mesin (contra-asset) | ASSET | C |
 | 2-1000 | Hutang Dagang Supplier (AP) | LIABILITY | C |
-| 2-1003 | PPN Keluaran (11%) | LIABILITY | C |
 | 2-1004 | Uang Muka Pelanggan (DP Booking) | LIABILITY | C |
 | 3-1000 | Modal Disetor Pemilik | EQUITY | C |
 | 3-2000 | Laba Ditahan Cabang 3 | EQUITY | C |
@@ -33,7 +34,7 @@ so databases created before that migration get them too.
 
 There is no "contra" account type. Contra accounts are recognized by a normal balance opposite to their type.
 
-The frontend keeps its own copy, `SAK_EMKM_COA` in `src/services/accountingService.ts`. It has 25 accounts (5-2000 is
+The frontend keeps its own copy, `SAK_EMKM_COA` in `src/services/accountingService.ts`. It has 24 accounts (5-2000 is
 missing), and four names differ from the backend (2-1004, 4-1001, 4-2000, 6-1009). The README's 21-account table is
 outdated. When you add or rename an account, change the migration, the seeder, and `SAK_EMKM_COA` together.
 
@@ -59,7 +60,7 @@ outdated. When you add or rename an account, change the migration, the seeder, a
 
 | Event | Debit | Credit | Where |
 |---|---|---|---|
-| POS sale | cash/bank per payment at `net_received`; 6-1009 fees; 2-1004 DP applied; 1-1002 if BON; 4-9000 discounts; 5-1000 FIFO cost | 4-1000 goods (gross); 4-1001 services (gross); 2-1003 PPN; 4-2000 EDC surcharge; 1-2000 FIFO cost | `Pos/CheckoutService::postJournal` |
+| POS sale | cash/bank per payment at `net_received`; 6-1009 fees; 2-1004 DP applied; 1-1002 if BON; 4-9000 discounts; 5-1000 FIFO cost | 4-1000 goods (gross); 4-1001 services (gross); 4-2000 EDC surcharge; 1-2000 FIFO cost | `Pos/CheckoutService::postJournal` |
 | POS void | mirror of the sale entry, dated today | | `Pos/SaleVoidService` |
 | Booking DP received | 1-1000 or 1-1001 | 2-1004 | `Pos/BookingService` |
 | Booking cancelled (refund) | 2-1004 | 1-1000 or 1-1001 | `Pos/BookingService` |

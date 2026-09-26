@@ -19,7 +19,6 @@ class PosCheckoutRequest extends FormRequest
     public function rules(): array
     {
         return array_merge(self::cartRules(), [
-            'tax_rate' => ['nullable', Rule::in([0, 11])],
             'discount_amount' => 'nullable|numeric|min:0',
             'booking_id' => 'nullable|integer',
             'bon' => 'nullable|array',

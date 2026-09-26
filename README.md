@@ -27,7 +27,7 @@ Sistem ini memadukan kecepatan operasional kasir toko ban (*Point of Sale*) deng
 
 ### 🛒 A. Modul Operasional Kasir (Point of Sale)
 - **Kiosk POS Touchscreen Meja Kasir:** Antarmuka layar sentuh responsif dengan pemfilteran ukuran ban, ring (R13 - R18+), dan merek ternama (Bridgestone, Dunlop, Accelera, Forceum, Hankook).
-- **Kalkulasi Otomatis Diskon & Pajak (PPN 11%):** Penghitungan subtotal kotor, potongan harga promosi, dan grand total.
+- **Kalkulasi Otomatis Diskon:** Penghitungan subtotal kotor, potongan harga promosi, dan grand total (toko non-PKP, penjualan tanpa PPN).
 - **Dukungan Multi-Metode Pembayaran:** Tunai (dengan kalkulasi uang diterima dan kembalian), Transfer Bank BCA, QRIS, serta Kartu Debit/Kredit EDC.
 - **Pencatatan Identitas Pelanggan & Kendaraan:** Input nama konsumen walk-in dan nomor plat kendaraan untuk pencetakan nota dinas bengkel.
 - **Cetak Struk Thermal 80mm:** Pratinjau struk thermal realistis dengan gerigi kertas potong dan tombol cetak struk kasir (*Print to POS printer*).
@@ -98,7 +98,6 @@ Laporan Keuangan Standar SAK EMKM (100% Dinamis) disajikan pada menu tersendiri 
 | **1-3000** | Peralatan Bengkel & Mesin Spooring 3D | Aset Tetap | DEBIT |
 | **1-3999** | Akumulasi Penyusutan Mesin Bengkel | Kontra Aset Tetap | KREDIT |
 | **2-1000** | Hutang Dagang Supplier (AP) | Liabilitas Lancar | KREDIT |
-| **2-1003** | PPN Keluaran (11%) | Liabilitas Lancar | KREDIT |
 | **3-1000** | Modal Disetor Pemilik | Ekuitas | KREDIT |
 | **3-2000** | Laba Ditahan Cabang 3 | Ekuitas | KREDIT |
 | **4-1000** | Pendapatan Penjualan Ban Baru | Pendapatan Usaha | KREDIT |

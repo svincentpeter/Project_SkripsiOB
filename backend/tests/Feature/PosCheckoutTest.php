@@ -159,18 +159,20 @@ class PosCheckoutTest extends TestCase
         $this->assertArrayNotHasKey('5-1000', $j, 'HPP item manual tidak dijurnal ke persediaan');
     }
 
-    public function test_vat_eleven_percent(): void
+    public function test_sale_never_carries_ppn(): void
     {
         $product = $this->makeProduct();
         $res = $this->checkout([
             'items' => [$this->productLine($product)],
             'tax_rate' => 11,
-            'payments' => [['method' => 'TRANSFER_BCA', 'amount' => 1110000]],
+            'payments' => [['method' => 'TRANSFER_BCA', 'amount' => 1000000]],
         ])->assertCreated();
 
+        $this->assertEquals(1000000, $res->json('data.total_amount'));
+        $this->assertArrayNotHasKey('tax_amount', $res->json('data'));
         $j = $this->journalByAccount($res->json('data.reference'));
-        $this->assertEquals(110000, $j['2-1003']['credit']);
-        $this->assertEquals(1110000, $j['1-1001']['debit']);
+        $this->assertArrayNotHasKey('2-1003', $j);
+        $this->assertEquals(1000000, $j['1-1001']['debit']);
     }
 
     public function test_insufficient_stock_is_rejected_without_side_effects(): void

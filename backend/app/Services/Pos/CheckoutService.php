@@ -39,10 +39,7 @@ class CheckoutService
             if ($notaDiscount > $subtotal) {
                 throw new PosRuleException('Diskon nota melebihi subtotal belanja.');
             }
-            $taxRate = (float) ($data['tax_rate'] ?? 0);
-            $taxable = round($subtotal - $notaDiscount, 2);
-            $tax = round($taxable * $taxRate / 100);
-            $grandTotal = round($taxable + $tax, 2);
+            $grandTotal = round($subtotal - $notaDiscount, 2);
 
             $dpApplied = $booking ? (float) $booking->dp_amount : 0.0;
             if ($dpApplied > $grandTotal) {
@@ -67,8 +64,6 @@ class CheckoutService
                 'cashier_name' => $user?->name ?? 'Kasir POS',
                 'gross_sales_amount' => round(array_sum(array_column($lines, 'gross')), 2),
                 'discount_amount' => round(array_sum(array_column($lines, 'discount')) + $notaDiscount, 2),
-                'tax_percentage' => $taxRate,
-                'tax_amount' => $tax,
                 'total_amount' => round($grandTotal + array_sum(array_column($payments, 'surcharge_amount')), 2),
                 'paid_amount' => round(array_sum(array_map(fn ($p) => $p['amount'] + $p['surcharge_amount'], $payments)), 2),
                 'change_amount' => round(array_sum(array_column($payments, 'change_amount')), 2),
@@ -96,14 +91,14 @@ class CheckoutService
             $manualCost = round(array_sum(array_map(fn ($l) => $l['manual_cost'] * $l['quantity'], $lines)), 2);
             $sale->update([
                 'total_hpp' => round($fifoCogs + $manualCost, 2),
-                'total_profit' => round($taxable - $fifoCogs - $manualCost, 2),
+                'total_profit' => round($grandTotal - $fifoCogs - $manualCost, 2),
             ]);
 
             foreach ($payments as $payment) {
                 SalePayment::create(['sale_id' => $sale->id] + $payment);
             }
 
-            $this->postJournal($sale, $lines, $payments, $notaDiscount, $tax, $dpApplied, $isBon ? $amountDue : 0.0, $fifoCogs);
+            $this->postJournal($sale, $lines, $payments, $notaDiscount, $dpApplied, $isBon ? $amountDue : 0.0, $fifoCogs);
 
             if ($booking) {
                 $booking->update(['status' => 'CONVERTED', 'converted_sale_id' => $sale->id]);
@@ -229,7 +224,7 @@ class CheckoutService
         return round($fifoCogs, 2);
     }
 
-    private function postJournal(Sale $sale, array $lines, array $payments, float $notaDiscount, float $tax, float $dpApplied, float $receivable, float $fifoCogs): void
+    private function postJournal(Sale $sale, array $lines, array $payments, float $notaDiscount, float $dpApplied, float $receivable, float $fifoCogs): void
     {
         $ref = $sale->reference;
         $draft = new JournalDraft();
@@ -246,7 +241,6 @@ class CheckoutService
         $services = array_sum(array_map(fn ($l) => $l['type'] === 'SERVICE' ? $l['gross'] : 0, $lines));
         $draft->credit(PosAccounts::REVENUE_GOODS, $goods, "Pendapatan ban & barang Nota {$ref}");
         $draft->credit(PosAccounts::REVENUE_SERVICE, $services, "Pendapatan jasa Nota {$ref}");
-        $draft->credit(PosAccounts::VAT_OUT, $tax, "PPN keluaran Nota {$ref}");
         $draft->credit(PosAccounts::SURCHARGE, array_sum(array_column($payments, 'surcharge_amount')), "Surcharge kartu kredit Nota {$ref}");
 
         $draft->debit(PosAccounts::COGS, $fifoCogs, "HPP FIFO Nota {$ref}");

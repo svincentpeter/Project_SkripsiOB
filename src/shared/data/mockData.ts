@@ -1040,7 +1040,6 @@ export const INITIAL_STORE_SETTINGS: StoreSettings = {
   qris_merchant_name: 'OMAH BAN CABANG 3',
   qris_nmid: 'ID1020039918231',
   
-  default_tax_rate: 0,
   default_payment_terms_days: 30,
 
   bank_providers: INITIAL_BANK_PROVIDERS,
@@ -1117,9 +1116,6 @@ export const INITIAL_TRANSACTIONS: PosTransaction[] = [
     gross_sales_amount: 4200000,
     total_discount: 200000,
     discount_amount: 200000,
-    tax_amount: 0,
-    tax_rate: 0,
-    tax_percentage: 0,
     grand_total: 4000000,
     total_amount: 4000000,
     total_cost_hpp: 3360000,
@@ -1155,9 +1151,6 @@ export const INITIAL_TRANSACTIONS: PosTransaction[] = [
     gross_sales_amount: 1280000,
     total_discount: 40000,
     discount_amount: 40000,
-    tax_amount: 0,
-    tax_rate: 0,
-    tax_percentage: 0,
     grand_total: 1240000,
     total_amount: 1240000,
     total_cost_hpp: 1010000,
@@ -1193,9 +1186,6 @@ export const INITIAL_TRANSACTIONS: PosTransaction[] = [
     gross_sales_amount: 8600000,
     total_discount: 400000,
     discount_amount: 400000,
-    tax_amount: 0,
-    tax_rate: 0,
-    tax_percentage: 0,
     grand_total: 8200000,
     total_amount: 8200000,
     total_cost_hpp: 6880000,
@@ -1551,7 +1541,6 @@ export const INITIAL_ACCOUNT_BALANCES: Record<string, number> = {
   '1-3000': 163000000, // Peralatan Bengkel & Mesin Spooring 3D
   '1-3999': 14000000, // Akumulasi Penyusutan Mesin (Kredit)
   '2-1000': 15400000, // Hutang Dagang Supplier (Kredit)
-  '2-1003': 0, // PPN Keluaran
   '2-1004': 0, // Uang Muka Penjualan / Titipan DP Konsumen (Kredit)
   '3-1000': 151500000, // Modal Disetor Pemilik (Kredit)
   '3-2000': 114300000, // Laba Ditahan Cabang 3 (Kredit)

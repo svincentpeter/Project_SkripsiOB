@@ -11,7 +11,6 @@ final class PosAccounts
     public const BANK = '1-1001';
     public const RECEIVABLE = '1-1002';
     public const INVENTORY = '1-2000';
-    public const VAT_OUT = '2-1003';
     public const CUSTOMER_DEPOSIT = '2-1004';
     public const REVENUE_GOODS = '4-1000';
     public const REVENUE_SERVICE = '4-1001';

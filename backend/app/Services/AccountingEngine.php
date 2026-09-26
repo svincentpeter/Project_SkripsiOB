@@ -299,8 +299,7 @@ class AccountingEngine
         $totalAssets = $totalCurrentAssets + $netFixedAssets;
 
         $ap = $getBalance('2-1000');
-        $taxPayable = $getBalance('2-1003');
-        $totalLiabilities = $ap + $taxPayable;
+        $totalLiabilities = $ap;
 
         $capital = $getBalance('3-1000');
         $retainedEarnings = $getBalance('3-2000');
@@ -325,7 +324,6 @@ class AccountingEngine
             'total_assets' => round($totalAssets, 2),
             'liabilities' => [
                 'accounts_payable' => $ap,
-                'tax_payable' => $taxPayable,
                 'total' => round($totalLiabilities, 2),
             ],
             'equity' => [

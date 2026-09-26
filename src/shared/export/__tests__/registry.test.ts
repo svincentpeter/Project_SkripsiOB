@@ -63,18 +63,17 @@ describe('registry pos_sales_history', () => {
       items: [{ qty: 2 }],
       subtotal: 100000,
       total_discount: 10000,
-      tax_amount: 9900,
-      grand_total: 99900,
+      grand_total: 90000,
       total_cost_hpp: 70000,
-      gross_profit: 29900,
+      gross_profit: 20000,
       payment_method: 'TUNAI',
       status: 'LUNAS',
     },
   ] as unknown as PosTransaction[];
   const doc = buildExportDoc('pos_sales_history', txs, ctx);
   it('totals terhitung', () => {
-    expect(doc.sections[0].totals?.total).toBe(99900);
-    expect(doc.sections[0].totals?.laba).toBe(29900);
+    expect(doc.sections[0].totals?.total).toBe(90000);
+    expect(doc.sections[0].totals?.laba).toBe(20000);
   });
 });
 
@@ -99,8 +98,7 @@ describe('registry financial statements', () => {
     netFixedAssets: 800000,
     totalAssets: 1650000,
     hutangSupplier: 300000,
-    ppnKeluaran: 50000,
-    totalLiabilities: 350000,
+    totalLiabilities: 300000,
     modalPemilik: 1000000,
     labaDitahan: 50000,
     currentNetIncome: 250000,

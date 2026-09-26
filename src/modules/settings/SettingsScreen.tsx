@@ -464,21 +464,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 </div>
               </div>
 
-              {/* Pajak & Termin */}
+              {/* Termin */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Tarif Pajak Standar PPN (%)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.default_tax_rate ?? 0}
-                    onChange={(e) => handleChange('default_tax_rate', Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-xs font-bold shadow-2xs"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-1 block">PPN default transaksi POS (0% non-PKP)</span>
-                </div>
-
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Termin Jatuh Tempo TOP (Hari)

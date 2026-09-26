@@ -728,13 +728,6 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                       </div>
                     )}
 
-                    {activeTx.tax_amount > 0 && (
-                      <div className="flex justify-between text-slate-600">
-                        <span>PPN 11%:</span>
-                        <span>{formatRupiah(activeTx.tax_amount)}</span>
-                      </div>
-                    )}
-
                     {activeTx.surcharge_amount !== undefined && activeTx.surcharge_amount > 0 && (
                       <div className="flex justify-between text-amber-800 text-[10px]">
                         <span>Surcharge Kartu Kredit ({activeTx.fee_percentage}%):</span>
@@ -1020,13 +1013,6 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                           <span className="font-mono font-semibold text-red-600">
                             -{formatRupiah(activeTx.total_discount)}
                           </span>
-                        </div>
-                      )}
-
-                      {activeTx.tax_amount > 0 && (
-                        <div className="flex justify-between text-slate-600 text-[11px]">
-                          <span>PPN 11%:</span>
-                          <span className="font-mono font-semibold">{formatRupiah(activeTx.tax_amount)}</span>
                         </div>
                       )}
 

@@ -236,7 +236,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TUNAI');
   const [cashTenderedInput, setCashTenderedInput] = useState<string>('');
-  const [applyTax, setApplyTax] = useState<boolean>(false);
   const [manualDiscount, setManualDiscount] = useState<number>(0);
 
   const [editLineIndex, setEditLineIndex] = useState<number | null>(null);
@@ -415,7 +414,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     });
   };
 
-  const totals = calculateCartTotals(cart, manualDiscount, applyTax ? 11 : 0);
+  const totals = calculateCartTotals(cart, manualDiscount);
   const netPayable = Math.max(0, totals.grandTotal - appliedDpAmount);
 
   const cashTenderedVal = parseRupiahInput(cashTenderedInput);
@@ -436,7 +435,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       vehicle_plate: vehiclePlate.trim() || undefined,
       vehicle_model: vehicleModel.trim() || undefined,
       notes,
-      tax_rate: applyTax ? 11 : 0,
       discount_amount: manualDiscount,
       booking_id: activeBookingSourceId ? Number(activeBookingSourceId) : undefined,
       bon: isBon ? { term_days: termDays } : undefined,
@@ -593,7 +591,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       cartMode === 'BON' ? 'HUTANG_BON' : paymentMethod,
       netPayable,
       cashierName,
-      applyTax ? 11 : 0,
       manualDiscount,
       cartMode === 'BON'
     );
@@ -624,7 +621,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       'TUNAI',
       order.grand_total,
       cashierName,
-      0,
       order.total_discount,
       false
     );

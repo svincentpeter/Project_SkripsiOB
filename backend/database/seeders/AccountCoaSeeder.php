@@ -17,7 +17,6 @@ class AccountCoaSeeder extends Seeder
             ['account_code' => '1-3000', 'account_name' => 'Peralatan Bengkel & Mesin Spooring', 'account_type' => 'ASSET', 'normal_balance' => 'DEBIT'],
             ['account_code' => '1-3999', 'account_name' => 'Akumulasi Penyusutan Mesin', 'account_type' => 'ASSET', 'normal_balance' => 'CREDIT'],
             ['account_code' => '2-1000', 'account_name' => 'Hutang Dagang Supplier (AP)', 'account_type' => 'LIABILITY', 'normal_balance' => 'CREDIT'],
-            ['account_code' => '2-1003', 'account_name' => 'PPN Keluaran (11%)', 'account_type' => 'LIABILITY', 'normal_balance' => 'CREDIT'],
             ['account_code' => '2-1004', 'account_name' => 'Uang Muka Pelanggan (DP Booking)', 'account_type' => 'LIABILITY', 'normal_balance' => 'CREDIT'],
             ['account_code' => '3-1000', 'account_name' => 'Modal Disetor Pemilik', 'account_type' => 'EQUITY', 'normal_balance' => 'CREDIT'],
             ['account_code' => '3-2000', 'account_name' => 'Laba Ditahan Cabang 3', 'account_type' => 'EQUITY', 'normal_balance' => 'CREDIT'],

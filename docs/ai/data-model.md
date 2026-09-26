@@ -42,7 +42,7 @@ See [domain-inventory.md](domain-inventory.md) for how they can drift.
 ## Sales (POS)
 | Table | Key columns | Notes |
 |---|---|---|
-| `sales` | `reference` (unique, `OB3-INV-YYYYMM-####`), `date`, customer and vehicle fields, gross/discount/tax/total, `paid_amount`, `change_amount`, `dp_applied`, `booking_id`, fee/surcharge/net fields, `payment_method` (method, `SPLIT`, or `BON`), `status` (LUNAS/PENDING/VOID), `due_date`, `voided_at`, `voided_by`, `void_reason`, `total_hpp`, `total_profit` | `Sale::toReceiptArray()` is the API shape |
+| `sales` | `reference` (unique, `OB3-INV-YYYYMM-####`), `date`, customer and vehicle fields, gross/discount/total (no tax columns; dropped by `2026_09_27_000001`), `paid_amount`, `change_amount`, `dp_applied`, `booking_id`, fee/surcharge/net fields, `payment_method` (method, `SPLIT`, or `BON`), `status` (LUNAS/PENDING/VOID), `due_date`, `voided_at`, `voided_by`, `void_reason`, `total_hpp`, `total_profit` | `Sale::toReceiptArray()` is the API shape |
 | `sale_details` | `item_type` (PRODUCT/SERVICE), `product_id`, `service_id`, `item_name`, `is_manual`, `quantity`, prices, discount, `hpp`, `profit` | |
 | `sale_payments` | `method`, `account_code`, `amount`, `tendered_amount`, `change_amount`, `fee_percentage`, `fee_amount`, `surcharge_amount`, `net_received`, `provider_name`, `edc_bank`, `edc_type`, `reference` | one row per split payment |
 | `receivable_payments` | `sale_id` (FK cascade), `payment_date`, `amount`, `account_code`, `journal_entry_number` | settlements of BON (credit) sales |
@@ -67,7 +67,7 @@ The frontend does not use these tables yet: fees come from localStorage store se
 ## Accounting
 | Table | Key columns | Notes |
 |---|---|---|
-| `accounts` | `account_code` (unique), `account_name`, `account_type` (ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE), `normal_balance` (DEBIT/CREDIT), `is_active` | 26 rows; see [domain-accounting.md](domain-accounting.md) |
+| `accounts` | `account_code` (unique), `account_name`, `account_type` (ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE), `normal_balance` (DEBIT/CREDIT), `is_active` | 25 rows; see [domain-accounting.md](domain-accounting.md) |
 | `journal_entries` | `entry_number` (unique, `JRN-YYYYMM-####`), `entry_date`, `reference_type`, `reference_id`, `description`, `total_debit`, `total_credit`, `status` (POSTED) | |
 | `journal_items` | `journal_entry_id` (FK cascade), `account_id` (FK), `debit`, `credit`, `note` | |
 | `expense_categories` | `category_code` (unique), `category_name`, `default_account_code` | **not seeded**; `POST /expenses` fails on a fresh database |

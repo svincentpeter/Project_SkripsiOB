@@ -79,7 +79,7 @@ As of 2026-09-27, the frontend passes: 22 test files, 100 tests, and `tsc` is cl
 | BKK (Bukti Kas Keluar) | cash-out voucher, i.e. an expense (`BKK-…`) |
 | Beban | expense |
 | Modal / laba ditahan | owner's capital (3-1000) / retained earnings (3-2000) |
-| PPN Keluaran | output VAT, 11% (2-1003) |
+| PPN | VAT (11%). **Not charged on sales** (non-PKP). Only on supplier invoices, where it is part of inventory cost |
 | Kop | letterhead on exported reports |
 | SAK EMKM | Indonesian financial accounting standard for micro, small, and medium entities |
 

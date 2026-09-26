@@ -45,7 +45,7 @@ export const BookingDpModal: React.FC<BookingDpModalProps> = ({
   onClose,
   onSaveBooking,
 }) => {
-  const totals = calculateCartTotals(cart, 0, 0);
+  const totals = calculateCartTotals(cart);
 
   // Dynamic default DP calculation (30% of total or 50k, capped to less than grand total)
   const calcDefaultDp = () => {

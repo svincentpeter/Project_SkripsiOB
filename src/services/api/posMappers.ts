@@ -69,8 +69,6 @@ export interface ApiSale {
   cashier_name: string;
   gross_sales_amount: number;
   discount_amount: number;
-  tax_percentage: number;
-  tax_amount: number;
   total_amount: number;
   paid_amount: number;
   change_amount: number;
@@ -175,7 +173,6 @@ export interface CheckoutPayload {
   vehicle_plate?: string;
   vehicle_model?: string;
   notes?: string;
-  tax_rate: 0 | 11;
   discount_amount: number;
   booking_id?: number;
   bon?: { term_days: 7 | 14 | 30 };
@@ -389,9 +386,6 @@ export const mapSaleToTransaction = (s: ApiSale): PosTransaction => {
     gross_sales_amount: subtotal,
     total_discount: notaDiscount,
     discount_amount: notaDiscount,
-    tax_amount: num(s.tax_amount),
-    tax_rate: num(s.tax_percentage),
-    tax_percentage: num(s.tax_percentage),
     grand_total: num(s.total_amount),
     total_amount: num(s.total_amount),
     total_cost_hpp: num(s.total_hpp),

@@ -75,7 +75,7 @@ describe('mapSaleToTransaction', () => {
   const sale: ApiSale = {
     id: 9, reference: 'OB3-INV-202609-0009', date: '2026-09-24', created_at: '2026-09-24T03:15:00Z',
     customer_name: 'Budi', vehicle_plate: 'AA 1 BB', cashier_name: 'Kasir OB3',
-    gross_sales_amount: 2000000, discount_amount: 150000, tax_percentage: 0, tax_amount: 0,
+    gross_sales_amount: 2000000, discount_amount: 150000,
     total_amount: 1850000, paid_amount: 1850000, change_amount: 150000, dp_applied: 0,
     payment_method: 'TUNAI', fee_amount: 0, surcharge_amount: 0, net_received: 1850000,
     total_hpp: 1100000, total_profit: 750000, status: 'LUNAS',

@@ -213,9 +213,6 @@ export interface PosTransaction {
   gross_sales_amount: number;
   total_discount: number;
   discount_amount: number;
-  tax_amount: number; // PPN 11%
-  tax_rate: number;
-  tax_percentage: number;
   grand_total: number;
   total_amount: number;
   total_cost_hpp: number; // Total HPP FIFO
@@ -385,7 +382,6 @@ export interface StoreSettings {
   qris_merchant_name: string;
   qris_nmid: string;
   
-  default_tax_rate: number;
   default_payment_terms_days: number;
 
   bank_providers?: PaymentProviderSetting[];

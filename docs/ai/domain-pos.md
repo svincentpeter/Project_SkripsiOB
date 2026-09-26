@@ -10,7 +10,7 @@ Backend code: `backend/app/Services/Pos/*`, `Services/Payment/MidtransQrisServic
 - Customer and vehicle fields, all optional.
 - `items[]`, each with `type` (PRODUCT/SERVICE), `product_id` / `service_id`, `name`, `quantity` (a whole number of
   at least 1), `unit_price`, `discount_per_item`, `is_manual`, `cost_price`.
-- `tax_rate` (0 or 11), `discount_amount` (a discount on the whole receipt), `booking_id`, `bon.term_days`
+- `discount_amount` (a discount on the whole receipt), `booking_id`, `bon.term_days`
   (7, 14, or 30).
 - `payments[]`, each with `method`, `amount`, `tendered`, `fee_percentage` (0–10), `charge_to_customer`,
   `provider_name`, `edc_bank`, `edc_type`, `reference`.
@@ -28,9 +28,8 @@ a payment method: send `bon` and an empty `payments` array.
    - Per line: `gross = qty × unit_price`, `net = gross − qty × discount_per_item`.
 3. Totals:
    - `subtotal = Σnet`
-   - `taxable = subtotal − discount_amount`
-   - `tax = round(taxable × tax_rate / 100)`
-   - `grand = taxable + tax`
+   - `grand = subtotal − discount_amount`. There is **no tax**: the shop is non-PKP and charges no PPN.
+     A `tax_rate` sent by an old client is ignored (`test_sale_never_carries_ppn`).
    - `amountDue = grand − booking DP`
 4. Payments:
    - Σ`amount` must equal `amountDue` within 0.001.
@@ -103,13 +102,11 @@ and merges the journals into the local list.
   that is never saved.
 
 ## Known issues (verified 2026-09-27)
-1. **PPN is never charged from the UI.** `applyTax` in `PosScreen.tsx` is `useState(false)` and never set, so
-   `tax_rate` is always 0. The server supports 11%.
-2. `unit_price` and `fee_percentage` come from the client. The server checks product existence and stock, not prices.
-3. QRIS can be recorded as paid without real payment. Any `pos` user can call `/simulate`, and a QRIS payment without a
+1. `unit_price` and `fee_percentage` come from the client. The server checks product existence and stock, not prices.
+2. QRIS can be recorded as paid without real payment. Any `pos` user can call `/simulate`, and a QRIS payment without a
    `reference` (static QRIS, or QRIS inside a split payment) is not verified. Checkout does not compare the Midtrans
    amount with the payment amount.
-4. The stock check uses `product_quantity`, not batches. If batches run short, FIFO costs the remainder at
+3. The stock check uses `product_quantity`, not batches. If batches run short, FIFO costs the remainder at
    `product_cost` with no allocation row, and a later void restores quantity but not those batches.
-5. Manual-line cost is counted in `total_hpp` and `total_profit` but is not journaled. `total_profit` also ignores MDR fees.
-6. There is no period-lock check on void.
+4. Manual-line cost is counted in `total_hpp` and `total_profit` but is not journaled. `total_profit` also ignores MDR fees.
+5. There is no period-lock check on void.

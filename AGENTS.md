@@ -9,6 +9,10 @@ spooring workshop in Magelang. It is a double-degree thesis (Accounting + Inform
 accounting must be defensible under **SAK EMKM** (Indonesian SME accounting standard): every business
 event must end in a balanced double-entry journal, and inventory is costed **FIFO**.
 
+The shop is **non-PKP: no PPN (VAT) on sales**, so there is no tax field anywhere in POS and no PPN account.
+PPN only matters on supplier invoices, where it is capitalized into inventory cost. The real production system
+at `C:\laragon\www\ProjectOmahBan` is the reference for business rules like this.
+
 UI text, domain terms, and most code comments are Indonesian. Commit messages and these docs are English.
 See the glossary in [docs/ai/workflow-and-gotchas.md](docs/ai/workflow-and-gotchas.md#glossary).
 
@@ -87,7 +91,7 @@ Details: [docs/ai/architecture.md](docs/ai/architecture.md).
 
 1. **Journals balance.** All server postings go through `JournalDraft` → `AccountingEngine::createEntry`,
    which rejects |Σdebit − Σcredit| > 0.01. Never write `journal_entries`/`journal_items` directly.
-2. **Account codes come from the COA.** 26 accounts, seeded by `AccountCoaSeeder` (+ migration
+2. **Account codes come from the COA.** 25 accounts, seeded by `AccountCoaSeeder` (+ migration
    `2026_09_24_000003`). A new account needs a migration so existing databases get it; the frontend
    copy `SAK_EMKM_COA` in `src/services/accountingService.ts` must be updated too.
    See [docs/ai/domain-accounting.md](docs/ai/domain-accounting.md).

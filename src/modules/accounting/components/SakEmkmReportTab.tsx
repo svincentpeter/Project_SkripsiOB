@@ -458,10 +458,6 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({
                         <span className="font-sans text-slate-600">Hutang Distributor Ban (AP Tempo)</span>
                         <span className="font-bold text-slate-800">{formatRupiah(financials.hutangSupplier)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="font-sans text-slate-600">PPN Keluaran (11%)</span>
-                        <span className="font-bold text-slate-800">{formatRupiah(financials.ppnKeluaran)}</span>
-                      </div>
                       <div className="flex justify-between pt-1 border-t border-slate-100 font-bold font-sans text-slate-900">
                         <span>Total Kewajiban</span>
                         <span className="font-mono text-amber-700">{formatRupiah(financials.totalLiabilities)}</span>
