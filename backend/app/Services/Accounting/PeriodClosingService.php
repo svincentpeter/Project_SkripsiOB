@@ -3,6 +3,7 @@
 namespace App\Services\Accounting;
 
 use App\Exceptions\PosRuleException;
+use App\Models\Account;
 use App\Models\AccountingPeriodClosing;
 use App\Models\User;
 use App\Services\AccountingEngine;
@@ -41,6 +42,8 @@ class PeriodClosingService
         }
 
         return DB::transaction(function () use ($period, $end, $notes, $user) {
+            $this->serialize();
+
             $lock = PeriodLock::lockDate();
             if ($lock !== null && $end <= $lock) {
                 throw new PosRuleException("Periode {$period} sudah termasuk periode yang ditutup (sampai {$lock}).");
@@ -87,6 +90,8 @@ class PeriodClosingService
     public function reopen(string $period, string $reason, User $user): AccountingPeriodClosing
     {
         return DB::transaction(function () use ($period, $reason, $user) {
+            $this->serialize();
+
             $closing = AccountingPeriodClosing::whereNull('reopened_at')
                 ->orderByDesc('end_date')->orderByDesc('id')
                 ->lockForUpdate()->first();
@@ -113,5 +118,11 @@ class PeriodClosingService
 
             return $closing->fresh(['closingEntry', 'closedByUser']);
         });
+    }
+
+    /** Satu tutup/buka buku pada satu waktu: kunci baris akun Laba Ditahan sebelum membaca status periode. */
+    private function serialize(): void
+    {
+        Account::where('account_code', self::RETAINED_EARNINGS)->lockForUpdate()->first();
     }
 }
