@@ -9,6 +9,7 @@ use App\Models\Account;
 use App\Models\JournalEntry;
 use App\Models\Purchase;
 use App\Models\Supplier;
+use App\Services\Accounting\CashFlowReport;
 use App\Services\Accounting\FinancialReportService;
 use App\Services\AccountingEngine;
 use App\Services\Inventory\PayableService;
@@ -115,6 +116,19 @@ class AccountingReportController extends Controller
         [$from, $to] = $this->range($request);
 
         return response()->json(['success' => true, 'data' => $reports->financialStatements($from, $to)]);
+    }
+
+    public function cashFlow(Request $request, CashFlowReport $cashFlow): JsonResponse
+    {
+        [$from, $to] = $this->range($request);
+
+        return response()->json(['success' => true, 'data' => $cashFlow->build($from, $to)]);
+    }
+
+    /** Saldo kas laci & bank hari ini (dipakai form beban untuk cek saldo). */
+    public function cashBalances(): JsonResponse
+    {
+        return response()->json(['success' => true, 'data' => CashFlowReport::cashBalances(now()->toDateString())]);
     }
 
     /**

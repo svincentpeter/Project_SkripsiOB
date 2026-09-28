@@ -166,6 +166,8 @@ Route::prefix('v1')->group(function () {
                 Route::get('trial-balance', [AccountingReportController::class, 'trialBalance']);
             });
             Route::get('financial-statements', [AccountingReportController::class, 'financialStatements'])->middleware('permission:financial_reports,accounting_hub');
+            Route::get('cash-flow', [AccountingReportController::class, 'cashFlow'])->middleware('permission:financial_reports,accounting_hub');
+            Route::get('cash-balances', [AccountingReportController::class, 'cashBalances'])->middleware('permission:expenses,accounting_hub,financial_reports');
             Route::middleware('permission:accounts_payable')->group(function () {
                 Route::get('accounts-payable', [AccountingReportController::class, 'accountsPayable']);
                 Route::post('accounts-payable/pay', [AccountingReportController::class, 'payDebt']);
