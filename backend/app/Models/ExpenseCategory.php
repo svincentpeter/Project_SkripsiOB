@@ -18,6 +18,17 @@ class ExpenseCategory extends Model
         'default_account_code',
     ];
 
+    /** @return array{id: int, code: string, name: string, account_code: string} */
+    public function toApiArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'code' => $this->category_code,
+            'name' => $this->category_name,
+            'account_code' => $this->default_account_code,
+        ];
+    }
+
     public function expenses(): HasMany
     {
         return $this->hasMany(Expense::class, 'category_id');

@@ -14,16 +14,22 @@ class ExpenseRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'expense_date' => 'required|date',
-            'category_id' => 'required|exists:expense_categories,id',
-            'amount' => 'required|numeric|min:1',
-            'payment_method' => 'required|string|in:KAS_LACI,BANK_BCA,TUNAI,TRANSFER_BCA',
+            'expense_date' => 'required|date_format:Y-m-d|before_or_equal:today',
+            'category_id' => 'required|integer|exists:expense_categories,id',
+            'amount' => 'required|numeric|min:1|max:1000000000',
+            'payment_method' => 'required|string|in:TUNAI,TRANSFER_BCA,KAS_LACI,BANK_BCA',
             'bank_name' => 'nullable|string|max:50',
             'recipient_name' => 'required|string|max:120',
-            'description' => 'required|string',
-            'attachment_path' => 'nullable|string',
-            'attachment' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:5120',
-            'approved_by' => 'nullable|string|max:80',
+            'description' => 'required|string|max:1000',
+            'attachment' => 'nullable|file|mimes:jpeg,png,jpg,webp,pdf|max:5120',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'expense_date.before_or_equal' => 'Tanggal pengeluaran tidak boleh melebihi hari ini.',
+            'category_id.exists' => 'Kategori beban tidak dikenal.',
         ];
     }
 }
