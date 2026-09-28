@@ -36,6 +36,9 @@ class OpeningBalanceService
     public function post(string $date, array $balances): JournalEntry
     {
         return DB::transaction(function () use ($date, $balances) {
+            // Kunci baris akun modal agar dua permintaan bersamaan tidak lolos pemeriksaan "belum ada" sekaligus.
+            Account::where('account_code', self::CAPITAL)->lockForUpdate()->first();
+
             if (JournalEntry::where('reference_type', self::REFERENCE_TYPE)->lockForUpdate()->exists()) {
                 throw new PosRuleException('Saldo awal akun sudah pernah dibukukan. Koreksi lewat jurnal penyesuaian.');
             }
