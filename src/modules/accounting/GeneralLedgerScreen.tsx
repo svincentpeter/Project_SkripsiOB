@@ -16,15 +16,16 @@ import {
   ArrowUpRight,
   TrendingUp
 } from 'lucide-react';
-import { 
+import {
   AccountingPeriodInfo,
-  DebtPaymentInput, 
-  JournalEntry, 
-  ManualJournalInput, 
-  PayableInvoice, 
+  ChartOfAccount,
+  DebtPaymentInput,
+  JournalEntry,
+  ManualJournalInput,
+  PayableInvoice,
   ReceivableInvoice,
   ReceivablePaymentInput,
-  TireProduct 
+  TireProduct
 } from '../../shared/types';
 import { 
   INITIAL_ACCOUNT_BALANCES, 
@@ -67,6 +68,8 @@ interface GeneralLedgerScreenProps {
   onNavigateToFinancials?: () => void;
   initialTab?: AccountingTabKey;
   isEmptyState?: boolean;
+  accounts?: ChartOfAccount[];
+  ledgerVersion?: number;
 }
 
 export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
@@ -85,6 +88,8 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   onNavigateToFinancials,
   initialTab = 'journals',
   isEmptyState = false,
+  accounts = [],
+  ledgerVersion = 0,
 }) => {
   const [activeTab, setActiveTab] = useState<AccountingTabKey>(initialTab);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
@@ -202,7 +207,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
             <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
               activeTab === 'ledger' ? 'bg-blue-100 text-blue-800 font-bold' : 'bg-slate-200 text-slate-600'
             }`}>
-              21 Akun
+              {accounts.length} Akun
             </span>
           </button>
 
@@ -281,16 +286,12 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
         )}
 
         {activeTab === 'ledger' && (
-          <GeneralLedgerTab
-            journals={journals}
-            initialBalances={initialBalances}
-          />
+          <GeneralLedgerTab accounts={accounts} refreshKey={ledgerVersion} />
         )}
 
         {activeTab === 'trial-balance' && (
           <TrialBalanceTab
-            journals={journals}
-            initialBalances={initialBalances}
+            refreshKey={ledgerVersion}
             onNavigateToReports={onNavigateToFinancials || (() => setActiveTab('reports'))}
           />
         )}

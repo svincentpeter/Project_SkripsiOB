@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
+import {
   AccountingPeriodInfo,
-  ActiveScreen, 
-  CartItem, 
-  CreateProductInput, 
-  DebtPaymentInput, 
-  ExpenseRecord, 
-  GoodsReceiptInput, 
-  JournalEntry, 
+  ActiveScreen,
+  CartItem,
+  ChartOfAccount,
+  CreateProductInput,
+  DebtPaymentInput,
+  ExpenseRecord,
+  GoodsReceiptInput,
+  JournalEntry,
   ManualJournalInput, 
   PayableInvoice, 
   PermissionKey,
@@ -89,7 +90,9 @@ import { ToastProvider, useToast, AppNotification } from './shared/components';
 import { WireframeGuideModal } from './shared/components/WireframeGuideModal';
 import { HeaderNavbar } from './shared/components/HeaderNavbar';
 import {
+  accountingApi,
   apiClient,
+  mapAccount,
   productApi,
   posApi,
   authApi,
@@ -273,6 +276,9 @@ function MainAppContent() {
       return INITIAL_JOURNALS;
     }
   });
+  const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
+  /** Naik setiap kali server membukukan jurnal; komponen laporan memuat ulang saat nilainya berubah. */
+  const [ledgerVersion, setLedgerVersion] = useState(0);
   const [cashInDrawer, setCashInDrawer] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('ob3_cash_drawer');
@@ -443,6 +449,9 @@ function MainAppContent() {
     if (apiSuppliers) setSuppliers(apiSuppliers.map(mapSupplier));
     if (allowed('goods_receipt', 'accounts_payable')) refreshPayables();
     if (allowed('inventory_view')) refreshStockLedger();
+    if (allowed('accounting_hub', 'financial_reports', 'expenses')) {
+      accountingApi.accounts().then((rows) => setAccounts(rows.map(mapAccount))).catch(() => {});
+    }
     if (apiProducts) setProducts(apiProducts);
     if (apiServices) setServices(apiServices);
     if (apiSales) {
@@ -535,6 +544,7 @@ function MainAppContent() {
   // Jurnal hasil server disalin ke tampilan akuntansi (masa transisi sampai modul akuntansi membaca API).
   const mergeServerJournals = (apiJournals: ApiJournal[]) => {
     if (apiJournals.length === 0) return;
+    setLedgerVersion((v) => v + 1);
     const mapped = apiJournals.map(mapJournal);
     setJournals((prev) => [...mapped.filter((j) => !prev.some((p) => p.id === j.id)), ...prev]);
   };
@@ -1251,6 +1261,8 @@ function MainAppContent() {
                 onReverseJournal={handleReverseJournal}
                 onNavigateToFinancials={() => setActiveScreen('financials')}
                 isEmptyState={isEmptyState}
+                accounts={accounts}
+                ledgerVersion={ledgerVersion}
               />
             )}
 
