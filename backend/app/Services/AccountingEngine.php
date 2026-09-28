@@ -3,24 +3,24 @@
 namespace App\Services;
 
 use App\Exceptions\AccountingUnbalancedException;
+use App\Exceptions\PosRuleException;
 use App\Models\Account;
 use App\Models\JournalEntry;
 use App\Models\JournalItem;
+use App\Services\Accounting\PeriodLock;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AccountingEngine
 {
     /**
-     * Create double-entry journal entry with strict Debit == Credit balance check.
+     * Satu-satunya pintu pembukuan jurnal. Aturan: minimal dua baris bernilai, tanpa nominal negatif,
+     * satu sisi per baris, debit = kredit sampai sen, dan tanggal di luar periode yang sudah ditutup.
      *
-     * @param string $referenceType
-     * @param string $referenceId
-     * @param string $description
-     * @param array $items Array of ['account_id' => int, 'debit' => float, 'credit' => float, 'note' => ?string]
-     * @param string|null $entryDate
-     * @param int $branchId
-     * @return JournalEntry
+     * @param  array<int, array{account_id: int, debit?: float|int|string, credit?: float|int|string, note?: ?string}>  $items
+     *
      * @throws AccountingUnbalancedException
+     * @throws PosRuleException
      */
     public function createEntry(
         string $referenceType,
@@ -28,43 +28,23 @@ class AccountingEngine
         string $description,
         array $items,
         ?string $entryDate = null,
-        int $branchId = 3
+        int $branchId = 3,
+        ?int $reversalOfId = null
     ): JournalEntry {
-        $totalDebit = 0.00;
-        $totalCredit = 0.00;
+        $lines = self::normalizeLines($items);
+        $totalDebit = round(array_sum(array_column($lines, 'debit')), 2);
+        $totalCredit = round(array_sum(array_column($lines, 'credit')), 2);
 
-        foreach ($items as $item) {
-            $totalDebit += (float) ($item['debit'] ?? 0);
-            $totalCredit += (float) ($item['credit'] ?? 0);
-        }
-
-        $totalDebit = round($totalDebit, 2);
-        $totalCredit = round($totalCredit, 2);
-
-        // Strict balance check with 0.01 tolerance
-        if (abs($totalDebit - $totalCredit) > 0.01) {
+        if (self::cents($totalDebit) !== self::cents($totalCredit)) {
             throw new AccountingUnbalancedException($totalDebit, $totalCredit);
         }
 
-        return DB::transaction(function () use ($referenceType, $referenceId, $description, $items, $entryDate, $branchId, $totalDebit, $totalCredit) {
-            $date = $entryDate ?: now()->toDateString();
-            $prefix = 'JRN-' . date('Ym', strtotime($date)) . '-';
+        $date = $entryDate !== null ? Carbon::parse($entryDate)->toDateString() : now()->toDateString();
+        PeriodLock::assertOpen($date);
 
-            // Sequential numbering
-            $lastEntry = JournalEntry::where('entry_number', 'like', $prefix . '%')
-                ->orderBy('entry_number', 'desc')
-                ->first();
-
-            $seq = 1;
-            if ($lastEntry) {
-                $parts = explode('-', $lastEntry->entry_number);
-                $seq = (int) end($parts) + 1;
-            }
-
-            $entryNumber = $prefix . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
-
-            $journalEntry = JournalEntry::create([
-                'entry_number' => $entryNumber,
+        return DB::transaction(function () use ($referenceType, $referenceId, $description, $lines, $date, $branchId, $reversalOfId, $totalDebit, $totalCredit) {
+            $entry = JournalEntry::create([
+                'entry_number' => DocumentNumber::next(JournalEntry::class, 'entry_number', 'JRN', $date),
                 'entry_date' => $date,
                 'reference_type' => $referenceType,
                 'reference_id' => $referenceId,
@@ -73,22 +53,48 @@ class AccountingEngine
                 'total_credit' => $totalCredit,
                 'status' => 'POSTED',
                 'branch_id' => $branchId,
+                'created_by' => auth()->id(),
+                'reversal_of_id' => $reversalOfId,
             ]);
 
-            foreach ($items as $item) {
-                if (($item['debit'] ?? 0) > 0 || ($item['credit'] ?? 0) > 0) {
-                    JournalItem::create([
-                        'journal_entry_id' => $journalEntry->id,
-                        'account_id' => $item['account_id'],
-                        'debit' => round((float) ($item['debit'] ?? 0), 2),
-                        'credit' => round((float) ($item['credit'] ?? 0), 2),
-                        'note' => $item['note'] ?? null,
-                    ]);
-                }
+            foreach ($lines as $line) {
+                JournalItem::create($line + ['journal_entry_id' => $entry->id]);
             }
 
-            return $journalEntry->load(['items.account']);
+            return $entry->load('items.account');
         });
+    }
+
+    /**
+     * @return list<array{account_id: int, debit: float, credit: float, note: ?string}>
+     */
+    private static function normalizeLines(array $items): array
+    {
+        $lines = [];
+        foreach ($items as $item) {
+            $debit = round((float) ($item['debit'] ?? 0), 2);
+            $credit = round((float) ($item['credit'] ?? 0), 2);
+            if ($debit < 0 || $credit < 0) {
+                throw new PosRuleException('Nominal baris jurnal tidak boleh negatif.');
+            }
+            if ($debit > 0 && $credit > 0) {
+                throw new PosRuleException('Satu baris jurnal hanya boleh berisi debit atau kredit.');
+            }
+            if ($debit > 0 || $credit > 0) {
+                $lines[] = ['account_id' => (int) $item['account_id'], 'debit' => $debit, 'credit' => $credit, 'note' => $item['note'] ?? null];
+            }
+        }
+
+        if (count($lines) < 2) {
+            throw new PosRuleException('Jurnal minimal berisi dua baris bernilai.');
+        }
+
+        return $lines;
+    }
+
+    private static function cents(float $amount): int
+    {
+        return (int) round($amount * 100);
     }
 
     /**

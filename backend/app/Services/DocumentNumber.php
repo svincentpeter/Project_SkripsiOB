@@ -3,19 +3,22 @@
 namespace App\Services;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * Nomor dokumen berurutan per bulan: {PREFIX}-YYYYMM-0001.
- * Dipanggil di dalam transaksi DB; baris terakhir dikunci agar dua kasir tidak mendapat nomor sama.
+ * Bulan diambil dari tanggal dokumen bila diberikan (default: hari ini).
+ * Dipanggil di dalam transaksi DB; baris terakhir dikunci agar dua pengguna tidak mendapat nomor sama.
  */
 final class DocumentNumber
 {
     /**
      * @param  class-string<Model>  $model
      */
-    public static function next(string $model, string $column, string $prefix): string
+    public static function next(string $model, string $column, string $prefix, ?string $date = null): string
     {
-        $monthPrefix = $prefix.'-'.now()->format('Ym').'-';
+        $month = ($date !== null ? Carbon::parse($date) : now())->format('Ym');
+        $monthPrefix = $prefix.'-'.$month.'-';
 
         $last = $model::where($column, 'like', $monthPrefix.'%')
             ->orderBy($column, 'desc')

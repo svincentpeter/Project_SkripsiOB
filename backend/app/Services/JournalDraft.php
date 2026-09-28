@@ -24,6 +24,11 @@ class JournalDraft
         return $this->add($code, 0.0, $amount, $note);
     }
 
+    public function isEmpty(): bool
+    {
+        return $this->lines === [];
+    }
+
     public function post(AccountingEngine $engine, string $referenceType, string $referenceId, string $description, ?string $date = null): JournalEntry
     {
         $codes = array_unique(array_column($this->lines, 'code'));
