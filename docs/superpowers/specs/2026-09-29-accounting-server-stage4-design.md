@@ -44,7 +44,7 @@ in this stage.
 
 New `reference_type` values: `PERIOD_CLOSING`, `PERIOD_REOPEN`, `MANUAL_REVERSAL`, `ACCOUNT_OPENING`.
 
-## Data model (migration `2026_09_29_000001_accounting_stage4`)
+## Data model (migrations `2026_09_29_000001_harden_journal_entries_and_add_period_closings`, `2026_09_29_000002_add_void_audit_to_expenses_and_seed_categories`)
 
 - `journal_entries`: `created_by` (nullable FK users), `reversal_of_id` (nullable, unique, FK journal_entries).
 - `accounting_period_closings`: `period` (YYYY-MM), `end_date`, `closing_entry_id` (nullable), `net_income`,
