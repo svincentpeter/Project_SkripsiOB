@@ -77,6 +77,18 @@ class ExpenseApiTest extends TestCase
         $this->assertStringStartsWith('/storage/expenses/BKK-202506-', $res->json('data.expense.attachment_url'));
     }
 
+    public function test_attachment_is_not_kept_when_posting_fails(): void
+    {
+        Storage::fake('public');
+
+        AccountingPeriodClosing::create(['period' => '2025-06', 'end_date' => '2025-06-30', 'net_income' => 0, 'closed_at' => now()]);
+
+        $this->post('/api/v1/expenses', $this->payload(['attachment' => UploadedFile::fake()->image('nota.jpg')]), ['Accept' => 'application/json'])
+            ->assertStatus(422);
+
+        $this->assertEmpty(Storage::disk('public')->allFiles('expenses'));
+    }
+
     public function test_future_dated_expense_is_rejected(): void
     {
         $this->postJson('/api/v1/expenses', $this->payload(['expense_date' => now()->addDay()->toDateString()]))

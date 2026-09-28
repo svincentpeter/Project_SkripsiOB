@@ -12,6 +12,7 @@ use App\Services\DocumentNumber;
 use App\Services\JournalDraft;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -34,39 +35,49 @@ class ExpenseService
      */
     public function create(array $data, ?UploadedFile $attachment, User $user): array
     {
-        return DB::transaction(function () use ($data, $attachment, $user) {
-            $category = ExpenseCategory::findOrFail($data['category_id']);
-            $reference = DocumentNumber::next(Expense::class, 'reference', 'BKK', $data['expense_date']);
+        $storedPath = null;
 
-            $attachmentPath = null;
-            if ($attachment !== null) {
-                $name = $reference.'-'.Str::lower(Str::random(6)).'.'.$attachment->extension();
-                $attachmentPath = '/storage/'.$attachment->storeAs('expenses', $name, 'public');
+        try {
+            return DB::transaction(function () use ($data, $attachment, $user, &$storedPath) {
+                $category = ExpenseCategory::findOrFail($data['category_id']);
+                $reference = DocumentNumber::next(Expense::class, 'reference', 'BKK', $data['expense_date']);
+
+                $expense = Expense::create([
+                    'reference' => $reference,
+                    'expense_date' => $data['expense_date'],
+                    'category_id' => $category->id,
+                    'amount' => round((float) $data['amount'], 2),
+                    'payment_method' => $data['payment_method'],
+                    'bank_name' => $data['bank_name'] ?? null,
+                    'recipient_name' => $data['recipient_name'],
+                    'description' => $data['description'],
+                    'attachment_path' => null,
+                    'approved_by' => $user->name,
+                    'status' => 'ACTIVE',
+                    'branch_id' => 3,
+                    'created_by' => $user->id,
+                ]);
+
+                $journal = (new JournalDraft())
+                    ->debit($category->default_account_code, (float) $expense->amount, "Beban {$category->category_name} ({$reference})")
+                    ->credit(self::cashAccount($expense->payment_method), (float) $expense->amount, "Dibayar kepada {$expense->recipient_name}")
+                    ->post($this->engine, 'EXPENSE', $reference, "Pengeluaran {$reference}: {$expense->description}", $data['expense_date']);
+
+                if ($attachment !== null) {
+                    $name = $reference.'-'.Str::lower(Str::random(6)).'.'.$attachment->extension();
+                    $storedPath = $attachment->storeAs('expenses', $name, 'public');
+                    $expense->update(['attachment_path' => '/storage/'.$storedPath]);
+                }
+
+                return ['expense' => $expense->load('category'), 'journal' => $journal];
+            });
+        } catch (\Throwable $e) {
+            if ($storedPath !== null) {
+                Storage::disk('public')->delete($storedPath);
             }
 
-            $expense = Expense::create([
-                'reference' => $reference,
-                'expense_date' => $data['expense_date'],
-                'category_id' => $category->id,
-                'amount' => round((float) $data['amount'], 2),
-                'payment_method' => $data['payment_method'],
-                'bank_name' => $data['bank_name'] ?? null,
-                'recipient_name' => $data['recipient_name'],
-                'description' => $data['description'],
-                'attachment_path' => $attachmentPath,
-                'approved_by' => $user->name,
-                'status' => 'ACTIVE',
-                'branch_id' => 3,
-                'created_by' => $user->id,
-            ]);
-
-            $journal = (new JournalDraft())
-                ->debit($category->default_account_code, (float) $expense->amount, "Beban {$category->category_name} ({$reference})")
-                ->credit(self::cashAccount($expense->payment_method), (float) $expense->amount, "Dibayar kepada {$expense->recipient_name}")
-                ->post($this->engine, 'EXPENSE', $reference, "Pengeluaran {$reference}: {$expense->description}", $data['expense_date']);
-
-            return ['expense' => $expense->load('category'), 'journal' => $journal];
-        });
+            throw $e;
+        }
     }
 
     /**
