@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\v1\AccountController;
+use App\Http\Controllers\Api\v1\AccountingPeriodController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
 use App\Http\Controllers\Api\v1\BookingController;
@@ -164,6 +165,9 @@ Route::prefix('v1')->group(function () {
                 Route::post('journals/manual', [AccountingReportController::class, 'createManualJournal']);
                 Route::get('general-ledger', [AccountingReportController::class, 'generalLedger']);
                 Route::get('trial-balance', [AccountingReportController::class, 'trialBalance']);
+                Route::get('periods', [AccountingPeriodController::class, 'index']);
+                Route::post('periods/close', [AccountingPeriodController::class, 'close']);
+                Route::post('periods/{period}/reopen', [AccountingPeriodController::class, 'reopen'])->where('period', '\d{4}-\d{2}');
             });
             Route::get('financial-statements', [AccountingReportController::class, 'financialStatements'])->middleware('permission:financial_reports,accounting_hub');
             Route::get('cash-flow', [AccountingReportController::class, 'cashFlow'])->middleware('permission:financial_reports,accounting_hub');
