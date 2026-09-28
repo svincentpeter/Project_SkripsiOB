@@ -15,6 +15,7 @@ import {
 // ---------------------------------------------------------------------------
 
 export interface ApiJournal {
+  id?: number;
   entry_number: string;
   entry_date: string;
   reference_type: string;
@@ -22,6 +23,10 @@ export interface ApiJournal {
   description: string;
   total_debit: number;
   total_credit: number;
+  reversal_of?: string | null;
+  reversed_by?: string | null;
+  can_reverse?: boolean;
+  created_by_name?: string | null;
   lines: { account_code: string; account_name: string; debit: number; credit: number; note?: string | null }[];
 }
 
@@ -316,6 +321,11 @@ export const mapJournal = (j: ApiJournal): JournalEntry => ({
   status: 'POSTED',
   total_debit: num(j.total_debit),
   total_credit: num(j.total_credit),
+  reference_type: j.reference_type,
+  can_reverse: j.can_reverse ?? false,
+  reversed_by: j.reversed_by ?? null,
+  reversal_of: j.reversal_of ?? null,
+  created_by_name: j.created_by_name ?? null,
   lines: j.lines.map((l) => ({
     account_code: l.account_code,
     account_name: l.account_name,

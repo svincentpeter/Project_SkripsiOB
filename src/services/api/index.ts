@@ -8,3 +8,4 @@ export * from './accountingApi';
 export * from './paymentApi';
 export * from './posMappers';
 export * from './inventoryMappers';
+export * from './accountingMappers';

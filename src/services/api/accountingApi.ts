@@ -1,67 +1,55 @@
 import { apiClient } from './apiClient';
+import type { ApiJournal } from './posMappers';
+import type { ApiAccount, ApiJournalPage, ApiLedger, ApiTrialBalance } from './accountingMappers';
+import type {
+  AccountingPeriodsInfo,
+  CashFlowReport,
+  FinancialStatements,
+  ManualJournalPayload,
+  OpeningBalanceInput,
+  PeriodClosingRecord,
+} from '../../shared/types';
+
+interface Envelope<T> {
+  success: boolean;
+  message?: string;
+  data: T;
+}
+
+export type ReportRange = { start_date?: string; end_date: string };
+export type JournalQuery = {
+  start_date?: string;
+  end_date?: string;
+  types?: string;
+  search?: string;
+  account_code?: string;
+  page?: number;
+  per_page?: number;
+};
+export type CashBalances = Record<'1-1000' | '1-1001', number>;
+
+const data = <T>(request: Promise<Envelope<T>>): Promise<T> => request.then((r) => r.data);
 
 export const accountingApi = {
-  journals: async (params?: { type?: string; status?: string; search?: string; start_date?: string; end_date?: string }) => {
-    return apiClient.get<{ success: boolean; data: any }>('/accounting/journals', params);
-  },
-
-  createManualJournal: async (payload: {
-    date: string;
-    description: string;
-    items: Array<{
-      account_id: number | string;
-      debit: number;
-      credit: number;
-      note?: string;
-    }>;
-  }) => {
-    return apiClient.post<{ success: boolean; message: string; data: any }>('/accounting/journals/manual', payload);
-  },
-
-  generalLedger: async (params: { account_code: string; start_date?: string; end_date?: string }) => {
-    return apiClient.get<{ success: boolean; data: any }>('/accounting/general-ledger', params);
-  },
-
-  trialBalance: async () => {
-    return apiClient.get<{
-      success: boolean;
-      data: {
-        accounts: any[];
-        total_debit: number;
-        total_credit: number;
-        difference: number;
-        is_balanced: boolean;
-      };
-    }>('/accounting/trial-balance');
-  },
-
-  financialStatements: async () => {
-    return apiClient.get<{
-      success: boolean;
-      data: {
-        income_statement: any;
-        balance_sheet: any;
-      };
-    }>('/accounting/financial-statements');
-  },
-
-  accountsPayable: async () => {
-    return apiClient.get<{
-      success: boolean;
-      data: {
-        total_outstanding: number;
-        suppliers: any[];
-      };
-    }>('/accounting/accounts-payable');
-  },
-
-  payDebt: async (payload: {
-    supplier_id: number | string;
-    amount: number;
-    payment_method: string;
-    payment_date?: string;
-    notes?: string;
-  }) => {
-    return apiClient.post<{ success: boolean; message: string; data: any }>('/accounting/accounts-payable/pay', payload);
-  },
+  accounts: () => data(apiClient.get<Envelope<ApiAccount[]>>('/accounts')),
+  journals: (query: JournalQuery) => data(apiClient.get<Envelope<ApiJournalPage>>('/accounting/journals', query)),
+  createManualJournal: (payload: ManualJournalPayload) =>
+    data(apiClient.post<Envelope<ApiJournal>>('/accounting/journals/manual', payload)),
+  reverseJournal: (entryNumber: string, reason: string) =>
+    data(apiClient.post<Envelope<ApiJournal>>(`/accounting/journals/${encodeURIComponent(entryNumber)}/reverse`, { reason })),
+  generalLedger: (query: { account_code: string; start_date?: string; end_date?: string }) =>
+    data(apiClient.get<Envelope<ApiLedger>>('/accounting/general-ledger', query)),
+  trialBalance: (asOf: string) => data(apiClient.get<Envelope<ApiTrialBalance>>('/accounting/trial-balance', { as_of: asOf })),
+  financialStatements: (range: ReportRange) =>
+    data(apiClient.get<Envelope<FinancialStatements>>('/accounting/financial-statements', range)),
+  cashFlow: (range: ReportRange) => data(apiClient.get<Envelope<CashFlowReport>>('/accounting/cash-flow', range)),
+  cashBalances: () => data(apiClient.get<Envelope<CashBalances>>('/accounting/cash-balances')),
+  periods: () => data(apiClient.get<Envelope<AccountingPeriodsInfo>>('/accounting/periods')),
+  closePeriod: (period: string, notes: string) =>
+    data(apiClient.post<Envelope<PeriodClosingRecord>>('/accounting/periods/close', { period, notes })),
+  reopenPeriod: (period: string, reason: string) =>
+    data(apiClient.post<Envelope<PeriodClosingRecord>>(`/accounting/periods/${period}/reopen`, { reason })),
+  openingBalance: () => data(apiClient.get<Envelope<ApiJournal | null>>('/accounting/opening-balance')),
+  postOpeningBalance: (input: OpeningBalanceInput) =>
+    data(apiClient.post<Envelope<ApiJournal>>('/accounting/opening-balance', input)),
 };

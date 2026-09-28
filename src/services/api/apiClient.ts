@@ -2,6 +2,10 @@
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:8000/api/v1';
 
+/** URL lengkap untuk berkas publik backend, mis. '/storage/expenses/BKK-....jpg'. */
+export const assetUrl = (path: string): string =>
+  /^https?:\/\//.test(path) ? path : `${API_BASE_URL.replace(/\/api\/v1\/?$/, '')}${path}`;
+
 export class ApiError extends Error {
   status: number;
   data: any;

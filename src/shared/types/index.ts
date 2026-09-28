@@ -345,6 +345,12 @@ export interface JournalEntry {
   status: 'POSTED' | 'VOID';
   total_debit?: number;
   total_credit?: number;
+  reference_type?: string;
+  /** true hanya untuk jurnal penyesuaian manual yang belum dibalik. */
+  can_reverse?: boolean;
+  reversed_by?: string | null;
+  reversal_of?: string | null;
+  created_by_name?: string | null;
 }
 
 export type ActiveScreen = 
@@ -647,4 +653,100 @@ export type RolePermissionsConfig = {
   KASIR: Record<PermissionKey, boolean>;
   GUDANG: Record<PermissionKey, boolean>;
 };
+
+// ==============================================================================
+// Laporan akuntansi yang dihitung server (Tahap 4)
+// ==============================================================================
+export interface StatementLine {
+  code: string | null;
+  name: string;
+  amount: number;
+}
+
+export interface StatementSection {
+  lines: StatementLine[];
+  total: number;
+}
+
+export interface IncomeStatement {
+  revenue: StatementSection;
+  contra_revenue: StatementSection;
+  net_revenue: number;
+  cost_of_sales: StatementSection;
+  gross_profit: number;
+  operating_expenses: StatementSection;
+  net_income: number;
+}
+
+export interface BalanceSheet {
+  as_of: string;
+  current_assets: StatementSection;
+  fixed_assets: StatementSection;
+  total_assets: number;
+  liabilities: StatementSection;
+  equity: StatementSection;
+  total_liabilities_and_equity: number;
+  difference: number;
+  is_balanced: boolean;
+}
+
+export interface EquityChanges {
+  opening_equity: number;
+  owner_contributions: number;
+  net_income: number;
+  closing_equity: number;
+  difference: number;
+}
+
+export interface FinancialStatements {
+  period: { start_date: string | null; end_date: string };
+  income_statement: IncomeStatement;
+  balance_sheet: BalanceSheet;
+  equity_changes: EquityChanges;
+}
+
+/** Arus kas metode langsung; arus masuk positif, arus keluar negatif. */
+export interface CashFlowReport {
+  period: { start_date: string | null; end_date: string };
+  operating: { customers: number; suppliers: number; expenses: number; other: number; net: number };
+  investing: { fixed_assets: number; net: number };
+  financing: { equity: number; net: number };
+  net_change: number;
+  beginning_cash: number;
+  ending_cash: number;
+  ending_cash_drawer: number;
+  ending_bank: number;
+  is_reconciled: boolean;
+}
+
+export interface PeriodClosingRecord {
+  period: string;
+  end_date: string;
+  closing_entry_number: string | null;
+  net_income: number;
+  notes: string | null;
+  closed_by: string | null;
+  closed_at: string | null;
+  reopened_at: string | null;
+  reopen_reason: string | null;
+}
+
+export interface AccountingPeriodsInfo {
+  lock_date: string | null;
+  suggested_period: string;
+  closings: PeriodClosingRecord[];
+}
+
+export type OpeningBalanceAccount = '1-1000' | '1-1001' | '1-3000' | '1-3999' | '3-2000';
+
+export interface OpeningBalanceInput {
+  date: string;
+  balances: Partial<Record<OpeningBalanceAccount, number>>;
+}
+
+export interface ManualJournalPayload {
+  date: string;
+  description: string;
+  items: { account_code: string; debit: number; credit: number; note?: string }[];
+}
 
