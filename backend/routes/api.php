@@ -66,8 +66,8 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('suppliers', SupplierController::class)->only(['index', 'show']);
             Route::get('product-categories', [ProductCategoryController::class, 'index']);
             Route::get('service-categories', [ServiceCategoryController::class, 'index']);
-            Route::get('accounts', [AccountController::class, 'index']);
         });
+        Route::get('accounts', [AccountController::class, 'index'])->middleware('permission:pos,inventory_view,accounting_hub,financial_reports,expenses');
         Route::middleware('permission:inventory_manage')->group(function () {
             Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('services', ServiceMasterController::class)->only(['store', 'update', 'destroy']);
@@ -163,6 +163,7 @@ Route::prefix('v1')->group(function () {
             Route::middleware('permission:accounting_hub')->group(function () {
                 Route::get('journals', [AccountingReportController::class, 'journals']);
                 Route::post('journals/manual', [AccountingReportController::class, 'createManualJournal']);
+                Route::post('journals/{entryNumber}/reverse', [AccountingReportController::class, 'reverseJournal']);
                 Route::get('general-ledger', [AccountingReportController::class, 'generalLedger']);
                 Route::get('trial-balance', [AccountingReportController::class, 'trialBalance']);
                 Route::get('periods', [AccountingPeriodController::class, 'index']);

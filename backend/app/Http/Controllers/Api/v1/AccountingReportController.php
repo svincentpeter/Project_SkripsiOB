@@ -5,85 +5,80 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ManualJournalRequest;
 use App\Http\Requests\PayDebtRequest;
-use App\Models\Account;
 use App\Models\JournalEntry;
 use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Services\Accounting\CashFlowReport;
 use App\Services\Accounting\FinancialReportService;
-use App\Services\AccountingEngine;
+use App\Services\Accounting\ManualJournalService;
 use App\Services\Inventory\PayableService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class AccountingReportController extends Controller
 {
-    protected AccountingEngine $accountingEngine;
-
-    public function __construct(AccountingEngine $accountingEngine)
-    {
-        $this->accountingEngine = $accountingEngine;
-    }
-
     public function journals(Request $request): JsonResponse
     {
-        $query = JournalEntry::with(['items.account'])
-            ->orderBy('entry_date', 'desc')
-            ->orderBy('id', 'desc');
+        $data = $request->validate([
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date' => 'nullable|date_format:Y-m-d',
+            'types' => 'nullable|string|max:300',
+            'search' => 'nullable|string|max:100',
+            'account_code' => 'nullable|string|exists:accounts,account_code',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
 
-        if ($request->filled('type')) {
-            $query->where('reference_type', $request->type);
-        }
+        $query = JournalEntry::query()
+            ->where('status', 'POSTED')
+            ->when($data['start_date'] ?? null, fn ($q, $d) => $q->where('entry_date', '>=', $d))
+            ->when($data['end_date'] ?? null, fn ($q, $d) => $q->where('entry_date', '<=', $d))
+            ->when($data['types'] ?? null, fn ($q, $types) => $q->whereIn('reference_type', explode(',', $types)))
+            ->when($data['account_code'] ?? null, fn ($q, $code) => $q->whereHas('items.account', fn ($a) => $a->where('account_code', $code)))
+            ->when($data['search'] ?? null, fn ($q, $s) => $q->where(fn ($w) => $w
+                ->where('entry_number', 'like', "%{$s}%")
+                ->orWhere('reference_id', 'like', "%{$s}%")
+                ->orWhere('description', 'like', "%{$s}%")));
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('search')) {
-            $s = $request->search;
-            $query->where(function ($q) use ($s) {
-                $q->where('entry_number', 'like', "%{$s}%")
-                  ->orWhere('reference_id', 'like', "%{$s}%")
-                  ->orWhere('description', 'like', "%{$s}%");
-            });
-        }
-
-        if ($request->filled('start_date')) {
-            $query->where('entry_date', '>=', $request->start_date);
-        }
-
-        if ($request->filled('end_date')) {
-            $query->where('entry_date', '<=', $request->end_date);
-        }
-
-        $journals = $query->paginate($request->input('per_page', 25));
+        $totals = (clone $query)->selectRaw('COALESCE(SUM(total_debit), 0) as d, COALESCE(SUM(total_credit), 0) as c')->first();
+        $page = $query->with(['items.account', 'reversal', 'reversalOf', 'creator'])
+            ->orderByDesc('entry_date')->orderByDesc('id')
+            ->paginate($data['per_page'] ?? 25);
 
         return response()->json([
             'success' => true,
-            'data' => $journals,
+            'data' => [
+                'items' => $page->getCollection()->map(fn (JournalEntry $j) => $j->toApiArray())->values(),
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'total' => $page->total(),
+                'total_debit' => round((float) $totals->d, 2),
+                'total_credit' => round((float) $totals->c, 2),
+            ],
         ]);
     }
 
-    public function createManualJournal(ManualJournalRequest $request): JsonResponse
+    public function createManualJournal(ManualJournalRequest $request, ManualJournalService $manual): JsonResponse
     {
-        $validated = $request->validated();
-
-        $refId = 'MEMO-' . date('Ymd-His');
-        $journal = $this->accountingEngine->createEntry(
-            'MANUAL_ADJUSTMENT',
-            $refId,
-            $validated['description'],
-            $validated['items'],
-            $validated['date'],
-            3
-        );
+        $journal = $manual->create($request->validated());
 
         return response()->json([
             'success' => true,
-            'message' => 'Jurnal penyesuaian memorial berhasil dicatat',
-            'data' => $journal,
+            'message' => "Jurnal penyesuaian {$journal->entry_number} dibukukan.",
+            'data' => $journal->toApiArray(),
+        ], 201);
+    }
+
+    public function reverseJournal(Request $request, string $entryNumber, ManualJournalService $manual): JsonResponse
+    {
+        $data = $request->validate(['reason' => 'required|string|max:255']);
+        $entry = JournalEntry::where('entry_number', $entryNumber)->firstOrFail();
+        $reversal = $manual->reverse($entry, $data['reason']);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Jurnal {$entry->entry_number} dibalik dengan {$reversal->entry_number}.",
+            'data' => $reversal->toApiArray(),
         ], 201);
     }
 
