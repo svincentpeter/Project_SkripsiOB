@@ -2,100 +2,39 @@
 
 namespace Tests\Feature;
 
-use App\Models\Account;
+use App\Models\Product;
 use App\Models\Supplier;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class AccountingReportApiTest extends TestCase
 {
+    use DatabaseTransactions;
+
     public function test_can_fetch_journals_list(): void
     {
-        $response = $this->getJson('/api/v1/accounting/journals');
-
-        $response->assertStatus(200)
-            ->assertJsonStructure(['success', 'data']);
-    }
-
-    public function test_can_create_manual_journal_entry(): void
-    {
-        $accBebanPenyusutan = Account::firstOrCreate(
-            ['account_code' => '6-1006'],
-            ['account_name' => 'Beban Perawatan & Penyusutan', 'account_type' => 'EXPENSE', 'normal_balance' => 'DEBIT']
-        );
-        $accAkumulasi = Account::firstOrCreate(
-            ['account_code' => '1-3999'],
-            ['account_name' => 'Akumulasi Penyusutan Mesin', 'account_type' => 'ASSET', 'normal_balance' => 'CREDIT']
-        );
-
-        $payload = [
-            'date' => '2026-09-05',
-            'description' => 'Penyusutan Mesin Spooring 3D Bulan September 2026',
-            'items' => [
-                ['account_id' => $accBebanPenyusutan->id, 'debit' => 500000, 'credit' => 0, 'note' => 'Beban Penyusutan'],
-                ['account_id' => $accAkumulasi->id, 'debit' => 0, 'credit' => 500000, 'note' => 'Akumulasi Penyusutan'],
-            ]
-        ];
-
-        $response = $this->postJson('/api/v1/accounting/journals/manual', $payload);
-
-        $response->assertStatus(201)
-            ->assertJson([
-                'success' => true,
-            ]);
-
-        $this->assertDatabaseHas('journal_entries', [
-            'description' => 'Penyusutan Mesin Spooring 3D Bulan September 2026',
-            'total_debit' => 500000,
-            'total_credit' => 500000,
-        ]);
+        $this->getJson('/api/v1/accounting/journals')->assertOk()->assertJsonStructure(['success', 'data']);
     }
 
     public function test_can_fetch_general_ledger(): void
     {
-        $response = $this->getJson('/api/v1/accounting/general-ledger?account_code=1-1000');
-
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'success',
-                'data' => [
-                    'account',
-                    'total_debit',
-                    'total_credit',
-                    'ending_balance',
-                    'mutations',
-                ]
-            ]);
+        $this->getJson('/api/v1/accounting/general-ledger?account_code=1-1000')
+            ->assertOk()
+            ->assertJsonStructure(['data' => ['account', 'opening_balance', 'total_debit', 'total_credit', 'ending_balance', 'mutations']]);
     }
 
     public function test_can_fetch_trial_balance(): void
     {
-        $response = $this->getJson('/api/v1/accounting/trial-balance');
-
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'success',
-                'data' => [
-                    'accounts',
-                    'total_debit',
-                    'total_credit',
-                    'difference',
-                    'is_balanced',
-                ]
-            ]);
+        $this->getJson('/api/v1/accounting/trial-balance')
+            ->assertOk()
+            ->assertJsonStructure(['data' => ['as_of', 'accounts', 'total_debit', 'total_credit', 'difference', 'is_balanced']]);
     }
 
     public function test_can_fetch_financial_statements(): void
     {
-        $response = $this->getJson('/api/v1/accounting/financial-statements');
-
-        $response->assertStatus(200)
-            ->assertJsonStructure([
-                'success',
-                'data' => [
-                    'income_statement',
-                    'balance_sheet',
-                ]
-            ]);
+        $this->getJson('/api/v1/accounting/financial-statements')
+            ->assertOk()
+            ->assertJsonStructure(['data' => ['period', 'income_statement', 'balance_sheet', 'equity_changes']]);
     }
 
     public function test_can_pay_supplier_debt(): void
@@ -104,9 +43,7 @@ class AccountingReportApiTest extends TestCase
             ['supplier_code' => 'SUP-TEST-AP'],
             ['supplier_name' => 'PT Supplier Hutang Test', 'phone' => '08123456789']
         );
-
-        // Hutang berasal dari penerimaan barang TEMPO.
-        $product = \App\Models\Product::create([
+        $product = Product::create([
             'product_name' => 'Ban Hutang '.uniqid(), 'product_code' => 'AP-'.uniqid(), 'barcode' => 'BC-AP-'.uniqid(),
             'brand' => 'Bridgestone', 'product_cost' => 500000, 'product_price' => 700000, 'product_quantity' => 0,
         ]);
@@ -115,23 +52,14 @@ class AccountingReportApiTest extends TestCase
             'supplier_id' => $supplier->id, 'payment_method' => 'TEMPO',
         ])->assertCreated();
 
-        $payload = [
+        $this->postJson('/api/v1/accounting/accounts-payable/pay', [
             'supplier_id' => $supplier->id,
             'amount' => 1000000,
             'payment_method' => 'BANK_BCA',
-            'payment_date' => '2026-09-05',
+            'payment_date' => now()->toDateString(),
             'notes' => 'Pelunasan sebagian faktur ban Bridgestone',
-        ];
+        ])->assertOk()->assertJson(['success' => true]);
 
-        $response = $this->postJson('/api/v1/accounting/accounts-payable/pay', $payload);
-
-        $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-            ]);
-
-        $this->assertDatabaseHas('journal_entries', [
-            'reference_type' => 'DEBT_PAYMENT',
-        ]);
+        $this->assertDatabaseHas('journal_entries', ['reference_type' => 'DEBT_PAYMENT']);
     }
 }

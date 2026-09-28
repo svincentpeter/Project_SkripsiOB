@@ -9,11 +9,13 @@ use App\Models\Account;
 use App\Models\JournalEntry;
 use App\Models\Purchase;
 use App\Models\Supplier;
+use App\Services\Accounting\FinancialReportService;
 use App\Services\AccountingEngine;
 use App\Services\Inventory\PayableService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class AccountingReportController extends Controller
 {
@@ -84,38 +86,50 @@ class AccountingReportController extends Controller
         ], 201);
     }
 
-    public function generalLedger(Request $request): JsonResponse
+    public function generalLedger(Request $request, FinancialReportService $reports): JsonResponse
     {
-        $accountCode = $request->input('account_code', '1-1000');
-        $startDate = $request->input('start_date');
-        $endDate = $request->input('end_date');
-
-        $ledger = $this->accountingEngine->getGeneralLedger($accountCode, $startDate, $endDate);
+        $data = $request->validate([
+            'account_code' => 'required|string|exists:accounts,account_code',
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date' => ['nullable', 'date_format:Y-m-d', Rule::when($request->filled('start_date'), 'after_or_equal:start_date')],
+        ]);
 
         return response()->json([
             'success' => true,
-            'data' => $ledger,
+            'data' => $reports->generalLedger($data['account_code'], $data['start_date'] ?? null, $data['end_date'] ?? null),
         ]);
     }
 
-    public function trialBalance(): JsonResponse
+    public function trialBalance(Request $request, FinancialReportService $reports): JsonResponse
     {
-        $tb = $this->accountingEngine->getTrialBalance();
+        $data = $request->validate(['as_of' => 'nullable|date_format:Y-m-d']);
 
         return response()->json([
             'success' => true,
-            'data' => $tb,
+            'data' => $reports->trialBalance($data['as_of'] ?? now()->toDateString()),
         ]);
     }
 
-    public function financialStatements(): JsonResponse
+    public function financialStatements(Request $request, FinancialReportService $reports): JsonResponse
     {
-        $statements = $this->accountingEngine->getFinancialStatements();
+        [$from, $to] = $this->range($request);
 
-        return response()->json([
-            'success' => true,
-            'data' => $statements,
+        return response()->json(['success' => true, 'data' => $reports->financialStatements($from, $to)]);
+    }
+
+    /**
+     * Rentang laporan; tanpa end_date = hari ini, tanpa start_date = sejak awal pembukuan.
+     *
+     * @return array{0: ?string, 1: string}
+     */
+    private function range(Request $request): array
+    {
+        $data = $request->validate([
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date' => ['nullable', 'date_format:Y-m-d', Rule::when($request->filled('start_date'), 'after_or_equal:start_date')],
         ]);
+
+        return [$data['start_date'] ?? null, $data['end_date'] ?? now()->toDateString()];
     }
 
     /**
