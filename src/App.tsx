@@ -493,7 +493,8 @@ function MainAppContent() {
   const notifyLedgerChanged = (apiJournals: ApiJournal[]) => {
     if (apiJournals.length === 0) return;
     setLedgerVersion((v) => v + 1);
-    refreshCashBalances();
+    // Saldo kas/bank hanya boleh dibaca peran dengan akses akuntansi (sama seperti loadPosData).
+    if (can('expenses') || can('accounting_hub') || can('financial_reports')) refreshCashBalances();
   };
 
   /** Porsi tunai yang benar-benar masuk/keluar laci (tanpa kembalian). */
