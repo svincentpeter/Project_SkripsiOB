@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\JournalEntry;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\Inventory\InventoryValueJournal;
@@ -101,6 +102,28 @@ class GoodsReceiptTest extends TestCase
         $this->postJson('/api/v1/accounting/accounts-payable/pay', [
             'supplier_id' => $supplier->id, 'amount' => 1500001, 'payment_method' => 'BANK_BCA',
         ])->assertStatus(422);
+    }
+
+    public function test_zero_cost_receipt_posts_no_journal_and_keeps_valuation_aligned(): void
+    {
+        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $product = $this->makeProduct(800000, [[2, 450000, '2026-08-01']]);
+        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $before = InventoryValueJournal::summary()['difference'];
+
+        // Barang bonus supplier: harga pokok Rp 0, tidak ada nilai yang dijurnal.
+        $res = $this->restock($product, ['source_name' => 'Bonus Supplier', 'payment_method' => 'TEMPO', 'batch_cost' => 0])
+            ->assertCreated()
+            ->assertJsonPath('data.purchase.total_amount', 0)
+            ->assertJsonPath('data.purchase.status', 'LUNAS')
+            ->assertJsonPath('data.purchase.journal_entry_number', null)
+            ->assertJsonPath('data.journal_entry_number', null)
+            ->assertJsonPath('data.journal', null);
+
+        $this->assertSame(6, $product->fresh()->product_quantity);
+        $this->assertFalse(JournalEntry::where('reference_type', 'PURCHASE')
+            ->where('reference_id', $res->json('data.purchase.purchase_number'))->exists());
+        $this->assertEquals($before, InventoryValueJournal::summary()['difference']);
     }
 
     public function test_permissions(): void

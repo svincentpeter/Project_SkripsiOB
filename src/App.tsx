@@ -670,7 +670,8 @@ function MainAppContent() {
     try {
       const payload = restockPayload(input, suppliers);
       const res = await inventoryApi.restock(payload);
-      notifyLedgerChanged([res.journal]);
+      // Barang bonus (harga pokok Rp 0) tidak dijurnal server.
+      if (res.journal) notifyLedgerChanged([res.journal]);
       if (payload.payment_method === 'TUNAI') {
         setCashInDrawer((prev) => Math.max(0, prev - Number(res.purchase.total_amount)));
       }

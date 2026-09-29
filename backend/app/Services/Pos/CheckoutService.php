@@ -246,6 +246,11 @@ class CheckoutService
         $draft->debit(PosAccounts::COGS, $fifoCogs, "HPP FIFO Nota {$ref}");
         $draft->credit(PosAccounts::INVENTORY, $fifoCogs, "Pengurangan persediaan Nota {$ref}");
 
+        // Nota bernilai Rp 0 (mis. jasa gratis tanpa HPP) tidak menggerakkan akun apa pun: tanpa jurnal.
+        if ($draft->isEmpty()) {
+            return;
+        }
+
         $draft->post($this->engine, 'POS_SALE', $ref, "Penjualan POS Kasir Nota {$ref} ({$sale->customer_name})", $sale->date->toDateString());
     }
 }

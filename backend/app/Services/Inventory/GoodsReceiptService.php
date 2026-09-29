@@ -27,7 +27,7 @@ class GoodsReceiptService
     }
 
     /**
-     * @return array{purchase: Purchase, journal: \App\Models\JournalEntry}
+     * @return array{purchase: Purchase, batch: \App\Models\ProductBatch, journal: ?\App\Models\JournalEntry}
      */
     public function receive(array $data, ?User $user): array
     {
@@ -56,7 +56,7 @@ class GoodsReceiptService
                 'due_date' => $dueDate,
                 'total_amount' => $total,
                 'paid_amount' => $isTempo ? 0 : $total,
-                'status' => $isTempo ? 'BELUM_LUNAS' : 'LUNAS',
+                'status' => $isTempo && $total > 0 ? 'BELUM_LUNAS' : 'LUNAS',
                 'notes' => $data['notes'] ?? null,
                 'operator_name' => $user?->name,
             ]);
@@ -64,12 +64,16 @@ class GoodsReceiptService
             $batch = $this->fifo->addBatch($product->id, (int) $data['quantity'], (float) $data['batch_cost'], $supplierName, $date);
             $batch->update(['purchase_id' => $purchase->id]);
 
-            $journal = (new JournalDraft())
+            $draft = (new JournalDraft())
                 ->debit('1-2000', $total, "Pembelian {$data['quantity']} pcs {$product->product_name} ({$batch->batch_code})")
-                ->credit(self::PAYMENT_ACCOUNTS[$method], $total, $isTempo ? "Hutang dagang {$supplierName}" : "Pembayaran {$method} ke {$supplierName}")
-                ->post($this->engine, 'PURCHASE', $purchase->purchase_number, "Penerimaan barang {$purchase->purchase_number} dari {$supplierName}", $date);
+                ->credit(self::PAYMENT_ACCOUNTS[$method], $total, $isTempo ? "Hutang dagang {$supplierName}" : "Pembayaran {$method} ke {$supplierName}");
 
-            $purchase->update(['journal_entry_number' => $journal->entry_number]);
+            // Barang bonus (harga pokok Rp 0) tidak mengubah nilai persediaan: tanpa jurnal.
+            $journal = null;
+            if (! $draft->isEmpty()) {
+                $journal = $draft->post($this->engine, 'PURCHASE', $purchase->purchase_number, "Penerimaan barang {$purchase->purchase_number} dari {$supplierName}", $date);
+                $purchase->update(['journal_entry_number' => $journal->entry_number]);
+            }
 
             return ['purchase' => $purchase->fresh(), 'batch' => $batch, 'journal' => $journal];
         });

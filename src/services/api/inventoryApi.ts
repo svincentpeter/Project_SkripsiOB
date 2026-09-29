@@ -82,7 +82,7 @@ export const inventoryApi = {
 
   // Stok
   restock: async (payload: RestockPayload) =>
-    (await apiClient.post<Envelope<{ purchase: ApiPurchase; journal: ApiJournal }>>('/inventory/restock', payload)).data,
+    (await apiClient.post<Envelope<{ purchase: ApiPurchase; journal: ApiJournal | null }>>('/inventory/restock', payload)).data,
   stockOpname: async (items: { product_id: number; physical_qty: number }[], notes?: string) =>
     (
       await apiClient.post<

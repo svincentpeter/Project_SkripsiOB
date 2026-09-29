@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\JournalEntry;
 use App\Models\ServiceMaster;
 use App\Services\Payment\MidtransQrisService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -157,6 +158,38 @@ class PosCheckoutTest extends TestCase
         $this->assertEquals(150000, $j['4-1001']['credit']);
         $this->assertEquals(100000, $j['4-1000']['credit']);
         $this->assertArrayNotHasKey('5-1000', $j, 'HPP item manual tidak dijurnal ke persediaan');
+    }
+
+    public function test_zero_value_nota_is_saved_without_journal_and_can_be_voided(): void
+    {
+        $service = ServiceMaster::create([
+            'service_code' => 'JASA-'.uniqid(), 'service_name' => 'Cek Tekanan Angin', 'category' => 'LAINNYA',
+            'standard_price' => 0, 'cost_price' => 0, 'is_active' => true,
+        ]);
+
+        $res = $this->checkout([
+            'items' => [['type' => 'SERVICE', 'service_id' => $service->id, 'name' => 'x', 'quantity' => 1, 'unit_price' => 0]],
+            'payments' => [],
+        ])->assertCreated()
+            ->assertJsonPath('data.total_amount', 0)
+            ->assertJsonPath('data.status', 'LUNAS')
+            ->assertJsonPath('data.journals', []);
+
+        $reference = $res->json('data.reference');
+        $this->assertFalse(JournalEntry::where('reference_id', $reference)->exists());
+
+        // Void nota tanpa jurnal: tidak ada jurnal pembalik yang dibuat.
+        $this->postJson("/api/v1/pos/transactions/{$res->json('data.id')}/void", ['reason' => 'Salah input'])->assertOk();
+        $this->assertFalse(JournalEntry::where('reference_id', $reference)->exists());
+    }
+
+    public function test_zero_value_manual_line_checkout_succeeds_without_journal(): void
+    {
+        $res = $this->checkout([
+            'items' => [['type' => 'PRODUCT', 'is_manual' => true, 'name' => 'Pentil Bonus', 'quantity' => 1, 'unit_price' => 0, 'cost_price' => 0]],
+        ])->assertCreated()->assertJsonPath('data.journals', []);
+
+        $this->assertFalse(JournalEntry::where('reference_id', $res->json('data.reference'))->exists());
     }
 
     public function test_sale_never_carries_ppn(): void

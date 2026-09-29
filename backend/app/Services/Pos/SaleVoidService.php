@@ -10,6 +10,7 @@ use App\Models\Sale;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\AccountingEngine;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -91,7 +92,15 @@ class SaleVoidService
         $original = JournalEntry::with('items')
             ->where('reference_type', 'POS_SALE')
             ->where('reference_id', $sale->reference)
-            ->firstOrFail();
+            ->first();
+        if (! $original) {
+            // Nota Rp 0 tanpa HPP FIFO tidak pernah dijurnal, jadi tidak ada yang dibalik.
+            if ((float) $sale->gross_sales_amount > 0) {
+                throw (new ModelNotFoundException())->setModel(JournalEntry::class);
+            }
+
+            return;
+        }
 
         $items = $original->items->map(fn ($item) => [
             'account_id' => $item->account_id,

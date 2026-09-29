@@ -35,8 +35,8 @@ class InventoryController extends Controller
             'data' => [
                 'purchase' => $out['purchase']->toApiArray(),
                 'batch' => $out['batch'],
-                'journal_entry_number' => $out['journal']->entry_number,
-                'journal' => $out['journal']->toApiArray(),
+                'journal_entry_number' => $out['journal']?->entry_number,
+                'journal' => $out['journal']?->toApiArray(),
             ],
         ], 201);
     }
