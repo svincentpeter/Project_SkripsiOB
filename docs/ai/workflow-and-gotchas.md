@@ -93,14 +93,23 @@ As of 2026-09-30, the frontend passes: 25 test files, 122 tests, and `tsc` is cl
   the handler you need; do not trust an import as evidence that something is used.
 - **Silent failures.** `loadPosData` swallows API errors (`.catch(() => null)`), and `stockReconciliationApi` falls
   back to local processing on server 422s. When debugging "data not showing", check the network tab and backend logs.
-- **Mock data.** `src/shared/data/mockData.ts` seeds local expenses, journals, balances, settings, and providers.
-  Values in the local reports may be mock data, not server data.
+- **Mock data.** Accounting data (expenses, journals, balances, reports) is server-owned and has no mock seed.
+  `src/shared/data/mockData.ts` now only supplies non-accounting defaults: `DEFAULT_ROLE_PERMISSIONS` (fallback
+  when the permissions request fails), `INITIAL_STORE_SETTINGS`, the payment provider/EDC defaults used by
+  `CheckoutModal` and `BookingDpModal`, and category seeds for the legacy local category services. Its product,
+  transaction, booking, supplier, stock-mutation and trend arrays are legacy; only tests and dead imports use them.
 - **"Reset data"** in the UI only runs `localStorage.clear()` and reloads, which also logs the user out. Its text
   mentions Supabase, which is misleading.
 - **Timezone.** Laravel's `config/app.php` timezone is `Asia/Jakarta` (WIB, overridable with `APP_TIMEZONE`), so
   `now()` and business dates match the shop's clock. Existing rows created before the switch keep their old UTC
-  timestamps; `DATE` columns are unaffected. Frontend business dates come from `localDate()`
-  (`src/services/accountingPeriod.ts`), never `toISOString()`, which would shift by the browser's UTC offset.
+  timestamps; `DATE` columns are unaffected. New frontend code must take business dates from `localDate()`
+  (`src/services/accountingPeriod.ts`), not `toISOString()`, which gives the UTC date.
+- **Known issue: `toISOString()` dates.** Older screens still derive "today" with `new Date().toISOString()`
+  (sliced to a date or month), which yields the previous day between 00:00 and 07:00 WIB: `CheckoutModal`,
+  `BookingDpModal`, `GoodsReceiptModal`, `PosScreen` (parked order numbers), `ThermalReceiptScreen`, `posService`, `inventoryService`,
+  `ExecutiveDashboardScreen`, `StockMonthlyLedgerView` / `stockMonthlyLedgerService`, the export registry
+  (`src/shared/export/registry.ts`), and the default payment dates in `PayDebtModal` and
+  `AccountsReceivableTab`. Switch them to `localDate()` when touching those files.
 - **Test database.** Backend tests without a DB trait leave rows behind, and `RefreshDatabase` tests wipe everything.
   If a test fails only when the whole suite runs, suspect test order.
 - **Windows.** Paths contain `C:\laragon\www\…`. The DB name has a hyphen (`project-skripsi_ob`), so quote it in SQL.
