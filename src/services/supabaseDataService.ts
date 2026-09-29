@@ -12,7 +12,6 @@ import {
   PayableInvoice,
   ReceivableInvoice,
   StoreSettings,
-  AccountingPeriodInfo,
 } from '../shared/types';
 
 // ============================================================================
@@ -487,27 +486,6 @@ export const saveAccountBalancesToSupabase = async (balances: Record<string, num
       updated_at: new Date().toISOString(),
     }));
     const { error } = await supabase.from('account_balances').upsert(rows);
-    return !error;
-  } catch {
-    return false;
-  }
-};
-
-export const fetchAccountingPeriodFromSupabase = async (): Promise<AccountingPeriodInfo | null> => {
-  if (!isSupabaseConfigured() || !supabase) return null;
-  try {
-    const { data, error } = await supabase.from('accounting_period').select('*').limit(1).single();
-    if (error || !data) return null;
-    return data as AccountingPeriodInfo;
-  } catch {
-    return null;
-  }
-};
-
-export const saveAccountingPeriodToSupabase = async (period: AccountingPeriodInfo): Promise<boolean> => {
-  if (!isSupabaseConfigured() || !supabase) return false;
-  try {
-    const { error } = await supabase.from('accounting_period').upsert(period);
     return !error;
   } catch {
     return false;

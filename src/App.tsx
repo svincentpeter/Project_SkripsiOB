@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  AccountingPeriodInfo,
   ActiveScreen,
   CartItem,
   ChartOfAccount,
@@ -32,22 +31,14 @@ import {
 } from './shared/types';
 import {
   DEFAULT_ROLE_PERMISSIONS,
-  INITIAL_PERIOD_INFO,
   INITIAL_STORE_SETTINGS,
   INITIAL_SUPPLIERS,
-  INITIAL_JOURNALS,
-  INITIAL_PAYABLE_INVOICES,
-  INITIAL_ACCOUNT_BALANCES,
   INITIAL_STOCK_MUTATIONS,
 } from './shared/data/mockData';
 import { LoginScreen } from './modules/auth';
 import { formatRupiah } from './shared/utils/formatters';
 import { setExportConfig } from './shared/export/exportConfig';
 import {
-  generatePurchaseJournal,
-  generateDebtPaymentJournal,
-} from './services/accountingService';
-import { 
   canSafelyDeleteProduct, 
   createProductWithInitialStock, 
   processGoodsReceipt 
@@ -95,7 +86,6 @@ import {
   authToken,
   setUnauthorizedHandler,
   mapBooking,
-  mapJournal,
   mapReceivable,
   mapSaleToTransaction,
   inventoryApi,
@@ -259,14 +249,6 @@ function MainAppContent() {
   const [expenseCategories, setExpenseCategories] = useState<ApiExpenseCategory[]>([]);
   const [cashBalances, setCashBalances] = useState<CashBalances>({ '1-1000': 0, '1-1001': 0 });
   const [mutations, setMutations] = useState<StockMutation[]>([]);
-  const [journals, setJournals] = useState<JournalEntry[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_journals');
-      return saved ? JSON.parse(saved) : INITIAL_JOURNALS;
-    } catch {
-      return INITIAL_JOURNALS;
-    }
-  });
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   /** Naik setiap kali server membukukan jurnal; komponen laporan memuat ulang saat nilainya berubah. */
   const [ledgerVersion, setLedgerVersion] = useState(0);
@@ -279,24 +261,7 @@ function MainAppContent() {
     }
   });
   const [payableInvoices, setPayableInvoices] = useState<PayableInvoice[]>([]);
-  const [accountBalances, setAccountBalances] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_account_balances');
-      return saved ? JSON.parse(saved) : INITIAL_ACCOUNT_BALANCES;
-    } catch {
-      return INITIAL_ACCOUNT_BALANCES;
-    }
-  });
   const [receivableInvoices, setReceivableInvoices] = useState<ReceivableInvoice[]>([]);
-
-  const [periodInfo, setPeriodInfo] = useState<AccountingPeriodInfo>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_period_info');
-      return saved ? JSON.parse(saved) : INITIAL_PERIOD_INFO;
-    } catch {
-      return INITIAL_PERIOD_INFO;
-    }
-  });
 
   // Active Cart in POS
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -498,12 +463,6 @@ function MainAppContent() {
       }
 
       await loadPosData(currentUser, rolePermissions);
-
-      // Data jurnal masih lokal sampai tahap berikutnya.
-      if (isMounted) {
-        setJournals((prev) => (prev.length > 0 ? prev : INITIAL_JOURNALS));
-        setAccountBalances((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_ACCOUNT_BALANCES));
-      }
     };
     syncBackend();
     return () => { isMounted = false; };
@@ -522,28 +481,19 @@ function MainAppContent() {
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem('ob3_period_info', JSON.stringify(periodInfo));
-  }, [periodInfo]);
-
-  useEffect(() => {
-    localStorage.setItem('ob3_journals', JSON.stringify(journals));
-  }, [journals]);
-
-  useEffect(() => {
     localStorage.setItem('ob3_cash_drawer', String(cashInDrawer));
   }, [cashInDrawer]);
 
+  // Tahap 4: salinan akuntansi lokal lama (mock + jurnal sesi) tidak dipakai lagi.
   useEffect(() => {
-    localStorage.setItem('ob3_account_balances', JSON.stringify(accountBalances));
-  }, [accountBalances]);
+    ['ob3_journals', 'ob3_expenses', 'ob3_account_balances', 'ob3_period_info'].forEach((key) => localStorage.removeItem(key));
+  }, []);
 
-  // Jurnal hasil server disalin ke tampilan akuntansi (masa transisi sampai modul akuntansi membaca API).
-  const mergeServerJournals = (apiJournals: ApiJournal[]) => {
+  /** Server membukukan jurnal: muat ulang laporan akuntansi dan saldo kas/bank. */
+  const notifyLedgerChanged = (apiJournals: ApiJournal[]) => {
     if (apiJournals.length === 0) return;
     setLedgerVersion((v) => v + 1);
     refreshCashBalances();
-    const mapped = apiJournals.map(mapJournal);
-    setJournals((prev) => [...mapped.filter((j) => !prev.some((p) => p.id === j.id)), ...prev]);
   };
 
   /** Porsi tunai yang benar-benar masuk/keluar laci (tanpa kembalian). */
@@ -556,7 +506,7 @@ function MainAppContent() {
 
     setTransactions((prev) => [tx, ...prev]);
     setCurrentReceiptTx(tx);
-    mergeServerJournals(sale.journals);
+    notifyLedgerChanged(sale.journals);
     setCashInDrawer((prev) => prev + cashPortion(sale));
     if (payload.booking_id) {
       setBookings((prev) => prev.map((b) => (b.id === String(payload.booking_id) ? { ...b, status: 'CONVERTED' } : b)));
@@ -578,7 +528,7 @@ function MainAppContent() {
     try {
       const res = await expenseApi.create(expenseFormData(record, category.id));
       setExpenses((prev) => [mapExpense(res.expense), ...prev]);
-      mergeServerJournals(res.journals);
+      notifyLedgerChanged(res.journals);
       if (record.cash_source.includes('Laci')) setCashInDrawer((prev) => Math.max(0, prev - record.amount));
       toast.success('Beban Toko Dibukukan', `${res.expense.reference} (${record.category}) sebesar ${formatRupiah(record.amount)} tersimpan di server.`);
       return true;
@@ -594,7 +544,7 @@ function MainAppContent() {
       const res = await expenseApi.void(target.id, reason);
       const updated = mapExpense(res.expense);
       setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
-      mergeServerJournals(res.journals);
+      notifyLedgerChanged(res.journals);
       if (target.cash_source.includes('Laci')) setCashInDrawer((prev) => prev + target.amount);
       toast.warning('Pengeluaran Dibatalkan (VOID)', `${updated.reference} dibatalkan; jurnal pembalik dibukukan.`);
       return true;
@@ -612,7 +562,7 @@ function MainAppContent() {
 
       setTransactions((prev) => prev.map((t) => (t.id === txId ? tx : t)));
       if (currentReceiptTx?.id === txId) setCurrentReceiptTx(tx);
-      mergeServerJournals(sale.journals);
+      notifyLedgerChanged(sale.journals);
       setCashInDrawer((prev) => Math.max(0, prev - cashPortion(sale)));
       if (Number(sale.dp_applied) > 0) {
         posApi.listBookings('ALL').then((rows) => setBookings(rows.map((b) => mapBooking(b, products, services)))).catch(() => {});
@@ -641,7 +591,7 @@ function MainAppContent() {
     }
     try {
       const res = await inventoryApi.stockOpname(items, notes);
-      if (res.journal) mergeServerJournals([res.journal]);
+      if (res.journal) notifyLedgerChanged([res.journal]);
       handleRefreshProducts();
       toast.success('Stock Opname Dibukukan', `${res.reference}: ${res.adjustments.length} produk disesuaikan, selisih nilai dijurnal.`);
       return true;
@@ -662,14 +612,14 @@ function MainAppContent() {
 
   /** Dipanggil setelah koreksi buku stok / rekonsiliasi Excel tersimpan di server. */
   const handleInventoryServerChanged = (journal?: ApiJournal | null) => {
-    if (journal) mergeServerJournals([journal]);
+    if (journal) notifyLedgerChanged([journal]);
     handleRefreshProducts();
   };
 
   const handlePostOpeningBalance = async () => {
     try {
       const res = await inventoryApi.postOpeningBalance();
-      if (res.journal) mergeServerJournals([res.journal]);
+      if (res.journal) notifyLedgerChanged([res.journal]);
       setInventoryValuation(res.valuation);
       toast.success('Saldo Awal Dibukukan', 'Akun Persediaan 1-2000 kini sama dengan nilai stok FIFO.');
     } catch (err) {
@@ -681,7 +631,7 @@ function MainAppContent() {
   const handleCreateProduct = async (input: CreateProductInput): Promise<boolean> => {
     try {
       const res = await inventoryApi.createProduct(productPayload(input, productCategories));
-      if (res.journal) mergeServerJournals([res.journal]);
+      if (res.journal) notifyLedgerChanged([res.journal]);
       handleRefreshProducts();
       toast.success('Produk Ditambahkan', `${res.data.product_name} tersimpan di katalog.`);
       return true;
@@ -719,7 +669,7 @@ function MainAppContent() {
     try {
       const payload = restockPayload(input, suppliers);
       const res = await inventoryApi.restock(payload);
-      mergeServerJournals([res.journal]);
+      notifyLedgerChanged([res.journal]);
       if (payload.payment_method === 'TUNAI') {
         setCashInDrawer((prev) => Math.max(0, prev - Number(res.purchase.total_amount)));
       }
@@ -737,7 +687,7 @@ function MainAppContent() {
   const handlePayDebt = async (paymentInput: DebtPaymentInput) => {
     try {
       const res = await inventoryApi.payPurchase(paymentInput.payable_invoice_id, debtPaymentPayload(paymentInput));
-      mergeServerJournals([res.journal]);
+      notifyLedgerChanged([res.journal]);
       setPayableInvoices((prev) => prev.map((inv) => (inv.id === String(res.purchase.id) ? mapPurchaseToPayable(res.purchase) : inv)));
       if (paymentInput.source_account_code === '1-1000') {
         setCashInDrawer((prev) => Math.max(0, prev - paymentInput.amount));
@@ -752,7 +702,7 @@ function MainAppContent() {
   const handleAddManualJournal = async (payload: ManualJournalPayload): Promise<boolean> => {
     try {
       const journal = await accountingApi.createManualJournal(payload);
-      mergeServerJournals([journal]);
+      notifyLedgerChanged([journal]);
       payload.items
         .filter((l) => l.account_code === '1-1000')
         .forEach((l) => setCashInDrawer((prev) => Math.max(0, prev + l.debit - l.credit)));
@@ -776,7 +726,7 @@ function MainAppContent() {
       const updated = mapReceivable(res.receivable);
 
       setReceivableInvoices((prev) => prev.map((inv) => (inv.id === updated.id ? updated : inv)));
-      if (res.journal) mergeServerJournals([res.journal]);
+      if (res.journal) notifyLedgerChanged([res.journal]);
       if (paymentInput.destination_account_code === '1-1000') {
         setCashInDrawer((prev) => prev + paymentInput.amount);
       }
@@ -823,7 +773,7 @@ function MainAppContent() {
   const handlePostAccountOpening = async (input: OpeningBalanceInput): Promise<boolean> => {
     try {
       const journal = await accountingApi.postOpeningBalance(input);
-      mergeServerJournals([journal]);
+      notifyLedgerChanged([journal]);
       toast.success('Saldo Awal Dibukukan', `${journal.entry_number} mencatat saldo awal akun.`);
       return true;
     } catch (err) {
@@ -836,7 +786,7 @@ function MainAppContent() {
   const handleReverseJournal = async (journal: JournalEntry, reason: string): Promise<boolean> => {
     try {
       const reversal = await accountingApi.reverseJournal(journal.journal_number, reason);
-      mergeServerJournals([reversal]);
+      notifyLedgerChanged([reversal]);
       toast.info('Jurnal Pembalik Dibukukan', `${reversal.entry_number} membalik ${journal.journal_number}.`);
       return true;
     } catch (err) {
@@ -986,7 +936,7 @@ function MainAppContent() {
   const handleSaveBooking = async (payload: BookingPayload) => {
     const booking = await posApi.createBooking(payload);
     setBookings((prev) => [mapBooking(booking, products, services), ...prev]);
-    mergeServerJournals(booking.journals);
+    notifyLedgerChanged(booking.journals);
     if (booking.payment_method === 'TUNAI') {
       setCashInDrawer((prev) => prev + Number(booking.dp_amount));
     }
@@ -1004,7 +954,7 @@ function MainAppContent() {
         reason: 'Dibatalkan dari terminal kasir',
       });
       setBookings((prev) => prev.map((b) => (b.id === booking.id ? mapBooking(res, products, services) : b)));
-      mergeServerJournals(res.journals);
+      notifyLedgerChanged(res.journals);
       if (refundAccount === '1-1000') {
         setCashInDrawer((prev) => Math.max(0, prev - booking.dp_amount));
       }

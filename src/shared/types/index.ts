@@ -500,19 +500,6 @@ export interface DebtPaymentInput {
   operator?: string;
 }
 
-export interface ManualJournalInput {
-  date: string;
-  ref_doc: string;
-  description: string;
-  lines: {
-    account_code: string;
-    account_name: string;
-    debit: number;
-    credit: number;
-    note?: string;
-  }[];
-}
-
 export interface ChartOfAccount {
   account_code: string;
   account_name: string;
@@ -584,36 +571,6 @@ export interface ReceivablePaymentInput {
   destination_account_code: '1-1000' | '1-1001';
   notes?: string;
   operator?: string;
-}
-
-export interface AccountingPeriodInfo {
-  period_id: string;
-  period_name: string;
-  status: 'OPEN' | 'CLOSED';
-  closed_at?: string;
-  closed_by?: string;
-  closing_journal_id?: string;
-  net_income_transferred?: number;
-}
-
-export interface CashFlowStatementResult {
-  cashFromSales: number;
-  cashFromReceivables: number;
-  totalOperatingInflows: number;
-  cashPaidForExpenses: number;
-  cashPaidForInventory: number;
-  totalOperatingOutflows: number;
-  netOperatingCashFlow: number;
-  cashPaidForFixedAssets: number;
-  netInvestingCashFlow: number;
-  cashPaidForPayables: number;
-  cashFromCapital: number;
-  netFinancingCashFlow: number;
-  netCashFlow: number;
-  beginningCash: number;
-  endingCash: number;
-  cashDrawerEnding: number;
-  bankBcaEnding: number;
 }
 
 export type UserRole = 'OWNER' | 'KASIR' | 'GUDANG';

@@ -1,4 +1,4 @@
-import { ExpenseCategory, ExpenseCategoryMapping, ExpenseRecord, JournalEntry } from '../types';
+import { ExpenseCategory, ExpenseCategoryMapping } from '../types';
 
 export const formatRupiah = (value: number): string => {
   return new Intl.NumberFormat('id-ID', {
@@ -150,50 +150,6 @@ export const EXPENSE_CATEGORY_CONFIG: Record<ExpenseCategory, ExpenseCategoryMap
     budget_monthly_limit: 800000,
     default_cash_source: 'Kas Tunai Laci Kasir',
   },
-};
-
-// Auto-generate double-entry journal for expense record (COA project-skripsi_ob)
-export const generateExpenseJournal = (expense: ExpenseRecord, journalIdCounter: number): JournalEntry => {
-  const cleanDate = (expense.date || new Date().toISOString().substring(0, 10)).replace(/-/g, '').slice(0, 6);
-  const journalNumber = `JU-${cleanDate}-${String(journalIdCounter).padStart(4, '0')}`;
-  const refDoc = expense.bkk_number || expense.expense_number || expense.reference;
-  
-  const mapping = EXPENSE_CATEGORY_CONFIG[expense.category] || {
-    account_code: expense.category_code || '6-1005',
-    account_name: 'Beban Perlengkapan & Operasional Bengkel',
-  };
-
-  const isCash = expense.cash_source.includes('Laci') || expense.payment_method === 'Cash';
-  const creditAccountCode = isCash ? '1-1000' : '1-1001';
-  const creditAccountName = isCash ? 'Kas Toko Laci Kasir' : 'Bank BCA Cabang 3';
-
-  return {
-    id: `jnl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-    journal_number: journalNumber,
-    reference_number: journalNumber,
-    date: expense.date,
-    ref_doc: refDoc,
-    description: `${expense.category} - ${expense.description} (Penerima: ${expense.paid_to})`,
-    status: 'POSTED',
-    total_debit: expense.amount,
-    total_credit: expense.amount,
-    lines: [
-      {
-        account_code: mapping.account_code,
-        account_name: mapping.account_name,
-        debit: expense.amount,
-        credit: 0,
-        note: `Biaya: ${expense.description}`,
-      },
-      {
-        account_code: creditAccountCode,
-        account_name: creditAccountName,
-        debit: 0,
-        credit: expense.amount,
-        note: `Pengeluaran via ${creditAccountName}`,
-      },
-    ],
-  };
 };
 
 /**

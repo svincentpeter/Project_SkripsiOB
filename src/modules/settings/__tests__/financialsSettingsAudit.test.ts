@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { INITIAL_STORE_SETTINGS, INITIAL_TRANSACTIONS, INITIAL_JOURNALS, INITIAL_ACCOUNT_BALANCES, INITIAL_PRODUCTS } from '../../../shared/data/mockData';
-import { calculateDynamicSakEmkmFinancials, calculateCashFlowStatement } from '../../../services/accountingService';
+import { INITIAL_STORE_SETTINGS, INITIAL_TRANSACTIONS } from '../../../shared/data/mockData';
 
 describe('Financials, Receipt & Settings SAK EMKM Audit', () => {
   it('should have complete SAK EMKM COA mapping and initial balances in INITIAL_STORE_SETTINGS', () => {
@@ -31,31 +30,5 @@ describe('Financials, Receipt & Settings SAK EMKM Audit', () => {
       expect(txString).not.toContain('ban bekas');
       expect(txString).not.toContain('bsd');
     });
-  });
-
-  it('should calculate SAK EMKM Financials correctly with positive sales and gross profit', () => {
-    const fin = calculateDynamicSakEmkmFinancials(
-      INITIAL_JOURNALS,
-      INITIAL_ACCOUNT_BALANCES,
-      INITIAL_PRODUCTS
-    );
-
-    expect(fin.netSales).toBeGreaterThan(0);
-    expect(fin.grossProfit).toBeGreaterThan(0);
-    expect(fin.liquidCash).toBeGreaterThan(0);
-    expect(fin.isBalanceSheetBalanced).toBe(true);
-    expect(fin.isLiquiditySafe).toBe(true);
-  });
-
-  it('should calculate SAK EMKM Cash Flow Statement correctly', () => {
-    const cf = calculateCashFlowStatement(
-      INITIAL_JOURNALS,
-      INITIAL_ACCOUNT_BALANCES,
-      '2026-09-01',
-      '2026-09-30'
-    );
-
-    expect(cf.endingCash).toBeGreaterThan(0);
-    expect(cf.beginningCash).toBeGreaterThan(0);
   });
 });
