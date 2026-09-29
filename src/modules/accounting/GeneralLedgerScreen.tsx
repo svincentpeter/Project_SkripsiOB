@@ -21,7 +21,7 @@ import {
   ChartOfAccount,
   DebtPaymentInput,
   JournalEntry,
-  ManualJournalInput,
+  ManualJournalPayload,
   PayableInvoice,
   ReceivableInvoice,
   ReceivablePaymentInput,
@@ -60,11 +60,11 @@ interface GeneralLedgerScreenProps {
   periodInfo?: AccountingPeriodInfo;
   products?: TireProduct[];
   cashInDrawer?: number;
-  onAddManualJournal?: (input: ManualJournalInput) => void;
+  onAddManualJournal?: (payload: ManualJournalPayload) => Promise<boolean>;
   onPayDebt?: (input: DebtPaymentInput) => void;
   onPayReceivable?: (input: ReceivablePaymentInput) => void;
   onClosePeriod?: (closedBy: string, notes: string) => void;
-  onReverseJournal?: (journal: JournalEntry, reason: string, reversedBy: string) => void;
+  onReverseJournal?: (journal: JournalEntry, reason: string) => Promise<boolean>;
   onNavigateToFinancials?: () => void;
   initialTab?: AccountingTabKey;
   isEmptyState?: boolean;
@@ -279,7 +279,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
       <div className="pt-1">
         {activeTab === 'journals' && (
           <JournalTab
-            journals={journals}
+            refreshKey={ledgerVersion}
             onOpenManualModal={() => setIsManualModalOpen(true)}
             onReverseJournal={onReverseJournal}
           />
@@ -400,10 +400,8 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
       <ManualJournalModal
         isOpen={isManualModalOpen}
         onClose={() => setIsManualModalOpen(false)}
-        onSubmit={(journalInput) => {
-          if (onAddManualJournal) onAddManualJournal(journalInput);
-          setIsManualModalOpen(false);
-        }}
+        accounts={accounts}
+        onSubmit={(payload) => (onAddManualJournal ? onAddManualJournal(payload) : Promise.resolve(false))}
       />
 
       {/* Period Closing Modal */}

@@ -9,8 +9,8 @@ import {
   ExpenseRecord,
   GoodsReceiptInput,
   JournalEntry,
-  ManualJournalInput, 
-  PayableInvoice, 
+  ManualJournalPayload,
+  PayableInvoice,
   PermissionKey,
   PosTransaction, 
   ProductCategory,
@@ -43,13 +43,11 @@ import {
 import { LoginScreen } from './modules/auth';
 import { formatRupiah, generateExpenseJournal } from './shared/utils/formatters';
 import { setExportConfig } from './shared/export/exportConfig';
-import { 
-  generatePurchaseJournal, 
-  generateDebtPaymentJournal, 
-  generateManualJournal,
+import {
+  generatePurchaseJournal,
+  generateDebtPaymentJournal,
   generateVoidExpenseJournal,
-  generateClosingJournal,
-  generateReversingJournal
+  generateClosingJournal
 } from './services/accountingService';
 import { 
   canSafelyDeleteProduct, 
@@ -804,19 +802,20 @@ function MainAppContent() {
     }
   };
 
-  // Handle Manual Adjusting Journal
-  const handleAddManualJournal = (input: ManualJournalInput) => {
-    const newJournal = generateManualJournal(input, journals.length + 1);
-    setJournals((prev) => [newJournal, ...prev]);
-    insertJournalToSupabase(newJournal);
-
-    // If affects 1-1000 Kas Toko
-    input.lines.forEach((l) => {
-      if (l.account_code === '1-1000') {
-        if (l.debit > 0) setCashInDrawer((prev) => prev + l.debit);
-        if (l.credit > 0) setCashInDrawer((prev) => Math.max(0, prev - l.credit));
-      }
-    });
+  // Jurnal penyesuaian manual dibukukan server (akun kontrol ditolak server).
+  const handleAddManualJournal = async (payload: ManualJournalPayload): Promise<boolean> => {
+    try {
+      const journal = await accountingApi.createManualJournal(payload);
+      mergeServerJournals([journal]);
+      payload.items
+        .filter((l) => l.account_code === '1-1000')
+        .forEach((l) => setCashInDrawer((prev) => Math.max(0, prev + l.debit - l.credit)));
+      toast.success('Jurnal Penyesuaian Dibukukan', `${journal.entry_number} tersimpan di server.`);
+      return true;
+    } catch (err) {
+      toast.error('Jurnal Ditolak Server', errorMessage(err));
+      return false;
+    }
   };
 
   // Pelunasan piutang BON di server (Dr Kas/Bank, Cr Piutang Dagang)
@@ -875,22 +874,17 @@ function MainAppContent() {
     );
   };
 
-  // Handle Reversing Journal (Koreksi Storno)
-  const handleReverseJournal = (originalJournal: JournalEntry, reason: string, reversedBy: string) => {
-    const reversingJournal = generateReversingJournal(
-      originalJournal,
-      reason,
-      reversedBy,
-      journals.length + 1
-    );
-
-    setJournals((prev) => [reversingJournal, ...prev]);
-    insertJournalToSupabase(reversingJournal);
-
-    toast.info(
-      'Jurnal Pembalik Diposting',
-      `Koreksi storno ${reversingJournal.journal_number} dibuat untuk ${originalJournal.journal_number}.`
-    );
+  // Storno hanya untuk jurnal penyesuaian manual; transaksi lain dibatalkan dari modul asalnya.
+  const handleReverseJournal = async (journal: JournalEntry, reason: string): Promise<boolean> => {
+    try {
+      const reversal = await accountingApi.reverseJournal(journal.journal_number, reason);
+      mergeServerJournals([reversal]);
+      toast.info('Jurnal Pembalik Dibukukan', `${reversal.entry_number} membalik ${journal.journal_number}.`);
+      return true;
+    } catch (err) {
+      toast.error('Pembalikan Ditolak', errorMessage(err));
+      return false;
+    }
   };
 
   // Handle Safe Delete or Deactivate Product
