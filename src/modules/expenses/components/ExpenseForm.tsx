@@ -142,7 +142,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       return;
     }
 
-    if (!isCash && bankBalance && numericAmount > bankBalance) {
+    // Saldo bank buku besar ≤ 0 (belum ada saldo awal/setoran tercatat) tidak memblokir: rekening nyata bisa berisi dana.
+    if (!isCash && bankBalance > 0 && numericAmount > bankBalance) {
       setFormError(`Saldo Rekening Bank BCA tidak mencukupi (${formatRupiah(bankBalance)}).`);
       return;
     }
