@@ -1156,6 +1156,7 @@ function MainAppContent() {
                 receivableInvoices={receivableInvoices}
                 cashInDrawer={cashInDrawer}
                 canReopenPeriod={currentUser?.role === 'OWNER'}
+                canUseHub={can('accounting_hub')}
                 onAddManualJournal={handleAddManualJournal}
                 onReverseJournal={handleReverseJournal}
                 onClosePeriod={handleClosePeriod}
@@ -1163,7 +1164,7 @@ function MainAppContent() {
                 onPostOpeningBalance={handlePostAccountOpening}
                 onPayDebt={handlePayDebt}
                 onPayReceivable={handlePayReceivable}
-                onNavigateToFinancials={() => setActiveScreen('financials')}
+                onNavigateToFinancials={can('financial_reports') ? () => setActiveScreen('financials') : undefined}
               />
             )}
 
