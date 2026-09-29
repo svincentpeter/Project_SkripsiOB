@@ -34,18 +34,23 @@ PPN on supplier invoices belongs in the batch cost (1-2000), as in the reference
 
 There is no "contra" account type. Contra accounts are recognized by a normal balance opposite to their type.
 
-The frontend keeps its own copy, `SAK_EMKM_COA` in `src/services/accountingService.ts`. It has 24 accounts (5-2000 is
-missing), and four names differ from the backend (2-1004, 4-1001, 4-2000, 6-1009). The README's 21-account table is
-outdated. When you add or rename an account, change the migration, the seeder, and `SAK_EMKM_COA` together.
+The frontend has no COA copy; it loads `GET /accounts`. A new account needs only the migration and the seeder.
+The README's 21-account table is outdated.
 
 ## Posting mechanics (backend)
 
 - `JournalDraft` (`app/Services/JournalDraft.php`) is a builder keyed by account code:
   `(new JournalDraft)->debit('1-1000', 50000, 'note')->credit('4-1000', 50000)->post($engine, $refType, $refId, $desc, $date)`.
   It drops zero lines. An unknown account code throws a `RuntimeException`, which the API returns as HTTP 500.
-- `AccountingEngine::createEntry()` checks that the entry balances within 0.01 and throws
-  `AccountingUnbalancedException` if not. It numbers entries `JRN-{Ym of entry date}-####` (**no lock**, see
-  Known issues), always sets status `POSTED`, and always uses branch 3.
+- `AccountingEngine::createEntry()` is the only writer of `journal_entries`/`journal_items`. It rounds every
+  line to the cent, drops zero lines, rejects negative amounts and lines that carry both a debit and a
+  credit, and requires at least two non-zero lines with Σdebit = Σcredit to the cent (no tolerance) —
+  otherwise `AccountingUnbalancedException`, which renders 422. The entry date must be after
+  `PeriodLock::assertOpen()`'s lock date, or the entry is rejected with a `PosRuleException` (422). It numbers
+  entries with `DocumentNumber::next(..., 'JRN', $date)` (locked and numbered by the month of the entry date),
+  records `created_by` (the authenticated user, nullable for console commands) and an optional
+  `reversal_of_id` linking a reversal to its original (unique, so an entry can be reversed at most once),
+  always sets status `POSTED`, and always uses branch 3.
 - Posting happens inside the caller's DB transaction, so an unbalanced journal rolls back the whole business
   operation.
 - Journals are never edited or deleted. Corrections are reversing entries (`POS_SALE_VOID`, `VOID_EXPENSE`,
@@ -54,7 +59,8 @@ outdated. When you add or rename an account, change the migration, the seeder, a
 ### `reference_type` values in use
 `POS_SALE`, `POS_SALE_VOID`, `BOOKING_DP`, `BOOKING_DP_REFUND`, `RECEIVABLE_PAYMENT`, `PURCHASE`, `DEBT_PAYMENT`,
 `EXPENSE`, `VOID_EXPENSE`, `MANUAL_ADJUSTMENT`, `OPENING_BALANCE`, `STOCK_OPNAME`, `STOCK_IMPORT`,
-`STOCK_RECONCILIATION`, `STOCK_COST_CORRECTION`. Reuse one of these where it fits. If you add a new value, list it here.
+`STOCK_RECONCILIATION`, `STOCK_COST_CORRECTION`, `PERIOD_CLOSING`, `PERIOD_REOPEN`, `MANUAL_REVERSAL`,
+`ACCOUNT_OPENING`. Reuse one of these where it fits. If you add a new value, list it here.
 
 ## Posting rules
 
@@ -69,50 +75,42 @@ outdated. When you add or rename an account, change the migration, the seeder, a
 | Supplier payment | 2-1000 | 1-1000 or 1-1001 | `Inventory/PayableService` |
 | Stock value change (opname, import, reconciliation, cost fix) | 1-2000 if value rises | 5-2000 (existing product) or 3-1000 (product created in the operation) | `Inventory/InventoryValueJournal::record` (reverse direction if value falls) |
 | Opening inventory | 1-2000 | 3-1000, for the gap between FIFO value and the 1-2000 ledger balance | `InventoryValueJournal::postOpeningBalance` |
-| Expense (server, **unused by UI**) | category `default_account_code`, falling back to 6-1000 | 1-1000 (KAS_LACI/TUNAI), else 1-1001 | `ExpenseController::store` |
-| Manual journal (server, **unused by UI**) | as submitted | as submitted | `AccountingReportController::createManualJournal` |
+| Expense | category `default_account_code` (6-1000…6-1008, seeded) | 1-1000 (TUNAI/KAS_LACI), else 1-1001 | `Accounting/ExpenseService`, now used by the UI. Void posts `VOID_EXPENSE`, the mirror of the original entry, linked by `reversal_of_id` |
+| Manual journal | as submitted | as submitted | `Accounting/ManualJournalService`. Control accounts 1-1002, 1-2000, 2-1000, 2-1004 are rejected (validated in `ManualJournalRequest`). Only manual journals (`MANUAL_ADJUSTMENT`) are reversible from the journal screen, once each |
+| Period closing | every REVENUE/EXPENSE account's cumulative balance ≤ month end (credit accounts) | 3-2000, or the reverse if the account is net-debit; dated the month's last day, then locked | `Accounting/PeriodClosingService::close`. Reopen posts the mirrored `PERIOD_REOPEN` entry (OWNER only) and unlocks |
+| Account opening | 1-1000, 1-1001, 1-3000, 1-3999, 3-2000 as submitted | 3-1000, for the balancing difference | `Accounting/OpeningBalanceService::post`. Posted once (`ACCOUNT_OPENING`); further changes go through a manual journal |
 
 Account routing for payment methods lives in `Pos/PosAccounts::forMethod`: TUNAI goes to 1-1000; every other method,
 including TRANSFER, QRIS, and EDC, goes to 1-1001.
 
-## What the UI actually uses (important)
+## Reports
 
-The accounting screens are still **client-side** (see the migration table in `AGENTS.md`):
+All report queries read straight from `journal_entries`/`journal_items` (`status = POSTED`), grouped from the
+COA rather than hard-coded account lists, in `app/Services/Accounting/`:
 
-- **Journal list:** React state persisted to localStorage `ob3_journals`, seeded from `INITIAL_JOURNALS` in
-  `src/shared/data/mockData.ts`. Server journals are appended only when a server action in this session returns
-  them (`mergeServerJournals`, deduplicated by `entry_number`). They are never fetched on load.
-- **Expenses:** created and voided locally (`handleAddExpense` / `handleVoidExpense` in App.tsx,
-  `generateExpenseJournal` in `src/shared/utils/formatters.ts`). Categories come from `EXPENSE_CATEGORY_CONFIG`,
-  which maps each category to 6-1000…6-1008.
-- **Manual journals, reversal ("storno"), and period closing:** `generateManualJournal`,
-  `generateReversingJournal`, and `generateClosingJournal` in `accountingService.ts`. Closing moves every 4-/5-/6-
-  balance into 3-2000 and sets `ob3_period_info.status = 'CLOSED'`. Nothing blocks postings after closing.
-- **Reports:** `calculateAccountLedger`, `calculateTrialBalance`, `calculateDynamicSakEmkmFinancials`, and
-  `calculateCashFlowStatement` in `accountingService.ts`. They are computed from the local journal list plus opening
-  balances (`ob3_account_balances`). `calculateSakEmkmFinancials` is a legacy version with hard-coded figures; do
-  not use it.
-- Supplier debt payment (`/purchases/{id}/payments`) and receivable settlement (`/receivables`) **are** server-backed.
+- **`LedgerBalances::forRange($from, $to, $excludeClosing)`** does one grouped query per report and returns an
+  `AccountBalance` per account (`signed('DEBIT'|'CREDIT')`, `net()`). Every other report is built on top of it.
+- **`FinancialReportService`** builds the trial balance, general ledger (with the opening balance before
+  `$from`), income statement, balance sheet, and statement of changes in equity. Sections are classified from
+  `account_type` and `normal_balance`/code prefix (current vs fixed assets, cost of sales `5-…` vs operating
+  expenses `6-…`, revenue vs contra-revenue), so a new account shows up without a code change. The income
+  statement excludes `PERIOD_CLOSING`/`PERIOD_REOPEN` entries so closing never hides a month's result; the
+  balance sheet as of a date includes everything, showing unclosed earnings as an equity line so it always
+  balances.
+- **`CashFlowReport::build($from, $to)`** is the direct method: every journal that touches 1-1000/1-1001
+  attributes its non-cash lines (credit − debit) to a bucket (customers, suppliers, expenses, other operating,
+  fixed assets, equity), so the buckets always reconcile to the cash change (`is_reconciled`).
+- **`ExpenseService`**, **`ManualJournalService`**, **`PeriodClosingService`**, and **`OpeningBalanceService`**
+  are the posting-side services (see the posting rules table above).
 
-The **next migration stage** is expected to move expenses, manual journals, closing, and reports onto the
-existing backend endpoints (`expenseApi.ts` and `accountingApi.ts` already exist but are not called). The pattern to
-follow is in `docs/superpowers/specs/2026-09-24-inventory-server-design.md`.
+On the frontend, `accountingApi.ts` / `expenseApi.ts` are typed clients and `accountingMappers.ts` maps the wire
+shapes to UI types. Accounting screens fetch their own data through `useServerData` (`src/modules/accounting/hooks/`),
+keyed by the chosen period and by `ledgerVersion`. `App.tsx` increments `ledgerVersion` through
+`notifyLedgerChanged` whenever a server action (checkout, void, expense, manual journal, …) returns journals, which
+triggers every mounted report to reload. There is no local fallback: a failed request shows an inline error with
+retry.
 
-Server report endpoints (`/accounting/trial-balance`, `/financial-statements`) are **all-time**: they have no period
-filter. There is no server cash-flow statement and no server period closing.
-
-## Known issues (verified 2026-09-27)
-1. `AccountingEngine::getFinancialStatements` hard-codes its account lists. It omits 4-2000, 5-2000, and 6-1009 from
-   the income statement and 2-1004 from liabilities, so `is_balanced` becomes false once those accounts have activity.
-2. The frontend COA has no 5-2000, so server opname and reconciliation lines disappear from the frontend trial balance
-   and closing. The frontend income statement also leaves out 4-2000.
-3. A bank-paid expense is deducted twice on the client. `handleAddExpense` posts a journal crediting 1-1001 **and**
-   lowers `accountBalances['1-1001']`, the opening balance. Voiding mirrors the same error.
-4. Mock opening balances and mock journals sit alongside real server journals, including inventory
-   `OPENING_BALANCE` entries, so frontend reports can double-count inventory and equity.
-5. Frontend journal numbers are `JU-202609-{journals.length+1}` (the prefix is hard-coded), which can collide. Server
-   numbers are `JRN-YYYYMM-####`, generated without a lock, so concurrent posts can hit the unique index.
-6. On the server, voiding an already-voided expense returns 500 instead of 422 (`ExpenseController::void`).
-   `expense_categories` is never seeded.
-7. A manual journal whose lines are all zero passes validation.
-8. Journal and BKK numbers use the month of the document date, while `DocumentNumber` uses `now()`.
+## Known issues (verified 2026-09-30)
+- `GR-`, `OB3-INV-`, `BK-`, and `OPN-` document numbers still use the month of `now()` rather than the document
+  date (only `JRN`/`BKK` were fixed to use the document date's month in Stage 4).
+- `ob3_cash_drawer` still differs from the 1-1000 ledger balance (roadmap sub-project 2).

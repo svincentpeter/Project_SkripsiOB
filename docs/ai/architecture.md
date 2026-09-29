@@ -47,10 +47,11 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
   shape differs, a handler in App.tsx that calls it and updates state from the **response**, and pass it down.
 
 ### localStorage keys still in use
-`ob3_auth_token`, `ob3_journals`, `ob3_expenses`, `ob3_account_balances`, `ob3_period_info`, `ob3_cash_drawer`,
-`ob3_store_settings` (includes bank/QRIS/EDC fee providers), `ob3_cart`, `ob3_parked_orders`,
-`ob3_read_notif_ids`, `ob3_dismissed_notif_ids`. Legacy or fallback only: `ob3_products`, `ob3_stock_staging`,
-`omahban_product_categories`, `omahban_service_categories`. Local data is seeded from `src/shared/data/mockData.ts`.
+`ob3_auth_token`, `ob3_cash_drawer`, `ob3_store_settings` (includes bank/QRIS/EDC fee providers), `ob3_cart`,
+`ob3_parked_orders`, `ob3_read_notif_ids`, `ob3_dismissed_notif_ids`. Legacy or fallback only: `ob3_products`,
+`ob3_stock_staging`, `omahban_product_categories`, `omahban_service_categories`. Local data is seeded from
+`src/shared/data/mockData.ts`. `App.tsx` removes the old accounting keys (`ob3_journals`, `ob3_expenses`,
+`ob3_account_balances`, `ob3_period_info`) on mount, a one-time Stage 4 cleanup.
 
 ### API client (`src/services/api/`)
 - `apiClient.ts`: base URL from `VITE_API_URL` (default `http://127.0.0.1:8000/api/v1`). The token lives in
@@ -59,7 +60,11 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
   message comes from the server's `message`. A **401** clears the token and triggers the handler registered with
   `setUnauthorizedHandler` (App.tsx logs the user out with a "Sesi Berakhir" toast).
 - Modules: `authApi`, `productApi`, `posApi`, `inventoryApi`, `paymentApi`, `stockReconciliationApi` (imported
-  directly), and `expenseApi` / `accountingApi` (**unused**).
+  directly), and `expenseApi` / `accountingApi`. Accounting screens call them through `useServerData`
+  (`src/modules/accounting/hooks/useServerData.ts`), a small hook keyed by the chosen period and by
+  `ledgerVersion`, a counter in `App.tsx` that `notifyLedgerChanged` increments whenever a server action
+  returns journals (checkout, void, expense, manual journal, period close/reopen, opening balance, …). There
+  is no local fallback: a failed load shows an inline error with retry.
 - Mappers (`posMappers.ts`, `inventoryMappers.ts`) convert server rows to UI types from `src/shared/types/index.ts`:
   numeric strings become `Number`, ids become `String`, and alias fields are filled in. Both sides use snake_case.
   Wire types (`ApiSale`, `ApiJournal`, …) live next to the mappers. Payload builders (`cartLineToPayload`,
@@ -106,8 +111,7 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
   from the AI Studio template (package name `react-example`).
 - **Superseded local services:** most of `inventoryService.ts`, `serviceMasterService.ts`, `productCategoryService.ts`,
   and `supplierService.ts` have been replaced by the API. App.tsx still imports many of their functions but does not call them.
-- **Duplicates:** `calculateCartTotals` exists in both `posService.ts` and `formatters.ts`. Journal generators exist in
-  both `formatters.ts` and `accountingService.ts`.
+- **Duplicates:** `calculateCartTotals` exists in both `posService.ts` and `formatters.ts`.
 
 ## Backend
 

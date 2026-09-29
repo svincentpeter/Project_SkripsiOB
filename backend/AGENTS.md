@@ -56,8 +56,8 @@ Follow the existing pattern when adding a feature:
 - **New permission keys** go in `Permissions::KEYS`, the frontend `PermissionKey` union, the settings UI
   (`src/modules/settings/components/RolePermissionsTab.tsx`), and the route middleware.
 - `branch_id` is hard-coded to 3 throughout. Single branch is intended.
-- The server timezone is UTC (`config/app.php`), but the shop runs on WIB. Be careful with `now()->toDateString()`
-  near midnight. This is a known open decision.
+- The server timezone is `Asia/Jakarta` (WIB, `config/app.php`, overridable with `APP_TIMEZONE`), matching the
+  shop. Rows created before this was set keep their old UTC timestamps; `DATE` columns are unaffected.
 
 ## Tests
 

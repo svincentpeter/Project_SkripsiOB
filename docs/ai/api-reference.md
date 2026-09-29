@@ -31,7 +31,8 @@ Source of truth is `backend/routes/api.php`. Regenerate this list with
 ## Master data
 | Method | Path | Permission |
 |---|---|---|
-| GET | `/products`, `/products/{id}`, `/services[/{id}]`, `/suppliers[/{id}]`, `/product-categories`, `/service-categories`, `/accounts` | `pos`, `inventory_view` |
+| GET | `/products`, `/products/{id}`, `/services[/{id}]`, `/suppliers[/{id}]`, `/product-categories`, `/service-categories` | `pos`, `inventory_view` |
+| GET | `/accounts` (the COA; frontend pickers load it directly, no local copy) | `pos`, `inventory_view`, `accounting_hub`, `financial_reports`, `expenses` |
 | POST / PUT / PATCH / DELETE | `/products`, `/services`, `/suppliers`, `/product-categories`, `/service-categories` (apiResource) | `inventory_manage` |
 
 Delete behavior for products, services, suppliers, and categories: if the record is in use (sold, has movements or
@@ -68,18 +69,28 @@ purchases, has live batches), it is deactivated or refused with 422 instead of b
 | POST | `/reports/stock-monthly/inline-update` | `stock_opname` |
 
 ## Expenses and accounting ([domain-accounting.md](domain-accounting.md))
-The frontend **does not call these yet**. Expenses and journals are still handled client-side.
+The frontend calls all of these through `accountingApi.ts` and `expenseApi.ts`.
 
-| Method | Path | Permission |
-|---|---|---|
-| GET | `/expense-categories`, `/expenses`, `/expenses/{id}` | `expenses` |
-| POST | `/expenses`, `/expenses/{id}/void` | `expenses` |
-| GET | `/accounting/journals` (`type`, `status`, `search`, `start_date`, `end_date`; paginated) | `accounting_hub` |
-| POST | `/accounting/journals/manual` | `accounting_hub` |
-| GET | `/accounting/general-ledger` (`account_code`, dates), `/accounting/trial-balance` | `accounting_hub` |
-| GET | `/accounting/financial-statements` | `financial_reports` |
-| GET | `/accounting/accounts-payable` | `accounts_payable` |
-| POST | `/accounting/accounts-payable/pay` (per-supplier legacy path; the UI uses `/purchases/{id}/payments`) | `accounts_payable` |
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/expense-categories` | `expenses` | seeded, 8 categories mapped to 6-1000…6-1008 |
+| GET | `/expenses`, `/expenses/{id}` | `expenses` | `/expenses` takes `search, category_id, status, start_date, end_date, per_page`; paginated |
+| POST | `/expenses` | `expenses` | multipart; `{expense_date, category_id, amount, payment_method, bank_name?, recipient_name, description, attachment?}` |
+| POST | `/expenses/{id}/void` | `expenses` | `{reason}`; posts `VOID_EXPENSE` linked by `reversal_of_id`; voiding a voided expense is 422 |
+| GET | `/accounting/journals` | `accounting_hub` | `start_date, end_date, types (comma list), search, account_code, page, per_page≤100`; paginated |
+| POST | `/accounting/journals/manual` | `accounting_hub` | `{date≤today, description, items[{account_code, debit, credit, note}]}`; control accounts (1-1002, 1-2000, 2-1000, 2-1004) rejected |
+| POST | `/accounting/journals/{entryNumber}/reverse` | `accounting_hub` | `{reason}`; only `MANUAL_ADJUSTMENT` entries, once each |
+| GET | `/accounting/general-ledger` | `accounting_hub` | `account_code, start_date, end_date` |
+| GET | `/accounting/trial-balance` | `accounting_hub` | `as_of` |
+| GET | `/accounting/financial-statements` | `financial_reports`, `accounting_hub` | `start_date, end_date`; income statement, balance sheet, equity changes |
+| GET | `/accounting/cash-flow` | `financial_reports`, `accounting_hub` | `start_date, end_date`; direct method |
+| GET | `/accounting/cash-balances` | `expenses`, `accounting_hub`, `financial_reports` | `{1-1000, 1-1001}` as of today |
+| GET | `/accounting/periods` | `accounting_hub` | lock date, recent closings, suggested period to close |
+| POST | `/accounting/periods/close` | `accounting_hub` | `{period: YYYY-MM, notes}`; only a fully-elapsed month |
+| POST | `/accounting/periods/{period}/reopen` | `accounting_hub` + OWNER | `{reason}`; only the most recently closed period |
+| GET / POST | `/accounting/opening-balance` | `accounting_hub` | `{date, balances{code: amount}}`; posts once (`ACCOUNT_OPENING`) |
+| GET | `/accounting/accounts-payable` | `accounts_payable` | |
+| POST | `/accounting/accounts-payable/pay` | `accounts_payable` | per-supplier legacy path; the UI uses `/purchases/{id}/payments` |
 
 ## Role settings
 | Method | Path | Permission |

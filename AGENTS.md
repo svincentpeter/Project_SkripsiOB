@@ -78,29 +78,31 @@ The app started fully client-side (localStorage, briefly Supabase) and is being 
 | Login, session, role permissions | Server (Sanctum, `role_permissions`) | 1 (done) |
 | POS checkout, void, sales history, BON receivables, booking DP, QRIS | Server | 2 (done) |
 | Products, categories, services, suppliers, FIFO batches, goods receipt, payables, stock opname, Excel import, monthly stock ledger | Server | 3 (done) |
-| Expenses, manual journals, journal reversal, period closing | **Client** (localStorage) | next stage |
-| Financial reports (ledger, trial balance, statements, cash flow) | **Client**, computed from the local journal list | next stage |
-| Cash drawer balance, account opening balances, store settings, payment fee settings, parked orders, cart | **Client** (localStorage `ob3_*` keys) | not scheduled |
+| Expenses, manual journals, journal reversal, account opening balances, period closing & lock | Server | 4 (done) |
+| Financial reports (journals, ledger, trial balance, statements, equity changes, cash flow) | Server, computed per period | 4 (done) |
+| Cash drawer balance, store settings, payment fee settings, parked orders, cart | **Client** (localStorage `ob3_*` keys) | not scheduled |
 
-The server journals are copied into the local journal list only when an action in the current browser
-session returns them (`mergeServerJournals` in `src/App.tsx`). The backend already has expense and
-accounting endpoints, but `src/services/api/expenseApi.ts` and `accountingApi.ts` are **not called** anywhere.
+Accounting components fetch their own server data (`useServerData`) keyed by the chosen period and by
+`ledgerVersion`, which `App.tsx` increments through `notifyLedgerChanged` whenever a server action returns journals.
+The cash drawer counter `ob3_cash_drawer` is still client-side (roadmap sub-project 2).
 Details: [docs/ai/architecture.md](docs/ai/architecture.md).
 
 ## Rules that must not break
 
 1. **Journals balance.** All server postings go through `JournalDraft` → `AccountingEngine::createEntry`,
-   which rejects |Σdebit − Σcredit| > 0.01. Never write `journal_entries`/`journal_items` directly.
+   which requires Σdebit = Σcredit to the cent (no tolerance). Never write `journal_entries`/`journal_items` directly.
+   `createEntry` also rejects lines that are negative, two-sided or fewer than two, and any date on or before
+   the period lock date (`PeriodLock`).
 2. **Account codes come from the COA.** 25 accounts, seeded by `AccountCoaSeeder` (+ migration
-   `2026_09_24_000003`). A new account needs a migration so existing databases get it; the frontend
-   copy `SAK_EMKM_COA` in `src/services/accountingService.ts` must be updated too.
+   `2026_09_24_000003`). The frontend has no COA copy; it loads `GET /accounts`. A new account needs only
+   a migration (so existing databases get it) and the seeder.
    See [docs/ai/domain-accounting.md](docs/ai/domain-accounting.md).
 3. **Stock only moves through services that keep FIFO and the ledger in step.** Stock changes go through
    `FifoCostingService`, the `Inventory/*` services, and `InventoryValueJournal::record()`, so that
    account 1-2000 = Σ(remaining_qty × batch_cost). Do not edit `product_quantity` or `product_batches` ad hoc.
    See [docs/ai/domain-inventory.md](docs/ai/domain-inventory.md).
-4. **Server-owned features are server-authoritative.** Money, stock, and document numbers for stages 1–3
-   are computed on the server. The frontend sends intent and maps the response; it must not
+4. **Server-owned features are server-authoritative.** Money, stock, accounting, and document numbers for
+   stages 1–4 are computed on the server. The frontend sends intent and maps the response; it must not
    re-derive them or fall back to local writes.
 5. **Permissions are deny-by-default.** Every protected route uses `permission:<key>[,<key>]`
    middleware. Keys are listed in `backend/app/Support/Permissions.php` and must match `PermissionKey`

@@ -12,8 +12,9 @@
    - The frontend calls the API and merges the response.
    - Local code paths for that area are removed.
 
-   Stages so far: stage 1 auth/RBAC (2026-09-23), stage 2 POS (2026-09-24), stage 3 inventory (2026-09-24). The
-   likely next stage is accounting and expenses. Model a new stage on `2026-09-24-inventory-server-design.md`.
+   Stages so far: stage 1 auth/RBAC (2026-09-23), stage 2 POS (2026-09-24), stage 3 inventory (2026-09-24), stage 4
+   accounting core (2026-09-29). Remaining client-only areas (cash drawer vs 1-1000, returns/write-offs, depreciation,
+   dashboard/daily reports, QRIS hardening) are tracked as later sub-projects of the accounting roadmap.
 3. **Commits:** Conventional Commits with a scope, in English, with the imperative subject in lowercase:
    `feat(pos): …`, `fix(accounting): …`, `test: …`, `docs(inventory): …`. The body explains why. Commits are made
    directly on `main`. When Claude writes the commit, it ends with the `Co-Authored-By: Claude …` trailer.
@@ -35,6 +36,7 @@
 | 09-23 | server auth Sanctum RBAC (stage 1) | done |
 | 09-24 | POS server checkout (stage 2) | done |
 | 09-24 | inventory server (stage 3) | done |
+| 09-29 | accounting server core (stage 4): expenses, manual journals, reversal, period closing/reopen, opening balances, reports | done |
 | — | `API_DOCUMENTATION.md` | stale; use [api-reference.md](api-reference.md) |
 
 ## Testing
@@ -46,7 +48,7 @@
 | Backend | `cd backend && composer test` | MySQL `project-skripsi_ob_testing`, which must exist and be migrated. See [../../backend/AGENTS.md](../../backend/AGENTS.md#tests) |
 | E2E | `node tests/e2e/<file>.mjs` | Plain Playwright scripts, not `@playwright/test`. They need `npm run dev` (dev mode), the backend on :8000 with seeded users, and `VITE_DEV_LOGIN_PASSWORD`. They log in via the "Agus Subagyo" quick-login card, write screenshots and JSON to `tests/e2e/screenshots/`, and have **no pass/fail assertions** |
 
-As of 2026-09-27, the frontend passes: 22 test files, 100 tests, and `tsc` is clean.
+As of 2026-09-30, the frontend passes: 25 test files, 122 tests, and `tsc` is clean.
 
 ## Glossary (Indonesian → meaning)
 
@@ -95,8 +97,10 @@ As of 2026-09-27, the frontend passes: 22 test files, 100 tests, and `tsc` is cl
   Values in the local reports may be mock data, not server data.
 - **"Reset data"** in the UI only runs `localStorage.clear()` and reloads, which also logs the user out. Its text
   mentions Supabase, which is misleading.
-- **Timezone.** Laravel runs in UTC and the shop is on WIB (UTC+7), so server dates near midnight can land on the
-  wrong day.
+- **Timezone.** Laravel's `config/app.php` timezone is `Asia/Jakarta` (WIB, overridable with `APP_TIMEZONE`), so
+  `now()` and business dates match the shop's clock. Existing rows created before the switch keep their old UTC
+  timestamps; `DATE` columns are unaffected. Frontend business dates come from `localDate()`
+  (`src/services/accountingPeriod.ts`), never `toISOString()`, which would shift by the browser's UTC offset.
 - **Test database.** Backend tests without a DB trait leave rows behind, and `RefreshDatabase` tests wipe everything.
   If a test fails only when the whole suite runs, suspect test order.
 - **Windows.** Paths contain `C:\laragon\www\…`. The DB name has a hyphen (`project-skripsi_ob`), so quote it in SQL.

@@ -1,6 +1,6 @@
 # Data model
 
-Source of truth: `backend/database/migrations/` (19 migrations). Models: `backend/app/Models/`.
+Source of truth: `backend/database/migrations/` (22 migrations). Models: `backend/app/Models/`.
 `database/schema_project_skripsi_ob.sql` and `supabase_schema.sql` are **stale**, so ignore them.
 Most early migrations wrap `Schema::create` in `hasTable` guards. New migrations should be additive:
 add columns and insert-if-missing rows, and never rewrite old migrations.
@@ -68,10 +68,11 @@ The frontend does not use these tables yet: fees come from localStorage store se
 | Table | Key columns | Notes |
 |---|---|---|
 | `accounts` | `account_code` (unique), `account_name`, `account_type` (ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE), `normal_balance` (DEBIT/CREDIT), `is_active` | 25 rows; see [domain-accounting.md](domain-accounting.md) |
-| `journal_entries` | `entry_number` (unique, `JRN-YYYYMM-####`), `entry_date`, `reference_type`, `reference_id`, `description`, `total_debit`, `total_credit`, `status` (POSTED) | |
+| `journal_entries` | `entry_number` (unique, `JRN-YYYYMM-####`), `entry_date`, `reference_type`, `reference_id`, `description`, `total_debit`, `total_credit`, `status` (POSTED), `created_by` (nullable FK `users`), `reversal_of_id` (nullable, unique, FK `journal_entries`) | `reversal_of_id` links a reversal to its original; the unique constraint caps an entry at one reversal |
 | `journal_items` | `journal_entry_id` (FK cascade), `account_id` (FK), `debit`, `credit`, `note` | |
-| `expense_categories` | `category_code` (unique), `category_name`, `default_account_code` | **not seeded**; `POST /expenses` fails on a fresh database |
-| `expenses` | `reference` (`BKK-YYYYMM-####`), `expense_date`, `category_id`, `amount`, `payment_method`, `bank_name`, `recipient_name`, `description`, `attachment_path`, `approved_by`, `status` (ACTIVE/VOID) | |
+| `accounting_period_closings` | `period` (YYYY-MM), `end_date`, `closing_entry_id` (nullable FK `journal_entries`), `net_income`, `notes`, `closed_by`, `closed_at`, `reopened_at`, `reopened_by`, `reopen_reason`, `reopen_entry_id` (nullable FK `journal_entries`) | one row per closed month; lock date = `max(end_date)` where `reopened_at` is null |
+| `expense_categories` | `category_code` (unique), `category_name`, `default_account_code` | seeded, 8 rows (GAJI…PAJAK, mapped to 6-1000…6-1008), matching the frontend `ExpenseCategory` strings |
+| `expenses` | `reference` (`BKK-YYYYMM-####`), `expense_date`, `category_id`, `amount`, `payment_method`, `bank_name`, `recipient_name`, `description`, `attachment_path`, `approved_by`, `status` (ACTIVE/VOID), `void_reason`, `voided_by`, `voided_at`, `created_by` (nullable FK `users`) | attachment is stored after the journal posts and deleted if the transaction fails |
 
 ## Not in the database
 - Excel import staging is stored in a single shared file, `backend/storage/app/stock_migration/stock_staging.json`.
