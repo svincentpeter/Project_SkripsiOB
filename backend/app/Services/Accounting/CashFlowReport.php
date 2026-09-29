@@ -4,11 +4,17 @@ namespace App\Services\Accounting;
 
 use App\Models\Account;
 use App\Models\JournalEntry;
+use App\Models\JournalItem;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Laporan arus kas metode langsung. Setiap jurnal yang menyentuh kas laci/bank membagi baris non-kasnya
  * (kredit − debit) ke kelompok arus kas, sehingga total kelompok selalu sama dengan perubahan kas.
+ *
+ * Jurnal saldo awal akun (ACCOUNT_OPENING) bukan arus kas: aset tetap dan modal awalnya tidak
+ * dikelompokkan sebagai investasi/pendanaan. Bila tanggalnya jatuh di dalam periode, kas awalnya
+ * ditambahkan ke saldo kas awal agar saldo awal + perubahan kas tetap sama dengan saldo akhir.
  */
 class CashFlowReport
 {
@@ -23,6 +29,7 @@ class CashFlowReport
             ->where('status', 'POSTED')
             ->when($from !== null, fn ($q) => $q->where('entry_date', '>=', $from))
             ->where('entry_date', '<=', $to)
+            ->where('reference_type', '!=', OpeningBalanceService::REFERENCE_TYPE)
             ->whereHas('items', fn ($q) => $q->whereIn('account_id', $cashIds))
             ->chunkById(200, function ($entries) use (&$buckets, $cashIds) {
                 foreach ($entries as $entry) {
@@ -39,6 +46,7 @@ class CashFlowReport
         $netChange = round($operating + $buckets['fixed_assets'] + $buckets['equity'], 2);
 
         $beginning = $from === null ? 0.0 : round(array_sum(self::cashBalances(Carbon::parse($from)->subDay()->toDateString())), 2);
+        $beginning = round($beginning + self::openingCashWithin($from, $to, $cashIds), 2);
         $ending = self::cashBalances($to);
         $endingTotal = round(array_sum($ending), 2);
 
@@ -75,6 +83,23 @@ class CashFlowReport
         }
 
         return $balances;
+    }
+
+    /**
+     * Kas laci + bank (debit − kredit) dari jurnal saldo awal akun yang bertanggal di dalam periode.
+     *
+     * @param  list<int>  $cashIds
+     */
+    private static function openingCashWithin(?string $from, string $to, array $cashIds): float
+    {
+        return (float) JournalItem::query()
+            ->whereIn('account_id', $cashIds)
+            ->whereHas('journalEntry', fn ($q) => $q
+                ->where('status', 'POSTED')
+                ->where('reference_type', OpeningBalanceService::REFERENCE_TYPE)
+                ->when($from !== null, fn ($q) => $q->where('entry_date', '>=', $from))
+                ->where('entry_date', '<=', $to))
+            ->sum(DB::raw('debit - credit'));
     }
 
     private static function bucket(Account $account): string

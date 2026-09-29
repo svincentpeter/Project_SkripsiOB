@@ -100,6 +100,8 @@ COA rather than hard-coded account lists, in `app/Services/Accounting/`:
 - **`CashFlowReport::build($from, $to)`** is the direct method: every journal that touches 1-1000/1-1001
   attributes its non-cash lines (credit − debit) to a bucket (customers, suppliers, expenses, other operating,
   fixed assets, equity), so the buckets always reconcile to the cash change (`is_reconciled`).
+  The `ACCOUNT_OPENING` journal is not a cash flow and is left out of the buckets; when it is dated inside
+  the range, its 1-1000/1-1001 amount is added to `beginning_cash` instead, so reconciliation still holds.
 - **`ExpenseService`**, **`ManualJournalService`**, **`PeriodClosingService`**, and **`OpeningBalanceService`**
   are the posting-side services (see the posting rules table above).
 
