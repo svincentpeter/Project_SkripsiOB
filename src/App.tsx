@@ -1267,14 +1267,7 @@ function MainAppContent() {
             )}
 
             {activeScreen === 'financials' && (
-              <FinancialStatementsScreen
-                transactions={transactions}
-                expenses={expenses}
-                products={products}
-                cashInDrawer={cashInDrawer}
-                journals={journals}
-                initialBalances={accountBalances}
-              />
+              <FinancialStatementsScreen refreshKey={ledgerVersion} />
             )}
 
             {activeScreen === 'settings' && (

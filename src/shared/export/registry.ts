@@ -1,16 +1,16 @@
 import type {
   AccountingPeriodInfo,
-  CashFlowStatementResult,
+  CashFlowReport,
+  FinancialStatements,
   JournalEntry,
   LedgerAccountSummary,
   PayableInvoice,
   ReceivableInvoice,
+  StatementSection,
   TrialBalanceResult,
 } from '../types';
 import type { ExpenseRecord, PosTransaction, ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
-import { calculateDynamicSakEmkmFinancials, EXPENSE_CATEGORY_CONFIG } from '../../services/accountingService';
-
-type Financials = ReturnType<typeof calculateDynamicSakEmkmFinancials>;
+import { EXPENSE_CATEGORY_CONFIG, formatRupiah } from '../utils/formatters';
 import { buildKop } from './kop';
 import type { ExportCtx, ExportDoc, ExportFormat, ExportSection } from './types';
 
@@ -393,99 +393,101 @@ const lvSection = (title: string, rows: LabelValue[]): ExportSection => ({
   rows: rows.map((r) => ({ label: r.label, value: r.value })),
 });
 
-const incomeSection = (f: Financials): ExportSection =>
-  lvSection('1. LAPORAN LABA RUGI', [
-    { label: 'Penjualan Bruto', value: f.grossSales },
-    { label: 'Potongan Diskon', value: -f.discounts },
-    { label: 'PENJUALAN BERSIH', value: f.netSales },
-    { label: 'Beban Pokok Penjualan (HPP FIFO)', value: -f.totalHpp },
-    { label: 'LABA BRUTO', value: f.grossProfit },
-    ...f.expenseBreakdown.map((e) => ({ label: `Beban Operasional: ${e.code} ${e.name}`, value: -e.amount })),
-    { label: 'TOTAL BEBAN OPERASIONAL', value: -f.totalExpenses },
-    { label: 'LABA NETO PERIODE BERJALAN', value: f.netIncome },
+const sectionRows = (prefix: string, section: StatementSection, sign = 1) =>
+  section.lines.map((l) => ({ label: `${prefix}${l.code ? `${l.code} ` : ''}${l.name}`, value: sign * l.amount }));
+
+const incomeSection = (fs: FinancialStatements): ExportSection => {
+  const is = fs.income_statement;
+  return lvSection('1. LAPORAN LABA RUGI', [
+    ...sectionRows('Pendapatan: ', is.revenue),
+    ...sectionRows('Potongan: ', is.contra_revenue, -1),
+    { label: 'PENDAPATAN BERSIH', value: is.net_revenue },
+    ...sectionRows('Beban Pokok: ', is.cost_of_sales, -1),
+    { label: 'LABA KOTOR', value: is.gross_profit },
+    ...sectionRows('Beban Operasional: ', is.operating_expenses, -1),
+    { label: 'LABA (RUGI) BERSIH', value: is.net_income },
+  ]);
+};
+
+const balanceSection = (fs: FinancialStatements): ExportSection => {
+  const bs = fs.balance_sheet;
+  return lvSection('2. LAPORAN POSISI KEUANGAN', [
+    ...sectionRows('Aset Lancar: ', bs.current_assets),
+    { label: 'JUMLAH ASET LANCAR', value: bs.current_assets.total },
+    ...sectionRows('Aset Tetap: ', bs.fixed_assets),
+    { label: 'JUMLAH ASET TETAP', value: bs.fixed_assets.total },
+    { label: 'TOTAL ASET', value: bs.total_assets },
+    ...sectionRows('Liabilitas: ', bs.liabilities),
+    { label: 'JUMLAH LIABILITAS', value: bs.liabilities.total },
+    ...sectionRows('Ekuitas: ', bs.equity),
+    { label: 'JUMLAH EKUITAS', value: bs.equity.total },
+    { label: 'TOTAL LIABILITAS & EKUITAS', value: bs.total_liabilities_and_equity },
+  ]);
+};
+
+const equitySection = (fs: FinancialStatements): ExportSection =>
+  lvSection('3. LAPORAN PERUBAHAN EKUITAS', [
+    { label: 'Ekuitas awal periode', value: fs.equity_changes.opening_equity },
+    { label: 'Setoran / (penarikan) modal & saldo awal', value: fs.equity_changes.owner_contributions },
+    { label: 'Laba (rugi) bersih periode', value: fs.equity_changes.net_income },
+    { label: 'EKUITAS AKHIR PERIODE', value: fs.equity_changes.closing_equity },
   ]);
 
-const balanceSection = (f: Financials): ExportSection =>
-  lvSection('2. LAPORAN POSISI KEUANGAN (NERACA)', [
-    { label: 'Aset Lancar - Kas Laci Toko', value: f.kasLaci },
-    { label: 'Aset Lancar - Bank BCA Cabang 3', value: f.bankBca },
-    { label: 'Aset Lancar - Piutang Usaha (AR)', value: f.piutangDagang },
-    { label: 'Aset Lancar - Persediaan Ban Baru', value: f.persediaanBuku },
-    { label: 'TOTAL ASET LANCAR', value: f.totalCurrentAssets },
-    { label: 'Aset Tetap - Mesin Spooring 3D & Peralatan', value: f.peralatanMesin },
-    { label: 'Akumulasi Penyusutan', value: -f.akumulasiPenyusutan },
-    { label: 'NILAI BUKU ASET TETAP', value: f.netFixedAssets },
-    { label: 'TOTAL ASET', value: f.totalAssets },
-    { label: 'Liabilitas - Hutang Dagang Supplier (AP)', value: f.hutangSupplier },
-    { label: 'TOTAL LIABILITAS', value: f.totalLiabilities },
-    { label: 'Ekuitas - Modal Disetor Pemilik', value: f.modalPemilik },
-    { label: 'Ekuitas - Laba Ditahan', value: f.labaDitahan },
-    { label: 'Ekuitas - Laba Periode Berjalan', value: f.currentNetIncome },
-    { label: 'TOTAL EKUITAS', value: f.totalEquity },
-    { label: 'TOTAL LIABILITAS & EKUITAS', value: f.totalLiabilitiesAndEquity },
+const cashFlowSection = (cf: CashFlowReport): ExportSection =>
+  lvSection('4. LAPORAN ARUS KAS (METODE LANGSUNG)', [
+    { label: 'Penerimaan dari pelanggan', value: cf.operating.customers },
+    { label: 'Pembayaran ke pemasok & persediaan', value: cf.operating.suppliers },
+    { label: 'Pembayaran beban operasional', value: cf.operating.expenses },
+    { label: 'Arus kas operasi lainnya', value: cf.operating.other },
+    { label: 'ARUS KAS BERSIH AKTIVITAS OPERASI', value: cf.operating.net },
+    { label: 'Perolehan / pelepasan aset tetap', value: cf.investing.fixed_assets },
+    { label: 'ARUS KAS BERSIH AKTIVITAS INVESTASI', value: cf.investing.net },
+    { label: 'Setoran / (penarikan) modal pemilik', value: cf.financing.equity },
+    { label: 'ARUS KAS BERSIH AKTIVITAS PENDANAAN', value: cf.financing.net },
+    { label: 'KENAIKAN (PENURUNAN) KAS BERSIH', value: cf.net_change },
+    { label: 'Saldo Kas & Bank Awal', value: cf.beginning_cash },
+    { label: 'Saldo Kas & Bank Akhir', value: cf.ending_cash },
+    { label: 'Rincian: Kas Laci Akhir', value: cf.ending_cash_drawer },
+    { label: 'Rincian: Bank BCA Akhir', value: cf.ending_bank },
   ]);
 
-const equitySection = (f: Financials): ExportSection =>
-  lvSection('3. LAPORAN PERUBAHAN MODAL', [
-    { label: 'Modal Disetor Pemilik', value: f.modalPemilik },
-    { label: 'Laba Ditahan', value: f.labaDitahan },
-    { label: 'Laba Periode Berjalan', value: f.currentNetIncome },
-    { label: 'TOTAL EKUITAS', value: f.totalEquity },
-  ]);
+const calkSection = (fs: FinancialStatements): ExportSection => {
+  const is = fs.income_statement;
+  const bs = fs.balance_sheet;
+  return {
+    title: '5. CATATAN ATAS LAPORAN KEUANGAN (CALK)',
+    columns: [{ key: 'uraian', label: 'Uraian', type: 'text', width: 110 }],
+    rows: [
+      'Laporan keuangan disusun berdasarkan SAK EMKM dengan basis akrual dan asumsi kelangsungan usaha.',
+      'Entitas: Omah Ban Cabang 3, Magelang — usaha dagang ban dan jasa spooring; bukan Pengusaha Kena Pajak, sehingga tidak memungut PPN atas penjualan.',
+      'Persediaan dinilai dengan metode FIFO; PPN atas pembelian dikapitalisasi ke harga perolehan persediaan.',
+      `Periode laporan: ${fs.period.start_date ?? 'awal pembukuan'} s/d ${fs.period.end_date}.`,
+      `Pendapatan bersih ${formatRupiah(is.net_revenue)}; laba (rugi) bersih ${formatRupiah(is.net_income)}.`,
+      `Total aset ${formatRupiah(bs.total_assets)}; total liabilitas & ekuitas ${formatRupiah(bs.total_liabilities_and_equity)}${
+        bs.is_balanced ? ' (seimbang).' : ` (selisih ${formatRupiah(bs.difference)}).`
+      }`,
+    ].map((uraian) => ({ uraian })),
+  };
+};
 
-const cashFlowSection = (cf: CashFlowStatementResult): ExportSection =>
-  lvSection('4. LAPORAN ARUS KAS', [
-    { label: 'Kas Masuk dari Penjualan', value: cf.cashFromSales },
-    { label: 'Kas Masuk dari Piutang', value: cf.cashFromReceivables },
-    { label: 'Total Arus Kas Masuk Operasional', value: cf.totalOperatingInflows },
-    { label: 'Kas Dibayar untuk Beban', value: -cf.cashPaidForExpenses },
-    { label: 'Kas Dibayar untuk Persediaan', value: -cf.cashPaidForInventory },
-    { label: 'Total Arus Kas Keluar Operasional', value: -cf.totalOperatingOutflows },
-    { label: 'ARUS KAS OPERASIONAL', value: cf.netOperatingCashFlow },
-    { label: 'Kas Dibayar untuk Aset Tetap', value: -cf.cashPaidForFixedAssets },
-    { label: 'ARUS KAS INVESTASI', value: cf.netInvestingCashFlow },
-    { label: 'Kas Dibayar untuk Hutang', value: -cf.cashPaidForPayables },
-    { label: 'Kas dari Modal', value: cf.cashFromCapital },
-    { label: 'ARUS KAS PENDANAAN', value: cf.netFinancingCashFlow },
-    { label: 'KENAIKAN (PENURUNAN) KAS BERSIH', value: cf.netCashFlow },
-    { label: 'Saldo Kas Awal', value: cf.beginningCash },
-    { label: 'Saldo Kas Akhir', value: cf.endingCash },
-    { label: 'Rincian: Kas Laci Akhir', value: cf.cashDrawerEnding },
-    { label: 'Rincian: Bank BCA Akhir', value: cf.bankBcaEnding },
-  ]);
+const mapIncome = (fs: FinancialStatements, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_income_statement', 'Laporan Laba Rugi', 'portrait', ctx, [incomeSection(fs)]);
 
-const calkSection = (f: Financials): ExportSection => ({
-  title: '5. CATATAN ATAS LAPORAN KEUANGAN (CALK)',
-  columns: [{ key: 'uraian', label: 'Uraian', type: 'text', width: 110 }],
-  rows: [
-    'Laporan disusun berdasarkan SAK EMKM dengan basis akrual.',
-    'Persediaan dinilai dengan metode FIFO (First-In, First-Out).',
-    'Aset tetap disusutkan dengan metode garis lurus.',
-    `Pendapatan usaha periode berjalan: Rp ${f.netSales}.`,
-    `Laba neto periode berjalan: Rp ${f.netIncome}.`,
-    `Total aset: Rp ${f.totalAssets}; seimbang dengan total liabilitas & ekuitas: Rp ${f.totalLiabilitiesAndEquity}.`,
-    `Likuiditas (aset lancar / liabilitas): ${f.currentRatio.toFixed(2)}.`,
-  ].map((t) => ({ uraian: t })),
-});
+const mapBalance = (fs: FinancialStatements, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_balance_sheet', 'Laporan Posisi Keuangan', 'portrait', ctx, [balanceSection(fs)]);
 
-const mapIncome = (f: Financials, ctx: ExportCtx): ExportDoc =>
-  makeDoc('fin_income_statement', 'Laporan Laba Rugi', 'portrait', ctx, [incomeSection(f)]);
+const mapEquity = (fs: FinancialStatements, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_equity_statement', 'Laporan Perubahan Ekuitas', 'portrait', ctx, [equitySection(fs)]);
 
-const mapBalance = (f: Financials, ctx: ExportCtx): ExportDoc =>
-  makeDoc('fin_balance_sheet', 'Laporan Posisi Keuangan', 'portrait', ctx, [balanceSection(f)]);
-
-const mapEquity = (f: Financials, ctx: ExportCtx): ExportDoc =>
-  makeDoc('fin_equity_statement', 'Laporan Perubahan Modal', 'portrait', ctx, [equitySection(f)]);
-
-const mapCashFlow = (cf: CashFlowStatementResult, ctx: ExportCtx): ExportDoc =>
+const mapCashFlow = (cf: CashFlowReport, ctx: ExportCtx): ExportDoc =>
   makeDoc('fin_cash_flow', 'Laporan Arus Kas', 'portrait', ctx, [cashFlowSection(cf)]);
 
-const mapCalk = (f: Financials, ctx: ExportCtx): ExportDoc =>
-  makeDoc('fin_calk', 'CALK', 'portrait', ctx, [calkSection(f)]);
+const mapCalk = (fs: FinancialStatements, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_calk', 'CALK', 'portrait', ctx, [calkSection(fs)]);
 
 export interface SakEmkmPackageInput {
-  financials: Financials;
-  cashFlow: CashFlowStatementResult;
+  financials: FinancialStatements;
+  cashFlow: CashFlowReport;
 }
 
 const mapSakPackage = (d: SakEmkmPackageInput, ctx: ExportCtx): ExportDoc =>

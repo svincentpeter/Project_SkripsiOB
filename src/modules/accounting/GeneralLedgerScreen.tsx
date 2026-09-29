@@ -390,11 +390,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
 
             {/* Inline Full Report View when toggled or fallback */}
             {(showInlineReport || !onNavigateToFinancials) && (
-              <SakEmkmReportTab
-                journals={journals}
-                initialBalances={initialBalances}
-                products={products}
-              />
+              <SakEmkmReportTab refreshKey={ledgerVersion} />
             )}
           </div>
         )}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ExpenseRecord, JournalEntry, PosTransaction, ProductItem } from '../../types';
 import { setExportConfig } from '../exportConfig';
 import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
+import type { CashFlowReport, FinancialStatements, StatementLine } from '../../types';
 
 setExportConfig(null, null);
 const ctx = { periodLabel: '01 Sep 2026 - 08 Sep 2026', startDate: '2026-09-01', endDate: '2026-09-08' };
@@ -78,65 +79,74 @@ describe('registry pos_sales_history', () => {
 });
 
 describe('registry financial statements', () => {
-  const mockFinancials = {
-    grossSales: 1000000,
-    discounts: 50000,
-    netSales: 950000,
-    totalHpp: 600000,
-    grossProfit: 350000,
-    expenseBreakdown: [{ code: '6-1000', name: 'Gaji', amount: 100000 }],
-    totalExpenses: 100000,
-    netIncome: 250000,
-    kasLaci: 100000,
-    bankBca: 200000,
-    liquidCash: 300000,
-    piutangDagang: 50000,
-    persediaanBuku: 500000,
-    totalCurrentAssets: 850000,
-    peralatanMesin: 1000000,
-    akumulasiPenyusutan: 200000,
-    netFixedAssets: 800000,
-    totalAssets: 1650000,
-    hutangSupplier: 300000,
-    totalLiabilities: 300000,
-    modalPemilik: 1000000,
-    labaDitahan: 50000,
-    currentNetIncome: 250000,
-    totalEquity: 1300000,
-    totalLiabilitiesAndEquity: 1650000,
-    isBalanceSheetBalanced: true,
-    totalInventoryPhysical: 500000,
-    currentRatio: 2.4,
-    isLiquiditySafe: true,
-  } as never;
+  const section = (lines: StatementLine[]) => ({ lines, total: lines.reduce((s, l) => s + l.amount, 0) });
 
-  it('laba rugi sections dan diskon negatif', () => {
-    const doc = buildExportDoc('fin_income_statement', mockFinancials, ctx);
+  const statements: FinancialStatements = {
+    period: { start_date: '2026-09-01', end_date: '2026-09-30' },
+    income_statement: {
+      revenue: section([
+        { code: '4-1000', name: 'Pendapatan Penjualan Ban Baru', amount: 900000 },
+        { code: '4-1001', name: 'Pendapatan Jasa Servis & Spooring', amount: 100000 },
+      ]),
+      contra_revenue: section([{ code: '4-9000', name: 'Potongan Diskon Penjualan', amount: 50000 }]),
+      net_revenue: 950000,
+      cost_of_sales: section([{ code: '5-1000', name: 'HPP Ban Baru', amount: 600000 }]),
+      gross_profit: 350000,
+      operating_expenses: section([{ code: '6-1000', name: 'Beban Gaji', amount: 100000 }]),
+      net_income: 250000,
+    },
+    balance_sheet: {
+      as_of: '2026-09-30',
+      current_assets: section([{ code: '1-1000', name: 'Kas', amount: 850000 }]),
+      fixed_assets: section([
+        { code: '1-3000', name: 'Mesin', amount: 1000000 },
+        { code: '1-3999', name: 'Akumulasi Penyusutan', amount: -200000 },
+      ]),
+      total_assets: 1650000,
+      liabilities: section([{ code: '2-1000', name: 'Hutang Dagang', amount: 300000 }]),
+      equity: section([
+        { code: '3-1000', name: 'Modal', amount: 1100000 },
+        { code: null, name: 'Laba (Rugi) Periode Berjalan (belum ditutup)', amount: 250000 },
+      ]),
+      total_liabilities_and_equity: 1650000,
+      difference: 0,
+      is_balanced: true,
+    },
+    equity_changes: { opening_equity: 1100000, owner_contributions: 0, net_income: 250000, closing_equity: 1350000, difference: 0 },
+  };
+
+  const cashFlow: CashFlowReport = {
+    period: { start_date: '2026-09-01', end_date: '2026-09-30' },
+    operating: { customers: 950000, suppliers: -500000, expenses: -100000, other: 0, net: 350000 },
+    investing: { fixed_assets: 0, net: 0 },
+    financing: { equity: 0, net: 0 },
+    net_change: 350000,
+    beginning_cash: 100000,
+    ending_cash: 450000,
+    ending_cash_drawer: 150000,
+    ending_bank: 300000,
+    is_reconciled: true,
+  };
+
+  it('laba rugi memuat setiap akun dan potongan bernilai negatif', () => {
+    const doc = buildExportDoc('fin_income_statement', statements, ctx);
     expect(doc.sections[0].rows.length).toBe(8);
-    expect(doc.sections[0].rows.find((r) => r.label === 'Potongan Diskon')?.value).toBe(-50000);
+    expect(doc.sections[0].rows.find((r) => String(r.label).startsWith('Potongan: 4-9000'))?.value).toBe(-50000);
+  });
+
+  it('neraca menampilkan akumulasi penyusutan negatif dan laba belum ditutup', () => {
+    const rows = buildExportDoc('fin_balance_sheet', statements, ctx).sections[0].rows;
+    expect(rows.find((r) => String(r.label).includes('1-3999'))?.value).toBe(-200000);
+    expect(rows.find((r) => String(r.label).includes('belum ditutup'))?.value).toBe(250000);
+  });
+
+  it('arus kas memuat saldo akhir', () => {
+    const rows = buildExportDoc('fin_cash_flow', cashFlow, ctx).sections[0].rows;
+    expect(rows.find((r) => r.label === 'Saldo Kas & Bank Akhir')?.value).toBe(450000);
   });
 
   it('sak emkm package memiliki 5 section', () => {
-    const cf = {
-      cashFromSales: 900000,
-      cashFromReceivables: 50000,
-      totalOperatingInflows: 950000,
-      cashPaidForExpenses: 100000,
-      cashPaidForInventory: 500000,
-      totalOperatingOutflows: 600000,
-      netOperatingCashFlow: 350000,
-      cashPaidForFixedAssets: 0,
-      netInvestingCashFlow: 0,
-      cashPaidForPayables: 0,
-      cashFromCapital: 0,
-      netFinancingCashFlow: 0,
-      netCashFlow: 350000,
-      beginningCash: 100000,
-      endingCash: 450000,
-      cashDrawerEnding: 150000,
-      bankBcaEnding: 300000,
-    };
-    const doc = buildExportDoc('sak_emkm_package', { financials: mockFinancials, cashFlow: cf }, ctx);
+    const doc = buildExportDoc('sak_emkm_package', { financials: statements, cashFlow }, ctx);
     expect(doc.sections.length).toBe(5);
   });
 });
