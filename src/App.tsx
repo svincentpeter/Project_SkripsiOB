@@ -30,24 +30,22 @@ import {
   UpdateProductInput,
   UserSession 
 } from './shared/types';
-import { 
+import {
   DEFAULT_ROLE_PERMISSIONS,
   INITIAL_PERIOD_INFO,
   INITIAL_STORE_SETTINGS,
   INITIAL_SUPPLIERS,
-  INITIAL_EXPENSES,
   INITIAL_JOURNALS,
   INITIAL_PAYABLE_INVOICES,
   INITIAL_ACCOUNT_BALANCES,
   INITIAL_STOCK_MUTATIONS,
 } from './shared/data/mockData';
 import { LoginScreen } from './modules/auth';
-import { formatRupiah, generateExpenseJournal } from './shared/utils/formatters';
+import { formatRupiah } from './shared/utils/formatters';
 import { setExportConfig } from './shared/export/exportConfig';
 import {
   generatePurchaseJournal,
   generateDebtPaymentJournal,
-  generateVoidExpenseJournal
 } from './services/accountingService';
 import { 
   canSafelyDeleteProduct, 
@@ -109,13 +107,14 @@ import {
   productPayload,
   restockPayload,
   debtPaymentPayload,
+  expenseApi,
+  mapExpense,
+  expenseFormData,
 } from './services/api';
-import type { ApiJournal, ApiSale, BookingPayload, CheckoutPayload, InventoryValuation } from './services/api';
-import { 
+import type { ApiJournal, ApiSale, BookingPayload, CheckoutPayload, InventoryValuation, ApiExpenseCategory, CashBalances } from './services/api';
+import {
   upsertParkedOrderToSupabase,
   deleteParkedOrderFromSupabase,
-  insertExpenseToSupabase,
-  updateExpenseStatusInSupabase,
   upsertProductToSupabase,
   deleteProductFromSupabase,
   insertStockMutationToSupabase,
@@ -257,14 +256,9 @@ function MainAppContent() {
     deleteParkedOrderFromSupabase(orderId);
   };
 
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_expenses');
-      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
-    } catch {
-      return INITIAL_EXPENSES;
-    }
-  });
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<ApiExpenseCategory[]>([]);
+  const [cashBalances, setCashBalances] = useState<CashBalances>({ '1-1000': 0, '1-1001': 0 });
   const [mutations, setMutations] = useState<StockMutation[]>([]);
   const [journals, setJournals] = useState<JournalEntry[]>(() => {
     try {
@@ -450,6 +444,11 @@ function MainAppContent() {
     if (allowed('accounting_hub', 'financial_reports', 'expenses')) {
       accountingApi.accounts().then((rows) => setAccounts(rows.map(mapAccount))).catch(() => {});
     }
+    if (allowed('expenses')) {
+      expenseApi.list().then((rows) => setExpenses(rows.map(mapExpense))).catch(() => {});
+      expenseApi.categories().then(setExpenseCategories).catch(() => {});
+    }
+    if (allowed('expenses', 'accounting_hub', 'financial_reports')) refreshCashBalances();
     if (apiProducts) setProducts(apiProducts);
     if (apiServices) setServices(apiServices);
     if (apiSales) {
@@ -479,6 +478,11 @@ function MainAppContent() {
     posApi.listReceivables('all').then((rows) => setReceivableInvoices(rows.map(mapReceivable))).catch(() => {});
   };
 
+  /** Saldo buku kas laci & bank hari ini (server). */
+  const refreshCashBalances = () => {
+    accountingApi.cashBalances().then(setCashBalances).catch(() => {});
+  };
+
   const sessionUserId = currentUser?.id;
   useEffect(() => {
     if (!currentUser) return;
@@ -496,9 +500,8 @@ function MainAppContent() {
 
       await loadPosData(currentUser, rolePermissions);
 
-      // Data beban & jurnal masih lokal sampai tahap berikutnya.
+      // Data jurnal masih lokal sampai tahap berikutnya.
       if (isMounted) {
-        setExpenses((prev) => (prev.length > 0 ? prev : INITIAL_EXPENSES));
         setJournals((prev) => (prev.length > 0 ? prev : INITIAL_JOURNALS));
         setAccountBalances((prev) => (Object.keys(prev).length > 0 ? prev : INITIAL_ACCOUNT_BALANCES));
       }
@@ -524,10 +527,6 @@ function MainAppContent() {
   }, [periodInfo]);
 
   useEffect(() => {
-    localStorage.setItem('ob3_expenses', JSON.stringify(expenses));
-  }, [expenses]);
-
-  useEffect(() => {
     localStorage.setItem('ob3_journals', JSON.stringify(journals));
   }, [journals]);
 
@@ -543,6 +542,7 @@ function MainAppContent() {
   const mergeServerJournals = (apiJournals: ApiJournal[]) => {
     if (apiJournals.length === 0) return;
     setLedgerVersion((v) => v + 1);
+    refreshCashBalances();
     const mapped = apiJournals.map(mapJournal);
     setJournals((prev) => [...mapped.filter((j) => !prev.some((p) => p.id === j.id)), ...prev]);
   };
@@ -569,93 +569,40 @@ function MainAppContent() {
     return tx;
   };
 
-  const handleAddExpense = (newExpense: ExpenseRecord) => {
-    // 1. Generate journal first
-    const newJournal = generateExpenseJournal(newExpense, journals.length + 1);
-    
-    // 2. Attach journal_id to expense record
-    const expenseWithJournal: ExpenseRecord = {
-      ...newExpense,
-      journal_id: newJournal.id,
-      status: 'ACTIVE',
-    };
-
-    setExpenses((prev) => [expenseWithJournal, ...prev]);
-    setJournals((prev) => [newJournal, ...prev]);
-
-    // 3. Deduct from Cash Drawer or Bank BCA
-    if (newExpense.cash_source.includes('Laci')) {
-      setCashInDrawer((prev) => Math.max(0, prev - newExpense.amount));
-    } else if (newExpense.cash_source.includes('BCA')) {
-      setAccountBalances((prev) => ({
-        ...prev,
-        '1-1001': Math.max(0, (prev['1-1001'] || 0) - newExpense.amount),
-      }));
+  // BKK dibukukan server (nomor, jurnal Dr beban / Cr kas atau bank, lampiran nota).
+  const handleAddExpense = async (record: ExpenseRecord): Promise<boolean> => {
+    const category = expenseCategories.find((c) => c.name === record.category);
+    if (!category) {
+      toast.error('Kategori Tidak Dikenal', `Kategori "${record.category}" belum tersedia di server.`);
+      return false;
     }
-
-    // 4. Sinkronisasi ke Supabase PostgreSQL Cloud
-    insertExpenseToSupabase(expenseWithJournal);
-    insertJournalToSupabase(newJournal);
-
-    toast.success(
-      'Beban Toko Disimpan',
-      `Pengeluaran ${newExpense.bkk_number || newExpense.expense_number} (${newExpense.category}) sebesar ${formatRupiah(newExpense.amount)} telah dibukukan.`
-    );
+    try {
+      const res = await expenseApi.create(expenseFormData(record, category.id));
+      setExpenses((prev) => [mapExpense(res.expense), ...prev]);
+      mergeServerJournals(res.journals);
+      if (record.cash_source.includes('Laci')) setCashInDrawer((prev) => Math.max(0, prev - record.amount));
+      toast.success('Beban Toko Dibukukan', `${res.expense.reference} (${record.category}) sebesar ${formatRupiah(record.amount)} tersimpan di server.`);
+      return true;
+    } catch (err) {
+      toast.error('Beban Ditolak Server', errorMessage(err));
+      return false;
+    }
   };
 
-  const handleVoidExpense = (targetExpense: ExpenseRecord, voidReason: string, voidedBy: string) => {
-    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-    // 1. Generate Reversal Journal (Jurnal Pembalik)
-    const reversalJournal = generateVoidExpenseJournal(
-      targetExpense,
-      voidReason,
-      voidedBy,
-      journals.length + 1
-    );
-
-    // 2. Update status of expense in state
-    setExpenses((prev) =>
-      prev.map((exp) =>
-        exp.id === targetExpense.id
-          ? {
-              ...exp,
-              status: 'VOID',
-              void_reason: voidReason,
-              voided_by: voidedBy,
-              voided_at: timestamp,
-              reversal_journal_id: reversalJournal.id,
-            }
-          : exp
-      )
-    );
-
-    // 3. Post reversal journal to journals ledger
-    setJournals((prev) => [reversalJournal, ...prev]);
-
-    // 4. Restore funds to drawer or Bank BCA
-    if (targetExpense.cash_source.includes('Laci')) {
-      setCashInDrawer((prev) => prev + targetExpense.amount);
-    } else if (targetExpense.cash_source.includes('BCA')) {
-      setAccountBalances((prev) => ({
-        ...prev,
-        '1-1001': (prev['1-1001'] || 0) + targetExpense.amount,
-      }));
+  // Pembatalan BKK: server membukukan jurnal pembalik yang tertaut ke jurnal asal.
+  const handleVoidExpense = async (target: ExpenseRecord, reason: string): Promise<boolean> => {
+    try {
+      const res = await expenseApi.void(target.id, reason);
+      const updated = mapExpense(res.expense);
+      setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+      mergeServerJournals(res.journals);
+      if (target.cash_source.includes('Laci')) setCashInDrawer((prev) => prev + target.amount);
+      toast.warning('Pengeluaran Dibatalkan (VOID)', `${updated.reference} dibatalkan; jurnal pembalik dibukukan.`);
+      return true;
+    } catch (err) {
+      toast.error('Pembatalan Ditolak', errorMessage(err));
+      return false;
     }
-
-    // 5. Sinkronisasi ke Supabase PostgreSQL Cloud
-    updateExpenseStatusInSupabase(targetExpense.id, 'VOID', {
-      void_reason: voidReason,
-      voided_by: voidedBy,
-      voided_at: timestamp,
-      reversal_journal_id: reversalJournal.id,
-    });
-    insertJournalToSupabase(reversalJournal);
-
-    toast.warning(
-      'Pengeluaran Dibatalkan (VOID)',
-      `Bukti ${targetExpense.bkk_number || targetExpense.expense_number} telah dibatalkan dan jurnal pembalik telah diterbitkan.`
-    );
   };
 
   // Void nota di server: jurnal pembalik + stok kembali ke batch FIFO asal
@@ -1245,7 +1192,7 @@ function MainAppContent() {
                 expenses={expenses}
                 onAddExpense={handleAddExpense}
                 cashInDrawer={cashInDrawer}
-                bankBalance={accountBalances['1-1001'] || 35000000}
+                bankBalance={cashBalances['1-1001']}
                 onVoidExpense={handleVoidExpense}
                 storeSettings={storeSettings}
               />

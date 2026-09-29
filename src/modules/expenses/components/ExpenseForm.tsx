@@ -16,13 +16,13 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { CashSource, ExpenseCategory, ExpenseRecord } from '../../../shared/types';
-import { formatRupiah, parseRupiahInput, terbilangRupiah } from '../../../shared/utils/formatters';
+import { EXPENSE_CATEGORY_CONFIG, formatRupiah, parseRupiahInput, terbilangRupiah } from '../../../shared/utils/formatters';
 import { MoneyInput } from '../../../shared/components/MoneyInput';
 import { compressImageFile, getBase64SizeKb } from '../../../shared/utils/imageCompressor';
-import { EXPENSE_CATEGORY_CONFIG, generateBkkNumber } from '../../../services/accountingService';
+import { localDate } from '../../../services/accountingPeriod';
 
 interface ExpenseFormProps {
-  onAddExpense: (expense: ExpenseRecord) => void;
+  onAddExpense: (expense: ExpenseRecord) => Promise<boolean>;
   cashInDrawer: number;
   bankBalance?: number;
   existingExpenses: ExpenseRecord[];
@@ -32,19 +32,19 @@ interface ExpenseFormProps {
 export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   onAddExpense,
   cashInDrawer,
-  bankBalance = 35000000,
+  bankBalance = 0,
   existingExpenses,
   onSuccessNavigate,
 }) => {
   const categories = Object.keys(EXPENSE_CATEGORY_CONFIG) as ExpenseCategory[];
 
   const [category, setCategory] = useState<ExpenseCategory>('ATK & Keperluan Bengkel');
-  const [date, setDate] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [date, setDate] = useState<string>(localDate());
   const [nominalInput, setNominalInput] = useState<number>(350000);
   const [cashSource, setCashSource] = useState<CashSource>('Kas Tunai Laci Kasir');
   const [paidTo, setPaidTo] = useState<string>('Toko Perkakas Teknik');
   const [description, setDescription] = useState<string>('Beli timah balancing tempel & pentil tubeless');
-  const [approvedBy, setApprovedBy] = useState<string>('Kasir - Fani A.');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [imageSizeKb, setImageSizeKb] = useState<number>(0);
   const [originalFileSizeKb, setOriginalFileSizeKb] = useState<number | null>(null);
@@ -53,9 +53,6 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
   const numericAmount = typeof nominalInput === 'number' ? nominalInput : parseRupiahInput(String(nominalInput));
-
-  // Auto-calculated next BKK number
-  const nextBkkNumber = generateBkkNumber(existingExpenses, date);
 
   // Accounting mapping based on category
   const activeMapping = EXPENSE_CATEGORY_CONFIG[category] || {
@@ -130,8 +127,9 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
     setFormError('');
   };
 
-  const handleSubmitExpense = (e: React.FormEvent) => {
+  const handleSubmitExpense = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setFormError('');
 
     if (numericAmount <= 0) {
@@ -154,7 +152,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       return;
     }
 
-    const bkkRef = generateBkkNumber(existingExpenses, date);
+    const bkkRef = ''; // nomor BKK final dibuat server
     const expenseRecord: ExpenseRecord = {
       id: `exp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       reference: bkkRef,
@@ -171,12 +169,15 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       description: description.trim() || activeMapping.description || category,
       receipt_image: receiptImage || undefined,
       attachment_path: receiptImage ? 'nota_terkompresi.jpg' : undefined,
-      approved_by: approvedBy.trim() || 'Supervisor - Wahyu',
+      approved_by: '',
       status: 'ACTIVE',
       created_at: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
 
-    onAddExpense(expenseRecord);
+    setIsSubmitting(true);
+    const saved = await onAddExpense(expenseRecord);
+    setIsSubmitting(false);
+    if (!saved) return;
     setIsSuccess(true);
     handleResetForm();
 
@@ -225,7 +226,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
               </h3>
             </div>
             <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-              No. Terbit: {nextBkkNumber}
+              No. BKK: dibuat otomatis oleh server
             </span>
           </div>
 
@@ -335,18 +336,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="text-slate-700 font-bold block mb-1.5 flex items-center gap-1.5">
+              <div className="flex items-end">
+                <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
                   <UserCheck className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Diotorisasi / Disetujui Oleh:</span>
-                </label>
-                <input
-                  type="text"
-                  value={approvedBy}
-                  onChange={(e) => setApprovedBy(e.target.value)}
-                  placeholder="Nama manajer atau supervisor yang mengesahkan..."
-                  className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
-                />
+                  <span>Penyetuju tercatat otomatis sebagai pengguna yang sedang login.</span>
+                </p>
               </div>
             </div>
 

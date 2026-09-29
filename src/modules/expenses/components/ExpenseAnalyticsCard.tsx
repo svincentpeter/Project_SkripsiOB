@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { ExpenseCategory, ExpenseRecord } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
-import { EXPENSE_CATEGORY_CONFIG } from '../../../services/accountingService';
+import { EXPENSE_CATEGORY_CONFIG } from '../../../shared/utils/formatters';
 
 interface ExpenseAnalyticsCardProps {
   expenses: ExpenseRecord[];

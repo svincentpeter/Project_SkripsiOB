@@ -23,7 +23,7 @@ interface ExpenseDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenPrintVoucher: (expense: ExpenseRecord) => void;
-  onVoidExpense: (expense: ExpenseRecord, reason: string, voidedBy: string) => void;
+  onVoidExpense: (expense: ExpenseRecord, reason: string) => Promise<boolean>;
 }
 
 export const ExpenseDetailModal: React.FC<ExpenseDetailModalProps> = ({
@@ -36,7 +36,6 @@ export const ExpenseDetailModal: React.FC<ExpenseDetailModalProps> = ({
   const [isZoomImageOpen, setIsZoomImageOpen] = useState(false);
   const [isVoidConfirmOpen, setIsVoidConfirmOpen] = useState(false);
   const [voidReason, setVoidReason] = useState('');
-  const [voidedBy, setVoidedBy] = useState('Supervisor - Wahyu');
   const [voidError, setVoidError] = useState('');
 
   React.useEffect(() => {
@@ -52,12 +51,13 @@ export const ExpenseDetailModal: React.FC<ExpenseDetailModalProps> = ({
 
   const isVoided = expense.status === 'VOID';
 
-  const handleConfirmVoid = () => {
+  const handleConfirmVoid = async () => {
     if (!voidReason.trim()) {
       setVoidError('Alasan pembatalan biaya wajib diisi untuk audit!');
       return;
     }
-    onVoidExpense(expense, voidReason.trim(), voidedBy.trim() || 'Supervisor');
+    const ok = await onVoidExpense(expense, voidReason.trim());
+    if (!ok) return;
     setIsVoidConfirmOpen(false);
     setVoidReason('');
     setVoidError('');
@@ -232,17 +232,6 @@ export const ExpenseDetailModal: React.FC<ExpenseDetailModalProps> = ({
                   value={voidReason}
                   onChange={(e) => setVoidReason(e.target.value)}
                   placeholder="Misal: Salah input nominal / barang retur / nota ganda..."
-                  className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-slate-900 text-xs focus-ring placeholder:text-slate-400 placeholder:font-light"
-                />
-              </div>
-
-              <div>
-                <label className="text-rose-900 font-bold block mb-1">Otorisasi Supervisor:</label>
-                <input
-                  type="text"
-                  value={voidedBy}
-                  onChange={(e) => setVoidedBy(e.target.value)}
-                  placeholder="Nama manajer atau supervisor pengesah pembatalan..."
                   className="w-full px-3 py-2 bg-white border border-rose-300 rounded-xl text-slate-900 text-xs focus-ring placeholder:text-slate-400 placeholder:font-light"
                 />
               </div>

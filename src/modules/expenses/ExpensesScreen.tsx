@@ -21,10 +21,10 @@ export type ExpenseSubTabKey = 'history' | 'create' | 'analytics';
 
 interface ExpensesScreenProps {
   expenses: ExpenseRecord[];
-  onAddExpense: (expense: ExpenseRecord) => void;
+  onAddExpense: (expense: ExpenseRecord) => Promise<boolean>;
   cashInDrawer: number;
   bankBalance?: number;
-  onVoidExpense?: (expense: ExpenseRecord, reason: string, voidedBy: string) => void;
+  onVoidExpense?: (expense: ExpenseRecord, reason: string) => Promise<boolean>;
   storeSettings?: StoreSettings;
 }
 
@@ -32,7 +32,7 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
   expenses,
   onAddExpense,
   cashInDrawer,
-  bankBalance = 35000000,
+  bankBalance = 0,
   onVoidExpense,
   storeSettings,
 }) => {
@@ -55,15 +55,13 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
     setIsPrintModalOpen(true);
   };
 
-  const handleVoidFromModal = (expense: ExpenseRecord, reason: string, voidedBy: string) => {
-    if (onVoidExpense) {
-      onVoidExpense(expense, reason, voidedBy);
+  const handleVoidFromModal = async (expense: ExpenseRecord, reason: string): Promise<boolean> => {
+    if (!onVoidExpense) return false;
+    const ok = await onVoidExpense(expense, reason);
+    if (ok) {
+      setSelectedExpenseForDetail((prev) => (prev && prev.id === expense.id ? { ...prev, status: 'VOID', void_reason: reason } : prev));
     }
-    setSelectedExpenseForDetail((prev) => 
-      prev && prev.id === expense.id 
-        ? { ...prev, status: 'VOID', void_reason: reason, voided_by: voidedBy, voided_at: new Date().toISOString() } 
-        : prev
-    );
+    return ok;
   };
 
   const activeCount = expenses.filter((e) => e.status !== 'VOID').length;

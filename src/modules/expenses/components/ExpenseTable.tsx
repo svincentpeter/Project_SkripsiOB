@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { ExpenseCategory, ExpenseRecord } from '../../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
-import { EXPENSE_CATEGORY_CONFIG } from '../../../services/accountingService';
+import { EXPENSE_CATEGORY_CONFIG } from '../../../shared/utils/formatters';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface ExpenseTableProps {
