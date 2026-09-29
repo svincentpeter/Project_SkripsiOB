@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expenseFormData, mapExpense, mapJournalPage, mapLedger, mapTrialBalance } from '../api/accountingMappers';
+import { expenseFormData, mapAccount, mapExpense, mapJournalPage, mapLedger, mapTrialBalance } from '../api/accountingMappers';
 import type { ApiExpense, ApiJournalPage, ApiLedger, ApiTrialBalance } from '../api/accountingMappers';
 
 const apiExpense: ApiExpense = {
@@ -11,6 +11,12 @@ const apiExpense: ApiExpense = {
 };
 
 describe('accountingMappers', () => {
+  it('mapAccount membawa status aktif akun', () => {
+    const base = { id: 1, account_code: '6-1099', account_name: 'Beban Lama', account_type: 'EXPENSE', normal_balance: 'DEBIT' } as const;
+    expect(mapAccount({ ...base, is_active: false }).is_active).toBe(false);
+    expect(mapAccount({ ...base, is_active: true }).is_active).toBe(true);
+  });
+
   it('mapExpense memetakan BKK server ke ExpenseRecord', () => {
     const e = mapExpense(apiExpense);
     expect(e.id).toBe('7');

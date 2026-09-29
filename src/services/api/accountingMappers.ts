@@ -88,6 +88,7 @@ export const mapAccount = (a: ApiAccount): ChartOfAccount => ({
   account_name: a.account_name,
   account_type: a.account_type,
   normal_balance: a.normal_balance,
+  is_active: a.is_active,
 });
 
 export const mapTrialBalance = (tb: ApiTrialBalance): TrialBalanceResult => ({

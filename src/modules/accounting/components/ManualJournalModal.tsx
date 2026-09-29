@@ -50,7 +50,8 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
-  const selectable = accounts.filter((a) => !CONTROL_ACCOUNTS.includes(a.account_code));
+  // Akun nonaktif ditolak server, jadi tidak ditawarkan.
+  const selectable = accounts.filter((a) => a.is_active !== false && !CONTROL_ACCOUNTS.includes(a.account_code));
   const totalDebit = lines.reduce((s, l) => s + l.debit, 0);
   const totalCredit = lines.reduce((s, l) => s + l.credit, 0);
   const isBalanced = totalDebit > 0 && Math.round(totalDebit * 100) === Math.round(totalCredit * 100);

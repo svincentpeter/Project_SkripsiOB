@@ -506,6 +506,8 @@ export interface ChartOfAccount {
   account_type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
   normal_balance: 'DEBIT' | 'CREDIT';
   category_name?: string;
+  /** Dari server; akun nonaktif ditolak saat pembukuan. */
+  is_active?: boolean;
 }
 
 export interface LedgerTransaction {
