@@ -488,10 +488,11 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2.5">
             <button
               type="submit"
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all active:scale-98 cursor-pointer"
+              disabled={isSubmitting}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all active:scale-98 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Receipt className="w-4 h-4" />
-              <span>Simpan & Posting Bukti Kas Keluar</span>
+              <span>{isSubmitting ? 'Menyimpan…' : 'Simpan & Posting Bukti Kas Keluar'}</span>
             </button>
 
             <button

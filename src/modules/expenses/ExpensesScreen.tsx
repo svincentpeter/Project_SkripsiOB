@@ -55,14 +55,12 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
     setIsPrintModalOpen(true);
   };
 
-  const handleVoidFromModal = async (expense: ExpenseRecord, reason: string): Promise<boolean> => {
-    if (!onVoidExpense) return false;
-    const ok = await onVoidExpense(expense, reason);
-    if (ok) {
-      setSelectedExpenseForDetail((prev) => (prev && prev.id === expense.id ? { ...prev, status: 'VOID', void_reason: reason } : prev));
-    }
-    return ok;
-  };
+  const handleVoidFromModal = (expense: ExpenseRecord, reason: string): Promise<boolean> =>
+    onVoidExpense ? onVoidExpense(expense, reason) : Promise.resolve(false);
+
+  const detailExpense = selectedExpenseForDetail
+    ? expenses.find((e) => e.id === selectedExpenseForDetail.id) ?? selectedExpenseForDetail
+    : null;
 
   const activeCount = expenses.filter((e) => e.status !== 'VOID').length;
 
@@ -177,7 +175,7 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
 
       {/* Detail & Zoom Modal */}
       <ExpenseDetailModal
-        expense={selectedExpenseForDetail}
+        expense={detailExpense}
         isOpen={isDetailModalOpen}
         onClose={() => {
           setIsDetailModalOpen(false);

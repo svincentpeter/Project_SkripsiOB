@@ -118,7 +118,6 @@ import {
   upsertProductToSupabase,
   deleteProductFromSupabase,
   insertStockMutationToSupabase,
-  insertJournalToSupabase,
   upsertPayableToSupabase,
   saveStoreSettingsToSupabase,
   isScreenPermittedForRole,

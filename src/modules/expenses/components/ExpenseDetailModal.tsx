@@ -117,7 +117,7 @@ export const ExpenseDetailModal: React.FC<ExpenseDetailModalProps> = ({
                 <strong>Alasan Pembatalan:</strong> {expense.void_reason || 'Koreksi transaksi kasir'}
               </p>
               <div className="flex items-center gap-4 text-[10px] text-rose-600 font-mono">
-                <span>Dibatalkan Oleh: {expense.voided_by || 'Supervisor'}</span>
+                <span>Dibatalkan Oleh: {expense.voided_by || '-'}</span>
                 <span>Waktu: {expense.voided_at || '-'}</span>
               </div>
             </div>
