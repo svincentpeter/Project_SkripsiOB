@@ -51,8 +51,8 @@ Follow the existing pattern when adding a feature:
   [../docs/ai/domain-accounting.md](../docs/ai/domain-accounting.md)). Never insert journal rows by hand.
 - **Stock-changing inventory operations** are wrapped in `InventoryValueJournal::record(...)`, so the change
   in FIFO value is journaled against 1-2000.
-- **New account codes** go in a migration (insert-if-missing) as well as `AccountCoaSeeder`. The frontend
-  `SAK_EMKM_COA` also needs updating.
+- **New account codes** go in a migration (insert-if-missing) as well as `AccountCoaSeeder`. No frontend
+  change is needed: the frontend loads the COA from `GET /accounts`.
 - **New permission keys** go in `Permissions::KEYS`, the frontend `PermissionKey` union, the settings UI
   (`src/modules/settings/components/RolePermissionsTab.tsx`), and the route middleware.
 - `branch_id` is hard-coded to 3 throughout. Single branch is intended.
