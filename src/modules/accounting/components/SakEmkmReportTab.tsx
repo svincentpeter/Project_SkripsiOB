@@ -50,6 +50,16 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
   const netRevenue = fs?.income_statement.net_revenue ?? 0;
   const margin = fs && netRevenue !== 0 ? (fs.income_statement.net_income / netRevenue) * 100 : 0;
 
+  const handleTablistKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const idx = TABS.findIndex((t) => t.id === tab);
+    const dir = e.key === 'ArrowRight' ? 1 : -1;
+    const next = TABS[(idx + dir + TABS.length) % TABS.length];
+    setTab(next.id);
+    document.getElementById(`laporan-tab-${next.id}`)?.focus();
+  };
+
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
       {fs && (
@@ -58,8 +68,12 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
             note={`Pendapatan kotor ${formatRupiah(fs.income_statement.revenue.total)} sebelum potongan`} />
           <Kpi label="Laba (Rugi) Bersih" value={formatRupiah(fs.income_statement.net_income)}
             note={`Margin bersih ${margin.toFixed(1)}% dari pendapatan bersih`} tone={fs.income_statement.net_income >= 0 ? 'good' : 'bad'} />
-          <Kpi label="Kas & Bank Akhir Periode" value={cf ? formatRupiah(cf.ending_cash) : '…'}
-            note={cf ? `Laci ${formatRupiah(cf.ending_cash_drawer)} • Bank ${formatRupiah(cf.ending_bank)}` : 'Memuat arus kas'} />
+          <Kpi label="Kas & Bank Akhir Periode"
+            value={cf ? formatRupiah(cf.ending_cash) : cashFlow.error ? 'Gagal dimuat' : '…'}
+            note={cf
+              ? `Laci ${formatRupiah(cf.ending_cash_drawer)} • Bank ${formatRupiah(cf.ending_bank)}`
+              : cashFlow.error ? 'Buka tab Arus Kas untuk mencoba lagi' : 'Memuat arus kas'}
+            tone={cashFlow.error && !cf ? 'bad' : 'neutral'} />
           <Kpi label="Posisi Keuangan" value={fs.balance_sheet.is_balanced ? 'Seimbang' : 'Tidak seimbang'}
             note={fs.balance_sheet.is_balanced ? `Per ${fs.balance_sheet.as_of}` : `Selisih ${formatRupiah(fs.balance_sheet.difference)}`}
             tone={fs.balance_sheet.is_balanced ? 'good' : 'bad'} />
@@ -67,9 +81,11 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-        <div role="tablist" aria-label="Jenis laporan" className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl overflow-x-auto text-xs font-bold">
+        <div role="tablist" aria-label="Jenis laporan" onKeyDown={handleTablistKeyDown}
+          className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl overflow-x-auto text-xs font-bold">
           {TABS.map((t) => (
-            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} id={`laporan-tab-${t.id}`} type="button" role="tab" aria-selected={tab === t.id}
+              aria-controls="laporan-panel" onClick={() => setTab(t.id)}
               className={`shrink-0 px-3.5 py-1.5 rounded-lg cursor-pointer ${tab === t.id ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
               {t.label}
             </button>
@@ -95,10 +111,12 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
       <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Standar SAK EMKM • {range.label}</p>
       <ServerStatus loading={active.loading && !active.data} error={active.error} onRetry={active.reload} />
 
-      {fs && tab === 'income' && <IncomeStatementTable statement={fs.income_statement} />}
-      {fs && tab === 'balance' && <BalanceSheetTables sheet={fs.balance_sheet} />}
-      {fs && tab === 'equity' && <EquityChangesTable changes={fs.equity_changes} />}
-      {cf && tab === 'cashflow' && <CashFlowStatementTab cashFlow={cf} periodLabel={range.label} />}
+      <div id="laporan-panel" role="tabpanel" aria-labelledby={`laporan-tab-${tab}`}>
+        {fs && tab === 'income' && <IncomeStatementTable statement={fs.income_statement} />}
+        {fs && tab === 'balance' && <BalanceSheetTables sheet={fs.balance_sheet} />}
+        {fs && tab === 'equity' && <EquityChangesTable changes={fs.equity_changes} />}
+        {cf && tab === 'cashflow' && <CashFlowStatementTab cashFlow={cf} periodLabel={range.label} />}
+      </div>
 
       {fs && (
         <FinancialStatementsPrintModal isOpen={isPrintOpen} onClose={() => setIsPrintOpen(false)}
