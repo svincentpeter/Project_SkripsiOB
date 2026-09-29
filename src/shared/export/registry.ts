@@ -1,10 +1,10 @@
 import type {
-  AccountingPeriodInfo,
   CashFlowReport,
   FinancialStatements,
   JournalEntry,
   LedgerAccountSummary,
   PayableInvoice,
+  PeriodClosingRecord,
   ReceivableInvoice,
   StatementSection,
   TrialBalanceResult,
@@ -499,19 +499,21 @@ const mapSakPackage = (d: SakEmkmPackageInput, ctx: ExportCtx): ExportDoc =>
     calkSection(d.financials),
   ]);
 
-const mapPeriodClosing = (p: AccountingPeriodInfo, ctx: ExportCtx): ExportDoc =>
+const mapPeriodClosing = (p: PeriodClosingRecord, ctx: ExportCtx): ExportDoc =>
   makeDoc('period_closing', 'Penutupan Periode Akuntansi', 'portrait', ctx, [{
     columns: [
       { key: 'label', label: 'Keterangan', type: 'text', width: 34 },
       { key: 'value', label: 'Nilai', type: 'text', width: 26 },
     ],
     rows: [
-      { label: 'Periode', value: p.period_name },
-      { label: 'Status', value: p.status },
+      { label: 'Periode', value: p.period },
+      { label: 'Tanggal Kunci (akhir periode)', value: p.end_date },
       { label: 'Ditutup Pada', value: p.closed_at ?? '-' },
       { label: 'Ditutup Oleh', value: p.closed_by ?? '-' },
-      { label: 'No Jurnal Penutup', value: p.closing_journal_id ?? '-' },
-      { label: 'Laba Dipindahkan ke Laba Ditahan', value: `Rp ${p.net_income_transferred ?? 0}` },
+      { label: 'No Jurnal Penutup', value: p.closing_entry_number ?? '-' },
+      { label: 'Laba Dipindahkan ke Laba Ditahan', value: formatRupiah(p.net_income) },
+      { label: 'Catatan', value: p.notes ?? '-' },
+      { label: 'Dibuka Kembali', value: p.reopened_at ? `${p.reopened_at} (${p.reopen_reason ?? '-'})` : '-' },
     ],
   }]);
 

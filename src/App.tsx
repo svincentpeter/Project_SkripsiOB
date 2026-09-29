@@ -10,6 +10,7 @@ import {
   GoodsReceiptInput,
   JournalEntry,
   ManualJournalPayload,
+  OpeningBalanceInput,
   PayableInvoice,
   PermissionKey,
   PosTransaction, 
@@ -46,8 +47,7 @@ import { setExportConfig } from './shared/export/exportConfig';
 import {
   generatePurchaseJournal,
   generateDebtPaymentJournal,
-  generateVoidExpenseJournal,
-  generateClosingJournal
+  generateVoidExpenseJournal
 } from './services/accountingService';
 import { 
   canSafelyDeleteProduct, 
@@ -847,31 +847,43 @@ function MainAppContent() {
     }
   };
 
-  // Handle Close Period (Jurnal Penutup Otomatis SAK EMKM)
-  const handleClosePeriod = (closedBy: string, notes: string) => {
-    const closingResult = generateClosingJournal(
-      journals,
-      accountBalances,
-      periodInfo.period_id,
-      closedBy,
-      journals.length + 1
-    );
+  // Tutup buku di server: jurnal penutup bertanggal akhir bulan + kunci periode.
+  const handleClosePeriod = async (period: string, notes: string): Promise<boolean> => {
+    try {
+      const closing = await accountingApi.closePeriod(period, notes);
+      setLedgerVersion((v) => v + 1);
+      toast.success('Tutup Buku Berhasil', `Periode ${closing.period} dikunci. Laba ${formatRupiah(closing.net_income)} dipindahkan ke Laba Ditahan.`);
+      return true;
+    } catch (err) {
+      toast.error('Tutup Buku Ditolak', errorMessage(err));
+      return false;
+    }
+  };
 
-    setJournals((prev) => [closingResult.journal, ...prev]);
-    insertJournalToSupabase(closingResult.journal);
-    setPeriodInfo((prev) => ({
-      ...prev,
-      status: 'CLOSED',
-      closed_at: new Date().toISOString(),
-      closed_by: closedBy,
-      closing_journal_id: closingResult.journal.id,
-      net_income_transferred: closingResult.netIncome,
-    }));
+  // Hanya pemilik; server menolak peran lain dan periode selain yang terakhir ditutup.
+  const handleReopenPeriod = async (period: string, reason: string): Promise<boolean> => {
+    try {
+      await accountingApi.reopenPeriod(period, reason);
+      setLedgerVersion((v) => v + 1);
+      toast.warning('Periode Dibuka Kembali', `Periode ${period} dapat menerima transaksi lagi.`);
+      return true;
+    } catch (err) {
+      toast.error('Gagal Membuka Periode', errorMessage(err));
+      return false;
+    }
+  };
 
-    toast.success(
-      'Tutup Buku Berhasil Diproses',
-      `Jurnal penutup ${closingResult.journal.journal_number} berhasil diposting. Laba bersih ${formatRupiah(closingResult.netIncome)} dialihkan ke Laba Ditahan.`
-    );
+  // Saldo awal kas, bank, aset tetap & laba ditahan (sekali); selisihnya menjadi modal disetor.
+  const handlePostAccountOpening = async (input: OpeningBalanceInput): Promise<boolean> => {
+    try {
+      const journal = await accountingApi.postOpeningBalance(input);
+      mergeServerJournals([journal]);
+      toast.success('Saldo Awal Dibukukan', `${journal.entry_number} mencatat saldo awal akun.`);
+      return true;
+    } catch (err) {
+      toast.error('Saldo Awal Ditolak', errorMessage(err));
+      return false;
+    }
   };
 
   // Storno hanya untuk jurnal penyesuaian manual; transaksi lain dibatalkan dari modul asalnya.
@@ -1241,22 +1253,20 @@ function MainAppContent() {
 
             {activeScreen === 'ledger' && (
               <GeneralLedgerScreen
-                journals={journals}
-                initialBalances={accountBalances}
+                ledgerVersion={ledgerVersion}
+                accounts={accounts}
                 payableInvoices={payableInvoices}
                 receivableInvoices={receivableInvoices}
-                periodInfo={periodInfo}
-                products={products}
                 cashInDrawer={cashInDrawer}
+                canReopenPeriod={currentUser?.role === 'OWNER'}
                 onAddManualJournal={handleAddManualJournal}
+                onReverseJournal={handleReverseJournal}
+                onClosePeriod={handleClosePeriod}
+                onReopenPeriod={handleReopenPeriod}
+                onPostOpeningBalance={handlePostAccountOpening}
                 onPayDebt={handlePayDebt}
                 onPayReceivable={handlePayReceivable}
-                onClosePeriod={handleClosePeriod}
-                onReverseJournal={handleReverseJournal}
                 onNavigateToFinancials={() => setActiveScreen('financials')}
-                isEmptyState={isEmptyState}
-                accounts={accounts}
-                ledgerVersion={ledgerVersion}
               />
             )}
 
