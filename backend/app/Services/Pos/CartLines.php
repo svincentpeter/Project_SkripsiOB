@@ -32,7 +32,12 @@ class CartLines
             $serviceId = null;
             $name = trim((string) $item['name']);
 
-            if ($type === 'PRODUCT' && ! $isManual) {
+            // Barang harus lewat katalog + penerimaan barang agar punya HPP FIFO; item manual hanya jasa (4-1001, tanpa HPP).
+            if ($type === 'PRODUCT' && $isManual) {
+                throw new PosRuleException("Barang \"{$name}\" belum terdaftar di katalog. Daftarkan produknya dan catat penerimaan barangnya dulu; item manual hanya untuk jasa.");
+            }
+
+            if ($type === 'PRODUCT') {
                 if (empty($item['product_id'])) {
                     throw new PosRuleException("Produk \"{$name}\" tidak terdaftar di katalog.");
                 }
@@ -75,7 +80,6 @@ class CartLines
                 'gross' => $gross,
                 'discount' => $discount,
                 'net' => round($gross - $discount, 2),
-                'manual_cost' => $isManual ? round((float) ($item['cost_price'] ?? 0), 2) : 0.0,
             ];
         }
 

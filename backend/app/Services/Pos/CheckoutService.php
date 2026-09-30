@@ -79,11 +79,11 @@ class CheckoutService
                 'branch_id' => 3,
             ]);
 
+            // HPP hanya dari FIFO: jasa (termasuk jasa manual) tidak punya harga pokok, jadi total_hpp = jurnal 5-1000.
             $fifoCogs = $this->storeLines($sale, $lines);
-            $manualCost = round(array_sum(array_map(fn ($l) => $l['manual_cost'] * $l['quantity'], $lines)), 2);
             $sale->update([
-                'total_hpp' => round($fifoCogs + $manualCost, 2),
-                'total_profit' => round($grandTotal - $fifoCogs - $manualCost, 2),
+                'total_hpp' => $fifoCogs,
+                'total_profit' => round($grandTotal - $fifoCogs, 2),
             ]);
 
             foreach ($payments as $payment) {
@@ -228,9 +228,9 @@ class CheckoutService
                 'unit_price' => $line['unit_price'],
                 'sub_total' => $line['net'],
                 'discount_amount' => $line['discount'],
-                'unit_cost_hpp' => $line['manual_cost'],
-                'total_cost_hpp' => round($line['manual_cost'] * $line['quantity'], 2),
-                'profit_amount' => round($line['net'] - $line['manual_cost'] * $line['quantity'], 2),
+                'unit_cost_hpp' => 0,
+                'total_cost_hpp' => 0,
+                'profit_amount' => $line['net'],
             ]);
 
             if ($line['product']) {

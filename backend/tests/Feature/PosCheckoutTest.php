@@ -286,7 +286,7 @@ class PosCheckoutTest extends TestCase
         $res = $this->checkout([
             'items' => [
                 ['type' => 'SERVICE', 'service_id' => $service->id, 'name' => 'x', 'quantity' => 1, 'unit_price' => 150000],
-                ['type' => 'PRODUCT', 'is_manual' => true, 'name' => 'Pentil Racing', 'quantity' => 4, 'unit_price' => 25000, 'cost_price' => 10000],
+                ['type' => 'SERVICE', 'is_manual' => true, 'name' => 'Tambal Tubeless', 'quantity' => 4, 'unit_price' => 25000, 'cost_price' => 10000],
             ],
             'payments' => [['method' => 'TUNAI', 'amount' => 250000]],
         ])->assertCreated();
@@ -294,13 +294,14 @@ class PosCheckoutTest extends TestCase
         // Jasa & item manual tidak menyentuh stok produk mana pun.
         $this->assertSame(10, $product->fresh()->product_quantity);
         $res->assertJsonPath('data.items.0.item_name', 'Spooring 3D')
-            ->assertJsonPath('data.items.1.total_cost_hpp', 40000)
-            ->assertJsonPath('data.total_hpp', 40000);
+            ->assertJsonPath('data.items.1.total_cost_hpp', 0)
+            ->assertJsonPath('data.total_hpp', 0)
+            ->assertJsonPath('data.total_profit', 250000);
 
         $j = $this->journalByAccount($res->json('data.reference'));
-        $this->assertEquals(150000, $j['4-1001']['credit']);
-        $this->assertEquals(100000, $j['4-1000']['credit']);
-        $this->assertArrayNotHasKey('5-1000', $j, 'HPP item manual tidak dijurnal ke persediaan');
+        $this->assertEquals(250000, $j['4-1001']['credit']);
+        $this->assertArrayNotHasKey('4-1000', $j);
+        $this->assertArrayNotHasKey('5-1000', $j, 'Jasa manual tidak punya HPP');
     }
 
     public function test_zero_value_nota_is_saved_without_journal_and_can_be_voided(): void
@@ -329,10 +330,25 @@ class PosCheckoutTest extends TestCase
     public function test_zero_value_manual_line_checkout_succeeds_without_journal(): void
     {
         $res = $this->checkout([
-            'items' => [['type' => 'PRODUCT', 'is_manual' => true, 'name' => 'Pentil Bonus', 'quantity' => 1, 'unit_price' => 0, 'cost_price' => 0]],
+            'items' => [['type' => 'SERVICE', 'is_manual' => true, 'name' => 'Cek Angin Gratis', 'quantity' => 1, 'unit_price' => 0]],
         ])->assertCreated()->assertJsonPath('data.journals', []);
 
         $this->assertFalse(JournalEntry::where('reference_id', $res->json('data.reference'))->exists());
+    }
+
+    public function test_manual_goods_line_is_rejected_without_side_effects(): void
+    {
+        $product = $this->makeProduct();
+
+        $this->checkout([
+            'items' => [
+                $this->productLine($product),
+                ['type' => 'PRODUCT', 'is_manual' => true, 'name' => 'Velg Non-Katalog', 'quantity' => 1, 'unit_price' => 500000, 'cost_price' => 300000],
+            ],
+            'payments' => [['method' => 'TRANSFER_BCA', 'amount' => 1500000]],
+        ])->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'belum terdaftar di katalog'));
+
+        $this->assertSame(10, $product->fresh()->product_quantity);
     }
 
     public function test_sale_never_carries_ppn(): void
