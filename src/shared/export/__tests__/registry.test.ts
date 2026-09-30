@@ -3,6 +3,7 @@ import type { ExpenseRecord, JournalEntry, PosTransaction, ProductItem } from '.
 import { setExportConfig } from '../exportConfig';
 import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
 import type { CashFlowReport, FinancialStatements, StatementLine } from '../../types';
+import type { BankReconciliationReport } from '../../types/sakEmkm';
 
 setExportConfig(null, null);
 const ctx = { periodLabel: '01 Sep 2026 - 08 Sep 2026', startDate: '2026-09-01', endDate: '2026-09-08' };
@@ -28,7 +29,10 @@ describe('registry journal', () => {
     expect(REPORT_FORMATS.journal).toEqual(['xlsx', 'pdf', 'csv']);
     expect(REPORT_FORMATS.trial_balance).toEqual(['xlsx', 'pdf', 'docx', 'csv']);
   });
-  it('semua 20 reportId terdaftar', () => expect(Object.keys(REPORT_MAPPERS).length).toBe(20));
+  it('semua reportId terdaftar (termasuk rekonsiliasi bank)', () => {
+    expect(Object.keys(REPORT_MAPPERS).length).toBe(21);
+    expect(Object.keys(REPORT_MAPPERS)).toContain('bank_reconciliation');
+  });
   it('ekspor accounts_receivable sudah dihapus', () => expect(Object.keys(REPORT_MAPPERS)).not.toContain('accounts_receivable'));
 });
 
@@ -156,4 +160,32 @@ describe('registry financial statements', () => {
     const doc = buildExportDoc('sak_emkm_package', { financials: statements, cashFlow }, ctx);
     expect(doc.sections.length).toBe(5);
   });
+});
+
+describe('registry bank_reconciliation', () => {
+  const report: BankReconciliationReport = {
+    period: '2026-09', start_date: '2026-09-01', end_date: '2026-09-30', cutover_date: '2026-09-01',
+    statement_ending_balance: 1193500, book_balance: 1500000,
+    lines: [],
+    outstanding_ledger: [{ journal_item_id: 9, entry_number: 'JRN-202609-0009', entry_date: '2026-09-30', reference_type: 'POS_SALE', description: 'Transfer pelanggan', debit: 300000, credit: 0 }],
+    unrecorded_bank: [{ id: 3, statement_date: '2026-09-30', description: 'BIAYA ADM', amount: -6500, source: 'CSV', journal_item_id: null, matched_entry_number: null, matched_reference_type: null, matched_entry_date: null }],
+    deposits_in_transit: 300000, outstanding_payments: 0, unrecorded_credits: 0, unrecorded_debits: 6500,
+    adjusted_bank_balance: 1493500, adjusted_book_balance: 1493500, difference: 0, is_reconciled: true,
+  };
+  const doc = buildExportDoc('bank_reconciliation', report, ctx);
+
+  it('ringkasan memuat kedua saldo disesuaikan dan selisih nol', () => {
+    const rows = doc.sections[0].rows;
+    expect(rows.find((r) => r.label === 'SALDO BANK DISESUAIKAN')?.value).toBe(1493500);
+    expect(rows.find((r) => r.label === 'SALDO BUKU DISESUAIKAN')?.value).toBe(1493500);
+    expect(rows.find((r) => r.label === 'SELISIH')?.value).toBe(0);
+  });
+
+  it('merinci jurnal yang belum muncul di rekening koran dan mutasi yang belum dicatat', () => {
+    expect(doc.sections).toHaveLength(3);
+    expect(doc.sections[1].rows[0].no_jurnal).toBe('JRN-202609-0009');
+    expect(doc.sections[2].rows[0].jumlah).toBe(-6500);
+  });
+
+  it('diekspor ke xlsx dan pdf', () => expect(REPORT_FORMATS.bank_reconciliation).toEqual(['xlsx', 'pdf']));
 });

@@ -1109,6 +1109,7 @@ function MainAppContent() {
                 canUseHub={can('accounting_hub')}
                 canUsePayables={can('accounts_payable')}
                 canManageFixedAssets={can('fixed_assets')}
+                canReconcileBank={can('bank_reconciliation')}
                 onAddManualJournal={handleAddManualJournal}
                 onReverseJournal={handleReverseJournal}
                 onClosePeriod={handleClosePeriod}

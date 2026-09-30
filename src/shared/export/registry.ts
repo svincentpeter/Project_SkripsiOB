@@ -9,6 +9,7 @@ import type {
   TrialBalanceResult,
 } from '../types';
 import type { ExpenseRecord, PosTransaction, ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
+import type { BankReconciliationReport } from '../types/sakEmkm';
 import { EXPENSE_CATEGORY_CONFIG, formatRupiah } from '../utils/formatters';
 import { buildKop } from './kop';
 import type { ExportCtx, ExportDoc, ExportFormat, ExportSection } from './types';
@@ -500,6 +501,42 @@ const mapPeriodClosing = (p: PeriodClosingRecord, ctx: ExportCtx): ExportDoc =>
     ],
   }]);
 
+const mapBankReconciliation = (r: BankReconciliationReport, ctx: ExportCtx): ExportDoc =>
+  makeDoc('bank_reconciliation', 'Rekonsiliasi Bank BCA (1-1001)', 'portrait', ctx, [
+    lvSection('Ringkasan Rekonsiliasi', [
+      { label: 'Saldo menurut rekening koran', value: r.statement_ending_balance ?? 0 },
+      { label: 'Ditambah: setoran dalam perjalanan', value: r.deposits_in_transit },
+      { label: 'Dikurangi: pembayaran belum dikliring bank', value: -r.outstanding_payments },
+      { label: 'SALDO BANK DISESUAIKAN', value: r.adjusted_bank_balance ?? 0 },
+      { label: 'Saldo menurut buku besar (1-1001)', value: r.book_balance },
+      { label: 'Ditambah: penerimaan bank belum dicatat (bunga, dll.)', value: r.unrecorded_credits },
+      { label: 'Dikurangi: pengeluaran bank belum dicatat (biaya admin, dll.)', value: -r.unrecorded_debits },
+      { label: 'SALDO BUKU DISESUAIKAN', value: r.adjusted_book_balance },
+      { label: 'SELISIH', value: r.difference ?? 0 },
+    ]),
+    {
+      title: 'Jurnal bank yang belum muncul di rekening koran',
+      columns: [
+        { key: 'tanggal', label: 'Tanggal', type: 'date', width: 12 },
+        { key: 'no_jurnal', label: 'No Jurnal', type: 'text', width: 16 },
+        { key: 'keterangan', label: 'Keterangan', type: 'text', width: 40 },
+        { key: 'masuk', label: 'Masuk (Dr)', type: 'currency' },
+        { key: 'keluar', label: 'Keluar (Cr)', type: 'currency' },
+      ],
+      rows: r.outstanding_ledger.map((i) => ({ tanggal: i.entry_date, no_jurnal: i.entry_number, keterangan: i.description, masuk: i.debit, keluar: i.credit })),
+      totals: { masuk: r.deposits_in_transit, keluar: r.outstanding_payments },
+    },
+    {
+      title: 'Mutasi rekening koran yang belum dicatat di buku',
+      columns: [
+        { key: 'tanggal', label: 'Tanggal', type: 'date', width: 12 },
+        { key: 'keterangan', label: 'Keterangan', type: 'text', width: 48 },
+        { key: 'jumlah', label: 'Jumlah', type: 'currency' },
+      ],
+      rows: r.unrecorded_bank.map((l) => ({ tanggal: l.statement_date, keterangan: l.description, jumlah: l.amount })),
+    },
+  ]);
+
 export const REPORT_MAPPERS = {
   journal: mapJournal,
   general_ledger: mapGeneralLedger,
@@ -521,6 +558,7 @@ export const REPORT_MAPPERS = {
   fin_calk: mapCalk,
   sak_emkm_package: mapSakPackage,
   period_closing: mapPeriodClosing,
+  bank_reconciliation: mapBankReconciliation,
 } as const;
 
 export type ReportId = keyof typeof REPORT_MAPPERS;
@@ -547,6 +585,7 @@ export const REPORT_FORMATS: Record<ReportId, ExportFormat[]> = {
   fin_calk: ['pdf', 'docx'],
   sak_emkm_package: ['xlsx', 'pdf', 'docx', 'csv'],
   period_closing: ['xlsx', 'pdf'],
+  bank_reconciliation: ['xlsx', 'pdf'],
 };
 
 export const buildExportDoc = <K extends ReportId>(id: K, data: ReportData<K>, ctx: ExportCtx): ExportDoc =>

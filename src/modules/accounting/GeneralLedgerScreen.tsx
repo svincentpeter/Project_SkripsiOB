@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  BookMarked, BookOpen, CalendarClock, CreditCard, ExternalLink, Factory, FileText, Landmark, Lock, LockOpen, Plus, Scale, ShieldCheck, Users, Wallet,
+  Banknote, BookMarked, BookOpen, CalendarClock, CreditCard, ExternalLink, Factory, FileText, Landmark, Lock, LockOpen, Plus, Scale, ShieldCheck, Users, Wallet,
 } from 'lucide-react';
 import {
   ChartOfAccount,
@@ -22,6 +22,7 @@ import { useServerData } from './hooks/useServerData';
 import {
   AccountsPayableTab,
   AdjustingEntryModal,
+  BankReconciliationTab,
   CashBankTab,
   FixedAssetsTab,
   GeneralLedgerTab,
@@ -33,7 +34,7 @@ import {
   TrialBalanceTab,
 } from './components';
 
-export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'payables' | 'reports' | 'cash' | 'fixed-assets';
+export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'payables' | 'reports' | 'cash' | 'fixed-assets' | 'bank-recon';
 
 interface GeneralLedgerScreenProps {
   ledgerVersion: number;
@@ -47,6 +48,8 @@ interface GeneralLedgerScreenProps {
   canUsePayables?: boolean;
   /** Izin `fixed_assets`: register aset tetap & penyusutan. */
   canManageFixedAssets?: boolean;
+  /** Izin `bank_reconciliation`: rekonsiliasi Bank BCA (1-1001). */
+  canReconcileBank?: boolean;
   onAddManualJournal: (payload: ManualJournalPayload) => Promise<boolean>;
   onReverseJournal: (journal: JournalEntry, reason: string) => Promise<boolean>;
   onClosePeriod: (period: string, notes: string) => Promise<boolean>;
@@ -59,7 +62,7 @@ interface GeneralLedgerScreenProps {
   canApproveCash?: boolean;
   /** Izin `cash_movement`: setor bank, prive, setoran modal. */
   canMoveCash?: boolean;
-  /** Dipanggil saat tab di layar ini (Kas & Bank, Aset Tetap) membukukan jurnal: App memuat ulang laporan dan saldo kas. */
+  /** Dipanggil saat tab di layar ini (Kas & Bank, Aset Tetap, Rekonsiliasi Bank) membukukan jurnal: App memuat ulang laporan dan saldo kas. */
   onLedgerChanged?: (journals: ApiJournal[]) => void;
 }
 
@@ -71,6 +74,7 @@ const TABS: { id: AccountingTabKey; label: string; icon: React.ComponentType<{ c
   { id: 'reports', label: '5. Laporan Keuangan', icon: FileText },
   { id: 'cash', label: '6. Kas & Bank', icon: Wallet },
   { id: 'fixed-assets', label: '7. Aset Tetap', icon: Factory },
+  { id: 'bank-recon', label: '8. Rekonsiliasi Bank', icon: Banknote },
 ];
 
 interface TabAccess {
@@ -78,12 +82,14 @@ interface TabAccess {
   payables: boolean;
   cash: boolean;
   fixedAssets: boolean;
+  bankRecon: boolean;
 }
 
 /** Laporan hub butuh accounting_hub; buku pembantu, kas dan modul SAK EMKM punya kunci izin sendiri (tanpa 403). */
 const isTabAllowed = (id: AccountingTabKey, access: TabAccess): boolean => {
   if (id === 'cash') return access.cash;
   if (id === 'fixed-assets') return access.fixedAssets;
+  if (id === 'bank-recon') return access.bankRecon;
   if (id === 'payables') return access.hub || access.payables;
   return access.hub;
 };
@@ -97,6 +103,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   canUseHub,
   canUsePayables = false,
   canManageFixedAssets = false,
+  canReconcileBank = false,
   onAddManualJournal,
   onReverseJournal,
   onClosePeriod,
@@ -114,6 +121,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
     payables: canUsePayables,
     cash: canApproveCash || canMoveCash,
     fixedAssets: canManageFixedAssets,
+    bankRecon: canReconcileBank,
   };
   const visibleTabs = TABS.filter((t) => isTabAllowed(t.id, access));
   const [selectedTab, setSelectedTab] = useState<AccountingTabKey>(initialTab);
@@ -247,6 +255,12 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
           <CashBankTab refreshKey={ledgerVersion} canApprove={canApproveCash} canMove={canMoveCash} onLedgerChanged={onLedgerChanged} />
         )}
         {activeTab === 'fixed-assets' && <FixedAssetsTab refreshKey={ledgerVersion} onJournalsPosted={onLedgerChanged} />}
+        {activeTab === 'bank-recon' && <BankReconciliationTab refreshKey={ledgerVersion} onJournalsPosted={onLedgerChanged} lockDate={lockDate} />}
+        {visibleTabs.length === 0 && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500">
+            Peran Anda belum memiliki akses ke menu akuntansi mana pun. Hubungi pemilik untuk mengatur hak akses.
+          </div>
+        )}
       </div>
 
       {canUseHub && (
