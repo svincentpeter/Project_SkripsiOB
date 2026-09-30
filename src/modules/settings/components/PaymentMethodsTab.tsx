@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   CreditCard, 
   Plus, 
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { PaymentProviderSetting, StoreSettings } from '../../../shared/types';
 import { useToast } from '../../../shared/components';
+import { paymentApi } from '../../../services/api/paymentApi';
 
 interface PaymentMethodsTabProps {
   settings: StoreSettings;
@@ -36,11 +37,58 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
   const [newQrisThreshold, setNewQrisThreshold] = useState<number>(500000);
   const [newQrisActive, setNewQrisActive] = useState(true);
 
-  const bankProviders = settings.bank_providers || [];
-  const qrisProviders = settings.qris_providers || [];
+  // Bank transfer & provider QRIS disimpan di server (payment_provider_settings): checkout menghitung MDR dari sini.
+  const [providers, setProviders] = useState<PaymentProviderSetting[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const reloadProviders = async () => {
+    try {
+      setProviders(await paymentApi.listProviders());
+      setLoadError(null);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Gagal memuat provider pembayaran dari server.');
+    }
+  };
+
+  useEffect(() => {
+    reloadProviders();
+  }, []);
+
+  const bankProviders = providers.filter((p) => p.method_type === 'bank');
+  const qrisProviders = providers.filter((p) => p.method_type === 'qris');
+
+  /** Jalankan perubahan di server lalu muat ulang, agar tabel selalu sama dengan data server. */
+  const saveToServer = async (action: () => Promise<unknown>, successTitle?: string, successMessage?: string) => {
+    try {
+      await action();
+      if (successTitle) toast.success(successTitle, successMessage);
+    } catch (err) {
+      toast.error('Gagal Menyimpan Provider', err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
+    }
+    await reloadProviders();
+  };
+
+  /** Ketikan di tabel hanya mengubah tampilan; baris disimpan ke server saat input kehilangan fokus. */
+  const editLocal = (id: string | number, patch: Partial<PaymentProviderSetting>) =>
+    setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+
+  const handleSaveRow = (row: PaymentProviderSetting) =>
+    saveToServer(() =>
+      paymentApi.updateProvider(row.id, {
+        provider_name: row.provider_name.trim(),
+        provider_code: row.provider_code?.trim() || null,
+        fee_percentage: row.fee_percentage ?? 0,
+        fee_threshold_amount: row.fee_threshold_amount ?? 0,
+      })
+    );
+
+  const handleToggleActive = (id: string | number) => {
+    const row = providers.find((p) => p.id === id);
+    if (row) saveToServer(() => paymentApi.updateProvider(id, { is_active: !row.is_active }));
+  };
 
   // ==================== BANK HANDLERS ====================
-  const handleAddBank = (e: React.FormEvent) => {
+  const handleAddBank = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBankName.trim()) {
       toast.warning('Nama Bank Wajib', 'Masukkan nama bank transfer yang valid.');
@@ -55,54 +103,39 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
       return;
     }
 
-    const newBank: PaymentProviderSetting = {
-      id: `bank-${Date.now()}`,
-      method_type: 'bank',
-      provider_name: newBankName.trim(),
-      provider_code: newBankCode.trim().toUpperCase() || newBankName.trim().toUpperCase(),
-      is_active: newBankActive,
-    };
-
-    onUpdateSettings((prev) => ({
-      ...prev,
-      bank_providers: [...(prev.bank_providers || []), newBank],
-    }));
+    const name = newBankName.trim();
+    await saveToServer(
+      () =>
+        paymentApi.createProvider({
+          method_type: 'bank',
+          provider_name: name,
+          provider_code: newBankCode.trim().toUpperCase() || name.toUpperCase(),
+          fee_percentage: 0,
+          fee_threshold_amount: 0,
+          is_active: newBankActive,
+        }),
+      'Bank Ditambahkan',
+      `Bank transfer ${name} berhasil ditambahkan.`
+    );
 
     setNewBankName('');
     setNewBankCode('');
     setNewBankActive(true);
-    toast.success('Bank Ditambahkan', `Bank transfer ${newBank.provider_name} berhasil ditambahkan.`);
   };
 
-  const handleToggleBankActive = (id: string | number) => {
-    onUpdateSettings((prev) => ({
-      ...prev,
-      bank_providers: (prev.bank_providers || []).map((b) =>
-        b.id === id ? { ...b, is_active: !b.is_active } : b
-      ),
-    }));
-  };
+  const handleToggleBankActive = handleToggleActive;
 
   const handleUpdateBankField = (id: string | number, field: 'provider_name' | 'provider_code', val: string) => {
-    onUpdateSettings((prev) => ({
-      ...prev,
-      bank_providers: (prev.bank_providers || []).map((b) =>
-        b.id === id ? { ...b, [field]: val } : b
-      ),
-    }));
+    editLocal(id, { [field]: val } as Partial<PaymentProviderSetting>);
   };
 
   const handleDeleteBank = (id: string | number, name: string) => {
     if (!window.confirm(`Hapus bank "${name}" dari master transfer bank?`)) return;
-    onUpdateSettings((prev) => ({
-      ...prev,
-      bank_providers: (prev.bank_providers || []).filter((b) => b.id !== id),
-    }));
-    toast.info('Bank Dihapus', `Bank ${name} telah dihapus dari sistem.`);
+    saveToServer(() => paymentApi.deleteProvider(id), 'Bank Dihapus', `Bank ${name} telah dihapus dari sistem.`);
   };
 
   // ==================== QRIS HANDLERS ====================
-  const handleAddQris = (e: React.FormEvent) => {
+  const handleAddQris = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newQrisName.trim()) {
       toast.warning('Nama Provider Wajib', 'Masukkan nama provider QRIS yang valid.');
@@ -117,58 +150,41 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
       return;
     }
 
-    const newQris: PaymentProviderSetting = {
-      id: `qris-${Date.now()}`,
-      method_type: 'qris',
-      provider_name: newQrisName.trim(),
-      provider_code: newQrisCode.trim().toUpperCase() || newQrisName.trim().toUpperCase(),
-      fee_percentage: Number(newQrisFee) || 0,
-      fee_threshold_amount: Number(newQrisThreshold) || 0,
-      is_active: newQrisActive,
-    };
-
-    onUpdateSettings((prev) => ({
-      ...prev,
-      qris_providers: [...(prev.qris_providers || []), newQris],
-    }));
+    const name = newQrisName.trim();
+    await saveToServer(
+      () =>
+        paymentApi.createProvider({
+          method_type: 'qris',
+          provider_name: name,
+          provider_code: newQrisCode.trim().toUpperCase() || name.toUpperCase(),
+          fee_percentage: Number(newQrisFee) || 0,
+          fee_threshold_amount: Number(newQrisThreshold) || 0,
+          is_active: newQrisActive,
+        }),
+      'Provider QRIS Ditambahkan',
+      `Provider ${name} berhasil ditambahkan.`
+    );
 
     setNewQrisName('');
     setNewQrisCode('');
     setNewQrisFee(0.30);
     setNewQrisThreshold(500000);
     setNewQrisActive(true);
-    toast.success('Provider QRIS Ditambahkan', `Provider ${newQris.provider_name} berhasil ditambahkan.`);
   };
 
-  const handleToggleQrisActive = (id: string | number) => {
-    onUpdateSettings((prev) => ({
-      ...prev,
-      qris_providers: (prev.qris_providers || []).map((q) =>
-        q.id === id ? { ...q, is_active: !q.is_active } : q
-      ),
-    }));
-  };
+  const handleToggleQrisActive = handleToggleActive;
 
   const handleUpdateQrisField = (
     id: string | number,
     field: 'provider_name' | 'provider_code' | 'fee_percentage' | 'fee_threshold_amount',
     val: any
   ) => {
-    onUpdateSettings((prev) => ({
-      ...prev,
-      qris_providers: (prev.qris_providers || []).map((q) =>
-        q.id === id ? { ...q, [field]: val } : q
-      ),
-    }));
+    editLocal(id, { [field]: val } as Partial<PaymentProviderSetting>);
   };
 
   const handleDeleteQris = (id: string | number, name: string) => {
     if (!window.confirm(`Hapus provider QRIS "${name}"?`)) return;
-    onUpdateSettings((prev) => ({
-      ...prev,
-      qris_providers: (prev.qris_providers || []).filter((q) => q.id !== id),
-    }));
-    toast.info('Provider QRIS Dihapus', `Provider ${name} telah dihapus.`);
+    saveToServer(() => paymentApi.deleteProvider(id), 'Provider QRIS Dihapus', `Provider ${name} telah dihapus.`);
   };
 
   return (
@@ -232,6 +248,17 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
       {/* ========================================================================= */}
       {/* SUBTAB 1: TRANSFER BANK                                                   */}
       {/* ========================================================================= */}
+      <p className="text-[11px] text-slate-500">
+        Bank transfer dan provider QRIS langsung tersimpan di server dan dipakai checkout untuk menghitung potongan MDR.
+        Rekening Utama Nota tetap disimpan lewat tombol Simpan pengaturan.
+      </p>
+      {loadError && (
+        <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{loadError}</span>
+        </div>
+      )}
+
       {activeSubTab === 'bank' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Form Tambah Bank */}
@@ -329,6 +356,7 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
                             type="text"
                             value={b.provider_name}
                             onChange={(e) => handleUpdateBankField(b.id, 'provider_name', e.target.value)}
+                            onBlur={() => handleSaveRow(b)}
                             className="bg-transparent border border-transparent hover:border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg px-2 py-1 font-bold text-slate-900 text-xs w-full max-w-[200px]"
                           />
                         </td>
@@ -337,6 +365,7 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
                             type="text"
                             value={b.provider_code || ''}
                             onChange={(e) => handleUpdateBankField(b.id, 'provider_code', e.target.value)}
+                            onBlur={() => handleSaveRow(b)}
                             placeholder="-"
                             className="bg-transparent border border-transparent hover:border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg px-2 py-1 font-mono font-semibold text-slate-700 text-xs w-24"
                           />
@@ -522,6 +551,7 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
                             type="text"
                             value={q.provider_name}
                             onChange={(e) => handleUpdateQrisField(q.id, 'provider_name', e.target.value)}
+                            onBlur={() => handleSaveRow(q)}
                             className="bg-transparent border border-transparent hover:border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg px-2 py-1 font-bold text-slate-900 text-xs w-full max-w-[140px]"
                           />
                         </td>
@@ -530,6 +560,7 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
                             type="text"
                             value={q.provider_code || ''}
                             onChange={(e) => handleUpdateQrisField(q.id, 'provider_code', e.target.value)}
+                            onBlur={() => handleSaveRow(q)}
                             className="bg-transparent border border-transparent hover:border-slate-200 focus:border-blue-500 focus:bg-white rounded-lg px-2 py-1 font-mono font-semibold text-slate-700 text-xs w-20"
                           />
                         </td>
@@ -542,6 +573,7 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
                               max="100"
                               value={q.fee_percentage ?? 0}
                               onChange={(e) => handleUpdateQrisField(q.id, 'fee_percentage', parseFloat(e.target.value) || 0)}
+                              onBlur={() => handleSaveRow(q)}
                               className="bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-lg pl-2 pr-6 py-1 font-mono font-bold text-emerald-700 text-xs w-full"
                             />
                             <span className="absolute right-2 top-1 text-[11px] text-slate-400">%</span>
@@ -554,6 +586,7 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
                             min="0"
                             value={q.fee_threshold_amount ?? 0}
                             onChange={(e) => handleUpdateQrisField(q.id, 'fee_threshold_amount', parseInt(e.target.value, 10) || 0)}
+                            onBlur={() => handleSaveRow(q)}
                             className="bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-lg px-2 py-1 font-mono font-semibold text-slate-800 text-xs w-28"
                           />
                         </td>

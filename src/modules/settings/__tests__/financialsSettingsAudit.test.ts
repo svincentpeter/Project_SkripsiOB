@@ -21,6 +21,11 @@ describe('Financials, Receipt & Settings SAK EMKM Audit', () => {
     expect(Object.keys(INITIAL_STORE_SETTINGS)).not.toContain('coa_receivable_account');
   });
 
+  it('keeps payment providers on the server, not in the store settings', () => {
+    expect(Object.keys(INITIAL_STORE_SETTINGS)).not.toContain('bank_providers');
+    expect(Object.keys(INITIAL_STORE_SETTINGS)).not.toContain('qris_providers');
+  });
+
   it('should have non-empty INITIAL_TRANSACTIONS with valid invoice structure and zero banned terms', () => {
     expect(INITIAL_TRANSACTIONS.length).toBeGreaterThan(0);
     INITIAL_TRANSACTIONS.forEach((tx) => {

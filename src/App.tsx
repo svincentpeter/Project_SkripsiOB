@@ -204,8 +204,15 @@ function MainAppContent() {
     try {
       const saved = localStorage.getItem('ob3_store_settings');
       if (!saved) return INITIAL_STORE_SETTINGS;
-      // Properti lama dari fitur yang sudah dihapus (spec 2026-09-30) dibuang dari pengaturan tersimpan.
-      const { edc_settings: _edc, coa_receivable_account: _receivable, ...settings } = JSON.parse(saved);
+      // Properti lama dibuang dari pengaturan tersimpan: fitur yang dihapus (spec 2026-09-30) dan provider
+      // bank/QRIS yang kini hanya ada di server (spec payment hardening).
+      const {
+        edc_settings: _edc,
+        coa_receivable_account: _receivable,
+        bank_providers: _banks,
+        qris_providers: _qris,
+        ...settings
+      } = JSON.parse(saved);
       return settings;
     } catch {
       return INITIAL_STORE_SETTINGS;

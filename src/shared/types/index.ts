@@ -343,9 +343,6 @@ export interface StoreSettings {
   
   default_payment_terms_days: number;
 
-  bank_providers?: PaymentProviderSetting[];
-  qris_providers?: PaymentProviderSetting[];
-
   // SAK EMKM Accounting Preferences
   coa_cash_account?: string;
   coa_bank_account?: string;

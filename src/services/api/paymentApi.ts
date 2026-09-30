@@ -35,6 +35,16 @@ export interface PaymentOptions {
   qris_providers: PaymentProviderSetting[];
 }
 
+/** Kolom yang boleh dikirim ke /settings/payment-providers (method_type hanya saat membuat). */
+export interface PaymentProviderInput {
+  method_type?: 'bank' | 'qris';
+  provider_name?: string;
+  provider_code?: string | null;
+  fee_percentage?: number;
+  fee_threshold_amount?: number;
+  is_active?: boolean;
+}
+
 // Status pembayaran QRIS hanya berasal dari server; tidak ada fallback lokal,
 // karena checkout server memverifikasi ulang order (lunas, nominal, sekali pakai) sebelum membukukan nota.
 export const paymentApi = {
@@ -61,4 +71,17 @@ export const paymentApi = {
       qris_providers: data.qris_providers.map(mapPaymentProvider),
     };
   },
+
+  // Master provider untuk layar Pengaturan (tulis butuh izin role_settings).
+  listProviders: async (): Promise<PaymentProviderSetting[]> =>
+    (await apiClient.get<Envelope<ApiPaymentProvider[]>>('/settings/payment-providers')).data.map(mapPaymentProvider),
+
+  createProvider: async (input: PaymentProviderInput): Promise<PaymentProviderSetting> =>
+    mapPaymentProvider((await apiClient.post<Envelope<ApiPaymentProvider>>('/settings/payment-providers', input)).data),
+
+  updateProvider: async (id: string | number, input: PaymentProviderInput): Promise<PaymentProviderSetting> =>
+    mapPaymentProvider((await apiClient.put<Envelope<ApiPaymentProvider>>(`/settings/payment-providers/${id}`, input)).data),
+
+  deleteProvider: (id: string | number) =>
+    apiClient.delete<{ success: boolean; message: string }>(`/settings/payment-providers/${id}`),
 };

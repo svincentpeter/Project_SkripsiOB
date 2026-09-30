@@ -1,6 +1,5 @@
 import {
   ItemCategory,
-  PaymentProviderSetting,
   PermissionKey,
   PosTransaction,
   ProductCategory,
@@ -980,21 +979,6 @@ export const INITIAL_SUPPLIERS: SupplierItem[] = [
   },
 ];
 
-export const INITIAL_BANK_PROVIDERS: PaymentProviderSetting[] = [
-  { id: 'bank-1', method_type: 'bank', provider_name: 'BCA', provider_code: 'BCA', is_active: true },
-  { id: 'bank-2', method_type: 'bank', provider_name: 'Mandiri', provider_code: 'MDR', is_active: true },
-  { id: 'bank-3', method_type: 'bank', provider_name: 'BNI', provider_code: 'BNI', is_active: true },
-  { id: 'bank-4', method_type: 'bank', provider_name: 'BRI', provider_code: 'BRI', is_active: true },
-];
-
-export const INITIAL_QRIS_PROVIDERS: PaymentProviderSetting[] = [
-  { id: 'qris-1', method_type: 'qris', provider_name: 'BCA', provider_code: 'BCA', fee_percentage: 0.30, fee_threshold_amount: 500000, is_active: true },
-  { id: 'qris-2', method_type: 'qris', provider_name: 'Mandiri', provider_code: 'MDR', fee_percentage: 0.30, fee_threshold_amount: 500000, is_active: true },
-  { id: 'qris-3', method_type: 'qris', provider_name: 'GoPay', provider_code: 'GOPAY', fee_percentage: 0.30, fee_threshold_amount: 500000, is_active: true },
-  { id: 'qris-4', method_type: 'qris', provider_name: 'OVO', provider_code: 'OVO', fee_percentage: 0.30, fee_threshold_amount: 500000, is_active: true },
-  { id: 'qris-5', method_type: 'qris', provider_name: 'DANA', provider_code: 'DANA', fee_percentage: 0.30, fee_threshold_amount: 500000, is_active: true },
-];
-
 export const INITIAL_STORE_SETTINGS: StoreSettings = {
   store_name: 'Toko Ban dan Velg Omah Ban',
   branch_name: 'Cabang 3 Magelang',
@@ -1021,9 +1005,6 @@ export const INITIAL_STORE_SETTINGS: StoreSettings = {
   qris_nmid: 'ID1020039918231',
   
   default_payment_terms_days: 30,
-
-  bank_providers: INITIAL_BANK_PROVIDERS,
-  qris_providers: INITIAL_QRIS_PROVIDERS,
 
   // SAK EMKM Defaults
   coa_cash_account: '1-1000',
