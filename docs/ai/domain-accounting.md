@@ -104,10 +104,22 @@ the window, excluding `CASH_SESSION_VARIANCE`, grouped per `reference_type` (`Ca
 `PENDING_APPROVAL`) or carry an `opening_note`; closing requires `variance_reason` when counted ≠ expected. Approval
 (`cash_session_approve`, a non-OWNER cannot approve their own shift) posts `adjustment = variance + opening
 difference`, so afterwards 1-1000 equals the counted cash as of the close. `CashSessionService::requireOpen()` guards
-cash checkout (SP3 cash refunds will use it too). It finds the OPEN shift without a lock, then takes a shared lock
-**by primary key** and re-checks the status, so `close()` (X lock on the same row) waits for an in-flight cash sale.
-Never lock by the `status` predicate: its next-key lock collides with `approve()`, which holds the JRN number lock
-(deadlock). Deposits, Prive and capital are single journals from `CashMovementService` (`cash_movement`).
+cash checkout (SP3 cash refunds will use it too). Lock order:
+- `requireOpen()`: S on the 1-1000 `accounts` row → plain read of the OPEN shift → S on that shift **by primary key**,
+  re-checking `status = OPEN` (422 otherwise). The caller then takes the `DocumentNumber` locks (OB3-INV, JRN) and
+  inserts `journal_items`; the FK `journal_items.account_id → accounts` takes S on the 1-1000 row, already held.
+- `open()`/`close()`/`approve()`: X on the 1-1000 `accounts` row first (`serialize()`), then X on the shift PK; only
+  `approve()` then takes the JRN number lock. `close()` reads `max(journal_entries.id)` after both locks, so a cash
+  sale in flight is inside the window.
+
+Because every shift operation contends on the 1-1000 row at its first step, `close()` never holds X(1-1000) while
+waiting for a shift row that a sale holds (the FK S-lock cycle). Never lock shifts by the `status` predicate: its
+next-key lock collides with `approve()`'s status update. `open()`, `close()` and `approve()` retry a deadlock up to three
+times (`DB::transaction(..., 3)`): a cycle can still form through InnoDB's queue on the 1-1000 row (a sale holding
+S(1-1000) waits for the JRN lock, held by a cash expense whose FK S request queues behind a waiting shift X), and the
+waiting shift operation, which has written nothing yet, is the usual victim.
+
+Deposits, Prive and capital are single journals from `CashMovementService` (`cash_movement`).
 The POS drawer figure is the 1-1000 ledger balance (`GET /accounting/cash-balances`); the old per-browser counter
 `ob3_cash_drawer` and `cashPortion` no longer exist. The UI is `CashBankTab` (Buku Besar → "6. Kas & Bank": approvals
 and owner cash movements); the journal screen groups these entries under the "Kas & Modal" filter.
