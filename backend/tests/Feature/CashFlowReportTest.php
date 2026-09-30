@@ -110,6 +110,23 @@ class CashFlowReportTest extends TestCase
         $this->assertTrue($cf['is_reconciled']);
     }
 
+    public function test_cash_journal_without_reference_type_is_still_counted(): void
+    {
+        $before = app(CashFlowReport::class)->build('2019-09-01', '2019-09-30');
+
+        $entry = (new JournalDraft())
+            ->debit('1-1000', 90000, 'uji')
+            ->credit('4-1000', 90000, 'uji')
+            ->post(app(AccountingEngine::class), 'TEST', 'CF-'.uniqid(), 'Uji tanpa tipe referensi', '2019-09-10');
+        $entry->update(['reference_type' => null]);
+
+        $cf = app(CashFlowReport::class)->build('2019-09-01', '2019-09-30');
+
+        $this->assertEquals($before['operating']['customers'] + 90000, $cf['operating']['customers']);
+        $this->assertEquals($before['net_change'] + 90000, $cf['net_change']);
+        $this->assertTrue($cf['is_reconciled']);
+    }
+
     public function test_kasir_cannot_read_cash_reports(): void
     {
         $this->actingAsRole('KASIR');

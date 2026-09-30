@@ -29,7 +29,7 @@ class CashFlowReport
             ->where('status', 'POSTED')
             ->when($from !== null, fn ($q) => $q->where('entry_date', '>=', $from))
             ->where('entry_date', '<=', $to)
-            ->where('reference_type', '!=', OpeningBalanceService::REFERENCE_TYPE)
+            ->where(fn ($q) => $q->whereNull('reference_type')->orWhere('reference_type', '!=', OpeningBalanceService::REFERENCE_TYPE))
             ->whereHas('items', fn ($q) => $q->whereIn('account_id', $cashIds))
             ->chunkById(200, function ($entries) use (&$buckets, $cashIds) {
                 foreach ($entries as $entry) {
