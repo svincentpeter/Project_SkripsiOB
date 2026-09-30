@@ -518,6 +518,30 @@ function MainAppContent() {
   /** Pesan error server untuk toast. */
   const errorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
 
+  // Retur penjualan di server: refund tunai dari laci (shift kasir harus buka), barang kembali ke batch FIFO asal.
+  const handleSalesReturn = async (
+    txId: string,
+    items: { sale_detail_id: number; quantity: number }[],
+    reason: string
+  ): Promise<boolean> => {
+    try {
+      const res = await posApi.createSalesReturn(txId, { items, reason });
+      const tx = mapSaleToTransaction(res.sale);
+      setTransactions((prev) => prev.map((t) => (t.id === txId ? tx : t)));
+      if (currentReceiptTx?.id === txId) setCurrentReceiptTx(tx);
+      if (res.journal) notifyLedgerChanged([res.journal]);
+      handleRefreshProducts();
+      toast.success(
+        'Retur Penjualan Dibukukan',
+        `${res.sales_return.reference}: serahkan refund tunai ${formatRupiah(res.sales_return.refund_amount)} dari laci.`
+      );
+      return true;
+    } catch (err) {
+      toast.error('Retur Ditolak', errorMessage(err));
+      return false;
+    }
+  };
+
   // Stock opname di server: FIFO + jurnal selisih persediaan (5-2000)
   const handleStockOpname = async (items: { product_id: number; physical_qty: number }[], notes: string): Promise<boolean> => {
     if (items.length === 0) {
@@ -949,6 +973,8 @@ function MainAppContent() {
                 onSelectTransaction={(tx) => setCurrentReceiptTx(tx)}
                 onVoidTransaction={handleVoidTransaction}
                 canVoid={can('sale_void')}
+                onSalesReturn={handleSalesReturn}
+                canReturn={can('sales_return')}
               />
             )}
 

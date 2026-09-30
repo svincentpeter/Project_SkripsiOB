@@ -27,6 +27,7 @@ import {
 import { PosTransaction, UserSession } from '../../shared/types';
 import { formatDateIndo, formatRupiah, playCashDrawerSound } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
+import { SalesReturnModal, type SalesReturnItemInput } from './components/SalesReturnModal';
 
 interface ThermalReceiptScreenProps {
   currentTransaction: PosTransaction | null;
@@ -38,6 +39,9 @@ interface ThermalReceiptScreenProps {
   onVoidTransaction?: (transactionId: string, reason: string) => void | Promise<void>;
   /** Izin sale_void: tanpa izin ini tombol VOID tidak ditampilkan. */
   canVoid?: boolean;
+  onSalesReturn?: (transactionId: string, items: SalesReturnItemInput[], reason: string) => Promise<boolean>;
+  /** Izin sales_return: tanpa izin ini tombol Retur tidak ditampilkan. */
+  canReturn?: boolean;
 }
 
 type PreviewMode = 'THERMAL_80MM' | 'FAKTUR_A4';
@@ -53,6 +57,8 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
   onSelectTransaction,
   onVoidTransaction,
   canVoid = false,
+  onSalesReturn,
+  canReturn = false,
 }) => {
   // State
   const [drawerKicked, setDrawerKicked] = useState(false);
@@ -70,6 +76,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [voidReason, setVoidReason] = useState('');
   const [voidError, setVoidError] = useState('');
+  const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
 
   // Selected Transaction: if prop is given, use it, else use latest from history
   const activeTx = currentTransaction || (transactionsHistory.length > 0 ? transactionsHistory[0] : null);
@@ -550,6 +557,24 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                   </button>
                   )}
 
+                  {/* Tombol Retur Penjualan */}
+                  {canReturn && onSalesReturn && (
+                  <button
+                    type="button"
+                    onClick={() => setIsReturnModalOpen(true)}
+                    disabled={isCurrentVoid}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                      isCurrentVoid
+                        ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                        : 'bg-white hover:bg-amber-50 text-amber-800 border-amber-300 shadow-2xs'
+                    }`}
+                    title="Retur sebagian nota: refund tunai dari laci, barang kembali ke batch FIFO asal"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Retur</span>
+                  </button>
+                  )}
+
                   {/* Tombol Cetak (Print) */}
                   <button
                     onClick={handlePrint}
@@ -577,6 +602,15 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                       *Stok ban telah dikembalikan ke master persediaan dan Jurnal Pembalik SAK EMKM telah dibukukan otomatis di Buku Besar.
                     </p>
                   </div>
+                </div>
+              )}
+
+              {!isCurrentVoid && (activeTx?.returned_amount ?? 0) > 0 && (
+                <div className="w-full max-w-[680px] mb-4 p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 no-print">
+                  <p className="font-bold">NOTA INI MEMILIKI RETUR</p>
+                  <p className="text-[11px]">
+                    Total refund tunai {formatRupiah(activeTx?.returned_amount ?? 0)} • jurnal retur (4-9100) sudah dibukukan.
+                  </p>
                 </div>
               )}
 
@@ -1047,6 +1081,14 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
           )}
         </main>
       </div>
+
+      {isReturnModalOpen && activeTx && onSalesReturn && (
+        <SalesReturnModal
+          transaction={activeTx}
+          onClose={() => setIsReturnModalOpen(false)}
+          onSubmit={(items, reason) => onSalesReturn(activeTx.id, items, reason)}
+        />
+      )}
 
       {/* =========================================================
           MODAL: KONFIRMASI PEMBATALAN TRANSAKSI (VOID)
