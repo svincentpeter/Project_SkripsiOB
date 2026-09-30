@@ -15,7 +15,22 @@ import {
   Clock
 } from 'lucide-react';
 import { GoodsReceiptInput, PaymentTerms, StockMutation, TireProduct, SupplierItem } from '../../../shared/types';
-import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
+import { formatRupiah } from '../../../shared/utils/formatters';
+import {
+  PpnMode,
+  costDelta,
+  costFromInvoice,
+  formatInvoicePrice,
+  invoicePriceFromCost,
+  invoiceSummary,
+  lastBatchCost,
+  parseInvoicePrice,
+} from '../../../services/purchaseInvoiceService';
+
+const PPN_MODE_OPTIONS: { mode: PpnMode; label: string; title: string }[] = [
+  { mode: 'exclude', label: 'Belum PPN', title: 'Harga di faktur belum termasuk PPN, modal = harga × 1,11' },
+  { mode: 'include', label: 'Sudah PPN', title: 'Harga di faktur sudah termasuk PPN, modal = harga faktur' },
+];
 
 interface GoodsReceiptModalProps {
   isOpen: boolean;
@@ -37,7 +52,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
 }) => {
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [incomingQty, setIncomingQty] = useState<number>(10);
-  const [unitCost, setUnitCost] = useState<number>(750000);
+  const [ppnMode, setPpnMode] = useState<PpnMode>('exclude');
+  const [invoicePriceText, setInvoicePriceText] = useState<string>('');
   const [supplierName, setSupplierName] = useState<string>('PT Bridgestone Tire Indonesia');
   const [supplierInvoice, setSupplierInvoice] = useState<string>('');
   const [receiptDate, setReceiptDate] = useState<string>('');
@@ -48,6 +64,12 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const activeProducts = products.filter((p) => p.is_active !== false);
+
+  // Harga faktur awal = modal batch terakhir, dibalik ke harga sebelum PPN pada mode "belum PPN".
+  const initialInvoiceText = (prod: TireProduct, mode: PpnMode) => {
+    const previous = lastBatchCost(prod);
+    return previous > 0 ? formatInvoicePrice(invoicePriceFromCost(previous, mode)) : '';
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -62,16 +84,18 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     due.setDate(due.getDate() + 30);
     setDueDate(due.toISOString().split('T')[0]);
 
+    setPpnMode('exclude');
+
     if (preselectedProduct) {
       setSelectedProductId(preselectedProduct.id);
-      setUnitCost(preselectedProduct.product_cost || preselectedProduct.cost_price || 750000);
+      setInvoicePriceText(initialInvoiceText(preselectedProduct, 'exclude'));
       setSupplierName(
         suppliers.find((s) => s.supplier_name.toLowerCase().includes(preselectedProduct.brand.toLowerCase()))?.supplier_name ||
         `PT ${preselectedProduct.brand} Tire Indonesia`
       );
     } else if (activeProducts.length > 0) {
       setSelectedProductId(activeProducts[0].id);
-      setUnitCost(activeProducts[0].product_cost || activeProducts[0].cost_price || 750000);
+      setInvoicePriceText(initialInvoiceText(activeProducts[0], 'exclude'));
       if (suppliers.length > 0) {
         setSupplierName(suppliers[0].supplier_name);
       }
@@ -87,7 +111,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     setSelectedProductId(id);
     const prod = activeProducts.find((p) => p.id === id);
     if (prod) {
-      setUnitCost(prod.product_cost || prod.cost_price || 0);
+      setInvoicePriceText(initialInvoiceText(prod, ppnMode));
       const matchedSup = suppliers.find((s) => s.supplier_name.toLowerCase().includes(prod.brand.toLowerCase()));
       if (matchedSup) {
         setSupplierName(matchedSup.supplier_name);
@@ -95,7 +119,11 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     }
   };
 
-  const totalReceiptValue = incomingQty * unitCost;
+  const invoicePrice = parseInvoicePrice(invoicePriceText);
+  const unitCost = costFromInvoice(invoicePrice, ppnMode);
+  const summary = invoiceSummary(incomingQty, invoicePrice, ppnMode);
+  const previousCost = currentProduct ? lastBatchCost(currentProduct) : 0;
+  const delta = costDelta(unitCost, previousCost);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +140,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     }
 
     if (unitCost <= 0) {
-      setErrorMsg('Harga modal beli (HPP) per unit harus lebih besar dari 0.');
+      setErrorMsg('Harga faktur supplier per unit harus lebih besar dari 0.');
       return;
     }
 
@@ -238,7 +266,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                 Jumlah Masuk (Unit)
@@ -249,18 +277,6 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
                 value={incomingQty}
                 onChange={(e) => setIncomingQty(Math.max(1, Number(e.target.value)))}
                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm font-bold focus:outline-none focus:border-emerald-500 shadow-2xs"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                Harga Modal Beli (HPP) / Unit
-              </label>
-              <input
-                type="text"
-                value={formatRupiah(unitCost)}
-                onChange={(e) => setUnitCost(parseRupiahInput(e.target.value))}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-emerald-600 font-extrabold text-sm shadow-2xs"
               />
             </div>
 
@@ -277,12 +293,97 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
             </div>
           </div>
 
+          {/* Kalkulator PPN faktur supplier: PPN pembelian ikut menjadi modal (toko non-PKP) */}
+          <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-3 shadow-2xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <span id="receipt-ppn-label" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                  Harga Faktur Supplier
+                </span>
+                <div
+                  role="radiogroup"
+                  aria-labelledby="receipt-ppn-label"
+                  className="grid grid-cols-2 p-1 gap-1 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold"
+                >
+                  {PPN_MODE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={ppnMode === opt.mode}
+                      title={opt.title}
+                      onClick={() => setPpnMode(opt.mode)}
+                      className={`py-2 rounded-lg transition-all ${
+                        ppnMode === opt.mode
+                          ? 'bg-white text-emerald-700 shadow-2xs ring-1 ring-slate-200'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="receipt-invoice-price" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                  Harga Faktur / Unit ({ppnMode === 'exclude' ? 'belum PPN' : 'sudah PPN'})
+                </label>
+                <input
+                  id="receipt-invoice-price"
+                  type="text"
+                  inputMode="decimal"
+                  value={invoicePriceText}
+                  onChange={(e) => setInvoicePriceText(e.target.value)}
+                  onBlur={() => setInvoicePriceText(invoicePrice > 0 ? formatInvoicePrice(invoicePrice) : '')}
+                  placeholder="mis. 677.873,75"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-bold text-sm focus:outline-none focus:border-emerald-500 shadow-2xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
+              <span className="text-xs font-semibold text-slate-700">Modal (HPP) / Unit</span>
+              <span className="text-sm font-extrabold text-emerald-700 font-mono">
+                {formatRupiah(unitCost)}
+                {delta && delta.diff !== 0 && (
+                  <span className={`ml-2 text-[11px] font-semibold ${delta.diff > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {delta.diff > 0 ? '+' : '−'}
+                    {formatRupiah(Math.abs(delta.diff))} ({delta.diff > 0 ? '+' : '−'}
+                    {Math.abs(delta.percent).toLocaleString('id-ID')}%) vs modal terakhir
+                  </span>
+                )}
+              </span>
+            </div>
+
+            <dl className="grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <dt className="text-slate-500">DPP <span className="text-slate-400">(sebelum PPN)</span></dt>
+                <dd className="font-mono font-semibold text-slate-900">{formatRupiah(summary.dpp)}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">PPN 11%</dt>
+                <dd className="font-mono font-semibold text-slate-900">{formatRupiah(summary.ppn)}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Total Faktur</dt>
+                <dd className="font-mono font-bold text-slate-900">{formatRupiah(summary.total)}</dd>
+              </div>
+            </dl>
+            <p className="text-[11px] text-slate-500">
+              Cocokkan dengan baris DPP / PPN / total di nota supplier. PPN pembelian menjadi bagian modal persediaan.
+              {summary.modal !== summary.total && (
+                <> Nilai dibukukan {formatRupiah(summary.modal)} (jumlah × modal per unit; selisih pembulatan rupiah).</>
+              )}
+            </p>
+          </div>
+
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                 <DollarSign className="w-4 h-4 text-emerald-600" /> Syarat Pembayaran Pengadaan
               </label>
-              <span className="text-xs text-slate-500">Total Faktur: <b className="text-emerald-600 font-bold">{formatRupiah(totalReceiptValue)}</b></span>
+              <span className="text-xs text-slate-500">Nilai Dibukukan: <b className="text-emerald-600 font-bold">{formatRupiah(summary.modal)}</b></span>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
