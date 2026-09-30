@@ -8,7 +8,7 @@ namespace App\Support;
 final class Permissions
 {
     public const KEYS = [
-        'dashboard', 'pos', 'receipt', 'sale_void', 'booking_dp', 'bon_receivable',
+        'dashboard', 'pos', 'receipt', 'sale_void',
         'inventory_view', 'inventory_manage', 'goods_receipt', 'stock_opname',
         'expenses', 'accounts_payable', 'accounting_hub', 'financial_reports', 'role_settings',
     ];
@@ -18,7 +18,7 @@ final class Permissions
     public const CONFIGURABLE_ROLES = ['KASIR', 'GUDANG'];
 
     public const DEFAULTS = [
-        'KASIR' => ['pos', 'receipt', 'booking_dp', 'bon_receivable'],
+        'KASIR' => ['pos', 'receipt'],
         'GUDANG' => ['inventory_view', 'inventory_manage', 'goods_receipt', 'stock_opname'],
     ];
 }

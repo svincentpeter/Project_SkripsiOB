@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\RolePermission;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -95,6 +96,19 @@ class AuthorizationTest extends TestCase
     {
         $this->actingAsRole('OWNER');
         $this->putJson('/api/v1/settings/role-permissions', ['KASIR' => ['hapus_semua' => true]])->assertStatus(422);
+    }
+
+    public function test_removed_booking_and_bon_permission_keys_are_rejected(): void
+    {
+        $this->actingAsRole('OWNER');
+
+        $this->getJson('/api/v1/settings/role-permissions')->assertOk()
+            ->assertJsonMissingPath('KASIR.booking_dp')
+            ->assertJsonMissingPath('KASIR.bon_receivable');
+        $this->putJson('/api/v1/settings/role-permissions', ['KASIR' => ['booking_dp' => true]])->assertStatus(422);
+        $this->putJson('/api/v1/settings/role-permissions', ['KASIR' => ['bon_receivable' => true]])->assertStatus(422);
+
+        $this->assertFalse(RolePermission::whereIn('permission_key', ['booking_dp', 'bon_receivable'])->exists());
     }
 
     public function test_deactivated_user_is_forbidden(): void

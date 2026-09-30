@@ -2,12 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Models\Account;
+use App\Services\Accounting\FinancialReportService;
+use App\Services\AccountingEngine;
+use App\Services\JournalDraft;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * DP/booking inden, BON (piutang) dan EDC dihapus dari POS: endpoint lamanya tidak ada lagi.
+ * DP/booking inden, BON (piutang) dan EDC dihapus dari POS: endpoint lamanya tidak ada lagi,
+ * akunnya nonaktif, tetapi jurnal lama tetap tampil di laporan.
  */
 class RemovedPosFeaturesTest extends TestCase
 {
@@ -40,5 +45,43 @@ class RemovedPosFeaturesTest extends TestCase
             ->assertOk()
             ->assertJsonStructure(['data' => ['bank_providers', 'qris_providers']])
             ->assertJsonMissingPath('data.edc_settings');
+    }
+
+    public function test_dp_bon_and_surcharge_accounts_are_inactive_but_mdr_stays_active(): void
+    {
+        $active = Account::whereIn('account_code', ['1-1002', '2-1004', '4-2000', '6-1009'])
+            ->pluck('is_active', 'account_code');
+
+        $this->assertFalse((bool) $active['1-1002']);
+        $this->assertFalse((bool) $active['2-1004']);
+        $this->assertFalse((bool) $active['4-2000']);
+        $this->assertTrue((bool) $active['6-1009']);
+    }
+
+    public function test_historic_journal_on_an_inactive_account_still_shows_in_reports(): void
+    {
+        $reports = app(FinancialReportService::class);
+        $before = $reports->incomeStatement('2019-09-01', '2019-09-30');
+
+        (new JournalDraft())
+            ->debit('1-1001', 7000, 'uji surcharge historis')
+            ->credit('4-2000', 7000, 'uji surcharge historis')
+            ->post(app(AccountingEngine::class), 'TEST', 'RM-'.uniqid(), 'Surcharge EDC historis', '2019-09-10');
+
+        $after = $reports->incomeStatement('2019-09-01', '2019-09-30');
+        $this->assertEquals(7000, $this->revenueLine($after, '4-2000') - $this->revenueLine($before, '4-2000'));
+        $this->assertTrue($reports->trialBalance('2019-09-30')['is_balanced']);
+        $this->assertTrue($reports->balanceSheet('2019-09-30')['is_balanced']);
+    }
+
+    private function revenueLine(array $incomeStatement, string $code): float
+    {
+        foreach ($incomeStatement['revenue']['lines'] as $line) {
+            if ($line['code'] === $code) {
+                return $line['amount'];
+            }
+        }
+
+        return 0.0;
     }
 }
