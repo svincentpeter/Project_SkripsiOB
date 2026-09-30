@@ -51,7 +51,9 @@ class UserPermissionTest extends TestCase
         $this->assertSame('Cabang 3 Magelang', $data['branch_name']);
         $this->assertTrue($data['permissions']['stock_opname']);
         $this->assertFalse($data['permissions']['pos']);
-        $this->assertCount(13, $data['permissions']);
+        $this->assertCount(16, $data['permissions']);
+        $this->assertFalse($data['permissions']['cash_session']);
+        $this->assertFalse($data['permissions']['cash_movement']);
         $this->assertArrayNotHasKey('booking_dp', $data['permissions']);
         $this->assertArrayNotHasKey('bon_receivable', $data['permissions']);
         $this->assertFalse($data['permissions']['sale_void']);

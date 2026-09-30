@@ -11,6 +11,7 @@ final class Permissions
         'dashboard', 'pos', 'receipt', 'sale_void',
         'inventory_view', 'inventory_manage', 'goods_receipt', 'stock_opname',
         'expenses', 'accounts_payable', 'accounting_hub', 'financial_reports', 'role_settings',
+        'cash_session', 'cash_session_approve', 'cash_movement',
     ];
 
     public const ROLES = ['OWNER', 'KASIR', 'GUDANG'];
@@ -18,7 +19,7 @@ final class Permissions
     public const CONFIGURABLE_ROLES = ['KASIR', 'GUDANG'];
 
     public const DEFAULTS = [
-        'KASIR' => ['pos', 'receipt'],
+        'KASIR' => ['pos', 'receipt', 'cash_session'],
         'GUDANG' => ['inventory_view', 'inventory_manage', 'goods_receipt', 'stock_opname'],
     ];
 }
