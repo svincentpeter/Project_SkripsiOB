@@ -251,6 +251,42 @@ class CashSessionTest extends TestCase
         );
     }
 
+    /**
+     * Invarian D7 lintas shift: A menunggu persetujuan, B dibuka (saldo buku termasuk selisih A), A disetujui
+     * selama B, lalu mutasi tunai di B. Setelah B disetujui, 1-1000 = kas fisik B dan semua jurnal seimbang.
+     */
+    public function test_ledger_equals_the_counted_cash_after_interleaved_shifts(): void
+    {
+        $start = (int) DB::table('journal_entries')->max('id');
+        $a = $this->openShift();
+        $this->closeShift($a['id'], $a['opening_float'] - 15000, 'Kurang kembalian')->assertOk();
+
+        $b = $this->openShift(3000, 'Tambahan receh');
+        $this->assertEqualsWithDelta(CashSessionService::ledgerBalance() - 15000, $b['book_opening'], 0.001); // selisih A belum dijurnal
+        $this->postJson("/api/v1/cash-sessions/{$a['id']}/approve")->assertOk()->assertJsonCount(1, 'data.journals');
+
+        $product = $this->makeProduct();
+        $this->checkout(['items' => [$this->productLine($product)], 'payments' => [['method' => 'TUNAI', 'amount' => 1000000]]])->assertCreated();
+        $this->expense(40000);
+        $this->postJson('/api/v1/cash-movements', ['type' => 'DEPOSIT', 'amount' => 300000, 'date' => now()->toDateString(), 'description' => 'Setor'])->assertCreated();
+        $this->postJson('/api/v1/cash-movements', ['type' => 'DRAWING', 'account_code' => '1-1000', 'amount' => 50000, 'date' => now()->toDateString(), 'description' => 'Prive'])->assertCreated();
+
+        $current = $this->getJson('/api/v1/cash-sessions/current')->json('data.session');
+        $this->assertEquals($b['opening_float'] + 1000000 - 40000 - 300000 - 50000, $current['expected_cash']);
+        $counted = $current['expected_cash'] - 7000;
+        $this->closeShift($b['id'], $counted, 'Salah hitung')->assertOk();
+        $this->postJson("/api/v1/cash-sessions/{$b['id']}/approve")->assertOk();
+
+        $this->assertEqualsWithDelta($counted, CashSessionService::ledgerBalance(), 0.001);
+        $unbalanced = DB::table('journal_items')
+            ->where('journal_entry_id', '>', $start)
+            ->select('journal_entry_id')
+            ->groupBy('journal_entry_id')
+            ->havingRaw('ROUND(SUM(debit) - SUM(credit), 2) <> 0')
+            ->count();
+        $this->assertSame(0, $unbalanced);
+    }
+
     public function test_owner_list_shows_pending_shifts_first(): void
     {
         $session = $this->openShift();
