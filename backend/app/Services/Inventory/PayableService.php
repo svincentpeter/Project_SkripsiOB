@@ -28,7 +28,7 @@ class PayableService
     {
         return DB::transaction(function () use ($purchaseId, $data, $user) {
             $purchase = Purchase::lockForUpdate()->findOrFail($purchaseId);
-            if ($purchase->payment_method !== 'TEMPO' || $purchase->status === 'LUNAS') {
+            if ($purchase->payment_method !== 'TEMPO' || in_array($purchase->status, ['LUNAS', 'BATAL'], true)) {
                 throw new PosRuleException("Faktur {$purchase->purchase_number} tidak memiliki hutang terbuka.");
             }
 
@@ -61,7 +61,7 @@ class PayableService
             $paid = round((float) $purchase->paid_amount + $amount, 2);
             $purchase->update([
                 'paid_amount' => $paid,
-                'status' => $paid >= (float) $purchase->total_amount - 0.001 ? 'LUNAS' : 'SEBAGIAN',
+                'status' => $paid >= (float) $purchase->total_amount - (float) $purchase->returned_amount - 0.001 ? 'LUNAS' : 'SEBAGIAN',
             ]);
 
             return ['purchase' => $purchase->fresh(), 'journal' => $journal];
@@ -78,7 +78,7 @@ class PayableService
         return DB::transaction(function () use ($supplierId, $amount, $accountCode, $date, $notes, $user) {
             $open = Purchase::where('supplier_id', $supplierId)
                 ->where('payment_method', 'TEMPO')
-                ->where('status', '!=', 'LUNAS')
+                ->whereNotIn('status', ['LUNAS', 'BATAL'])
                 ->orderBy('due_date')->orderBy('id')
                 ->lockForUpdate()
                 ->get();

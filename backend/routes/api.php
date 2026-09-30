@@ -122,7 +122,11 @@ Route::prefix('v1')->group(function () {
 
         // Inventory Restock, Movements & Opname
         Route::post('inventory/restock', [InventoryController::class, 'restock'])->middleware('permission:goods_receipt');
-        Route::get('purchases', [PurchaseController::class, 'index'])->middleware('permission:goods_receipt,accounts_payable');
+        Route::get('purchases', [PurchaseController::class, 'index'])->middleware('permission:goods_receipt,accounts_payable,purchase_return');
+        Route::middleware('permission:purchase_return')->group(function () {
+            Route::post('purchases/{id}/returns', [PurchaseController::class, 'returnGoods']);
+            Route::post('purchases/{id}/cancel', [PurchaseController::class, 'cancel']);
+        });
         Route::post('purchases/{id}/payments', [PurchaseController::class, 'pay'])->middleware('permission:accounts_payable');
         Route::get('inventory/stock-movements', [InventoryController::class, 'stockMovements'])->middleware('permission:inventory_view');
         Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->middleware('permission:inventory_view');

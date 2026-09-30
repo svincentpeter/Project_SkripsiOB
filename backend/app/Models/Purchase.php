@@ -9,7 +9,7 @@ class Purchase extends Model
 {
     protected $fillable = [
         'purchase_number', 'supplier_id', 'supplier_name', 'supplier_invoice', 'purchase_date',
-        'payment_method', 'due_date', 'total_amount', 'dpp_amount', 'ppn_amount', 'paid_amount', 'status',
+        'payment_method', 'due_date', 'total_amount', 'dpp_amount', 'ppn_amount', 'paid_amount', 'returned_amount', 'status',
         'journal_entry_number', 'notes', 'operator_name',
     ];
 
@@ -20,6 +20,7 @@ class Purchase extends Model
         'dpp_amount' => 'decimal:2',
         'ppn_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
+        'returned_amount' => 'decimal:2',
     ];
 
     public function payments(): HasMany
@@ -32,9 +33,15 @@ class Purchase extends Model
         return $this->hasMany(ProductBatch::class);
     }
 
+    public function returns(): HasMany
+    {
+        return $this->hasMany(PurchaseReturn::class);
+    }
+
+    /** Sisa hutang = total − nilai retur − dibayar bersih (refund supplier sudah mengurangi paid_amount). */
     public function remaining(): float
     {
-        return round((float) $this->total_amount - (float) $this->paid_amount, 2);
+        return round((float) $this->total_amount - (float) $this->returned_amount - (float) $this->paid_amount, 2);
     }
 
     public function toApiArray(): array
@@ -52,7 +59,11 @@ class Purchase extends Model
             'dpp_amount' => (float) $this->dpp_amount,
             'ppn_amount' => (float) $this->ppn_amount,
             'paid_amount' => (float) $this->paid_amount,
+            'returned_amount' => (float) $this->returned_amount,
             'remaining_amount' => $this->remaining(),
+            'product_name' => $this->batches->first()?->product?->product_name,
+            'quantity' => (int) $this->batches->sum('initial_qty'),
+            'returnable_qty' => (int) $this->batches->sum('remaining_qty'),
             'status' => $this->status,
             'journal_entry_number' => $this->journal_entry_number,
             'notes' => $this->notes,

@@ -147,7 +147,7 @@ class AccountingReportController extends Controller
     public function accountsPayable(): JsonResponse
     {
         $rows = Purchase::where('payment_method', 'TEMPO')
-            ->selectRaw('supplier_id, supplier_name, SUM(total_amount) as purchased, SUM(paid_amount) as paid')
+            ->selectRaw('supplier_id, supplier_name, SUM(total_amount - returned_amount) as purchased, SUM(paid_amount) as paid')
             ->groupBy('supplier_id', 'supplier_name')
             ->get();
 
