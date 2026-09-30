@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\v1\AdjustingEntryController;
 use App\Http\Controllers\Api\v1\AccountingPeriodController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
+use App\Http\Controllers\Api\v1\BankReconciliationController;
 use App\Http\Controllers\Api\v1\FixedAssetController;
 use App\Http\Controllers\Api\v1\CashMovementController;
 use App\Http\Controllers\Api\v1\CashSessionController;
@@ -173,6 +174,17 @@ Route::prefix('v1')->group(function () {
             Route::post('depreciation', [FixedAssetController::class, 'runDepreciation']);
         });
         Route::post('accounting/adjusting-entries', [AdjustingEntryController::class, 'store'])->middleware('permission:accounting_hub');
+        Route::prefix('accounting/bank-reconciliation')->middleware('permission:bank_reconciliation')->group(function () {
+            Route::get('/', [BankReconciliationController::class, 'show']);
+            Route::put('{period}', [BankReconciliationController::class, 'updateBalance'])->where('period', '\d{4}-\d{2}');
+            Route::post('lines', [BankReconciliationController::class, 'storeLine']);
+            Route::post('import', [BankReconciliationController::class, 'import']);
+            Route::post('auto-match', [BankReconciliationController::class, 'autoMatch']);
+            Route::delete('lines/{id}', [BankReconciliationController::class, 'destroyLine'])->whereNumber('id');
+            Route::post('lines/{id}/match', [BankReconciliationController::class, 'match'])->whereNumber('id');
+            Route::post('lines/{id}/unmatch', [BankReconciliationController::class, 'unmatch'])->whereNumber('id');
+            Route::post('lines/{id}/post-adjustment', [BankReconciliationController::class, 'postAdjustment'])->whereNumber('id');
+        });
 
         // SAK EMKM Accounting Hub & Reports
         Route::prefix('accounting')->group(function () {
