@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\AccountingEngine;
 use App\Services\DocumentNumber;
 use App\Services\JournalDraft;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -36,6 +37,7 @@ class PurchaseReturnService
      */
     public function returnGoods(int $purchaseId, int $quantity, string $reason, ?string $refundAccount, User $user): array
     {
+        // Tiga percobaan: korban deadlock (mis. nomor RTB pertama bulan itu, kunci FK 1-1000 saat refund ke laci) diulang.
         return DB::transaction(function () use ($purchaseId, $quantity, $reason, $refundAccount, $user) {
             $purchase = Purchase::lockForUpdate()->findOrFail($purchaseId);
             if ($purchase->status === 'BATAL') {
@@ -43,11 +45,11 @@ class PurchaseReturnService
             }
 
             $product = $this->lockProduct($purchase);
-            $batches = ProductBatch::where('purchase_id', $purchase->id)
+            $batches = $this->batchesOf($purchase, $product)
                 ->where('remaining_qty', '>', 0)
-                ->orderByDesc('id')
                 ->lockForUpdate()
-                ->get();
+                ->get()
+                ->sortByDesc('id'); // terbaru dulu, diurutkan di PHP (lihat batchesOf)
             $available = (int) $batches->sum('remaining_qty');
             if ($quantity > $available) {
                 throw new PosRuleException("Hanya {$available} unit dari {$purchase->purchase_number} yang masih di gudang; unit yang sudah terjual tidak bisa diretur ke supplier.");
@@ -110,7 +112,7 @@ class PurchaseReturnService
             $this->settle($purchase, $value, $refund);
 
             return ['purchase' => $purchase->fresh(), 'return' => $return->fresh(), 'journal' => $journal];
-        });
+        }, 3);
     }
 
     /**
@@ -125,7 +127,7 @@ class PurchaseReturnService
             }
 
             $product = $this->lockProduct($purchase);
-            $batches = ProductBatch::where('purchase_id', $purchase->id)->lockForUpdate()->get();
+            $batches = $this->batchesOf($purchase, $product)->lockForUpdate()->get();
             $touched = $batches->isEmpty()
                 || $batches->contains(fn (ProductBatch $b) => $b->remaining_qty !== $b->initial_qty)
                 || SaleBatchAllocation::whereIn('product_batch_id', $batches->pluck('id'))->sharedLock()->exists()
@@ -185,7 +187,7 @@ class PurchaseReturnService
             $this->settle($purchase, $total, $isTempo ? 0.0 : $total, 'BATAL');
 
             return ['purchase' => $purchase->fresh(), 'return' => $return->fresh(), 'journal' => $journal];
-        });
+        }, 3);
     }
 
     /**
@@ -197,6 +199,16 @@ class PurchaseReturnService
         $productId = ProductBatch::where('purchase_id', $purchase->id)->value('product_id');
 
         return $productId ? Product::withTrashed()->lockForUpdate()->find($productId) : null;
+    }
+
+    /**
+     * Batch GR lewat indeks product_id, di bawah kunci produk yang sudah dipegang. purchase_id tidak berindeks: filter
+     * itu saja memindai seluruh tabel dengan kunci next-key dan bertabrakan dengan checkout produk lain. Tanpa ORDER BY
+     * id DESC: pindaian mundur mengunci record produk tetangga (next-key), pindaian maju hanya gap-nya.
+     */
+    private function batchesOf(Purchase $purchase, ?Product $product): Builder
+    {
+        return ProductBatch::where('product_id', $product?->id)->where('purchase_id', $purchase->id);
     }
 
     private function takeOutOfStock(Product $product, int $qty, string $type, string $reference, string $description, User $user): void
