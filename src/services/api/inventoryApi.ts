@@ -5,6 +5,7 @@ import {
   ApiMovement,
   ApiProductCategory,
   ApiPurchase,
+  ApiPurchaseReturn,
   ApiServiceCategory,
   ApiSupplier,
   InventoryValuation,
@@ -100,4 +101,20 @@ export const inventoryApi = {
     (await apiClient.get<Envelope<ApiPurchase[]>>('/purchases', { status })).data,
   payPurchase: async (id: string | number, payload: { amount: number; account_code: string; payment_date?: string; notes?: string }) =>
     (await apiClient.post<Envelope<{ purchase: ApiPurchase; journal: ApiJournal }>>(`/purchases/${id}/payments`, payload)).data,
+
+  // Retur pembelian & pembatalan penerimaan barang
+  returnPurchase: async (id: string | number, payload: { quantity: number; reason: string; refund_account_code?: '1-1000' | '1-1001' }) =>
+    (
+      await apiClient.post<Envelope<{ purchase: ApiPurchase; purchase_return: ApiPurchaseReturn; journal: ApiJournal | null }>>(
+        `/purchases/${id}/returns`,
+        payload
+      )
+    ).data,
+  cancelPurchase: async (id: string | number, reason: string) =>
+    (
+      await apiClient.post<Envelope<{ purchase: ApiPurchase; purchase_return: ApiPurchaseReturn; journal: ApiJournal | null }>>(
+        `/purchases/${id}/cancel`,
+        { reason }
+      )
+    ).data,
 };

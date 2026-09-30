@@ -639,6 +639,8 @@ export const stockReconciliationApi = {
         { period, only_match_keys: onlyMatchKeys, force }
       );
     } catch (err: any) {
+      // Server menjawab (mis. 422 setelah go-live): tampilkan penolakannya, jangan menulis lokal diam-diam.
+      if (err instanceof ApiError && err.status > 0) throw err;
       // Offline / Vercel Fallback Commit to Supabase and LocalStorage
       console.info('[Excel Reconciliation] Backend tidak terjangkau, mengeksekusi komit ke Supabase Cloud & LocalStorage...');
       const raw = localStorage.getItem('ob3_stock_staging');
@@ -739,6 +741,8 @@ export const stockReconciliationApi = {
         ...options,
       });
     } catch (err: any) {
+      // Server menjawab (mis. 422 setelah go-live): tampilkan penolakannya, jangan menulis lokal diam-diam.
+      if (err instanceof ApiError && err.status > 0) throw err;
       // Fallback for offline/local storage if backend is unreachable
       const localProductsRaw = localStorage.getItem('ob3_products');
       if (localProductsRaw) {

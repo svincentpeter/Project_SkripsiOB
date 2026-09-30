@@ -199,6 +199,18 @@ export interface PosTransaction {
   voided_by?: string;
   customer_phone?: string;
   mechanic_name?: string;
+  /** Total refund retur penjualan (tunai dari laci). */
+  returned_amount?: number;
+  /** Baris nota dengan id baris server, untuk retur sebagian. */
+  return_lines?: SaleReturnLine[];
+}
+
+export interface SaleReturnLine {
+  sale_detail_id: number;
+  name: string;
+  item_type: 'PRODUCT' | 'SERVICE';
+  quantity: number;
+  returned_qty: number;
 }
 
 export interface StockMutation {
@@ -521,7 +533,9 @@ export type PermissionKey =
   | 'role_settings'
   | 'cash_session'
   | 'cash_session_approve'
-  | 'cash_movement';
+  | 'cash_movement'
+  | 'sales_return'
+  | 'purchase_return';
 
 export interface UserSession {
   id: string | number;

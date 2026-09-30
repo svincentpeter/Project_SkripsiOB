@@ -30,6 +30,8 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     cash_session: true,
     cash_session_approve: false,
     cash_movement: false,
+    sales_return: true,
+    purchase_return: false,
   },
   GUDANG: {
     dashboard: false,
@@ -48,6 +50,8 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     cash_session: false,
     cash_session_approve: false,
     cash_movement: false,
+    sales_return: false,
+    purchase_return: true,
   },
 };
 

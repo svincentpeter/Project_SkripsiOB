@@ -68,6 +68,13 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     icon: <Ban className="w-4 h-4 text-rose-600" />,
   },
   {
+    key: 'sales_return',
+    label: 'Retur Penjualan (Refund Tunai)',
+    category: 'KASIR_POS',
+    description: 'Menerima retur sebagian nota: uang dikembalikan tunai dari laci (shift kasir harus dibuka) dan ban kembali ke batch FIFO asal.',
+    icon: <RotateCcw className="w-4 h-4 text-blue-600" />,
+  },
+  {
     key: 'cash_session',
     label: 'Buka & Tutup Shift Kasir',
     category: 'KASIR_POS',
@@ -103,6 +110,13 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     category: 'INVENTORY',
     description: 'Formulir pencocokan fisik gudang vs sistem dan koreksi saldo persediaan.',
     icon: <ClipboardList className="w-4 h-4 text-emerald-600" />,
+  },
+  {
+    key: 'purchase_return',
+    label: 'Retur Pembelian & Batal Penerimaan',
+    category: 'INVENTORY',
+    description: 'Mengembalikan ban ke supplier (mengurangi hutang atau menerima refund) dan membatalkan penerimaan barang yang belum tersentuh.',
+    icon: <Truck className="w-4 h-4 text-emerald-600" />,
   },
 
   // 3. PENGELUARAN & AKUNTANSI

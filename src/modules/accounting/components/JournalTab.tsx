@@ -17,8 +17,8 @@ interface JournalTabProps {
 
 const TYPE_GROUPS: { id: string; label: string; types: string[] }[] = [
   { id: 'ALL', label: 'Semua', types: [] },
-  { id: 'SALE', label: 'Penjualan', types: ['POS_SALE', 'POS_SALE_VOID'] },
-  { id: 'PURCHASE', label: 'Pembelian', types: ['PURCHASE'] },
+  { id: 'SALE', label: 'Penjualan', types: ['POS_SALE', 'POS_SALE_VOID', 'SALES_RETURN'] },
+  { id: 'PURCHASE', label: 'Pembelian', types: ['PURCHASE', 'PURCHASE_RETURN', 'GOODS_RECEIPT_CANCEL'] },
   { id: 'EXPENSE', label: 'Biaya', types: ['EXPENSE', 'VOID_EXPENSE'] },
   { id: 'DEBT', label: 'Bayar Hutang', types: ['DEBT_PAYMENT'] },
   { id: 'CASH', label: 'Kas & Modal', types: ['CASH_SESSION_VARIANCE', 'CASH_DEPOSIT', 'OWNER_DRAWING', 'CAPITAL_INJECTION'] },
@@ -32,6 +32,9 @@ const TYPE_BADGE: Record<string, string> = {
   MANUAL_REVERSAL: 'PEMBALIK',
   VOID_EXPENSE: 'PEMBALIK',
   POS_SALE_VOID: 'PEMBALIK',
+  SALES_RETURN: 'RETUR',
+  PURCHASE_RETURN: 'RETUR',
+  GOODS_RECEIPT_CANCEL: 'PEMBALIK',
   ACCOUNT_OPENING: 'SALDO AWAL',
   PERIOD_CLOSING: 'JURNAL PENUTUP',
   PERIOD_REOPEN: 'BUKA PERIODE',

@@ -30,15 +30,19 @@ describe('deny by default', () => {
     expect(hasPermission(null, DEFAULT_ROLE_PERMISSIONS, 'pos')).toBe(false);
   });
 
-  it('default role permissions list exactly the 16 server keys (no booking DP or BON)', () => {
+  it('default role permissions list exactly the 18 server keys (no booking DP or BON)', () => {
     expect(DEFAULT_ROLE_PERMISSIONS.KASIR.cash_session).toBe(true);
     expect(DEFAULT_ROLE_PERMISSIONS.KASIR.cash_movement).toBe(false);
     for (const role of ['KASIR', 'GUDANG'] as const) {
       const keys = Object.keys(DEFAULT_ROLE_PERMISSIONS[role]);
-      expect(keys).toHaveLength(16);
+      expect(keys).toHaveLength(18);
+      expect(keys).toContain('sales_return');
+      expect(keys).toContain('purchase_return');
       expect(keys).not.toContain('booking_dp');
       expect(keys).not.toContain('bon_receivable');
     }
+    expect(DEFAULT_ROLE_PERMISSIONS.KASIR.sales_return).toBe(true);
+    expect(DEFAULT_ROLE_PERMISSIONS.GUDANG.purchase_return).toBe(true);
   });
 
   it('default screen follows the configured permissions, not the role name', () => {

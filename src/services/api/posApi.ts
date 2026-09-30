@@ -1,6 +1,6 @@
 import { apiClient } from './apiClient';
 import { ServiceMasterItem } from '../../shared/types';
-import { ApiSale, CheckoutPayload } from './posMappers';
+import { ApiJournal, ApiSale, ApiSalesReturn, CheckoutPayload } from './posMappers';
 
 interface Envelope<T> {
   success: boolean;
@@ -17,6 +17,14 @@ export const posApi = {
 
   voidTransaction: async (id: string | number, reason: string) =>
     (await apiClient.post<Envelope<ApiSale>>(`/pos/transactions/${id}/void`, { reason })).data,
+
+  createSalesReturn: async (id: string | number, payload: { reason: string; items: { sale_detail_id: number; quantity: number }[] }) =>
+    (
+      await apiClient.post<Envelope<{ sale: ApiSale; sales_return: ApiSalesReturn; journal: ApiJournal | null }>>(
+        `/pos/transactions/${id}/returns`,
+        payload
+      )
+    ).data,
 
   listServices: async (): Promise<ServiceMasterItem[]> => {
     const res = await apiClient.get<Envelope<any[]>>('/services');

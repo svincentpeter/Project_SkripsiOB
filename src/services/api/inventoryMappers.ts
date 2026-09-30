@@ -71,15 +71,37 @@ export interface ApiPurchase {
   dpp_amount?: number;
   ppn_amount?: number;
   paid_amount: number;
+  returned_amount?: number;
   remaining_amount: number;
-  status: 'LUNAS' | 'BELUM_LUNAS' | 'SEBAGIAN';
+  status: 'LUNAS' | 'BELUM_LUNAS' | 'SEBAGIAN' | 'BATAL';
+  journal_entry_number?: string | null;
   notes?: string | null;
+  product_name?: string | null;
+  quantity?: number;
+  returnable_qty?: number;
+}
+
+/** Retur pembelian (RETURN) atau pembatalan penerimaan (CANCEL). */
+export interface ApiPurchaseReturn {
+  id: number;
+  reference: string;
+  kind: 'RETURN' | 'CANCEL';
+  return_date: string;
+  reason: string;
+  quantity: number;
+  total_amount: number;
+  payable_amount: number;
+  refund_amount: number;
+  refund_account_code?: string | null;
+  journal_entry_number?: string | null;
 }
 
 export interface InventoryValuation {
   fifo_value: number;
   ledger_balance: number;
   difference: number;
+  /** Saldo awal persediaan sudah dibukukan (go-live); selisih berikutnya ditelusuri lewat stock opname. */
+  opening_posted?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,7 +177,8 @@ export const mapPurchaseToPayable = (p: ApiPurchase): PayableInvoice => ({
   total_amount: Number(p.total_amount) || 0,
   paid_amount: Number(p.paid_amount) || 0,
   remaining_amount: Number(p.remaining_amount) || 0,
-  status: p.status,
+  // BATAL tidak pernah sampai ke daftar hutang (App menyaringnya); sisa hutangnya 0.
+  status: p.status === 'BATAL' ? 'LUNAS' : p.status,
   notes: p.notes ?? undefined,
   ref_doc: p.purchase_number,
 });

@@ -144,6 +144,14 @@ describe('mapSaleToTransaction', () => {
     expect(mapSaleToTransaction({ ...sale, status: 'VOID', voided_by: 'Owner' }).is_voided).toBe(true);
   });
 
+  it('maps returned amounts and the returnable lines', () => {
+    const tx = mapSaleToTransaction({ ...sale, returned_amount: 925000, items: [{ ...sale.items[0], returned_qty: 1 }] });
+    expect(tx.returned_amount).toBe(925000);
+    expect(tx.return_lines).toEqual([{ sale_detail_id: 1, name: 'Ban A', item_type: 'PRODUCT', quantity: 2, returned_qty: 1 }]);
+    expect(mapSaleToTransaction(sale).return_lines?.[0].returned_qty).toBe(0);
+    expect(mapSaleToTransaction(sale).returned_amount).toBe(0);
+  });
+
   it('maps no BON, DP or EDC fields, also for split payments', () => {
     const split = mapSaleToTransaction({
       ...sale,

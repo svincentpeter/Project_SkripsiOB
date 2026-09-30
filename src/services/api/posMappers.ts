@@ -42,6 +42,7 @@ export interface ApiSaleItem {
   sub_total: number;
   unit_cost_hpp: number;
   total_cost_hpp: number;
+  returned_qty?: number;
   product: { id: number; product_name: string; brand?: string; product_size?: string; motif?: string } | null;
 }
 
@@ -85,9 +86,24 @@ export interface ApiSale {
   voided_at?: string | null;
   voided_by?: string | null;
   void_reason?: string | null;
+  returned_amount?: number;
+  returns?: ApiSalesReturn[];
   items: ApiSaleItem[];
   payments: ApiSalePayment[];
   journals: ApiJournal[];
+}
+
+/** Retur penjualan (Sale::toReceiptArray → returns, SalesReturn::toApiArray). */
+export interface ApiSalesReturn {
+  id: number;
+  reference: string;
+  return_date: string;
+  reason: string;
+  refund_amount: number;
+  cost_amount: number;
+  journal_entry_number?: string | null;
+  operator_name?: string | null;
+  items: { sale_detail_id: number; quantity: number; refund_amount: number; cost_amount: number }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -349,6 +365,14 @@ export const mapSaleToTransaction = (s: ApiSale): PosTransaction => {
     void_reason: s.void_reason ?? undefined,
     voided_at: s.voided_at ?? undefined,
     voided_by: s.voided_by ?? undefined,
+    returned_amount: num(s.returned_amount),
+    return_lines: s.items.map((it) => ({
+      sale_detail_id: it.id,
+      name: it.item_name,
+      item_type: it.item_type,
+      quantity: it.quantity,
+      returned_qty: num(it.returned_qty),
+    })),
   };
 };
 
