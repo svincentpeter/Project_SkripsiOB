@@ -94,7 +94,10 @@ class SaleVoidService
         }
 
         $cents = (int) round(((float) $detail->total_cost_hpp - (float) $detail->allocations->sum('total_cost')) * 100);
-        foreach (FifoCostingService::centLayers($units, max(0, $cents)) as $i => [$qty, $cost]) {
+        if ($cents < 0) {
+            throw new PosRuleException("HPP alokasi batch nota {$sale->reference} melebihi HPP yang dijurnal; stok tidak bisa dipulihkan dengan nilai yang benar.");
+        }
+        foreach (FifoCostingService::centLayers($units, $cents) as $i => [$qty, $cost]) {
             ProductBatch::create([
                 'product_id' => $product->id,
                 'batch_code' => "VOID-{$sale->reference}-{$detail->id}-{$i}",

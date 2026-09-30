@@ -126,6 +126,9 @@ class FifoCostingService
      */
     public static function centLayers(int $qty, int $cents): array
     {
+        if ($qty <= 0 || $cents < 0) {
+            throw new \InvalidArgumentException("centLayers butuh qty > 0 dan total ≥ 0 (qty {$qty}, sen {$cents}).");
+        }
         $base = intdiv($cents, $qty);
         $rest = $cents % $qty;
         $layers = [[$qty - $rest, $base / 100]];

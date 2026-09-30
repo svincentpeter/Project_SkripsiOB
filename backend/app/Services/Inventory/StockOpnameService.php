@@ -34,7 +34,9 @@ class StockOpnameService
                 $physical = (int) $item['physical_qty'];
                 $diff = $physical - $system;
                 // Lapisan FIFO dicocokkan ke hitungan fisik juga, sehingga stok tanpa batch (drift lama) ikut terkoreksi.
-                $layerDiff = $physical - (int) ProductBatch::where('product_id', $product->id)->sum('remaining_qty');
+                // lockForUpdate = current read: snapshot transaksi (diambil InventoryValueJournal sebelum produk dikunci)
+                // bisa belum melihat penjualan/penerimaan yang commit di antaranya.
+                $layerDiff = $physical - (int) ProductBatch::where('product_id', $product->id)->lockForUpdate()->sum('remaining_qty');
                 if ($diff === 0 && $layerDiff === 0) {
                     continue;
                 }
