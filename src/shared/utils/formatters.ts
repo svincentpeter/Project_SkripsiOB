@@ -14,6 +14,18 @@ export const parseRupiahInput = (input: string): number => {
   return clean ? parseInt(clean, 10) : 0;
 };
 
+/**
+ * Nominal bertanda dengan sen: "12.345.678,90" (format Indonesia), "12345678.90" (titik desimal 1-2 angka),
+ * "-6.500" (minus di depan). Kosong = 0; format lain (mis. "12,345.90" atau 3 angka desimal) = null.
+ */
+export const parseDecimalRupiah = (input: string): number | null => {
+  const s = input.replace(/rp/i, '').replace(/\s/g, '').replace(/−/g, '-');
+  if (s === '') return 0;
+  const id = /^(-?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?$/.exec(s);
+  if (id) return Number(`${id[1]}${id[2].replace(/\./g, '')}.${id[3] ?? '0'}`) + 0;
+  return /^-?\d+\.\d{1,2}$/.test(s) ? Number(s) + 0 : null;
+};
+
 export const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('id-ID').format(value);
 };

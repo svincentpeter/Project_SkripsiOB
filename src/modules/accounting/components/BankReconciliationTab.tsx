@@ -4,9 +4,9 @@ import type { ApiJournal } from '../../../services/api';
 import { sakEmkmApi } from '../../../services/api/sakEmkmApi';
 import { currentMonth, localDate, monthLabel } from '../../../services/accountingPeriod';
 import type { BankStatementLine, OutstandingLedgerItem } from '../../../shared/types/sakEmkm';
-import { MoneyInput, useToast } from '../../../shared/components';
+import { useToast } from '../../../shared/components';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
-import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
+import { formatDateIndo, formatRupiah, parseDecimalRupiah } from '../../../shared/utils/formatters';
 import { useServerData } from '../hooks/useServerData';
 import { ServerStatus } from './ServerStatus';
 
@@ -20,12 +20,15 @@ interface BankReconciliationTabProps {
 const cents = (n: number): number => Math.round(n * 100);
 const ledgerAmount = (i: OutstandingLedgerItem): number => i.debit - i.credit;
 const errorText = (err: unknown): string => (err instanceof Error ? err.message : 'Permintaan ditolak server.');
+const decimalText = (n: number): string => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n);
+const FORMAT_HINT = 'Gunakan format 12.345.678,90 atau 12345678.90 (minus di depan untuk saldo cerukan).';
 
 export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ refreshKey = 0, onJournalsPosted, lockDate = null }) => {
   const toast = useToast();
   const [period, setPeriod] = useState(currentMonth());
-  const [statementBalance, setStatementBalance] = useState(0);
-  const [draft, setDraft] = useState({ statement_date: localDate(), description: '', amount: 0, direction: 'OUT' as 'IN' | 'OUT' });
+  // Teks bebas (bukan MoneyInput yang hanya bilangan bulat positif): saldo bank bisa bersen dan negatif (cerukan).
+  const [balanceText, setBalanceText] = useState('');
+  const [draft, setDraft] = useState({ statement_date: localDate(), description: '', amount: '', direction: 'OUT' as 'IN' | 'OUT' });
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const isCurrent = period === currentMonth();
@@ -38,7 +41,7 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
   const unmatchedIds = new Set(unmatched.map((i) => i.journal_item_id));
 
   useEffect(() => {
-    setStatementBalance(r?.statement_ending_balance ?? 0);
+    setBalanceText(r?.statement_ending_balance == null ? '' : decimalText(r.statement_ending_balance));
   }, [r?.period, r?.statement_ending_balance]);
 
   /** Hanya panggilan server yang ditangkap; muat ulang & notifikasi sukses di luar jalur galat. */
@@ -58,21 +61,33 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
     toast.success(title, done(res));
   };
 
-  const saveBalance = () => act('Saldo Rekening Koran', () => sakEmkmApi.setStatementBalance(period, statementBalance),
-    () => `Saldo akhir ${monthLabel(period)} disimpan.`);
+  const saveBalance = () => {
+    const balance = parseDecimalRupiah(balanceText);
+    if (balance === null || !balanceText.trim()) {
+      toast.warning('Format Saldo Salah', `Isi saldo akhir rekening koran. ${FORMAT_HINT}`);
+      return;
+    }
+    void act('Saldo Rekening Koran', () => sakEmkmApi.setStatementBalance(period, balance), () => `Saldo akhir ${monthLabel(period)} disimpan.`);
+  };
 
   const addLine = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!draft.description.trim() || draft.amount <= 0) {
-      toast.warning('Mutasi Belum Lengkap', 'Isi keterangan dan nominal mutasi.');
+    const amount = parseDecimalRupiah(draft.amount);
+    if (amount === null) {
+      toast.warning('Format Nominal Salah', 'Gunakan format 1.234.567,89 atau 1234567.89.');
+      return;
+    }
+    // Nominal selalu positif; tanda mengikuti pilihan Arah.
+    if (!draft.description.trim() || amount <= 0) {
+      toast.warning('Mutasi Belum Lengkap', 'Isi keterangan dan nominal mutasi (lebih dari 0; arah menentukan masuk/keluar).');
       return;
     }
     void act('Tambah Mutasi', () => sakEmkmApi.addStatementLine({
       statement_date: draft.statement_date,
       description: draft.description.trim(),
-      amount: draft.direction === 'IN' ? draft.amount : -draft.amount,
+      amount: draft.direction === 'IN' ? amount : -amount,
     }), () => {
-      setDraft((d) => ({ ...d, description: '', amount: 0 }));
+      setDraft((d) => ({ ...d, description: '', amount: '' }));
       return 'Baris rekening koran disimpan.';
     });
   };
@@ -130,6 +145,8 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
       </div>
 
       <ServerStatus loading={report.loading && !r} error={report.error} onRetry={report.reload} />
+      {/* Bulan lalu: kandidat pencocokan berasal dari laporan bulan berjalan; tanpa itu tidak ada kandidat yang ditawarkan. */}
+      {!isCurrent && <ServerStatus loading={false} error={now.error} onRetry={now.reload} />}
 
       {r && (
         <>
@@ -137,7 +154,8 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
             <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-1">
               <span className="font-bold text-slate-700 block">Menurut rekening koran</span>
               <div className="flex items-center gap-2">
-                <MoneyInput value={statementBalance} onChange={setStatementBalance} prefix="Rp" className={`${field} w-full`} aria-label="Saldo akhir rekening koran" />
+                <input type="text" inputMode="decimal" value={balanceText} onChange={(e) => setBalanceText(e.target.value)} placeholder="0,00"
+                  title={FORMAT_HINT} className={`${field} w-full font-mono text-right`} aria-label="Saldo akhir rekening koran (Rp)" />
                 <button type="button" onClick={saveBalance} disabled={busy} className={`${button} text-white bg-slate-800 hover:bg-slate-900`}>Simpan</button>
               </div>
               <p>+ Setoran dalam perjalanan <span className="font-mono float-right">{formatRupiah(r.deposits_in_transit)}</span></p>
@@ -178,7 +196,8 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
             </label>
             <label className="block">
               <span className="block font-bold text-slate-700 mb-1">Nominal</span>
-              <MoneyInput value={draft.amount} onChange={(v) => setDraft({ ...draft, amount: v })} prefix="Rp" className={field} />
+              <input type="text" inputMode="decimal" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="0,00"
+                className={`${field} font-mono text-right`} />
             </label>
             <button type="submit" disabled={busy} className={`${button} text-white bg-blue-600 hover:bg-blue-700`}><Plus className="w-4 h-4" />Tambah</button>
             <button type="button" disabled={busy} onClick={() => fileRef.current?.click()} className={`${button} text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200`}>
@@ -191,7 +210,7 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
             </button>
             <p className="w-full text-[11px] text-slate-500">
               Format CSV: baris pertama <code>tanggal;keterangan;jumlah</code> (pemisah ; atau ,), tanggal YYYY-MM-DD atau DD/MM/YYYY,
-              jumlah angka tanpa titik ribuan, negatif untuk uang keluar (contoh -6500).
+              jumlah angka tanpa titik ribuan, desimal pakai titik (contoh 1234.56), negatif untuk uang keluar (contoh -6500).
             </p>
           </form>
 
