@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Services\Accounting\PeriodLock;
 use App\Services\AccountingEngine;
 use App\Services\DocumentNumber;
 use App\Services\FifoCostingService;
@@ -37,6 +38,8 @@ class GoodsReceiptService
             $supplier = ! empty($data['supplier_id']) ? Supplier::findOrFail($data['supplier_id']) : null;
             $supplierName = $supplier?->supplier_name ?? $data['source_name'];
             $date = $data['purchase_date'] ?? now()->toDateString();
+            // Penerimaan bonus (Rp 0) tanpa jurnal tetap mengubah stok bulan itu, jadi kunci periode dicek di sini.
+            PeriodLock::assertOpen($date);
             $method = $data['payment_method'];
             $qty = (int) $data['quantity'];
             $isTempo = $method === 'TEMPO';

@@ -127,6 +127,17 @@ class GoodsReceiptTest extends TestCase
         $this->assertEquals($before, InventoryValueJournal::summary()['difference']);
     }
 
+    public function test_zero_cost_receipt_in_a_closed_period_is_rejected_without_changing_stock(): void
+    {
+        $this->postJson('/api/v1/accounting/periods/close', ['period' => '2020-01'])->assertCreated();
+        $product = $this->makeProduct(800000, [[2, 450000, '2019-08-01']]);
+
+        $this->restock($product, ['source_name' => 'Bonus Supplier', 'payment_method' => 'TUNAI', 'batch_cost' => 0, 'purchase_date' => '2020-01-15'])
+            ->assertStatus(422);
+
+        $this->assertSame(2, $product->fresh()->product_quantity);
+    }
+
     public function test_invoice_total_books_payable_exactly_and_absorbs_rounding_in_batches(): void
     {
         $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
