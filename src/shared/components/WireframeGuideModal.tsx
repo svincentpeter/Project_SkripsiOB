@@ -55,7 +55,7 @@ const GUIDE_TABS: GuideTabItem[] = [
   { id: 'inventory', label: '4. Stok Ban & FIFO', badge: 'Gudang Ban', icon: Package },
   { id: 'expenses', label: '5. Biaya & Kas Kecil', badge: 'Operasional', icon: Wallet },
   { id: 'dashboard', label: '6. Dashboard Owner', badge: 'Pantau Bisnis', icon: LayoutDashboard },
-  { id: 'ledger', label: '7. Bon & Hutang Tempo', badge: 'Piutang & Hutang', icon: FileText },
+  { id: 'ledger', label: '7. Hutang Tempo Supplier', badge: 'Hutang Dagang', icon: FileText },
   { id: 'financials', label: '8. Laporan Keuangan', badge: 'SAK EMKM IAI', icon: DollarSign },
   { id: 'settings', label: '9. Hak Akses & Toko', badge: 'Keamanan', icon: Settings },
   { id: 'faq', label: '10. Tanya Jawab (FAQ)', badge: 'Solusi Kendala', icon: HelpCircle },
@@ -206,7 +206,7 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                       <li>Nyalakan komputer dan pastikan printer struk kasir 80mm menyala serta terisi kertas.</li>
                       <li>Login ke akun kasir Anda.</li>
                       <li>Periksa modal uang receh di laci kasir (standar toko: Rp 500.000 untuk uang kembalian).</li>
-                      <li>Klik ikon lonceng notifikasi di pojok kanan atas untuk melihat bon yang sudah jatuh tempo atau ban yang habis.</li>
+                      <li>Klik ikon lonceng notifikasi di pojok kanan atas untuk melihat hutang supplier yang sudah jatuh tempo atau ban yang habis.</li>
                     </ol>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 text-[11px] text-amber-800 bg-amber-50 rounded-lg p-2 font-medium">
@@ -226,7 +226,7 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                       <li>Pelanggan datang, kasir mengetik nomor plat mobil pelanggan (misal: AA 1234 OB) dan nama pemilik.</li>
                       <li>Masukkan ban atau jasa yang dibeli (Spooring, Balancing, Pasang Baru).</li>
                       <li>Jika mobil masih didongkrak di pit servis, kasir bisa klik <strong>"Tahan Transaksi"</strong> agar kasir bisa melayani mobil berikutnya.</li>
-                      <li>Setelah selesai dipasang, buka kembali transaksi, pilih cara bayar (Tunai/QRIS/Debit/Bon), lalu cetak struk nota untuk pelanggan.</li>
+                      <li>Setelah selesai dipasang, buka kembali transaksi, pilih cara bayar (Tunai/Transfer/QRIS), lalu cetak struk nota untuk pelanggan.</li>
                     </ol>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 text-[11px] text-blue-800 bg-blue-50 rounded-lg p-2 font-medium">
@@ -251,7 +251,7 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                     </ol>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 text-[11px] text-emerald-800 bg-emerald-50 rounded-lg p-2 font-medium">
-                    ✅ Jika ada selisih, cek apakah ada bon yang belum dicatat atau uang operasional yang lupa diinput.
+                    ✅ Jika ada selisih, cek apakah ada transaksi yang belum dicatat atau uang operasional yang lupa diinput.
                   </div>
                 </div>
               </div>
@@ -269,7 +269,7 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                   <div>
                     <h3 className="text-base font-bold text-slate-900">Menu Terminal Kasir (POS): Jual Ban & Jasa Bengkel</h3>
                     <p className="text-xs text-slate-600 mt-1">
-                      Menu utama kasir untuk melayani penjualan ban, velg, oli, jasa spooring, balancing, dan melayani booking ban inden.
+                      Menu utama kasir untuk melayani penjualan ban, velg, oli, jasa spooring, dan balancing. Setiap nota dibayar lunas saat itu juga.
                     </p>
                   </div>
                 </div>
@@ -303,7 +303,7 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                     <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">Langkah 3</span>
                     <p className="font-bold text-xs text-slate-800 mt-1">Atur Diskon & Metode Bayar</p>
                     <p className="text-[11px] text-slate-500">
-                      Jika Owner menyetujui diskon, masukkan nominal potongan di kolom Diskon. Lalu pilih metode: <strong>Tunai</strong>, <strong>Transfer/QRIS</strong>, <strong>Kartu Debit</strong>, atau <strong>Bon (Tempo)</strong>.
+                      Jika Owner menyetujui diskon, masukkan nominal potongan di kolom Diskon. Lalu pilih metode: <strong>Tunai</strong>, <strong>Transfer</strong>, <strong>QRIS</strong>, atau <strong>Multi-Bayar</strong> (gabungan). Nota harus lunas saat itu juga.
                     </p>
                   </div>
 
@@ -329,16 +329,6 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                     </div>
                     <p className="text-slate-600 text-[11px]">
                       Bila mobil pelanggan sedang dipasang ban di area bengkel dan butuh waktu 30 menit, kasir tidak perlu menunggu. Klik tombol <strong>"Tahan Nota"</strong>. Kasir bisa melayani mobil lain. Saat pelanggan selesai, buka menu nota yang ditahan untuk menyelesaikan pembayaran.
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-1">
-                    <div className="flex items-center gap-2 font-bold text-slate-800">
-                      <Truck className="w-4 h-4 text-blue-600" />
-                      <span>Fitur "Booking Ban Inden & DP"</span>
-                    </div>
-                    <p className="text-slate-600 text-[11px]">
-                      Jika pelanggan mencari ban ukuran khusus yang belum ready di toko, buatkan pesanan inden via tombol <strong>"Booking"</strong>. Terima uang muka (DP). Saat ban pesanan tiba dari distributor, buka riwayat booking dan ubah menjadi transaksi selesai.
                     </p>
                   </div>
                 </div>
@@ -589,7 +579,7 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
             </div>
           )}
 
-          {/* TAB 7: BON & HUTANG TEMPO */}
+          {/* TAB 7: HUTANG TEMPO SUPPLIER */}
           {activeTab === 'ledger' && (
             <div className="space-y-6 animate-in fade-in duration-150">
               <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 sm:p-5">
@@ -598,34 +588,15 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Menu Buku Besar: Piutang Bon & Hutang Distributor</h3>
+                    <h3 className="text-base font-bold text-slate-900">Menu Buku Besar: Hutang Distributor</h3>
                     <p className="text-xs text-slate-600 mt-1">
-                      Mengawasi pelanggan yang belum melunasi pembayaran (Bon) dan jadwal pembayaran jatuh tempo ke distributor ban.
+                      Mengawasi jadwal pembayaran jatuh tempo ke distributor ban. Penjualan ke pelanggan selalu lunas saat checkout.
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                {/* Piutang Bon */}
-                <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-2.5">
-                  <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
-                    <Clock className="w-4 h-4 text-purple-600" />
-                    <span>Mengelola Piutang Bon Pelanggan</span>
-                  </div>
-                  <p className="text-slate-600 leading-relaxed">
-                    Pelanggan langganan, kantor rekanan, atau rental mobil yang memasang ban dengan sistem pembayaran tempo akan tercatat di tab <strong>Piutang Bon</strong>.
-                  </p>
-                  <p className="font-semibold text-slate-800">Saat pelanggan datang melunasi:</p>
-                  <ol className="space-y-1.5 text-slate-600 list-decimal list-inside">
-                    <li>Buka menu <strong>Buku Besar</strong> -&gt; klik tab <strong>Piutang Bon</strong>.</li>
-                    <li>Cari nama pelanggan atau nomor plat kendaraannya.</li>
-                    <li>Klik tombol <strong>"Pelunasan Bon"</strong>.</li>
-                    <li>Ketik jumlah nominal uang yang dibayarkan dan pilih metode (Tunai atau Transfer).</li>
-                    <li>Status nota otomatis berubah menjadi <strong>LUNAS</strong> dan uang masuk ke pembukuan kas.</li>
-                  </ol>
-                </div>
-
                 {/* Hutang Distributor */}
                 <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-2.5">
                   <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
@@ -798,7 +769,7 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                     <span>Mengapa laba kotor di sistem tidak sama persis dengan uang di laci kasir?</span>
                   </h4>
                   <p className="text-slate-600">
-                    <strong>Solusi:</strong> Uang di laci kasir hanya uang fisik tunai. Jika ada pelanggan yang membayar lewat QRIS, transfer bank, atau membeli dengan sistem Bon (tempo), uangnya masuk ke rekening atau menjadi piutang, tetapi labanya sudah tercatat secara akuntansi.
+                    <strong>Solusi:</strong> Uang di laci kasir hanya uang fisik tunai. Jika pelanggan membayar lewat QRIS atau transfer bank, uangnya masuk ke rekening bank, tetapi labanya sudah tercatat secara akuntansi.
                   </p>
                 </div>
 

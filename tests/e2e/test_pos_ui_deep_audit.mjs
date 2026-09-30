@@ -263,59 +263,9 @@ function recordFinding(category, subview, title, description, status = 'OK') {
     }
 
     // ----------------------------------------------------
-    // AUDIT 9: Booking DP Modal & Drawer
-    // ----------------------------------------------------
-    console.log('12. Mengaudit Booking DP & Pre-Order Ban...');
-    const dpModeBtn = page.locator('div:has(> button:has-text("Reguler (Lunas)")) button:has-text("Booking DP")').first();
-    if (await dpModeBtn.isVisible()) {
-      await dpModeBtn.click();
-      await page.waitForTimeout(400);
-      const openDpModalBtn = page.locator('button:has-text("Simpan Booking DP")').first();
-      if (await openDpModalBtn.isVisible() && !(await openDpModalBtn.isDisabled())) {
-        await openDpModalBtn.click();
-        await page.waitForTimeout(800);
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'pos_09_booking_dp_modal.png') });
-
-        // Periksa Date Picker & Time Picker
-        const dateInput = page.locator('input[type="date"]').first();
-        const timeInput = page.locator('input[type="time"]').first();
-        const waInput = page.locator('input[placeholder*="0812-3456-7890"]').first();
-
-        if (await dateInput.isVisible() && await timeInput.isVisible()) {
-          recordFinding('VERIFIED', 'Booking DP Modal', 'Date & Time Picker Terstruktur Aktif', 'Input tanggal janji pasang dan jam kedatangan kalender berfungsi.', 'OK');
-        }
-        if (await waInput.isVisible()) {
-          recordFinding('VERIFIED', 'Booking DP Modal', 'Placeholder WhatsApp Profesional', 'Format placeholder baku: "Contoh: 0812-3456-7890".', 'OK');
-        }
-
-        // Tutup modal DP
-        const cancelDpBtn = page.locator('button:has-text("Batal")').first();
-        if (await cancelDpBtn.isVisible()) await cancelDpBtn.click();
-        await page.waitForTimeout(500);
-      }
-    }
-
-    // Buka Drawer Daftar Booking dari Header
-    const openBookingListBtn = page.locator('header button[title*="Daftar Booking Inden & DP"]').first();
-    if (await openBookingListBtn.isVisible()) {
-      await openBookingListBtn.click();
-      await page.waitForTimeout(600);
-      await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'pos_10_booking_list_drawer.png') });
-
-      const closeBookingListBtn = page.locator('div.fixed button:has(svg.lucide-x)').first();
-      if (await closeBookingListBtn.isVisible()) await closeBookingListBtn.click();
-      await page.waitForTimeout(500);
-    }
-
-    // Kembalikan mode keranjang ke REGULER
-    const regModeBtn = page.locator('button:has-text("Reguler (Lunas)")').first();
-    if (await regModeBtn.isVisible()) await regModeBtn.click();
-    await page.waitForTimeout(400);
-
-    // ----------------------------------------------------
     // AUDIT 10: Modal Checkout Multi-Metode (CheckoutModal)
     // ----------------------------------------------------
-    console.log('13. Mengaudit Modal Checkout Multi-Metode & Faktur BON...');
+    console.log('13. Mengaudit Modal Checkout Multi-Metode...');
     const checkoutBtn = page.locator('button:has-text("Proses Pesanan (Bayar)")').first();
     await checkoutBtn.waitFor({ state: 'visible', timeout: 5000 });
     await checkoutBtn.click();
@@ -342,28 +292,7 @@ function recordFinding(category, subview, title, description, status = 'OK') {
       recordFinding('VERIFIED', 'Checkout - QRIS', 'Tab QRIS Siap Digunakan', 'Opsi QRIS Midtrans dinamis / manual terkonfigurasi.', 'OK');
     }
 
-    // D. Mode Faktur BON (Piutang Usaha) & Verifikasi Due Date Selector
-    const bonTagBtn = page.locator('button:has-text("Faktur BON (Piutang)")').first();
-    if (await bonTagBtn.isVisible()) {
-      await bonTagBtn.click();
-      await page.waitForTimeout(600);
-      await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'pos_14_checkout_modal_bon.png') });
-
-      const bonDueDateInput = page.locator('input[type="date"]').first();
-      const bonTermPills = page.locator('button:has-text("7 Hari"), button:has-text("14 Hari"), button:has-text("30 Hari")');
-      const termPillsCount = await bonTermPills.count();
-
-      if (await bonDueDateInput.isVisible() && termPillsCount >= 3) {
-        recordFinding('VERIFIED', 'Checkout - BON', 'Termin & Jatuh Tempo Piutang Terverifikasi', 'Pilihan termin 7/14/30 hari dan date picker jatuh tempo aktif.', 'OK');
-      } else {
-        recordFinding('UI_CACAT', 'Checkout - BON', 'Jatuh Tempo Hilang', 'Input tanggal jatuh tempo BON tidak ditemukan.', 'ERROR');
-      }
-    }
-
-    // Kembalikan ke Reguler & Tunai untuk menyelesaikan transaksi uji coba
-    const regTagBtn = page.locator('button:has-text("Faktur Reguler (Lunas)")').first();
-    if (await regTagBtn.isVisible()) await regTagBtn.click();
-    await page.waitForTimeout(300);
+    // Kembali ke Tunai untuk menyelesaikan transaksi uji coba
     const cashTabBtn = page.locator('button:has-text("Tunai")').first();
     if (await cashTabBtn.isVisible()) await cashTabBtn.click();
     await page.waitForTimeout(300);

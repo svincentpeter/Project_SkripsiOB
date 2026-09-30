@@ -279,7 +279,7 @@ async function runComprehensiveAudit() {
 
       const qrisSection = page.getByText('QRIS').first();
       if (await qrisSection.isVisible()) {
-        recordFinding('VERIFIED', 'Modul 8 - Pembayaran', 'Konfigurasi Metode Bayar Hadir', 'Pengaturan QRIS dinamis, rekening bank transfer toko, dan opsi debit EDC tampil.', 'OK');
+        recordFinding('VERIFIED', 'Modul 8 - Pembayaran', 'Konfigurasi Metode Bayar Hadir', 'Pengaturan QRIS dinamis dan rekening bank transfer toko tampil.', 'OK');
       } else {
         recordFinding('UI_CACAT', 'Modul 8 - Pembayaran', 'Metode Bayar Tidak Tampil', 'Komponen PaymentMethodsTab tidak memuat master pembayaran.', 'ERROR');
       }
@@ -366,7 +366,7 @@ async function runComprehensiveAudit() {
 
       const notifHeader = page.getByText('Notifikasi').first();
       if (await notifHeader.isVisible()) {
-        recordFinding('VERIFIED', 'Modul 9 - Notifikasi', 'Dropdown Notifikasi Terbuka', 'Panel notifikasi peringatan stok menipis dan hutang/piutang tempo tampil.', 'OK');
+        recordFinding('VERIFIED', 'Modul 9 - Notifikasi', 'Dropdown Notifikasi Terbuka', 'Panel notifikasi peringatan stok menipis dan hutang tempo supplier tampil.', 'OK');
       } else {
         recordFinding('UI_CACAT', 'Modul 9 - Notifikasi', 'Dropdown Notifikasi Gagal Terbuka', 'Panel lonceng notifikasi tidak muncul saat diklik.', 'ERROR');
       }

@@ -104,7 +104,7 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
       id: 'ledger' as ActiveScreen, 
       label: 'Buku Besar', 
       icon: BookOpen,
-      breadcrumb: ['Akuntansi SAK EMKM', 'Buku Besar, Neraca Saldo & BON'],
+      breadcrumb: ['Akuntansi SAK EMKM', 'Buku Besar, Neraca Saldo & Hutang'],
     },
     { 
       id: 'financials' as ActiveScreen, 

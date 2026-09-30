@@ -90,7 +90,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({ isOpen, 
             <Scale className="w-5 h-5 text-blue-600" />
             <div>
               <h2 id="manual-journal-title" className="text-base font-bold text-slate-900">Jurnal Penyesuaian Manual</h2>
-              <p className="text-xs text-slate-500">Nomor jurnal & referensi MEMO dibuat server. Akun piutang, persediaan, hutang, dan DP tidak tersedia.</p>
+              <p className="text-xs text-slate-500">Nomor jurnal & referensi MEMO dibuat server. Akun persediaan, hutang, dan akun nonaktif tidak tersedia.</p>
             </div>
           </div>
           <button type="button" aria-label="Tutup" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer">

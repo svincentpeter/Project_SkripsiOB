@@ -28,7 +28,7 @@ export const CashFlowStatementTab: React.FC<CashFlowStatementTabProps> = ({ cash
     <table className="w-full text-xs border border-slate-200">
       <tbody>
         <Heading>A. Arus Kas dari Aktivitas Operasi</Heading>
-        <Row indent label="Penerimaan dari pelanggan (penjualan, pelunasan piutang, DP)" value={cashFlow.operating.customers} />
+        <Row indent label="Penerimaan dari pelanggan (penjualan)" value={cashFlow.operating.customers} />
         <Row indent label="Pembayaran ke pemasok & persediaan" value={cashFlow.operating.suppliers} />
         <Row indent label="Pembayaran beban operasional" value={cashFlow.operating.expenses} />
         {cashFlow.operating.other !== 0 && <Row indent label="Arus kas operasi lainnya" value={cashFlow.operating.other} />}

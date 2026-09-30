@@ -72,7 +72,7 @@ export const OpeningBalanceModal: React.FC<OpeningBalanceModalProps> = ({ isOpen
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
           <p className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 leading-relaxed">
-            Diisi sekali saat mulai memakai sistem. Piutang, persediaan, hutang, dan uang muka DP tidak diisi di sini karena nilainya berasal
+            Diisi sekali saat mulai memakai sistem. Persediaan dan hutang tidak diisi di sini karena nilainya berasal
             dari dokumen masing-masing (persediaan lewat "Saldo Awal Persediaan" di modul inventori).
           </p>
           <label className="block">

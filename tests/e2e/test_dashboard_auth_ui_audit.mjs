@@ -183,7 +183,7 @@ async function runDashboardAndAuthAudit() {
       const recentTx = page.getByText('Riwayat Transaksi Terkini').first();
 
       if (await paymentDist.isVisible() && await serviceVsProduct.isVisible() && await recentTx.isVisible()) {
-        recordFinding('VERIFIED', 'Modul 1 - Analisis Penjualan', 'Subtab Penjualan & Kasir Lengkap', 'Distribusi metode bayar (Tunai, Transfer, QRIS, BON), omzet ban vs jasa, dan riwayat transaksi tampil.', 'OK');
+        recordFinding('VERIFIED', 'Modul 1 - Analisis Penjualan', 'Subtab Penjualan & Kasir Lengkap', 'Distribusi metode bayar (Tunai, Transfer, QRIS), omzet ban vs jasa, dan riwayat transaksi tampil.', 'OK');
       } else {
         recordFinding('UI_CACAT', 'Modul 1 - Analisis Penjualan', 'Komponen Analisis Penjualan Tidak Lengkap', 'Beberapa kartu analisis penjualan tidak tampil.', 'ERROR');
       }

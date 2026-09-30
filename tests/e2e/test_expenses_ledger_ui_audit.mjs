@@ -333,44 +333,10 @@ async function runExpensesLedgerAudit() {
     }
 
     // ----------------------------------------------------
-    // AUDIT 5.7: Sub-Tab 5 - Pembantu Piutang / AR (receivables)
+    // AUDIT 5.7: Sub-Tab 5 - Laporan Keuangan (reports)
     // ----------------------------------------------------
-    console.log('15. Mengaudit Sub-Tab 5: Pembantu Piutang (receivables)...');
-    const tabReceivables = page.locator('button:has-text("5. Pembantu Piutang (AR)")').first();
-    if (await tabReceivables.isVisible()) {
-      await tabReceivables.click();
-      await page.waitForTimeout(800);
-      await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'led_08_receivables_tab.png') });
-
-      const arTitle = page.locator('text=Buku Pembantu Piutang').first();
-      if (await arTitle.isVisible()) {
-        recordFinding('VERIFIED', 'Akuntansi - Piutang AR', 'Buku Pembantu Piutang Siap', 'Daftar piutang tempo BON pelanggan, plat mobil, dan status tampil.', 'OK');
-      }
-
-      // Cek tombol Catat Pelunasan untuk memicu modal
-      const payReceivableBtn = page.locator('table button:has-text("Bayar"), button:has-text("Pelunasan")').first();
-      if (await payReceivableBtn.isVisible()) {
-        await payReceivableBtn.click();
-        await page.waitForTimeout(600);
-        await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'led_09_pay_receivable_modal.png') });
-
-        const payArModalTitle = page.locator('text=Terima Pembayaran Piutang, text=Pelunasan Piutang').first();
-        if (await payArModalTitle.isVisible()) {
-          recordFinding('VERIFIED', 'Akuntansi - Modal Piutang', 'Modal Pelunasan Piutang Terbuka', 'Form pelunasan piutang pelanggan tampil dengan baik.', 'OK');
-        }
-
-        // Tutup modal
-        const closePayArBtn = page.locator('.fixed.inset-0 button:has(svg.lucide-x)').first();
-        if (await closePayArBtn.isVisible()) await closePayArBtn.click();
-        await page.waitForTimeout(400);
-      }
-    }
-
-    // ----------------------------------------------------
-    // AUDIT 5.8: Sub-Tab 6 - Ikhtisar Eksekutif (reports)
-    // ----------------------------------------------------
-    console.log('16. Mengaudit Sub-Tab 6: Ikhtisar Eksekutif...');
-    const tabReports = page.locator('button:has-text("6. Ikhtisar Eksekutif")').first();
+    console.log('15. Mengaudit Sub-Tab 5: Laporan Keuangan...');
+    const tabReports = page.locator('button:has-text("5. Laporan Keuangan")').first();
     if (await tabReports.isVisible()) {
       await tabReports.click();
       await page.waitForTimeout(800);
