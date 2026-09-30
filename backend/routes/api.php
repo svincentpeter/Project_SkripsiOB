@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\v1\AccountController;
+use App\Http\Controllers\Api\v1\AdjustingEntryController;
 use App\Http\Controllers\Api\v1\AccountingPeriodController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
@@ -171,6 +172,7 @@ Route::prefix('v1')->group(function () {
             Route::get('depreciation', [FixedAssetController::class, 'depreciationPreview']);
             Route::post('depreciation', [FixedAssetController::class, 'runDepreciation']);
         });
+        Route::post('accounting/adjusting-entries', [AdjustingEntryController::class, 'store'])->middleware('permission:accounting_hub');
 
         // SAK EMKM Accounting Hub & Reports
         Route::prefix('accounting')->group(function () {
