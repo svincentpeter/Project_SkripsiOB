@@ -87,6 +87,7 @@ import {
   mapMovement,
   mapProductCategory,
   mapPurchaseToPayable,
+  payablesFromPurchases,
   mapServiceCategory,
   mapSupplier,
   productPayload,
@@ -386,7 +387,7 @@ function MainAppContent() {
   const refreshPayables = () => {
     inventoryApi
       .listPurchases('all')
-      .then((rows) => setPayableInvoices(rows.filter((p) => p.payment_method === 'TEMPO').map(mapPurchaseToPayable)))
+      .then((rows) => setPayableInvoices(payablesFromPurchases(rows)))
       .catch(() => {});
   };
 
@@ -538,6 +539,42 @@ function MainAppContent() {
       return true;
     } catch (err) {
       toast.error('Retur Ditolak', errorMessage(err));
+      return false;
+    }
+  };
+
+  // Retur pembelian: hutang dikurangi dulu, sisanya refund kas/bank; persediaan dan daftar hutang dimuat ulang.
+  const handlePurchaseReturn = async (
+    purchaseId: number,
+    payload: { quantity: number; reason: string; refund_account_code?: '1-1000' | '1-1001' }
+  ): Promise<boolean> => {
+    try {
+      const res = await inventoryApi.returnPurchase(purchaseId, payload);
+      if (res.journal) notifyLedgerChanged([res.journal]);
+      refreshPayables();
+      handleRefreshProducts();
+      toast.success(
+        'Retur Pembelian Dibukukan',
+        `${res.purchase_return.reference}: ${formatRupiah(res.purchase_return.total_amount)} dikembalikan ke ${res.purchase.supplier_name}.`
+      );
+      return true;
+    } catch (err) {
+      toast.error('Retur Pembelian Ditolak', errorMessage(err));
+      return false;
+    }
+  };
+
+  // Pembatalan penerimaan yang belum tersentuh: jurnal cermin pembelian.
+  const handleCancelReceipt = async (purchaseId: number, reason: string): Promise<boolean> => {
+    try {
+      const res = await inventoryApi.cancelPurchase(purchaseId, reason);
+      if (res.journal) notifyLedgerChanged([res.journal]);
+      refreshPayables();
+      handleRefreshProducts();
+      toast.warning('Penerimaan Dibatalkan', `${res.purchase.purchase_number} dibatalkan (${res.purchase_return.reference}).`);
+      return true;
+    } catch (err) {
+      toast.error('Pembatalan Ditolak', errorMessage(err));
       return false;
     }
   };
@@ -1010,6 +1047,8 @@ function MainAppContent() {
                 onServerChanged={handleInventoryServerChanged}
                 ledgerValuation={inventoryValuation}
                 onPostOpeningBalance={can('accounting_hub') ? handlePostOpeningBalance : undefined}
+                onPurchaseReturn={can('purchase_return') ? handlePurchaseReturn : undefined}
+                onCancelReceipt={can('purchase_return') ? handleCancelReceipt : undefined}
                 onSaveService={handleSaveService}
                 onToggleService={handleToggleService}
                 onDeleteServicePermanent={handleDeleteServicePermanent}

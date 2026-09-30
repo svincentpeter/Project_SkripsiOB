@@ -73,8 +73,10 @@ import {
   StockOpnameReceiptView, 
   SupplierFormModal,
   StockReconciliationModal,
-  StockMonthlyLedgerView
+  StockMonthlyLedgerView,
+  PurchaseReturnModal,
 } from './components';
+import type { PurchaseReturnPayload } from './components';
 import { useToast } from '../../shared/components';
 import { ExportMenu } from '../../shared/export/ExportMenu';
 import type { ApiJournal, InventoryValuation } from '../../services/api';
@@ -98,6 +100,9 @@ interface InventoryScreenProps {
   /** Nilai FIFO vs saldo buku 1-2000. */
   ledgerValuation?: InventoryValuation | null;
   onPostOpeningBalance?: () => void;
+  /** Retur pembelian / batal penerimaan (izin purchase_return). */
+  onPurchaseReturn?: (purchaseId: number, payload: PurchaseReturnPayload) => Promise<boolean>;
+  onCancelReceipt?: (purchaseId: number, reason: string) => Promise<boolean>;
   onSaveService?: (serviceData: Omit<ServiceMasterItem, 'id' | 'is_active'>, serviceId?: string) => void;
   onToggleService?: (serviceId: string) => void;
   onDeleteServicePermanent?: (serviceId: string) => void;
@@ -133,6 +138,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   onServerChanged,
   ledgerValuation,
   onPostOpeningBalance,
+  onPurchaseReturn,
+  onCancelReceipt,
   onSaveService,
   onToggleService,
   onDeleteServicePermanent: propDeleteServicePermanent,
@@ -186,6 +193,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const [preselectedRestockProduct, setPreselectedRestockProduct] = useState<ProductItem | null>(null);
 
   const [showReconciliationModal, setShowReconciliationModal] = useState<boolean>(false);
+  const [showPurchaseReturnModal, setShowPurchaseReturnModal] = useState<boolean>(false);
 
   const [showSupplierModal, setShowSupplierModal] = useState<boolean>(false);
   const [supplierFormMode, setSupplierFormMode] = useState<'CREATE' | 'EDIT'>('CREATE');
@@ -552,9 +560,11 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 <strong>{formatRupiah(ledgerValuation.ledger_balance)}</strong> ·{' '}
                 {Math.abs(ledgerValuation.difference) < 1
                   ? 'Selaras dengan buku besar'
-                  : `Selisih ${formatRupiah(ledgerValuation.difference)} belum dijurnal`}
+                  : ledgerValuation.opening_posted
+                    ? `Selisih ${formatRupiah(ledgerValuation.difference)}: telusuri lewat stock opname`
+                    : `Selisih ${formatRupiah(ledgerValuation.difference)} belum dijurnal`}
               </span>
-              {Math.abs(ledgerValuation.difference) >= 1 && onPostOpeningBalance && (
+              {Math.abs(ledgerValuation.difference) >= 1 && !ledgerValuation.opening_posted && onPostOpeningBalance && (
                 <button
                   type="button"
                   onClick={onPostOpeningBalance}
@@ -986,6 +996,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           products={products}
           onOpenRestock={permissions.goodsReceipt ? () => handleOpenRestock() : undefined}
           onOpenOpname={permissions.stockOpname ? () => setShowOpnameModal(true) : undefined}
+          onOpenPurchaseReturn={onPurchaseReturn && onCancelReceipt ? () => setShowPurchaseReturnModal(true) : undefined}
         />
       )}
 
@@ -1177,6 +1188,15 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           }
         }}
       />
+
+      {onPurchaseReturn && onCancelReceipt && (
+        <PurchaseReturnModal
+          isOpen={showPurchaseReturnModal}
+          onClose={() => setShowPurchaseReturnModal(false)}
+          onReturn={onPurchaseReturn}
+          onCancelReceipt={onCancelReceipt}
+        />
+      )}
 
       <StockOpnameModal
         isOpen={showOpnameModal}

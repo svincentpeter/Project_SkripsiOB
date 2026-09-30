@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   mapMovement,
   mapPurchaseToPayable,
+  payablesFromPurchases,
   productPayload,
   restockPayload,
 } from '../api/inventoryMappers';
@@ -99,5 +100,18 @@ describe('server records to UI', () => {
       paid_amount: 500000, remaining_amount: 1500000, status: 'SEBAGIAN',
     });
     expect(p).toMatchObject({ id: '3', invoice_number: 'INV-77', ref_doc: 'GR-202609-0003', remaining_amount: 1500000, status: 'SEBAGIAN' });
+  });
+
+  it('keeps only live TEMPO receipts as payables (cancelled receipts are dropped)', () => {
+    const base = {
+      supplier_id: 5, supplier_name: 'PT A', purchase_date: '2026-09-20', total_amount: 1000,
+      paid_amount: 0, remaining_amount: 1000,
+    };
+    const rows = payablesFromPurchases([
+      { ...base, id: 1, purchase_number: 'GR-1', payment_method: 'TEMPO', status: 'BELUM_LUNAS' },
+      { ...base, id: 2, purchase_number: 'GR-2', payment_method: 'TEMPO', status: 'BATAL', remaining_amount: 0 },
+      { ...base, id: 3, purchase_number: 'GR-3', payment_method: 'TUNAI', status: 'LUNAS' },
+    ]);
+    expect(rows.map((r) => r.id)).toEqual(['1']);
   });
 });

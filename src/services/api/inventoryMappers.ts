@@ -177,11 +177,15 @@ export const mapPurchaseToPayable = (p: ApiPurchase): PayableInvoice => ({
   total_amount: Number(p.total_amount) || 0,
   paid_amount: Number(p.paid_amount) || 0,
   remaining_amount: Number(p.remaining_amount) || 0,
-  // BATAL tidak pernah sampai ke daftar hutang (App menyaringnya); sisa hutangnya 0.
+  // BATAL tidak pernah sampai ke daftar hutang (payablesFromPurchases menyaringnya); sisa hutangnya 0.
   status: p.status === 'BATAL' ? 'LUNAS' : p.status,
   notes: p.notes ?? undefined,
   ref_doc: p.purchase_number,
 });
+
+/** Daftar hutang supplier: pembelian TEMPO yang tidak dibatalkan. */
+export const payablesFromPurchases = (rows: ApiPurchase[]): PayableInvoice[] =>
+  rows.filter((p) => p.payment_method === 'TEMPO' && p.status !== 'BATAL').map(mapPurchaseToPayable);
 
 // ---------------------------------------------------------------------------
 // Form UI → payload server

@@ -20,6 +20,7 @@ interface StockOpnameReceiptViewProps {
   products: ProductItem[];
   onOpenRestock?: () => void;
   onOpenOpname?: () => void;
+  onOpenPurchaseReturn?: () => void;
 }
 
 export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
@@ -27,6 +28,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
   products,
   onOpenRestock,
   onOpenOpname,
+  onOpenPurchaseReturn,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'MASUK' | 'KELUAR' | 'PENYESUAIAN'>('ALL');
@@ -103,6 +105,16 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
             >
               <ClipboardList className="w-4 h-4" />
               <span>Stock Opname</span>
+            </button>
+            )}
+            {onOpenPurchaseReturn && (
+            <button
+              type="button"
+              onClick={onOpenPurchaseReturn}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 text-xs font-extrabold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Retur / Batal Penerimaan</span>
             </button>
             )}
           </div>

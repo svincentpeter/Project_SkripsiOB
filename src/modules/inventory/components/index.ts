@@ -11,3 +11,4 @@ export * from './StockOpnameReceiptView';
 export * from './StockReconciliationModal';
 export * from './StockMonthlyLedgerView';
 export * from './StockLedgerInlineModal';
+export * from './PurchaseReturnModal';
