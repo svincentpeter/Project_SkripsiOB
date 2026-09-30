@@ -24,6 +24,8 @@ import {
   Building,
   BookOpen,
   FileText,
+  Factory,
+  Landmark,
   Settings
 } from 'lucide-react';
 import { PermissionKey, RolePermissionsConfig, UserSession } from '../../../shared/types';
@@ -147,6 +149,20 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     category: 'AKUNTANSI_BIAYA',
     description: 'Laporan Laba Rugi metode FIFO, Neraca Posisi Keuangan seimbang, dan CALK.',
     icon: <FileText className="w-4 h-4 text-amber-600" />,
+  },
+  {
+    key: 'fixed_assets',
+    label: 'Register Aset Tetap & Penyusutan',
+    category: 'AKUNTANSI_BIAYA',
+    description: 'Mencatat aset tetap, menjalankan penyusutan garis lurus bulanan, dan membatalkan aset yang salah input.',
+    icon: <Factory className="w-4 h-4 text-amber-600" />,
+  },
+  {
+    key: 'bank_reconciliation',
+    label: 'Rekonsiliasi Bank BCA',
+    category: 'AKUNTANSI_BIAYA',
+    description: 'Impor rekening koran, mencocokkan mutasi dengan jurnal, dan membukukan biaya admin atau bunga bank.',
+    icon: <Landmark className="w-4 h-4 text-amber-600" />,
   },
   {
     key: 'cash_movement',

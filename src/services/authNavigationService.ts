@@ -31,7 +31,9 @@ export function isScreenPermittedForRole(
         !!roleConfig.accounting_hub ||
         !!roleConfig.accounts_payable ||
         !!roleConfig.cash_session_approve ||
-        !!roleConfig.cash_movement
+        !!roleConfig.cash_movement ||
+        !!roleConfig.fixed_assets ||
+        !!roleConfig.bank_reconciliation
       );
     case 'financials':
       return !!roleConfig.financial_reports;

@@ -30,19 +30,28 @@ describe('deny by default', () => {
     expect(hasPermission(null, DEFAULT_ROLE_PERMISSIONS, 'pos')).toBe(false);
   });
 
-  it('default role permissions list exactly the 18 server keys (no booking DP or BON)', () => {
+  it('default role permissions list every server key, SAK EMKM keys denied', () => {
     expect(DEFAULT_ROLE_PERMISSIONS.KASIR.cash_session).toBe(true);
     expect(DEFAULT_ROLE_PERMISSIONS.KASIR.cash_movement).toBe(false);
     for (const role of ['KASIR', 'GUDANG'] as const) {
       const keys = Object.keys(DEFAULT_ROLE_PERMISSIONS[role]);
-      expect(keys).toHaveLength(18);
+      expect(keys).toHaveLength(20);
       expect(keys).toContain('sales_return');
       expect(keys).toContain('purchase_return');
       expect(keys).not.toContain('booking_dp');
       expect(keys).not.toContain('bon_receivable');
+      expect(DEFAULT_ROLE_PERMISSIONS[role].fixed_assets).toBe(false);
+      expect(DEFAULT_ROLE_PERMISSIONS[role].bank_reconciliation).toBe(false);
     }
     expect(DEFAULT_ROLE_PERMISSIONS.KASIR.sales_return).toBe(true);
     expect(DEFAULT_ROLE_PERMISSIONS.GUDANG.purchase_return).toBe(true);
+  });
+
+  it('ledger screen opens for fixed asset or bank reconciliation access alone', () => {
+    const onlyAssets = { ...DEFAULT_ROLE_PERMISSIONS, GUDANG: { ...DEFAULT_ROLE_PERMISSIONS.GUDANG, fixed_assets: true } };
+    const onlyBank = { ...DEFAULT_ROLE_PERMISSIONS, KASIR: { ...DEFAULT_ROLE_PERMISSIONS.KASIR, bank_reconciliation: true } };
+    expect(isScreenPermittedForRole('ledger', 'GUDANG', onlyAssets)).toBe(true);
+    expect(isScreenPermittedForRole('ledger', 'KASIR', onlyBank)).toBe(true);
   });
 
   it('default screen follows the configured permissions, not the role name', () => {

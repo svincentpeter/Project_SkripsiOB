@@ -24,6 +24,9 @@ const TYPE_GROUPS: { id: string; label: string; types: string[] }[] = [
   { id: 'CASH', label: 'Kas & Modal', types: ['CASH_SESSION_VARIANCE', 'CASH_DEPOSIT', 'OWNER_DRAWING', 'CAPITAL_INJECTION'] },
   { id: 'INVENTORY', label: 'Persediaan', types: ['STOCK_OPNAME', 'STOCK_IMPORT', 'STOCK_RECONCILIATION', 'STOCK_COST_CORRECTION', 'OPENING_BALANCE'] },
   { id: 'ADJUSTMENT', label: 'Penyesuaian', types: ['MANUAL_ADJUSTMENT', 'MANUAL_REVERSAL', 'ACCOUNT_OPENING'] },
+  { id: 'ASSET', label: 'Aset Tetap', types: ['FIXED_ASSET_ACQUISITION', 'FIXED_ASSET_VOID', 'DEPRECIATION'] },
+  { id: 'AJP', label: 'AJP Akrual/Prabayar', types: ['ADJUSTING_ENTRY', 'ADJUSTING_REVERSAL'] },
+  { id: 'BANK_RECON', label: 'Rekonsiliasi Bank', types: ['BANK_RECON_ADJUSTMENT'] },
   { id: 'CLOSING', label: 'Tutup Buku', types: ['PERIOD_CLOSING', 'PERIOD_REOPEN'] },
 ];
 
@@ -38,6 +41,12 @@ const TYPE_BADGE: Record<string, string> = {
   ACCOUNT_OPENING: 'SALDO AWAL',
   PERIOD_CLOSING: 'JURNAL PENUTUP',
   PERIOD_REOPEN: 'BUKA PERIODE',
+  FIXED_ASSET_ACQUISITION: 'ASET TETAP',
+  FIXED_ASSET_VOID: 'PEMBALIK',
+  DEPRECIATION: 'PENYUSUTAN',
+  ADJUSTING_ENTRY: 'AJP',
+  ADJUSTING_REVERSAL: 'PEMBALIK AJP',
+  BANK_RECON_ADJUSTMENT: 'REKON BANK',
   CASH_SESSION_VARIANCE: 'SELISIH KAS',
   CASH_DEPOSIT: 'SETOR BANK',
   OWNER_DRAWING: 'PRIVE',

@@ -12,7 +12,7 @@ interface ManualJournalModalProps {
 }
 
 /** Akun kontrol hanya berubah lewat dokumen sumbernya (server juga menolaknya). */
-const CONTROL_ACCOUNTS = ['1-1002', '1-2000', '2-1000', '2-1004'];
+const CONTROL_ACCOUNTS = ['1-1002', '1-2000', '2-1000', '2-1004', '1-3000', '1-3999'];
 
 type Line = { account_code: string; debit: number; credit: number; note: string };
 
@@ -90,7 +90,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({ isOpen, 
             <Scale className="w-5 h-5 text-blue-600" />
             <div>
               <h2 id="manual-journal-title" className="text-base font-bold text-slate-900">Jurnal Penyesuaian Manual</h2>
-              <p className="text-xs text-slate-500">Nomor jurnal & referensi MEMO dibuat server. Akun persediaan, hutang, dan akun nonaktif tidak tersedia.</p>
+              <p className="text-xs text-slate-500">Nomor jurnal & referensi MEMO dibuat server. Akun persediaan, hutang, aset tetap, dan akun nonaktif tidak tersedia.</p>
             </div>
           </div>
           <button type="button" aria-label="Tutup" onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer">

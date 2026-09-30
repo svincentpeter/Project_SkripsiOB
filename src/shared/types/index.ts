@@ -530,6 +530,8 @@ export type PermissionKey =
   | 'accounts_payable'
   | 'accounting_hub'
   | 'financial_reports'
+  | 'fixed_assets'
+  | 'bank_reconciliation'
   | 'role_settings'
   | 'cash_session'
   | 'cash_session_approve'
