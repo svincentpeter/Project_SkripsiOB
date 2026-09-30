@@ -2,8 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\BankReconciliation;
+use App\Models\FixedAsset;
 use App\Models\Purchase;
 use App\Models\PurchasePayment;
+use App\Models\PurchaseReturn;
+use App\Services\Accounting\BankReconciliationService;
 use App\Services\Accounting\CashFlowReport;
 use App\Services\Accounting\FinancialReportService;
 use App\Services\AccountingEngine;
@@ -89,6 +93,82 @@ class CalkReportTest extends TestCase
             round($notes['payables']['ledger_balance'] - $notes['payables']['subledger_total'], 2),
             $notes['payables']['other_adjustments']
         );
+    }
+
+    private function tempoPurchase(string $supplier, string $date, float $total): Purchase
+    {
+        $purchase = Purchase::create([
+            'purchase_number' => 'GR-CALK-'.uniqid(), 'supplier_name' => $supplier, 'purchase_date' => $date,
+            'payment_method' => 'TEMPO', 'total_amount' => $total, 'paid_amount' => 0, 'status' => 'BELUM_LUNAS',
+        ]);
+        $this->postJournal($date, [['1-2000', $total, 0], ['2-1000', 0, $total]]);
+
+        return $purchase;
+    }
+
+    /** Retur/pembatalan seperti PurchaseReturnService: hutang berkurang sebesar payable_amount pada return_date. */
+    private function returnGoods(Purchase $purchase, string $kind, string $date, float $payable): void
+    {
+        PurchaseReturn::create([
+            'reference' => 'RTB-CALK-'.uniqid(), 'purchase_id' => $purchase->id, 'kind' => $kind, 'return_date' => $date,
+            'reason' => 'uji', 'quantity' => 1, 'total_amount' => $payable, 'payable_amount' => $payable,
+        ]);
+        $this->postJournal($date, [['2-1000', $payable, 0], ['1-2000', 0, $payable]]);
+    }
+
+    public function test_payables_net_returns_and_cancellations_dated_within_the_period(): void
+    {
+        $baseline = fn (string $period) => $this->getJson(self::URL.'?period='.$period)->json('data.notes.payables.other_adjustments');
+        $juneBefore = $baseline('2019-06');
+        $mayBefore = $baseline('2019-05');
+
+        $cancelled = $this->tempoPurchase('PT Batal Uji', '2019-05-10', 800000);
+        $this->returnGoods($cancelled, 'CANCEL', '2019-06-12', 800000);
+        $partial = $this->tempoPurchase('PT Retur Uji', '2019-06-05', 1000000);
+        $this->returnGoods($partial, 'RETURN', '2019-06-15', 250000);
+
+        $june = $this->getJson(self::URL.'?period=2019-06')->assertOk()->json('data.notes.payables');
+        $this->assertNull(collect($june['suppliers'])->firstWhere('supplier_name', 'PT Batal Uji'));
+        $this->assertEquals(750000, collect($june['suppliers'])->firstWhere('supplier_name', 'PT Retur Uji')['amount']);
+        $this->assertEquals($juneBefore, $june['other_adjustments']);
+
+        // Per akhir Mei faktur itu belum dibatalkan, jadi masih terhutang penuh.
+        $may = $this->getJson(self::URL.'?period=2019-05')->assertOk()->json('data.notes.payables');
+        $this->assertEquals(800000, collect($may['suppliers'])->firstWhere('supplier_name', 'PT Batal Uji')['amount']);
+        $this->assertEquals($mayBefore, $may['other_adjustments']);
+    }
+
+    public function test_cash_note_copies_the_bank_reconciliation_when_one_exists(): void
+    {
+        $this->getJson(self::URL.'?period=2019-06')->assertOk()
+            ->assertJsonPath('data.notes.cash_and_bank.bank_statement_balance', null)
+            ->assertJsonPath('data.notes.cash_and_bank.bank_reconciled', null);
+
+        BankReconciliation::create(['period' => '2019-06', 'statement_ending_balance' => 1234567, 'branch_id' => 3]);
+        $report = app(BankReconciliationService::class)->report('2019-06');
+
+        $cash = $this->getJson(self::URL.'?period=2019-06')->assertOk()->json('data.notes.cash_and_bank');
+        $this->assertEquals(1234567, $cash['bank_statement_balance']);
+        $this->assertSame($report['is_reconciled'], $cash['bank_reconciled']);
+    }
+
+    public function test_asset_voided_after_the_period_end_is_still_listed_for_that_period(): void
+    {
+        $id = $this->postJson('/api/v1/accounting/fixed-assets', [
+            'name' => 'Dongkrak Buaya', 'category' => 'PERALATAN_BENGKEL', 'acquisition_date' => '2019-06-03',
+            'acquisition_cost' => 1200000, 'useful_life_months' => 12, 'funding' => 'TUNAI',
+        ])->assertCreated()->json('data.asset.id');
+        $this->postJson("/api/v1/accounting/fixed-assets/{$id}/void", ['reason' => 'salah input'])->assertOk();
+
+        $listed = fn (string $period) => collect($this->getJson(self::URL.'?period='.$period)->assertOk()->json('data.notes.fixed_assets.assets'))
+            ->contains('name', 'Dongkrak Buaya');
+        $this->assertTrue($listed('2019-06'));
+        $this->assertFalse($listed(now()->format('Y-m')));
+
+        FixedAsset::whereKey($id)->update(['voided_at' => '2019-07-01 00:00:00']);
+        $this->assertTrue($listed('2019-06'));
+        FixedAsset::whereKey($id)->update(['voided_at' => '2019-06-30 23:59:59']);
+        $this->assertFalse($listed('2019-06'));
     }
 
     public function test_fixed_asset_note_follows_the_register_and_depreciation(): void

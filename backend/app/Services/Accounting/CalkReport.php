@@ -29,7 +29,7 @@ class CalkReport
         'currency' => 'Rupiah (Rp)',
     ];
 
-    public const COMPLIANCE = 'Laporan keuangan Omah Ban Cabang 3 disusun sesuai dengan Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM) yang diterbitkan oleh Dewan Standar Akuntansi Keuangan Ikatan Akuntan Indonesia.';
+    public const COMPLIANCE = 'Laporan keuangan '.self::ENTITY['name'].' disusun sesuai dengan Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah (SAK EMKM) yang diterbitkan oleh Dewan Standar Akuntansi Keuangan Ikatan Akuntan Indonesia.';
 
     public function __construct(
         private readonly FinancialReportService $reports,
@@ -71,7 +71,7 @@ class CalkReport
             ['title' => 'Dasar penyusunan', 'body' => 'Laporan keuangan disusun dengan asumsi kelangsungan usaha dan dasar akrual, menggunakan konsep biaya historis, dan disajikan dalam Rupiah. Laporan keuangan terdiri atas laporan posisi keuangan, laporan laba rugi, dan catatan atas laporan keuangan; laporan perubahan ekuitas dan laporan arus kas disajikan sebagai informasi tambahan.'],
             ['title' => 'Kas dan bank', 'body' => 'Kas terdiri atas kas laci toko (1-1000) dan rekening Bank BCA (1-1001). Saldo bank dicocokkan dengan rekening koran setiap bulan melalui rekonsiliasi bank; biaya administrasi dan bunga bank yang baru diketahui dari rekening koran dibukukan pada tanggal mutasinya.'],
             ['title' => 'Persediaan', 'body' => 'Persediaan ban diukur sebesar biaya perolehan dengan metode masuk pertama keluar pertama (FIFO). Biaya perolehan mencakup harga faktur pemasok termasuk PPN Masukan, karena entitas bukan PKP sehingga PPN tersebut tidak dapat dikreditkan. Selisih hasil stok opname diakui sebagai beban selisih persediaan (5-2000).'],
-            ['title' => 'Aset tetap dan penyusutan', 'body' => 'Aset tetap diakui sebesar biaya perolehan dan diukur dengan model biaya tanpa revaluasi. Penyusutan dihitung dengan metode garis lurus atas biaya perolehan dikurangi nilai residu selama umur manfaat dalam bulan, dimulai pada bulan perolehan (bulan penuh), dan dibukukan setiap akhir bulan sebagai Beban Penyusutan Aset Tetap (6-1011) dengan lawan Akumulasi Penyusutan (1-3999).'],
+            ['title' => 'Aset tetap dan penyusutan', 'body' => 'Aset tetap diakui sebesar biaya perolehan dan diukur dengan model biaya tanpa revaluasi. Penyusutan dihitung dengan metode garis lurus atas biaya perolehan dikurangi nilai residu selama umur manfaat dalam bulan, dimulai pada bulan perolehan (bulan penuh), dan dibukukan setiap akhir bulan sebagai Beban Penyusutan Aset Tetap (6-1011) dengan lawan Akumulasi Penyusutan (1-3999). Aset yang dibawa dari saldo awal disusutkan mulai bulan awal penyusutan yang ditetapkan, atas biaya perolehan dikurangi nilai residu dan akumulasi penyusutan sebelum masuk sistem, selama sisa umur manfaatnya.'],
             ['title' => 'Pengakuan pendapatan', 'body' => 'Pendapatan penjualan ban dan jasa bengkel diakui pada saat barang diserahkan atau jasa selesai dan dibayar lunas di kasir (tunai, transfer atau QRIS). Potongan harga dan retur penjualan disajikan sebagai pengurang pendapatan, dan biaya MDR QRIS diakui sebagai beban. Pendapatan bunga bank diakui pada saat dikreditkan ke rekening.'],
             ['title' => 'Beban', 'body' => 'Beban diakui pada saat terjadi (dasar akrual). Pada akhir bulan, beban yang sudah terjadi tetapi belum dibayar dicatat sebagai Beban Yang Masih Harus Dibayar (2-1100) dan dapat dibalik otomatis pada tanggal 1 bulan berikutnya; pembayaran di muka dicatat sebagai Beban Dibayar di Muka (1-1100) dan dibebankan sesuai periode manfaatnya melalui jurnal penyesuaian.'],
             ['title' => 'Pajak', 'body' => 'Entitas bukan Pengusaha Kena Pajak (non-PKP), sehingga tidak memungut PPN atas penjualan. Sebagai wajib pajak UMKM, entitas dikenai PPh Final sebesar 0,5% dari peredaran bruto berdasarkan PP Nomor 55 Tahun 2022. Sistem belum menghitung atau mencadangkan PPh Final secara otomatis; pajak yang disetor dicatat sebagai Beban Pajak & Retribusi Daerah (6-1008) pada saat pembayaran.'],
@@ -158,19 +158,22 @@ class CalkReport
     }
 
     /**
-     * Hutang pemasok per akhir bulan dari faktur TEMPO dikurangi pembayaran s/d tanggal itu; selisih terhadap
-     * saldo 2-1000 (retur pembelian, koreksi) ditampilkan sebagai penyesuaian lain agar total sama dengan buku besar.
+     * Hutang pemasok per akhir bulan dari faktur TEMPO dikurangi pembayaran dan pengurangan hutang karena retur/pembatalan
+     * (payable_amount) yang bertanggal s/d tanggal itu. Faktur yang dibatalkan sesudah akhir bulan tetap tampil sebagai
+     * hutang bulan itu. Selisih terhadap saldo 2-1000 (koreksi manual) ditampilkan sebagai penyesuaian lain agar total sama
+     * dengan buku besar.
      */
     private function payables(string $end, float $ledgerBalance): array
     {
         $suppliers = Purchase::where('payment_method', 'TEMPO')
             ->where('purchase_date', '<=', $end)
             ->withSum(['payments as paid_through' => fn ($q) => $q->where('payment_date', '<=', $end)], 'amount')
+            ->withSum(['returns as returned_through' => fn ($q) => $q->where('return_date', '<=', $end)], 'payable_amount')
             ->get()
             ->groupBy('supplier_name')
             ->map(fn (Collection $group, string $name) => [
                 'supplier_name' => $name,
-                'amount' => round($group->sum(fn (Purchase $p) => (float) $p->total_amount - (float) ($p->paid_through ?? 0)), 2),
+                'amount' => round($group->sum(fn (Purchase $p) => (float) $p->total_amount - (float) ($p->paid_through ?? 0) - (float) ($p->returned_through ?? 0)), 2),
             ])
             ->filter(fn (array $row) => abs($row['amount']) >= 0.005)
             ->sortBy('supplier_name')
