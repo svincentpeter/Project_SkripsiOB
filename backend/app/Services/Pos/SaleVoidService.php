@@ -13,6 +13,7 @@ use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\AccountingEngine;
 use App\Services\FifoCostingService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
@@ -28,16 +29,20 @@ class SaleVoidService
     public function void(int $saleId, string $reason, User $user): Sale
     {
         return DB::transaction(function () use ($saleId, $reason, $user) {
+            // Urutan kunci sama dengan checkout dan retur penjualan: produk (urut id) → nota → batch.
+            $productIds = SaleDetail::where('sale_id', $saleId)->whereNotNull('product_id')->pluck('product_id')->unique()->sort()->values();
+            $products = Product::whereIn('id', $productIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
             $sale = Sale::lockForUpdate()->findOrFail($saleId);
 
             if ($sale->status === 'VOID') {
                 throw new PosRuleException("Nota {$sale->reference} sudah pernah dibatalkan.");
             }
-            if (SalesReturn::where('sale_id', $sale->id)->exists()) {
+            // Baca terkini: read view transaksi sudah dibuat oleh pembacaan baris nota di atas, sebelum kunci nota.
+            if (SalesReturn::where('sale_id', $sale->id)->sharedLock()->exists()) {
                 throw new PosRuleException("Nota {$sale->reference} sudah punya retur; kembalikan sisa barangnya lewat retur penjualan.");
             }
 
-            $this->restoreStock($sale, $user);
+            $this->restoreStock($sale, $products, $user);
             $this->postReversal($sale, $reason);
 
             $sale->update([
@@ -51,7 +56,10 @@ class SaleVoidService
         });
     }
 
-    private function restoreStock(Sale $sale, User $user): void
+    /**
+     * @param  Collection<int, Product>  $products  produk nota yang sudah dikunci, per id
+     */
+    private function restoreStock(Sale $sale, Collection $products, User $user): void
     {
         $sale->load('details.allocations');
 
@@ -65,7 +73,7 @@ class SaleVoidService
                     ?->increment('remaining_qty', $allocation->quantity_allocated);
             }
 
-            $product = Product::lockForUpdate()->find($detail->product_id);
+            $product = $products->get($detail->product_id);
             if (! $product) {
                 continue;
             }

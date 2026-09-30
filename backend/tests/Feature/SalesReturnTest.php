@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\PosRuleException;
+use App\Models\AccountingPeriodClosing;
 use App\Models\SaleBatchAllocation;
 use App\Models\SalesReturn;
 use App\Models\ServiceMaster;
 use App\Services\Accounting\CashFlowReport;
 use App\Services\Inventory\InventoryValueJournal;
+use App\Services\Pos\SalesReturnService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\AlignsInventoryLedger;
@@ -135,11 +138,138 @@ class SalesReturnTest extends TestCase
         $this->returnLines($sale->json('data.id'), $items)
             ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'jejak batch FIFO'));
         $this->assertFalse(SalesReturn::where('sale_id', $sale->json('data.id'))->exists());
+        // Retur pertama ditolak, jadi nota tanpa jejak batch lengkap masih bisa dibatalkan lewat VOID.
+        $this->postJson("/api/v1/pos/transactions/{$sale->json('data.id')}/void", ['reason' => 'Jejak batch hilang'])->assertOk();
 
         $other = $this->discountedSale($this->makeProduct(1000000, [[3, 500000, '2026-08-01']]));
         $this->postJson("/api/v1/pos/transactions/{$other->json('data.id')}/void", ['reason' => 'Salah input'])->assertOk();
         $this->returnLines($other->json('data.id'), [['sale_detail_id' => $other->json('data.items.0.id'), 'quantity' => 1]])
             ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'VOID'));
+    }
+
+    public function test_first_return_is_refused_while_any_product_line_lacks_its_batch_trail(): void
+    {
+        $this->ensureOpenCashSessionForReturn();
+        $sale = $this->checkout([
+            'items' => [$this->productLine($this->makeProduct()), $this->productLine($this->makeProduct())],
+            'payments' => [['method' => 'TRANSFER_BCA', 'amount' => 2000000]],
+        ])->assertCreated();
+        SaleBatchAllocation::where('sale_detail_id', $sale->json('data.items.1.id'))->delete();
+
+        // Baris 0 sendiri lengkap, tetapi retur pertama akan menutup jalan VOID untuk baris 1 yang tak bisa diretur.
+        $this->returnLines($sale->json('data.id'), [['sale_detail_id' => $sale->json('data.items.0.id'), 'quantity' => 1]])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'jejak batch FIFO') && str_contains($m, 'VOID'));
+        $this->postJson("/api/v1/pos/transactions/{$sale->json('data.id')}/void", ['reason' => 'Jejak batch hilang'])->assertOk();
+    }
+
+    public function test_full_returns_of_a_multi_line_discounted_sale_refund_exactly_the_nota_total(): void
+    {
+        $service = ServiceMaster::create([
+            'service_code' => 'JASA-'.uniqid(), 'service_name' => 'Balancing', 'category' => 'BALANCING',
+            'standard_price' => 150000, 'cost_price' => 0, 'is_active' => true,
+        ]);
+        $a = $this->makeProduct(333333, [[1, 200000, '2026-07-01'], [4, 210000, '2026-08-01']]);
+        $b = $this->makeProduct(199999, [[5, 150000, '2026-08-01']]);
+        $this->alignInventoryLedger();
+        $this->ensureOpenCashSessionForReturn();
+        // Subtotal 999.999 + 399.996 + 150.000 = 1.549.995; diskon nota ganjil 100.001 → total 1.449.994.
+        $sale = $this->checkout([
+            'items' => [
+                $this->productLine($a, 3),
+                $this->productLine($b, 2, null, 1),
+                ['type' => 'SERVICE', 'service_id' => $service->id, 'name' => 'x', 'quantity' => 1, 'unit_price' => 150000],
+            ],
+            'discount_amount' => 100001,
+            'payments' => [['method' => 'TRANSFER_BCA', 'amount' => 1449994]],
+        ])->assertCreated();
+        [$lineA, $lineB, $lineS] = array_column($sale->json('data.items'), 'id');
+
+        $refunds = [];
+        foreach ([
+            [['sale_detail_id' => $lineA, 'quantity' => 1], ['sale_detail_id' => $lineB, 'quantity' => 1]],
+            [['sale_detail_id' => $lineA, 'quantity' => 1]],
+            [['sale_detail_id' => $lineA, 'quantity' => 1], ['sale_detail_id' => $lineB, 'quantity' => 1], ['sale_detail_id' => $lineS, 'quantity' => 1]],
+        ] as $lines) {
+            $res = $this->returnLines($sale->json('data.id'), $lines)->assertCreated();
+            $refunds[] = $res->json('data.sales_return.refund_amount');
+            $this->assertEquals(0.0, InventoryValueJournal::summary()['difference']);
+        }
+
+        $this->assertEqualsWithDelta(1449994, array_sum($refunds), 0.001);
+        $this->assertEqualsWithDelta(1449994, $res->json('data.sale.returned_amount'), 0.001);
+        $this->assertSame(5, $a->fresh()->product_quantity);
+        $this->assertSame(5, $b->fresh()->product_quantity);
+    }
+
+    public function test_return_is_refused_for_foreign_line_over_return_duplicate_lines_and_closed_period(): void
+    {
+        $this->ensureOpenCashSessionForReturn();
+        $sale = $this->discountedSale($this->makeProduct(1000000, [[3, 500000, '2026-08-01']]));
+        $other = $this->discountedSale($this->makeProduct(1000000, [[3, 500000, '2026-08-01']]));
+        $saleId = $sale->json('data.id');
+        $lineId = $sale->json('data.items.0.id');
+
+        $this->returnLines($saleId, [['sale_detail_id' => $other->json('data.items.0.id'), 'quantity' => 1]])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'bukan bagian dari nota'));
+        $this->returnLines($saleId, [['sale_detail_id' => $lineId, 'quantity' => 4]])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'melebihi sisa'));
+
+        // Baris ganda dalam satu permintaan (lolos dari aturan distinct controller) tetap dibatasi sisa baris.
+        try {
+            app(SalesReturnService::class)->create($saleId, [
+                ['sale_detail_id' => $lineId, 'quantity' => 2], ['sale_detail_id' => $lineId, 'quantity' => 2],
+            ], 'Baris ganda', auth()->user());
+            $this->fail('Retur baris ganda melebihi sisa harus ditolak.');
+        } catch (PosRuleException $e) {
+            $this->assertStringContainsString('melebihi sisa', $e->getMessage());
+        }
+
+        AccountingPeriodClosing::create([
+            'period' => now()->format('Y-m'), 'end_date' => now()->toDateString(), 'closed_at' => now(),
+        ]);
+        $this->returnLines($saleId, [['sale_detail_id' => $lineId, 'quantity' => 1]])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'sudah ditutup'));
+        $this->assertFalse(SalesReturn::where('sale_id', $saleId)->exists());
+    }
+
+    /**
+     * Kunci diambil berurutan akun 1-1000 → shift → produk → nota → alokasi → batch, sama seperti checkout
+     * (produk sebelum nota). Dua koneksi dalam satu proses test tidak bisa saling menunggu, jadi urutan dibuktikan
+     * dari log query.
+     */
+    public function test_return_and_void_lock_products_before_the_sale(): void
+    {
+        $product = $this->makeProduct(1000000, [[1, 500000, '2026-07-01'], [5, 600000, '2026-08-01']]);
+        $this->ensureOpenCashSessionForReturn();
+        $sale = $this->discountedSale($product);
+        $other = $this->discountedSale($product);
+
+        DB::enableQueryLog();
+        $this->returnLines($sale->json('data.id'), [['sale_detail_id' => $sale->json('data.items.0.id'), 'quantity' => 1]])->assertCreated();
+        $order = $this->lockOrder(['accounts' => 'lock in share mode', 'cash_sessions' => 'lock in share mode', 'products' => 'for update',
+            'sales' => 'for update', 'sale_batch_allocations' => 'for update', 'product_batches' => 'for update']);
+        $this->assertSame($order, array_values(array_filter($order, 'is_int')), 'semua kunci retur harus ada');
+        $this->assertSame($order, collect($order)->sort()->values()->all(), 'urutan kunci retur');
+
+        DB::flushQueryLog();
+        $this->postJson("/api/v1/pos/transactions/{$other->json('data.id')}/void", ['reason' => 'Salah input'])->assertOk();
+        $order = $this->lockOrder(['products' => 'for update', 'sales' => 'for update', 'product_batches' => 'for update']);
+        $this->assertSame($order, array_values(array_filter($order, 'is_int')), 'semua kunci void harus ada');
+        $this->assertSame($order, collect($order)->sort()->values()->all(), 'urutan kunci void');
+        DB::disableQueryLog();
+    }
+
+    /** @return list<int|null> posisi query penguncian pertama per tabel, dalam urutan yang diharapkan */
+    private function lockOrder(array $locks): array
+    {
+        $queries = array_column(DB::getQueryLog(), 'query');
+        $order = [];
+        foreach ($locks as $table => $mode) {
+            $hits = array_keys(array_filter($queries, fn ($q) => str_contains($q, "from `{$table}`") && str_ends_with($q, $mode)));
+            $order[] = $hits[0] ?? null;
+        }
+
+        return $order;
     }
 
     public function test_validation_and_permission(): void

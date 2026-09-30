@@ -7,6 +7,7 @@ use App\Models\JournalEntry;
 use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\Sale;
+use App\Models\SaleBatchAllocation;
 use App\Models\SaleDetail;
 use App\Models\SalesReturn;
 use App\Models\SalesReturnItem;
@@ -38,34 +39,59 @@ class SalesReturnService
     public function create(int $saleId, array $items, string $reason, User $user): array
     {
         return DB::transaction(function () use ($saleId, $items, $reason, $user) {
-            // Urutan kunci SP2: akun 1-1000 lalu baris shift, sebelum nota, produk dan batch.
+            // Urutan kunci: akun 1-1000 → shift (SP2) → produk → nota → alokasi → nomor RTJ → batch. Produk sebelum
+            // nota, sama seperti checkout (produk → nota terbaru lewat nomor dokumen → sale_details).
             try {
                 $session = CashSessionService::requireOpen();
             } catch (PosRuleException) {
                 throw new PosRuleException('Buka shift kasir dulu: retur penjualan dikembalikan tunai dari laci.');
             }
 
-            // Kunci nota menyerialkan retur/void nota yang sama. Baris turunan dibaca terkunci (baca terkini), karena
-            // read view transaksi sudah dibuat oleh requireOpen() sebelum kunci nota didapat.
-            $sale = Sale::with([
-                'details' => fn ($q) => $q->lockForUpdate(),
-                'details.allocations' => fn ($q) => $q->lockForUpdate(),
-            ])->lockForUpdate()->findOrFail($saleId);
+            // Baris nota tidak pernah berubah setelah checkout, jadi cukup dibaca biasa untuk mencari produknya.
+            $productIds = SaleDetail::where('sale_id', $saleId)
+                ->whereIn('id', array_map(fn ($row) => (int) $row['sale_detail_id'], $items))
+                ->whereNotNull('product_id')
+                ->pluck('product_id')->unique()->sort()->values();
+            $products = Product::withTrashed()->whereIn('id', $productIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+
+            // Kunci nota menyerialkan retur dan void nota yang sama.
+            $sale = Sale::with('details')->lockForUpdate()->findOrFail($saleId);
             if ($sale->status === 'VOID') {
                 throw new PosRuleException("Nota {$sale->reference} sudah VOID dan tidak bisa diretur.");
             }
 
+            // quantity_returned bisa diubah retur lain setelah read view transaksi ini dibuat (requireOpen() membaca
+            // tanpa kunci), jadi alokasi dibaca ulang terkunci per primary key: kunci baris saja, tanpa gap.
+            $allocationIds = SaleBatchAllocation::whereIn('sale_detail_id', $sale->details->pluck('id'))->pluck('id');
+            $allocations = SaleBatchAllocation::whereIn('id', $allocationIds)->orderBy('id')->lockForUpdate()->get()->groupBy('sale_detail_id');
+            foreach ($sale->details as $detail) {
+                $detail->setRelation('allocations', $allocations->get($detail->id, collect()));
+            }
+
+            // Nomor RTJ lebih dulu: kunci baris RTJ terakhir bulan ini menyerialkan semua retur, sehingga kunci gap dari
+            // pembacaan terkini retur sebelumnya di bawah ini tidak saling kunci dengan insert retur lain.
             $date = now()->toDateString();
-            $before = SalesReturnItem::whereIn('sale_detail_id', $sale->details->pluck('id'))
-                ->selectRaw('sale_detail_id, SUM(quantity) as qty, SUM(refund_amount) as amount')
+            $reference = DocumentNumber::next(SalesReturn::class, 'reference', 'RTJ', $date);
+            $returned = SalesReturnItem::whereIn('sale_detail_id', $sale->details->pluck('id'))
+                ->selectRaw('sale_detail_id, SUM(quantity) as qty')
                 ->groupBy('sale_detail_id')
                 ->sharedLock()
-                ->get()
-                ->keyBy('sale_detail_id');
-            $lineNet = self::lineNetAfterNotaDiscount($sale);
+                ->pluck('qty', 'sale_detail_id')
+                ->map(fn ($qty) => (int) $qty)
+                ->all();
 
+            // Retur pertama ditolak bila ada baris barang tanpa alokasi batch lengkap: nota itu masih bisa di-VOID.
+            if ($returned === []) {
+                foreach ($sale->details as $detail) {
+                    if ($detail->product_id && $detail->allocations->sum('quantity_allocated') < $detail->quantity) {
+                        throw new PosRuleException("Baris {$detail->item_name} tidak punya jejak batch FIFO lengkap, jadi nota {$sale->reference} tidak bisa diretur. Batalkan lewat VOID lalu input ulang penjualannya.");
+                    }
+                }
+            }
+
+            $lineNet = self::lineNetAfterNotaDiscount($sale);
             $return = SalesReturn::create([
-                'reference' => DocumentNumber::next(SalesReturn::class, 'reference', 'RTJ', $date),
+                'reference' => $reference,
                 'sale_id' => $sale->id,
                 'return_date' => $date,
                 'reason' => $reason,
@@ -82,17 +108,20 @@ class SalesReturnService
                     throw new PosRuleException("Baris retur bukan bagian dari nota {$sale->reference}.");
                 }
 
+                // $returned ikut bertambah per baris, jadi sale_detail_id ganda dalam satu permintaan tetap dibatasi sisa.
                 $qty = (int) $row['quantity'];
-                $returnedBefore = (int) ($before[$detail->id]->qty ?? 0);
-                if ($qty < 1 || $returnedBefore + $qty > $detail->quantity) {
-                    throw new PosRuleException("Jumlah retur {$detail->item_name} melebihi sisa yang bisa diretur (".($detail->quantity - $returnedBefore).').');
+                $prev = $returned[$detail->id] ?? 0;
+                if ($qty < 1 || $prev + $qty > $detail->quantity) {
+                    throw new PosRuleException("Jumlah retur {$detail->item_name} melebihi sisa yang bisa diretur (".($detail->quantity - $prev).').');
                 }
+                $returned[$detail->id] = $prev + $qty;
 
-                // Retur yang menghabiskan baris mengambil sisa nilainya, sehingga Σ refund baris = nilai bersih baris.
-                $refund = $returnedBefore + $qty === $detail->quantity
-                    ? round($lineNet[$detail->id] - (float) ($before[$detail->id]->amount ?? 0), 2)
-                    : round($lineNet[$detail->id] * $qty / $detail->quantity, 2);
-                $cost = $detail->product_id ? $this->restock($sale, $detail, $qty, $return->reference, $user) : 0.0;
+                // Refund kumulatif: setelah semua unit kembali, Σ refund baris = nilai bersih baris, tepat sampai sen.
+                $net = $lineNet[$detail->id];
+                $refund = round(round($net * ($prev + $qty) / $detail->quantity, 2) - round($net * $prev / $detail->quantity, 2), 2);
+                $cost = $detail->product_id
+                    ? $this->restock($sale, $detail, $products->get($detail->product_id), $qty, $reference, $user)
+                    : 0.0;
 
                 SalesReturnItem::create([
                     'sales_return_id' => $return->id,
@@ -115,7 +144,7 @@ class SalesReturnService
             ]);
 
             return ['sale' => $sale->fresh(), 'return' => $return->fresh('items'), 'journal' => $journal];
-        });
+        }, 3);
     }
 
     /**
@@ -150,10 +179,11 @@ class SalesReturnService
     /**
      * Unit kembali ke batch asal (alokasi terakhir lebih dulu) dengan modal alokasinya. Mengembalikan HPP yang dibalik.
      */
-    private function restock(Sale $sale, SaleDetail $detail, int $qty, string $reference, User $user): float
+    private function restock(Sale $sale, SaleDetail $detail, ?Product $product, int $qty, string $reference, User $user): float
     {
-        // Produk dikunci sebelum batch, sama seperti checkout (FifoCostingService), agar tidak saling tunggu.
-        $product = Product::withTrashed()->lockForUpdate()->findOrFail($detail->product_id);
+        if (! $product) {
+            throw new PosRuleException("Produk baris {$detail->item_name} sudah tidak ada; retur tidak bisa dibukukan.");
+        }
         $need = $qty;
         $cost = 0.0;
         foreach ($detail->allocations->sortByDesc('id') as $allocation) {
