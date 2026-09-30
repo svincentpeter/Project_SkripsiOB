@@ -191,6 +191,12 @@ class PosCheckoutTest extends TestCase
             'payments' => [$row, $row],
         ])->assertStatus(422)->assertJsonPath('message', "Pembayaran QRIS {$orderId} sudah dipakai untuk nota lain.");
 
+        // Kolom order_id tidak peka huruf besar/kecil: huruf berbeda tetap order yang sama.
+        $this->checkout([
+            'items' => [$this->productLine($product)],
+            'payments' => [$row, ['reference' => strtolower($orderId)] + $row],
+        ])->assertStatus(422)->assertJsonPath('message', "Pembayaran QRIS {$orderId} sudah dipakai untuk nota lain.");
+
         $this->assertSame(10, $product->fresh()->product_quantity);
     }
 

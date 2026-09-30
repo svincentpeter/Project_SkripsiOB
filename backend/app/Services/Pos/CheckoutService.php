@@ -122,7 +122,7 @@ class CheckoutService
             $qris = null;
             if ($method === 'QRIS' && ! empty($row['reference'])) {
                 $qris = $this->claimQris($row['reference'], $amount, $claimed);
-                $claimed[] = $row['reference'];
+                $claimed[] = $qris->id;
             }
 
             $payments[] = [
@@ -135,7 +135,7 @@ class CheckoutService
                 'fee_amount' => (float) $fee['fee_amount'],
                 'net_received' => round($amount - (float) $fee['fee_amount'], 2),
                 'provider_name' => $provider?->provider_name,
-                'reference' => $row['reference'] ?? null,
+                'reference' => $qris?->order_id ?? $row['reference'] ?? null,
                 'qris_transaction' => $qris,
             ];
         }
@@ -155,7 +155,7 @@ class CheckoutService
      * dipakai nota lain (juga tidak dua kali di checkout ini), dan nominal lunasnya sama dengan baris pembayaran.
      * Baris dikunci sampai transaksi selesai agar dua checkout bersamaan tidak memakai order yang sama.
      *
-     * @param  array<int, string>  $claimed  order yang sudah dipakai baris sebelumnya di checkout ini
+     * @param  array<int, int>  $claimed  id order yang sudah dipakai baris sebelumnya di checkout ini
      */
     private function claimQris(string $orderId, float $amount, array $claimed): QrisTransaction
     {
@@ -164,8 +164,8 @@ class CheckoutService
         if (! $tx || ! $tx->isSettled()) {
             throw new PosRuleException('Pembayaran QRIS belum diterima (status: '.($tx?->transaction_status ?? 'tidak ditemukan').').');
         }
-        if ($tx->sale_payment_id || in_array($orderId, $claimed, true)) {
-            throw new PosRuleException("Pembayaran QRIS {$orderId} sudah dipakai untuk nota lain.");
+        if ($tx->sale_payment_id || in_array($tx->id, $claimed, true)) {
+            throw new PosRuleException("Pembayaran QRIS {$tx->order_id} sudah dipakai untuk nota lain.");
         }
         if (abs((float) $tx->gross_amount - $amount) > 0.001) {
             throw new PosRuleException(

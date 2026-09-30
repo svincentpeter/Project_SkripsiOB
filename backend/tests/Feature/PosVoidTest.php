@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\QrisTransaction;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
@@ -37,6 +38,24 @@ class PosVoidTest extends TestCase
         $this->assertEquals(2000000, $reversal['1-1000']['credit']);
         $this->assertEquals(2000000, $reversal['4-1000']['debit']);
         $this->assertEquals(1100000, $reversal['1-2000']['debit']);
+    }
+
+    public function test_void_does_not_release_the_qris_order(): void
+    {
+        $product = $this->makeProduct();
+        $orderId = $this->qrisOrder(1000000);
+        $payload = [
+            'items' => [$this->productLine($product)],
+            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'provider_id' => $this->paymentProvider('qris')->id, 'reference' => $orderId]],
+        ];
+        $id = $this->checkout($payload)->assertCreated()->json('data.id');
+        $linked = QrisTransaction::where('order_id', $orderId)->value('sale_payment_id');
+
+        $this->postJson("/api/v1/pos/transactions/{$id}/void", ['reason' => 'Pelanggan batal'])->assertOk();
+
+        $this->assertEquals($linked, QrisTransaction::where('order_id', $orderId)->value('sale_payment_id'));
+        $this->checkout($payload)->assertStatus(422)
+            ->assertJsonPath('message', "Pembayaran QRIS {$orderId} sudah dipakai untuk nota lain.");
     }
 
     public function test_double_void_is_rejected(): void
