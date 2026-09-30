@@ -94,4 +94,31 @@ class FifoCostingServiceTest extends TestCase
             'reference_id' => $sale->reference,
         ]);
     }
+
+    public function test_add_batch_fails_cleanly_when_every_batch_code_of_the_day_is_taken(): void
+    {
+        $unique = uniqid();
+        $product = Product::create([
+            'product_name' => 'Tire Codes '.$unique, 'product_code' => 'CODES-'.$unique, 'barcode' => 'BC-'.$unique,
+            'brand' => 'Bridgestone', 'product_cost' => 500000, 'product_price' => 700000, 'product_quantity' => 0,
+        ]);
+        $rows = [];
+        foreach (range(10, 99) as $n) {
+            $rows[] = [
+                'product_id' => $product->id, 'batch_code' => "BATCH-{$product->product_code}-20200115-{$n}",
+                'source_name' => 'Uji', 'purchase_date' => '2020-01-15', 'batch_cost' => 1,
+                'initial_qty' => 0, 'remaining_qty' => 0, 'branch_id' => 3,
+                'created_at' => now(), 'updated_at' => now(),
+            ];
+        }
+        DB::table('product_batches')->insert($rows);
+
+        try {
+            $this->expectException(\App\Exceptions\PosRuleException::class);
+            app(FifoCostingService::class)->addBatch($product->id, 1, 500000, 'Uji', '2020-01-15');
+        } finally {
+            ProductBatch::where('product_id', $product->id)->delete();
+            $product->delete();
+        }
+    }
 }

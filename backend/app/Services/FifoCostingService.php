@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\PosRuleException;
 use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\SaleBatchAllocation;
@@ -139,10 +140,14 @@ class FifoCostingService
             $product = Product::lockForUpdate()->findOrFail($productId);
             $date = $date ?: now()->toDateString();
             // Produk sudah dikunci, jadi cek-lalu-buat aman; satu penerimaan bisa membuat dua batch di hari yang sama.
-            // ponytail: maks 90 kode per produk per hari (rand 10-99), ganti ke nomor urut bila pernah terlampaui.
-            do {
-                $batchCode = 'BATCH-' . $product->product_code . '-' . date('Ymd', strtotime($date)) . '-' . rand(10, 99);
-            } while (ProductBatch::where('batch_code', $batchCode)->exists());
+            // ponytail: maks 90 kode per produk per hari (10-99), ganti ke nomor urut bila pernah terlampaui.
+            $prefix = 'BATCH-' . $product->product_code . '-' . date('Ymd', strtotime($date)) . '-';
+            $taken = ProductBatch::where('batch_code', 'like', $prefix . '%')->pluck('batch_code')->all();
+            $free = array_values(array_filter(range(10, 99), fn ($n) => ! in_array($prefix . $n, $taken, true)));
+            if ($free === []) {
+                throw new PosRuleException('Kode batch untuk produk ini pada tanggal tersebut sudah habis (maksimal 90 batch per hari).');
+            }
+            $batchCode = $prefix . $free[array_rand($free)];
 
             $batch = ProductBatch::create([
                 'product_id' => $productId,
