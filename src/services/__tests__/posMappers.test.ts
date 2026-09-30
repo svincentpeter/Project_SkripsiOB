@@ -28,12 +28,17 @@ describe('cartLineToPayload', () => {
     expect(payload).toMatchObject({ type: 'SERVICE', service_id: 7, unit_price: 150000, name: 'Spooring' });
   });
 
-  it('marks manual items and sends their typed cost', () => {
+  it('marks manual services and sends no catalog id and zero cost', () => {
+    // ManualItemForm hanya membuat jasa manual (tanpa HPP); barang manual ditolak server.
     const manual: CartItem = {
-      item_type: 'PRODUCT', product: { id: 'manual-1', product_name: 'Pentil' } as ProductItem,
-      qty: 4, discount_per_item: 0, custom_price: 25000, custom_hpp: 10000, custom_name_override: 'Pentil Racing', is_manual: true,
+      item_type: 'SERVICE', product: { id: 'syn-manual-1', product_name: 'Tambal Ban' } as ProductItem,
+      service: { ...service, id: 'manual-1', service_name: 'Tambal Ban', category: 'JASA_MANUAL' },
+      qty: 1, discount_per_item: 0, custom_price: 25000, custom_hpp: 0, custom_name_override: 'Tambal Ban', is_manual: true,
     };
-    expect(cartLineToPayload(manual)).toMatchObject({ product_id: undefined, is_manual: true, cost_price: 10000, name: 'Pentil Racing' });
+    const payload = cartLineToPayload(manual);
+    expect(payload.service_id).toBeUndefined();
+    expect(payload.product_id).toBeUndefined();
+    expect(payload).toMatchObject({ type: 'SERVICE', is_manual: true, cost_price: 0, unit_price: 25000, name: 'Tambal Ban' });
   });
 });
 
