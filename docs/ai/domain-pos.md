@@ -25,6 +25,8 @@ Payment methods (`PosAccounts::CHECKOUT_METHODS`): `TUNAI`, `TRANSFER`, `TRANSFE
 including the removed card-terminal methods, fails validation on `payments.N.method` (422).
 
 **Server flow** (`CheckoutService::checkout`, one transaction):
+0. If any payment is `TUNAI`, an open cashier shift is required (`CashSessionService::requireOpen()`, 422
+   "Shift kasir belum dibuka…"). Transfer/QRIS-only sales need no shift.
 1. `CartLines::build`:
    - Catalogue products are locked and must be active. Their summed quantity must not exceed
      `products.product_quantity`; otherwise the server returns 422 "Stok X tidak cukup".
@@ -88,6 +90,11 @@ returned. Sale statuses produced: `LUNAS` and `VOID`.
   signed `gross_amount` (source `WEBHOOK`). Settling is idempotent: the first settlement wins.
 - Frontend: `CheckoutModal` generates `POS-{Date.now()}`, and `QrisDynamicModal` charges and then polls every 2.5 s;
   its demo bar is shown only when `simulation_enabled`. The order id is sent as the payment `reference`.
+- If checkout fails after a dynamic QRIS has settled (customer already paid), `CheckoutModal` keeps the settled order
+  (`{orderId, amount}`, `src/modules/pos/settledQris.ts`) and reuses it on retry at the same total: no new charge, and
+  the server's single-use check still applies. A different selection or total shows a warning instead. The kept order
+  is component state, so a page reload loses it and the customer's money must then be followed up manually
+  (refund, or record the sale by hand).
 
 ## Fees and payment settings
 - `payment_provider_settings` (bank and QRIS) is the only source of providers and fees. CRUD under
@@ -101,9 +108,13 @@ returned. Sale statuses produced: `LUNAS` and `VOID`.
 ## Still client-side in POS
 - Cart (`ob3_cart`) and on-screen totals (`calculateCartTotals`).
 - Parked orders (`ob3_parked_orders`).
-- Cash drawer balance (`ob3_cash_drawer`), adjusted after each sale by `cashPortion(sale)`.
 - Printing a cart or parked order before checkout builds a temporary receipt with a **random** `OB3-INV-…` number
   that is never saved.
+
+The cash drawer is no longer client-side: the POS header shows the shift control (`CashShiftControl`): open shift with
+a counted float, close shift with a counted drawer; the drawer amount shown is the 1-1000 ledger balance
+(see [domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts)). The old `ob3_cash_drawer` counter is
+removed on load.
 
 ## Known issues (verified 2026-09-27, still open)
 1. `unit_price` comes from the client. The server checks product existence and stock, not prices.

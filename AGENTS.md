@@ -80,11 +80,13 @@ The app started fully client-side (localStorage, briefly Supabase) and is being 
 | Products, categories, services, suppliers, FIFO batches, goods receipt, payables, stock opname, Excel import, monthly stock ledger | Server | 3 (done) |
 | Expenses, manual journals, journal reversal, account opening balances, period closing & lock | Server | 4 (done) |
 | Financial reports (journals, ledger, trial balance, statements, equity changes, cash flow) | Server, computed per period | 4 (done) |
-| Cash drawer balance, store settings (receipt text), parked orders, cart | **Client** (localStorage `ob3_*` keys) | not scheduled |
+| Cashier shifts, drawer balance (= ledger 1-1000), cash deposits, Prive, capital injections | Server | SP2 cash & bank (done) |
+| Store settings (receipt text), parked orders, cart | **Client** (localStorage `ob3_*` keys) | not scheduled |
 
 Accounting components fetch their own server data (`useServerData`) keyed by the chosen period and by
 `ledgerVersion`, which `App.tsx` increments through `notifyLedgerChanged` whenever a server action returns journals.
-The cash drawer counter `ob3_cash_drawer` is still client-side (roadmap sub-project 2).
+The cash drawer is account 1-1000: every "Kas Laci" figure is its ledger balance, and cash checkout needs an open
+cashier shift (`cash_sessions`). See [docs/ai/domain-accounting.md](docs/ai/domain-accounting.md#cash-drawer-and-shifts).
 Details: [docs/ai/architecture.md](docs/ai/architecture.md).
 
 ## Rules that must not break
@@ -93,7 +95,7 @@ Details: [docs/ai/architecture.md](docs/ai/architecture.md).
    which requires Σdebit = Σcredit to the cent (no tolerance). Never write `journal_entries`/`journal_items` directly.
    `createEntry` also rejects lines that are negative, two-sided or fewer than two, and any date on or before
    the period lock date (`PeriodLock`).
-2. **Account codes come from the COA.** 25 accounts (1-1002, 2-1004, 4-2000 inactive since 2026-09-30), seeded by `AccountCoaSeeder` (+ migration
+2. **Account codes come from the COA.** 27 accounts (1-1002, 2-1004, 4-2000 inactive since 2026-09-30), seeded by `AccountCoaSeeder` (+ migration
    `2026_09_24_000003`). The frontend has no COA copy; it loads `GET /accounts`. A new account needs only
    a migration (so existing databases get it) and the seeder.
    See [docs/ai/domain-accounting.md](docs/ai/domain-accounting.md).

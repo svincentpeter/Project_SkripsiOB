@@ -12,7 +12,7 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
 - Stage 4 (sub-project 1 of the roadmap) is **implemented, reviewed and pushed**: tasks A1–A7, B1–B7, C1,
   plus a final-review fix wave (commits `590e3b0..b220424`).
 - Gates at push time: backend `composer test` 188/188, frontend `npm run lint` clean, `npm test` 123/123.
-  After the DP/BON/EDC removal (2026-09-30) the counts are backend 194, frontend 127.
+  After the DP/BON/EDC removal (2026-09-30) the counts were backend 194, frontend 127; after cash & bank (SP2) they are backend 232, frontend 142 (28 test files).
 - Browser check (owner, dev DB, after B7): journals, ledger, trial balance ("Seimbang"), statements
   (balance sheet "Seimbang", cash flow "Terekonsiliasi") and the Biaya screen load from the server with no
   console errors. It was run before the final fix wave; re-check after setup (step 2.3).
@@ -59,7 +59,7 @@ In roadmap order; details and file references are in the roadmap.
 
 | # | Sub-project | Core scope |
 |---|---|---|
-| 2 | Cash & bank | Cashier shift open/close with counted cash and required variance reason, variance journal (new over/short account), cash→bank deposit, owner drawings (new Prive account), capital injection; replace the `ob3_cash_drawer` counter with the 1-1000 ledger balance |
+| 2 | Cash & bank (**done**, `2026-09-30-cash-and-bank`) | Cashier shift open/close with counted cash and required variance reason, variance journal (new over/short account), cash→bank deposit, owner drawings (new Prive account), capital injection; replace the `ob3_cash_drawer` counter with the 1-1000 ledger balance |
 | 3 | Transaction corrections | Partial sales return, purchase return / goods-receipt cancel, FIFO shortfall fallback, manual POS line cost, one-shot inventory opening balance, Excel import vs purchase, date validation for voids/payments |
 | 4 | SAK EMKM completeness | Fixed asset register + monthly straight-line depreciation (new expense account), real CALK in UI/export, PPh Final 0.5% (confirm scope with supervisor), accruals/prepayments |
 | 5 | Operational reports & dashboard | Daily cash report, daily recap, per-cashier recap; dashboard figures from server reports (fix VOID/all-month expense totals, FIFO value, UTC "today") |

@@ -47,12 +47,12 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
   shape differs, a handler in App.tsx that calls it and updates state from the **response**, and pass it down.
 
 ### localStorage keys still in use
-`ob3_auth_token`, `ob3_cash_drawer`, `ob3_store_settings` (receipt/store text only; legacy `bank_providers`,
+`ob3_auth_token`, `ob3_store_settings` (receipt/store text only; legacy `bank_providers`,
 `qris_providers`, `edc_settings` and `coa_receivable_account` properties are dropped on load), `ob3_cart`,
 `ob3_parked_orders`, `ob3_read_notif_ids`, `ob3_dismissed_notif_ids`. Legacy or fallback only: `ob3_products`,
 `ob3_stock_staging`, `omahban_product_categories`, `omahban_service_categories`. Local data is seeded from
 `src/shared/data/mockData.ts`. `App.tsx` removes the old accounting keys (`ob3_journals`, `ob3_expenses`,
-`ob3_account_balances`, `ob3_period_info`) on mount, a one-time Stage 4 cleanup.
+`ob3_account_balances`, `ob3_period_info`) and the old drawer counter `ob3_cash_drawer` on mount.
 
 ### API client (`src/services/api/`)
 - `apiClient.ts`: base URL from `VITE_API_URL` (default `http://127.0.0.1:8000/api/v1`). The token lives in

@@ -32,6 +32,8 @@ app/Services/                  business logic; one service per use case
   DocumentNumber.php           PREFIX-YYYYMM-#### with lockForUpdate (call inside a transaction)
   FifoCostingService.php       batch creation + FIFO allocation
   Pos/                         CheckoutService, CartLines, PosAccounts, SaleVoidService
+  Accounting/                  ExpenseService, ManualJournalService, PeriodClosingService, OpeningBalanceService,
+                               CashSessionService (shifts), CashMovementService (deposit/Prive/capital), reports
   Inventory/                   GoodsReceipt, Payable, StockOpname(+Commit), StockSelectiveUpdate, StockExcelImport,
                                MonthlyStockLedger, InventoryValueJournal, Excel/* (reader, parser, brand resolver, match key)
   Payment/MidtransQrisService.php   charge/status/simulate/webhook settlements → qris_transactions

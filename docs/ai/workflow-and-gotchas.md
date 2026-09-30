@@ -13,7 +13,7 @@
    - Local code paths for that area are removed.
 
    Stages so far: stage 1 auth/RBAC (2026-09-23), stage 2 POS (2026-09-24), stage 3 inventory (2026-09-24), stage 4
-   accounting core (2026-09-29). Remaining client-only areas (cash drawer vs 1-1000, returns/write-offs, depreciation,
+   accounting core (2026-09-29). Remaining client-only areas (returns/write-offs, depreciation,
    dashboard/daily reports, QRIS hardening) are tracked as later sub-projects of the accounting roadmap.
 3. **Commits:** Conventional Commits with a scope, in English, with the imperative subject in lowercase:
    `feat(pos): …`, `fix(accounting): …`, `test: …`, `docs(inventory): …`. The body explains why. Commits are made
@@ -37,6 +37,7 @@
 | 09-24 | POS server checkout (stage 2) | done |
 | 09-24 | inventory server (stage 3) | done |
 | 09-29 | accounting server core (stage 4): expenses, manual journals, reversal, period closing/reopen, opening balances, reports | done |
+| 09-30 | cash & bank (roadmap SP2): cashier shifts, variance journal, deposits, Prive, capital | done |
 | — | `API_DOCUMENTATION.md` | stale; use [api-reference.md](api-reference.md) |
 
 ## Testing
@@ -48,7 +49,7 @@
 | Backend | `cd backend && composer test` | MySQL `project-skripsi_ob_testing`, which must exist and be migrated. See [../../backend/AGENTS.md](../../backend/AGENTS.md#tests) |
 | E2E | `node tests/e2e/<file>.mjs` | Plain Playwright scripts, not `@playwright/test`. They need `npm run dev` (dev mode), the backend on :8000 with seeded users, and `VITE_DEV_LOGIN_PASSWORD`. They log in via the "Agus Subagyo" quick-login card, write screenshots and JSON to `tests/e2e/screenshots/`, and have **no pass/fail assertions** |
 
-As of 2026-09-30, the frontend passes: 26 test files, 135 tests, and `tsc` is clean.
+As of 2026-09-30, the frontend passes: 28 test files, 142 tests, and `tsc` is clean.
 
 ## Glossary (Indonesian → meaning)
 
@@ -61,6 +62,10 @@ As of 2026-09-30, the frontend passes: 26 test files, 135 tests, and `tsc` is cl
 | Kasir / Gudang / Owner | cashier / warehouse / owner, the three roles |
 | Nota, struk, invoice | sales receipt (`OB3-INV-…`) |
 | Kas laci | cash drawer (account 1-1000) |
+| Shift kasir / buka shift / tutup shift | cashier shift / open (count opening float) / close (count drawer) |
+| Selisih kas | cash over/short (6-1010), journaled when the owner approves the shift |
+| Prive | owner drawings (3-3000, contra-equity) |
+| Setor bank | cash-to-bank deposit (1-1000 → 1-1001) |
 | Tunai / transfer / QRIS | cash / bank transfer / Indonesian QR payment, the only POS payment methods |
 | MDR | merchant discount rate, the fee charged by QRIS (6-1009) |
 | EDC / surcharge | card terminal / card fee passed on to the customer (4-2000). Removed from the POS on 2026-09-30; historic entries only |

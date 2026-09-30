@@ -1,6 +1,6 @@
 # Data model
 
-Source of truth: `backend/database/migrations/` (22 migrations). Models: `backend/app/Models/`.
+Source of truth: `backend/database/migrations/` (27 migrations). Models: `backend/app/Models/`.
 `database/schema_project_skripsi_ob.sql` and `supabase_schema.sql` are **stale**, so ignore them.
 Most early migrations wrap `Schema::create` in `hasTable` guards. New migrations should be additive:
 add columns and insert-if-missing rows, and never rewrite old migrations.
@@ -75,6 +75,7 @@ Providers and fees are server-only since 2026-09-30: the POS reads `GET /pos/pay
 | `accounting_period_closings` | `period` (YYYY-MM), `end_date`, `closing_entry_id` (nullable FK `journal_entries`), `net_income`, `notes`, `closed_by`, `closed_at`, `reopened_at`, `reopened_by`, `reopen_reason`, `reopen_entry_id` (nullable FK `journal_entries`) | one row per closed month; lock date = `max(end_date)` where `reopened_at` is null |
 | `expense_categories` | `category_code` (unique), `category_name`, `default_account_code` | seeded, 8 rows (GAJI…PAJAK, mapped to 6-1000…6-1008), matching the frontend `ExpenseCategory` strings |
 | `expenses` | `reference` (`BKK-YYYYMM-####`), `expense_date`, `category_id`, `amount`, `payment_method`, `bank_name`, `recipient_name`, `description`, `attachment_path`, `approved_by`, `status` (ACTIVE/VOID), `void_reason`, `voided_by`, `voided_at`, `created_by` (nullable FK `users`) | attachment is stored after the journal posts and deleted if the transaction fails |
+| `cash_sessions` | `user_id`, `opened_at`, `opening_float`, `book_opening`, `opening_note`, `from_entry_id`, `to_entry_id`, `closed_at`, `closed_by`, `expected_cash`, `counted_cash`, `variance`, `variance_reason`, `status` (OPEN/PENDING_APPROVAL/CLOSED), `approved_by`, `approved_at`, `journal_entry_id` | cashier shifts for the single drawer (1-1000); window = journal ids in (`from_entry_id`, `to_entry_id`]; `adjustment` (= `variance` + `opening_float` − `book_opening`) is journaled on approval |
 
 ## Not in the database
 - Excel import staging is stored in a single shared file, `backend/storage/app/stock_migration/stock_staging.json`.

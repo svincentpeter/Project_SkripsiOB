@@ -84,13 +84,24 @@ The frontend calls all of these through `accountingApi.ts` and `expenseApi.ts`.
 | GET | `/accounting/trial-balance` | `accounting_hub` | `as_of` |
 | GET | `/accounting/financial-statements` | `financial_reports`, `accounting_hub` | `start_date, end_date`; income statement, balance sheet, equity changes |
 | GET | `/accounting/cash-flow` | `financial_reports`, `accounting_hub` | `start_date, end_date`; direct method |
-| GET | `/accounting/cash-balances` | `expenses`, `accounting_hub`, `financial_reports` | `{1-1000, 1-1001}` as of today |
+| GET | `/accounting/cash-balances` | `expenses`, `accounting_hub`, `financial_reports`, `cash_session` | `{1-1000, 1-1001}` as of today |
 | GET | `/accounting/periods` | `accounting_hub` | lock date, recent closings, suggested period to close |
 | POST | `/accounting/periods/close` | `accounting_hub` | `{period: YYYY-MM, notes}`; only a fully-elapsed month |
 | POST | `/accounting/periods/{period}/reopen` | `accounting_hub` + OWNER | `{reason}`; only the most recently closed period |
 | GET / POST | `/accounting/opening-balance` | `accounting_hub` | `{date, balances{code: amount}}`; posts once (`ACCOUNT_OPENING`) |
 | GET | `/accounting/accounts-payable` | `accounts_payable` | |
 | POST | `/accounting/accounts-payable/pay` | `accounts_payable` | per-supplier legacy path; the UI uses `/purchases/{id}/payments` |
+
+## Cash shifts and cash movements ([domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts))
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/cash-sessions/current` | `cash_session`, `cash_session_approve` | `{session (with lines, expected_cash) \| null, book_balance}` |
+| POST | `/cash-sessions/open` | `cash_session` | `{opening_float, opening_note?}`; note required when the float ≠ book balance; one open shift at a time |
+| POST | `/cash-sessions/{id}/close` | `cash_session` | `{counted_cash, variance_reason?}`; reason required for a variance; → `PENDING_APPROVAL` |
+| GET | `/cash-sessions` | `cash_session_approve` | 30 newest, pending first |
+| POST | `/cash-sessions/{id}/approve` | `cash_session_approve` | posts `CASH_SESSION_VARIANCE` (6-1010) unless 0; returns `{session, journals}` |
+| GET | `/cash-movements` | `cash_movement` | 50 newest deposit/Prive/capital journals |
+| POST | `/cash-movements` | `cash_movement` | `{type: DEPOSIT\|DRAWING\|CAPITAL, date ≤ today, amount, account_code (1-1000/1-1001, not for DEPOSIT), description}` → 201 journal |
 
 ## Role settings
 | Method | Path | Permission |

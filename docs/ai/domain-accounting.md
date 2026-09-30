@@ -3,7 +3,7 @@
 The thesis rests on one claim: every business event produces a balanced double-entry journal, and SAK EMKM
 reports (Laba Rugi, Posisi Keuangan/Neraca, Arus Kas) are derived from those journals. Keep that claim true.
 
-## Chart of accounts (25 accounts)
+## Chart of accounts (27 accounts)
 
 Defined in `backend/database/seeders/AccountCoaSeeder.php`. The seeder inserts only missing codes.
 Migration `2026_09_24_000003_add_pos_inventory_accounts.php` also inserts 2-1004, 4-2000, 5-2000, and 6-1009,
@@ -28,6 +28,7 @@ accounts and the manual-journal picker hides them. 6-1009 stays active for the Q
 | 2-1004 | Uang Muka Pelanggan (DP Booking). **Inactive** since 2026-09-30 (no booking DP); historic entries only | LIABILITY | C |
 | 3-1000 | Modal Disetor Pemilik | EQUITY | C |
 | 3-2000 | Laba Ditahan Cabang 3 | EQUITY | C |
+| 3-3000 | Prive Pemilik (owner drawings; contra-equity, not closed by period closing) | EQUITY | D |
 | 4-1000 | Pendapatan Penjualan Ban Baru | REVENUE | C |
 | 4-1001 | Pendapatan Jasa Servis & Spooring | REVENUE | C |
 | 4-2000 | Pendapatan Surcharge EDC. **Inactive** since 2026-09-30 (no card surcharge); historic entries only | REVENUE | C |
@@ -36,6 +37,7 @@ accounts and the manual-journal picker hides them. 6-1009 stays active for the Q
 | 5-2000 | Selisih Persediaan (Opname) | EXPENSE | D |
 | 6-1000 … 6-1008 | Operating expenses: gaji (salaries), listrik/air/internet (utilities), sewa (rent), transportasi (transport), ATK (supplies), perawatan mesin (machine maintenance), konsumsi/lembur (meals/overtime), pajak/retribusi (local taxes). **6-1002 does not exist.** | EXPENSE | D |
 | 6-1009 | Beban MDR QRIS & EDC (name kept; only the QRIS MDR posts here now) | EXPENSE | D |
+| 6-1010 | Selisih Kas Kasir (Lebih/Kurang): cashier over/short, posted when a shift is approved | EXPENSE | D |
 
 There is no "contra" account type. Contra accounts are recognized by a normal balance opposite to their type.
 
@@ -65,7 +67,7 @@ The README's 21-account table is outdated.
 `POS_SALE`, `POS_SALE_VOID`, `PURCHASE`, `DEBT_PAYMENT`,
 `EXPENSE`, `VOID_EXPENSE`, `MANUAL_ADJUSTMENT`, `OPENING_BALANCE`, `STOCK_OPNAME`, `STOCK_IMPORT`,
 `STOCK_RECONCILIATION`, `STOCK_COST_CORRECTION`, `PERIOD_CLOSING`, `PERIOD_REOPEN`, `MANUAL_REVERSAL`,
-`ACCOUNT_OPENING`. Reuse one of these where it fits. If you add a new value, list it here.
+`ACCOUNT_OPENING`, `CASH_SESSION_VARIANCE`, `CASH_DEPOSIT`, `OWNER_DRAWING`, `CAPITAL_INJECTION`. Reuse one of these where it fits. If you add a new value, list it here.
 Historic only (no longer produced since 2026-09-30): `BOOKING_DP`, `BOOKING_DP_REFUND`, `RECEIVABLE_PAYMENT`. The
 journal screen has no filter group for them; they show under "Semua".
 
@@ -83,9 +85,26 @@ journal screen has no filter group for them; they show under "Semua".
 | Manual journal | as submitted | as submitted | `Accounting/ManualJournalService`. Control accounts 1-1002, 1-2000, 2-1000, 2-1004 are rejected (validated in `ManualJournalRequest`). Only manual journals (`MANUAL_ADJUSTMENT`) are reversible from the journal screen, once each |
 | Period closing | every REVENUE/EXPENSE account's cumulative balance ≤ month end (credit accounts) | 3-2000, or the reverse if the account is net-debit; dated the month's last day, then locked | `Accounting/PeriodClosingService::close`. Reopen posts the mirrored `PERIOD_REOPEN` entry (OWNER only) and unlocks. Close and reopen `lockForUpdate()` the 3-2000 account row (`PeriodClosingService::serialize()`) so two closes/reopens can't run at once |
 | Account opening | 1-1000, 1-1001, 1-3000, 1-3999, 3-2000 as submitted | 3-1000, for the balancing difference | `Accounting/OpeningBalanceService::post`. Posted once (`ACCOUNT_OPENING`); further changes go through a manual journal. Posting `lockForUpdate()`s the 3-1000 account row before checking whether an opening entry already exists, so two concurrent posts can't both pass |
+| Cashier shift approved | 6-1010 (shortage) or 1-1000 (overage) | 1-1000 (shortage) or 6-1010 (overage), amount = counted − book | `Accounting/CashSessionService::approve` (`CASH_SESSION_VARIANCE`, `SHIFT-{id}`, dated the approval day; no journal when 0) |
+| Cash-to-bank deposit | 1-1001 | 1-1000 | `Accounting/CashMovementService` (`CASH_DEPOSIT`, `KAS-YYYYMM-####`) |
+| Owner drawing (Prive) | 3-3000 | 1-1000 or 1-1001 | `Accounting/CashMovementService` (`OWNER_DRAWING`) |
+| Capital injection | 1-1000 or 1-1001 | 3-1000 | `Accounting/CashMovementService` (`CAPITAL_INJECTION`) |
 
 Account routing for payment methods lives in `Pos/PosAccounts::forMethod`: TUNAI goes to 1-1000; TRANSFER,
 TRANSFER_BCA and QRIS go to 1-1001.
+
+## Cash drawer and shifts
+
+The drawer is account 1-1000 (only TUNAI posts there). A cashier shift (`cash_sessions`) is a window of journal ids
+(`from_entry_id`, `to_entry_id`]. Expected cash = `opening_float` + Σ(debit − credit) on 1-1000 of POSTED journals in
+the window, excluding `CASH_SESSION_VARIANCE`, grouped per `reference_type` (`CashSessionService::summary`, labels in
+`LINE_LABELS`). The opening float must match the book balance (1-1000 + adjustments of shifts still
+`PENDING_APPROVAL`) or carry an `opening_note`; closing requires `variance_reason` when counted ≠ expected. Approval
+(`cash_session_approve`, a non-OWNER cannot approve their own shift) posts `adjustment = variance + opening
+difference`, so afterwards 1-1000 equals the counted cash. `CashSessionService::requireOpen()` guards cash checkout
+(and SP3 cash refunds). Deposits, Prive and capital are single journals from `CashMovementService` (`cash_movement`).
+The POS drawer figure is the 1-1000 ledger balance (`GET /accounting/cash-balances`); the old per-browser counter
+`ob3_cash_drawer` and `cashPortion` no longer exist.
 
 ## Reports
 
@@ -101,6 +120,9 @@ COA rather than hard-coded account lists, in `app/Services/Accounting/`:
   statement excludes `PERIOD_CLOSING`/`PERIOD_REOPEN` entries so closing never hides a month's result; the
   balance sheet as of a date includes everything, showing unclosed earnings as an equity line so it always
   balances.
+- The statement of changes in equity reports `owner_contributions` (credit-normal equity) and `owner_drawings`
+  (debit-normal equity, i.e. Prive 3-3000) separately; the cash-flow report puts both in financing (EQUITY bucket)
+  and the shift variance in operating expenses (6-1010 is EXPENSE).
 - **`CashFlowReport::build($from, $to)`** is the direct method: every journal that touches 1-1000/1-1001
   attributes its non-cash lines (credit − debit) to a bucket (customers, suppliers, expenses, other operating,
   fixed assets, equity), so the buckets always reconcile to the cash change (`is_reconciled`).
@@ -123,4 +145,3 @@ retry.
 ## Known issues (verified 2026-09-30)
 - `GR-`, `OB3-INV-`, and `OPN-` document numbers still use the month of `now()` rather than the document
   date (only `JRN`/`BKK` were fixed to use the document date's month in Stage 4).
-- `ob3_cash_drawer` still differs from the 1-1000 ledger balance (roadmap sub-project 2).

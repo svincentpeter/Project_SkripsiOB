@@ -38,6 +38,8 @@ Findings addressed:
 
 ## Sub-project 2 — Cash & bank
 
+> Status: **done** — spec `2026-09-30-cash-and-bank-design.md`, plan `docs/superpowers/plans/2026-09-30-cash-and-bank.md`.
+
 - 🔴 No cashier shift (open float, count, expected vs counted, variance reason, approval). `ob3_cash_drawer` is a
   per-browser counter (default 2,450,000) unrelated to the 1-1000 ledger balance and clamped at 0.
 - 🟠 No server posting for cash-to-bank deposit (1-1000 ↔ 1-1001), owner drawings (needs a Prive account),

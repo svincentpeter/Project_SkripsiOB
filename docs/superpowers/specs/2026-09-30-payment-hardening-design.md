@@ -128,6 +128,10 @@ persist after reload.
 - **Webhook unreachable on localhost**: settlement then relies on the POS polling `status` (records `STATUS_API`);
   if the cashier closes the QR modal before settlement, the next checkout attempt with that order still fails until a
   status call records it. Accepted (same as today).
+- **Checkout fails after a dynamic QRIS settled**: the checkout modal keeps the settled order (`{orderId, amount}`,
+  `src/modules/pos/settledQris.ts`) and reuses it on retry at the same total, with no new charge; a different
+  selection shows a warning. It lives in component state only, so a page reload loses it and needs manual follow-up
+  (refund the customer or record the sale by hand).
 - **Settings tab mixes save models**: provider rows save to the server immediately, while the "Rekening Utama Nota"
   sub-tab still waits for the settings screen's Simpan button (receipt text only). A banner line says so.
 - **Existing dev data**: old `sale_payments.reference` duplicates (if any) are untouched; the new table starts empty,
