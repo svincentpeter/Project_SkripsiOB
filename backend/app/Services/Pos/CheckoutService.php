@@ -3,6 +3,7 @@
 namespace App\Services\Pos;
 
 use App\Exceptions\PosRuleException;
+use App\Models\PaymentProviderSetting;
 use App\Models\Sale;
 use App\Models\SaleDetail;
 use App\Models\SalePayment;
@@ -99,7 +100,11 @@ class CheckoutService
         foreach ($input as $row) {
             $method = $row['method'];
             $amount = round((float) $row['amount'], 2);
-            $pct = $method === 'TUNAI' ? 0.0 : (float) ($row['fee_percentage'] ?? 0);
+            $provider = $this->provider($method, $row['provider_id'] ?? null);
+            // Hanya QRIS yang kena MDR (beban toko), dihitung dari pengaturan provider di server.
+            $fee = $method === 'QRIS'
+                ? $provider->calculateQrisFee($amount)
+                : ['fee_percentage' => 0.0, 'fee_amount' => 0.0];
 
             $tendered = $amount;
             if ($method === 'TUNAI') {
@@ -116,18 +121,16 @@ class CheckoutService
                 }
             }
 
-            $fee = round($amount * $pct / 100);
-
             $payments[] = [
                 'method' => $method,
                 'account_code' => PosAccounts::forMethod($method),
                 'amount' => $amount,
                 'tendered_amount' => $tendered,
                 'change_amount' => round($tendered - $amount, 2),
-                'fee_percentage' => $pct,
-                'fee_amount' => $fee,
-                'net_received' => round($amount - $fee, 2),
-                'provider_name' => $row['provider_name'] ?? null,
+                'fee_percentage' => (float) $fee['fee_percentage'],
+                'fee_amount' => (float) $fee['fee_amount'],
+                'net_received' => round($amount - (float) $fee['fee_amount'], 2),
+                'provider_name' => $provider?->provider_name,
                 'reference' => $row['reference'] ?? null,
             ];
         }
@@ -140,6 +143,34 @@ class CheckoutService
         }
 
         return $payments;
+    }
+
+    /**
+     * Provider dari pengaturan server, bukan nama/fee kiriman klien. QRIS wajib punya provider karena MDR-nya
+     * dihitung dari sana; transfer boleh tanpa provider (hanya label bank). Semua transfer dan QRIS tetap
+     * dibukukan ke satu rekening bank toko (1-1001, PosAccounts::forMethod).
+     */
+    private function provider(string $method, mixed $id): ?PaymentProviderSetting
+    {
+        if ($method === 'TUNAI') {
+            return null;
+        }
+
+        $type = $method === 'QRIS' ? 'qris' : 'bank';
+        if (! $id) {
+            if ($type === 'qris') {
+                throw new PosRuleException('Pilih provider QRIS agar potongan MDR dihitung server.');
+            }
+
+            return null;
+        }
+
+        $provider = PaymentProviderSetting::active()->where('method_type', $type)->find($id);
+        if (! $provider) {
+            throw new PosRuleException('Provider pembayaran tidak ditemukan atau tidak aktif.');
+        }
+
+        return $provider;
     }
 
     /**

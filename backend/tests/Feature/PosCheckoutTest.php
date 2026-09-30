@@ -50,15 +50,77 @@ class PosCheckoutTest extends TestCase
     public function test_qris_fee_is_booked_as_mdr_expense(): void
     {
         $product = $this->makeProduct();
+        $provider = $this->paymentProvider('qris', 0.7);
         $res = $this->checkout([
             'items' => [$this->productLine($product)],
-            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'fee_percentage' => 0.7, 'provider_name' => 'QRIS BCA']],
+            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'provider_id' => $provider->id]],
         ])->assertCreated();
 
-        $res->assertJsonPath('data.fee_amount', 7000)->assertJsonPath('data.net_received', 993000);
+        $res->assertJsonPath('data.fee_amount', 7000)
+            ->assertJsonPath('data.net_received', 993000)
+            ->assertJsonPath('data.payments.0.fee_percentage', 0.7)
+            ->assertJsonPath('data.payments.0.provider_name', $provider->provider_name);
         $j = $this->journalByAccount($res->json('data.reference'));
         $this->assertEquals(993000, $j['1-1001']['debit']);
         $this->assertEquals(7000, $j['6-1009']['debit']);
+    }
+
+    public function test_qris_fee_follows_the_server_provider_threshold(): void
+    {
+        $product = $this->makeProduct(400000);
+        $provider = $this->paymentProvider('qris', 0.3, 500000);
+        $res = $this->checkout([
+            'items' => [$this->productLine($product)],
+            'payments' => [['method' => 'QRIS', 'amount' => 400000, 'provider_id' => $provider->id]],
+        ])->assertCreated();
+
+        $res->assertJsonPath('data.fee_amount', 0)->assertJsonPath('data.payments.0.fee_percentage', 0);
+        $j = $this->journalByAccount($res->json('data.reference'));
+        $this->assertEquals(400000, $j['1-1001']['debit']);
+        $this->assertArrayNotHasKey('6-1009', $j);
+    }
+
+    public function test_client_fee_percentage_is_rejected(): void
+    {
+        $product = $this->makeProduct();
+
+        $this->checkout([
+            'items' => [$this->productLine($product)],
+            'payments' => [['method' => 'TUNAI', 'amount' => 1000000, 'fee_percentage' => 0]],
+        ])->assertStatus(422)->assertJsonValidationErrors('payments.0.fee_percentage');
+
+        $this->assertSame(10, $product->fresh()->product_quantity);
+    }
+
+    public function test_qris_needs_an_active_qris_provider(): void
+    {
+        $product = $this->makeProduct();
+        $payload = fn ($providerId) => [
+            'items' => [$this->productLine($product)],
+            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'provider_id' => $providerId]],
+        ];
+
+        $this->checkout($payload(null))->assertStatus(422)->assertJsonPath('message', 'Pilih provider QRIS agar potongan MDR dihitung server.');
+        $this->checkout($payload($this->paymentProvider('qris', 0.3, 0, false)->id))->assertStatus(422)
+            ->assertJsonPath('message', 'Provider pembayaran tidak ditemukan atau tidak aktif.');
+        $this->checkout($payload($this->paymentProvider('bank')->id))->assertStatus(422);
+
+        $this->assertSame(10, $product->fresh()->product_quantity);
+    }
+
+    public function test_transfer_books_the_bank_with_the_provider_name_from_the_server(): void
+    {
+        $product = $this->makeProduct();
+        $bank = $this->paymentProvider('bank', 2.5);
+        $res = $this->checkout([
+            'items' => [$this->productLine($product)],
+            'payments' => [['method' => 'TRANSFER_BCA', 'amount' => 1000000, 'provider_id' => $bank->id]],
+        ])->assertCreated();
+
+        $res->assertJsonPath('data.payment_provider', $bank->provider_name)->assertJsonPath('data.fee_amount', 0);
+        $j = $this->journalByAccount($res->json('data.reference'));
+        $this->assertEquals(1000000, $j['1-1001']['debit']);
+        $this->assertArrayNotHasKey('6-1009', $j);
     }
 
     public function test_qris_reference_must_be_settled(): void
@@ -66,7 +128,7 @@ class PosCheckoutTest extends TestCase
         $product = $this->makeProduct();
         $payload = [
             'items' => [$this->productLine($product)],
-            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'reference' => 'POS-TEST-'.uniqid()]],
+            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'provider_id' => $this->paymentProvider('qris')->id, 'reference' => 'POS-TEST-'.uniqid()]],
         ];
 
         $this->mock(MidtransQrisService::class)
@@ -100,7 +162,7 @@ class PosCheckoutTest extends TestCase
             'items' => [$this->productLine($product)],
             'payments' => [
                 ['method' => 'TUNAI', 'amount' => 400000, 'tendered' => 400000],
-                ['method' => 'QRIS', 'amount' => 600000, 'fee_percentage' => 0.5, 'provider_name' => 'QRIS BCA'],
+                ['method' => 'QRIS', 'amount' => 600000, 'provider_id' => $this->paymentProvider('qris', 0.5)->id],
             ],
         ])->assertCreated();
 

@@ -43,8 +43,9 @@ class PosCheckoutRequest extends FormRequest
             'payments.*.method' => ['required', Rule::in(PosAccounts::CHECKOUT_METHODS)],
             'payments.*.amount' => 'required|numeric|min:0.01',
             'payments.*.tendered' => 'nullable|numeric|min:0',
-            'payments.*.fee_percentage' => 'nullable|numeric|min:0|max:10',
-            'payments.*.provider_name' => 'nullable|string|max:100',
+            // Fee MDR dan nama provider dihitung server dari payment_provider_settings; klien hanya memilih provider.
+            'payments.*.provider_id' => 'nullable|integer',
+            'payments.*.fee_percentage' => 'prohibited',
             'payments.*.reference' => 'nullable|string|max:100',
         ];
     }
@@ -55,6 +56,7 @@ class PosCheckoutRequest extends FormRequest
             'booking_id.prohibited' => 'Booking DP sudah tidak didukung. Selesaikan nota dengan pembayaran penuh.',
             'bon.prohibited' => 'Penjualan BON (piutang) sudah tidak didukung. Setiap nota harus lunas saat checkout.',
             'payments.*.method.in' => 'Metode pembayaran tidak dikenal. Gunakan Tunai, Transfer, atau QRIS.',
+            'payments.*.fee_percentage.prohibited' => 'Persentase fee dihitung server dari pengaturan provider pembayaran. Muat ulang aplikasi kasir.',
         ];
     }
 }

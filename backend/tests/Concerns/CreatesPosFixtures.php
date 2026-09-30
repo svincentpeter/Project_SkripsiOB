@@ -3,6 +3,7 @@
 namespace Tests\Concerns;
 
 use App\Models\JournalEntry;
+use App\Models\PaymentProviderSetting;
 use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\Sale;
@@ -74,6 +75,18 @@ trait CreatesPosFixtures
         }
 
         return $map;
+    }
+
+    /** Provider pembayaran server (method_type bank/qris) dengan MDR dan ambang sendiri. */
+    protected function paymentProvider(string $type = 'qris', float $feePct = 0, float $threshold = 0, bool $active = true): PaymentProviderSetting
+    {
+        return PaymentProviderSetting::create([
+            'method_type' => $type,
+            'provider_name' => strtoupper($type).' Test '.uniqid(),
+            'fee_percentage' => $feePct,
+            'fee_threshold_amount' => $threshold,
+            'is_active' => $active,
+        ]);
     }
 
     protected function checkout(array $payload)

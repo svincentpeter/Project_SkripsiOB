@@ -53,7 +53,7 @@ class PosVoidTest extends TestCase
             'items' => [$this->productLine($product)],
             'payments' => [
                 ['method' => 'TUNAI', 'amount' => 400000, 'tendered' => 500000],
-                ['method' => 'QRIS', 'amount' => 600000, 'fee_percentage' => 0.5],
+                ['method' => 'QRIS', 'amount' => 600000, 'provider_id' => $this->paymentProvider('qris', 0.5)->id],
             ],
         ])->assertCreated();
 
