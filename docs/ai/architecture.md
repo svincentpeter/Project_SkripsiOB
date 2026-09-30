@@ -35,19 +35,20 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
 
 - Action-level gates use `can(key)` from App.tsx, passed down as booleans (for example `canVoid={can('sale_void')}`).
 - Sub-tabs inside a screen are local `useState` (Inventory: `katalog | buku_fifo | kategori | jasa | stok_mutasi | supplier`;
-  Ledger: `journals | ledger | trial-balance | payables | receivables | reports`).
+  Ledger: `journals | ledger | trial-balance | payables | reports`).
 
 ### State
 - All app-wide state (~25 `useState`) lives in `MainAppContent` in `App.tsx`. Screens get data through props and
   report changes through `onXxx` callbacks that App.tsx defines. There is no Redux/Zustand/React Query, and the only
   context is `ToastProvider`.
-- After login, `loadPosData` fetches products, services, categories, suppliers, sales, receivables, bookings, and
+- After login, `loadPosData` fetches products, services, categories, suppliers, sales, and
   purchases in parallel, filtered by permission. Each call does `.catch(() => null)`, so failures are silent.
 - When adding a server-backed feature: add a typed function in `src/services/api/<area>Api.ts`, a mapper if the wire
   shape differs, a handler in App.tsx that calls it and updates state from the **response**, and pass it down.
 
 ### localStorage keys still in use
-`ob3_auth_token`, `ob3_cash_drawer`, `ob3_store_settings` (includes bank/QRIS/EDC fee providers), `ob3_cart`,
+`ob3_auth_token`, `ob3_cash_drawer`, `ob3_store_settings` (includes bank/QRIS fee providers; legacy `edc_settings`
+and `coa_receivable_account` properties are dropped on load), `ob3_cart`,
 `ob3_parked_orders`, `ob3_read_notif_ids`, `ob3_dismissed_notif_ids`. Legacy or fallback only: `ob3_products`,
 `ob3_stock_staging`, `omahban_product_categories`, `omahban_service_categories`. Local data is seeded from
 `src/shared/data/mockData.ts`. `App.tsx` removes the old accounting keys (`ob3_journals`, `ob3_expenses`,

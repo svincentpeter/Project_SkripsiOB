@@ -42,11 +42,11 @@ See [domain-inventory.md](domain-inventory.md) for how they can drift.
 ## Sales (POS)
 | Table | Key columns | Notes |
 |---|---|---|
-| `sales` | `reference` (unique, `OB3-INV-YYYYMM-####`), `date`, customer and vehicle fields, gross/discount/total (no tax columns; dropped by `2026_09_27_000001`), `paid_amount`, `change_amount`, `dp_applied`, `booking_id`, fee/surcharge/net fields, `payment_method` (method, `SPLIT`, or `BON`), `status` (LUNAS/PENDING/VOID), `due_date`, `voided_at`, `voided_by`, `void_reason`, `total_hpp`, `total_profit` | `Sale::toReceiptArray()` is the API shape |
+| `sales` | `reference` (unique, `OB3-INV-YYYYMM-####`), `date`, customer and vehicle fields, gross/discount/total (no tax columns; dropped by `2026_09_27_000001`), `paid_amount`, `change_amount`, fee/net fields, `payment_method` (method or `SPLIT`), `status` (LUNAS/VOID), `voided_at`, `voided_by`, `void_reason`, `total_hpp`, `total_profit` | `Sale::toReceiptArray()` is the API shape. Legacy columns `booking_id`, `dp_applied`, `due_date`, `edc_bank`, `edc_type`, `surcharge_amount` are unused since 2026-09-30 (kept for history; old rows may say `BON`/`PENDING`) |
 | `sale_details` | `item_type` (PRODUCT/SERVICE), `product_id`, `service_id`, `item_name`, `is_manual`, `quantity`, prices, discount, `hpp`, `profit` | |
-| `sale_payments` | `method`, `account_code`, `amount`, `tendered_amount`, `change_amount`, `fee_percentage`, `fee_amount`, `surcharge_amount`, `net_received`, `provider_name`, `edc_bank`, `edc_type`, `reference` | one row per split payment |
-| `receivable_payments` | `sale_id` (FK cascade), `payment_date`, `amount`, `account_code`, `journal_entry_number` | settlements of BON (credit) sales |
-| `sales_bookings` | `booking_number` (`BK-YYYYMM-####`), customer/vehicle fields, `items` (JSON), `estimated_total`, `dp_amount`, `payment_method`, `dp_account_code`, `status` (ACTIVE/CONVERTED/CANCELLED), `converted_sale_id` | customer pre-orders with a down payment |
+| `sale_payments` | `method`, `account_code`, `amount`, `tendered_amount`, `change_amount`, `fee_percentage`, `fee_amount`, `net_received`, `provider_name`, `reference` | one row per split payment. Legacy `surcharge_amount`, `edc_bank`, `edc_type` unused since 2026-09-30 |
+| `receivable_payments` | `sale_id` (FK cascade), `payment_date`, `amount`, `account_code`, `journal_entry_number` | settlements of BON (credit) sales. **Unused since 2026-09-30** (BON removed); kept for history |
+| `sales_bookings` | `booking_number` (`BK-YYYYMM-####`), customer/vehicle fields, `items` (JSON), `estimated_total`, `dp_amount`, `payment_method`, `dp_account_code`, `status` (ACTIVE/CONVERTED/CANCELLED), `converted_sale_id` | customer pre-orders with a down payment. **Unused since 2026-09-30** (booking DP removed); kept for history |
 
 `Sale::journalEntry` joins `journal_entries.reference_id = sales.reference` with `reference_type = POS_SALE`.
 
@@ -60,7 +60,7 @@ See [domain-inventory.md](domain-inventory.md) for how they can drift.
 | Table | Key columns |
 |---|---|
 | `payment_provider_settings` | `method_type` (bank/qris), `provider_name`, `provider_code`, `fee_percentage`, `fee_threshold_amount`, `is_active`, `sort_order` |
-| `edc_settings` | `bank_name`, `payment_type` (Debit/Credit), `fee_percentage`, `charge_to_customer`, `is_active` |
+| `edc_settings` | `bank_name`, `payment_type` (Debit/Credit), `fee_percentage`, `charge_to_customer`, `is_active`. **Unused since 2026-09-30** (EDC removed; endpoints deleted) |
 
 The frontend does not use these tables yet: fees come from localStorage store settings (see [domain-pos.md](domain-pos.md)).
 

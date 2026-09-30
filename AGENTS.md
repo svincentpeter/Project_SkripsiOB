@@ -76,7 +76,7 @@ The app started fully client-side (localStorage, briefly Supabase) and is being 
 | Feature | Source of truth | Stage |
 |---|---|---|
 | Login, session, role permissions | Server (Sanctum, `role_permissions`) | 1 (done) |
-| POS checkout, void, sales history, BON receivables, booking DP, QRIS | Server | 2 (done) |
+| POS checkout (Tunai/Transfer/QRIS, split; every sale paid in full), void, sales history, QRIS | Server | 2 (done) |
 | Products, categories, services, suppliers, FIFO batches, goods receipt, payables, stock opname, Excel import, monthly stock ledger | Server | 3 (done) |
 | Expenses, manual journals, journal reversal, account opening balances, period closing & lock | Server | 4 (done) |
 | Financial reports (journals, ledger, trial balance, statements, equity changes, cash flow) | Server, computed per period | 4 (done) |
@@ -93,7 +93,7 @@ Details: [docs/ai/architecture.md](docs/ai/architecture.md).
    which requires Σdebit = Σcredit to the cent (no tolerance). Never write `journal_entries`/`journal_items` directly.
    `createEntry` also rejects lines that are negative, two-sided or fewer than two, and any date on or before
    the period lock date (`PeriodLock`).
-2. **Account codes come from the COA.** 25 accounts, seeded by `AccountCoaSeeder` (+ migration
+2. **Account codes come from the COA.** 25 accounts (1-1002, 2-1004, 4-2000 inactive since 2026-09-30), seeded by `AccountCoaSeeder` (+ migration
    `2026_09_24_000003`). The frontend has no COA copy; it loads `GET /accounts`. A new account needs only
    a migration (so existing databases get it) and the seeder.
    See [docs/ai/domain-accounting.md](docs/ai/domain-accounting.md).
@@ -128,7 +128,7 @@ Details: [docs/ai/architecture.md](docs/ai/architecture.md).
 | [docs/ai/api-reference.md](docs/ai/api-reference.md) | any endpoint or permission |
 | [docs/ai/data-model.md](docs/ai/data-model.md) | migrations, models, tables |
 | [docs/ai/domain-accounting.md](docs/ai/domain-accounting.md) | COA, journals, reports, expenses, closing |
-| [docs/ai/domain-pos.md](docs/ai/domain-pos.md) | checkout, payments, fees, BON, booking DP, void, QRIS |
+| [docs/ai/domain-pos.md](docs/ai/domain-pos.md) | checkout, payments, fees, void, QRIS |
 | [docs/ai/domain-inventory.md](docs/ai/domain-inventory.md) | products, FIFO, goods receipt, payables, opname, Excel import |
 | [docs/ai/workflow-and-gotchas.md](docs/ai/workflow-and-gotchas.md) | testing, specs/plans workflow, commits, glossary, known issues |
 | [backend/AGENTS.md](backend/AGENTS.md) | backend conventions |

@@ -61,13 +61,13 @@ As of 2026-09-30, the frontend passes: 25 test files, 122 tests, and `tsc` is cl
 | Kasir / Gudang / Owner | cashier / warehouse / owner, the three roles |
 | Nota, struk, invoice | sales receipt (`OB3-INV-…`) |
 | Kas laci | cash drawer (account 1-1000) |
-| Tunai / transfer / EDC / QRIS | cash / bank transfer / card terminal / Indonesian QR payment |
-| MDR | merchant discount rate, the fee charged by QRIS or EDC (6-1009) |
-| Surcharge | card fee passed on to the customer (4-2000) |
-| BON | sale on credit, creating a receivable (piutang, 1-1002) |
+| Tunai / transfer / QRIS | cash / bank transfer / Indonesian QR payment, the only POS payment methods |
+| MDR | merchant discount rate, the fee charged by QRIS (6-1009) |
+| EDC / surcharge | card terminal / card fee passed on to the customer (4-2000). Removed from the POS on 2026-09-30; historic entries only |
+| BON | sale on credit, creating a receivable (piutang, 1-1002). Removed from the POS on 2026-09-30; historic entries only |
 | Piutang / hutang | receivable / payable |
 | Tempo | purchase on credit terms, creating supplier debt (2-1000) |
-| DP / uang muka / booking inden | down payment / customer deposit (2-1004) / pre-order |
+| DP / uang muka / booking inden | down payment / customer deposit (2-1004) / pre-order. Removed from the POS on 2026-09-30; historic entries only |
 | Lunas / belum lunas / sebagian | paid / unpaid / partially paid |
 | HPP | cost of goods sold (5-1000) |
 | Persediaan | inventory (1-2000) |
@@ -95,9 +95,9 @@ As of 2026-09-30, the frontend passes: 25 test files, 122 tests, and `tsc` is cl
   back to local processing on server 422s. When debugging "data not showing", check the network tab and backend logs.
 - **Mock data.** Accounting data (expenses, journals, balances, reports) is server-owned and has no mock seed.
   `src/shared/data/mockData.ts` now only supplies non-accounting defaults: `DEFAULT_ROLE_PERMISSIONS` (fallback
-  when the permissions request fails), `INITIAL_STORE_SETTINGS`, the payment provider/EDC defaults used by
-  `CheckoutModal` and `BookingDpModal`, and category seeds for the legacy local category services. Its product,
-  transaction, booking, supplier, stock-mutation and trend arrays are legacy; only tests and dead imports use them.
+  when the permissions request fails), `INITIAL_STORE_SETTINGS`, the bank/QRIS provider defaults used by
+  `CheckoutModal`, and category seeds for the legacy local category services. Its product,
+  transaction, supplier, stock-mutation and trend arrays are legacy; only tests and dead imports use them.
 - **"Reset data"** in the UI only runs `localStorage.clear()` and reloads, which also logs the user out. Its text
   mentions Supabase, which is misleading.
 - **Timezone.** Laravel's `config/app.php` timezone is `Asia/Jakarta` (WIB, overridable with `APP_TIMEZONE`), so
@@ -105,11 +105,11 @@ As of 2026-09-30, the frontend passes: 25 test files, 122 tests, and `tsc` is cl
   timestamps; `DATE` columns are unaffected. New frontend code must take business dates from `localDate()`
   (`src/services/accountingPeriod.ts`), not `toISOString()`, which gives the UTC date.
 - **Known issue: `toISOString()` dates.** Older screens still derive "today" with `new Date().toISOString()`
-  (sliced to a date or month), which yields the previous day between 00:00 and 07:00 WIB: `CheckoutModal`,
-  `BookingDpModal`, `GoodsReceiptModal`, `PosScreen` (parked order numbers), `ThermalReceiptScreen`, `posService`, `inventoryService`,
+  (sliced to a date or month), which yields the previous day between 00:00 and 07:00 WIB:
+  `GoodsReceiptModal`, `PosScreen` (parked order numbers), `ThermalReceiptScreen`, `inventoryService`,
   `ExecutiveDashboardScreen`, `StockMonthlyLedgerView` / `stockMonthlyLedgerService`, the export registry
-  (`src/shared/export/registry.ts`), and the default payment dates in `PayDebtModal` and
-  `AccountsReceivableTab`. Switch them to `localDate()` when touching those files.
+  (`src/shared/export/registry.ts`), and the default payment date in `PayDebtModal`.
+  Switch them to `localDate()` when touching those files.
 - **Test database.** Backend tests without a DB trait leave rows behind, and `RefreshDatabase` tests wipe everything.
   If a test fails only when the whole suite runs, suspect test order.
 - **Windows.** Paths contain `C:\laragon\www\…`. The DB name has a hyphen (`project-skripsi_ob`), so quote it in SQL.

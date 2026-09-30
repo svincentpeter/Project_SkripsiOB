@@ -48,9 +48,10 @@ Findings addressed:
 
 ## Sub-project 3 — Transaction corrections
 
-- 🟠 No partial sales return (only full void, refused once a BON has a payment); no purchase return / goods
+- 🟠 No partial sales return (only full void); no purchase return / goods
   receipt cancellation (only opname, which leaves the payable standing).
-- 🟠 No bad-debt write-off for 1-1002; booking DP cannot be forfeited to income; QRIS DP not verified, no MDR.
+- ~~🟠 No bad-debt write-off for 1-1002; booking DP cannot be forfeited to income; QRIS DP not verified, no MDR.~~
+  Obsolete: BON and booking DP were removed on 2026-09-30 (`2026-09-30-remove-dp-bon-edc-design.md`).
 - 🟠 FIFO shortfall fallback credits 1-2000 at `product_cost` without consuming batches
   (`FifoCostingService.php:92-105`); void restores only allocated batches.
 - 🟠 Manual (non-catalogue) POS lines book revenue without cost of sales (`CheckoutService.php:91-94, 246`).
@@ -63,7 +64,7 @@ Findings addressed:
 
 - 🟠 Fixed asset register and monthly straight-line depreciation (new Beban Penyusutan account; reference:
   `Modules/AssetManagement/Services/DepreciationService.php`).
-- 🟠 A real CALK (compliance statement, entity info, policies, breakdowns of receivables, inventory, fixed
+- 🟠 A real CALK (compliance statement, entity info, policies, breakdowns of inventory, fixed
   assets, payables) visible in the UI and in exports.
 - 🟡 PPh Final UMKM 0.5% accrual (decide with the thesis supervisor whether it is in scope).
 - 🟡 Adjusting-entry workflow for accruals/prepayments; bank reconciliation.
@@ -72,7 +73,7 @@ Findings addressed:
 
 - 🟠 Daily cash report and daily recap on a cash-received basis (reference: `ReportDailyCashApiController.php`,
   `DailyNotaGlobalService.php`); per-cashier recap.
-- 🟠 Dashboard: "today" falls back to the last 3 sales; BON sales excluded; expenses include VOID and all months;
+- 🟠 Dashboard: "today" falls back to the last 3 sales; expenses include VOID and all months;
   "FIFO" value is qty × latest cost; UTC date; payment mix includes voided sales; hard-coded "95%+ margin".
   Source these from server reports instead.
 

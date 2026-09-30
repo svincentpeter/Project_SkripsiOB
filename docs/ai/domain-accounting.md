@@ -11,26 +11,31 @@ so databases created before that migration get them too. Migration `2026_09_27_0
 removed 2-1003 PPN Keluaran: the shop is non-PKP and charges no VAT on sales. Do not add a PPN account back.
 PPN on supplier invoices belongs in the batch cost (1-2000), as in the reference system ProjectOmahBan.
 
+Migration `2026_09_30_000001_deactivate_dp_bon_edc_accounts.php` sets 1-1002, 2-1004 and 4-2000 `is_active = false`
+(inserting them inactive if missing): booking DP, BON credit sales and the EDC surcharge were removed from the POS on
+2026-09-30. They stay in the COA because historic journals reference them; `ManualJournalRequest` rejects inactive
+accounts and the manual-journal picker hides them. 6-1009 stays active for the QRIS MDR.
+
 | Code | Name | Type | Normal |
 |---|---|---|---|
 | 1-1000 | Kas Toko Laci Kasir (cash drawer) | ASSET | D |
 | 1-1001 | Bank BCA Cabang 3 | ASSET | D |
-| 1-1002 | Piutang Dagang (AR, from BON sales) | ASSET | D |
+| 1-1002 | Piutang Dagang (AR). **Inactive** since 2026-09-30 (no credit sales); historic entries only | ASSET | D |
 | 1-2000 | Persediaan Ban Baru Cabang 3 (inventory, FIFO) | ASSET | D |
 | 1-3000 | Peralatan Bengkel & Mesin Spooring | ASSET | D |
 | 1-3999 | Akumulasi Penyusutan Mesin (contra-asset) | ASSET | C |
 | 2-1000 | Hutang Dagang Supplier (AP) | LIABILITY | C |
-| 2-1004 | Uang Muka Pelanggan (DP Booking) | LIABILITY | C |
+| 2-1004 | Uang Muka Pelanggan (DP Booking). **Inactive** since 2026-09-30 (no booking DP); historic entries only | LIABILITY | C |
 | 3-1000 | Modal Disetor Pemilik | EQUITY | C |
 | 3-2000 | Laba Ditahan Cabang 3 | EQUITY | C |
 | 4-1000 | Pendapatan Penjualan Ban Baru | REVENUE | C |
 | 4-1001 | Pendapatan Jasa Servis & Spooring | REVENUE | C |
-| 4-2000 | Pendapatan Surcharge EDC | REVENUE | C |
+| 4-2000 | Pendapatan Surcharge EDC. **Inactive** since 2026-09-30 (no card surcharge); historic entries only | REVENUE | C |
 | 4-9000 | Potongan Diskon Penjualan (contra-revenue) | REVENUE | D |
 | 5-1000 | Harga Pokok Penjualan (HPP) Ban Baru | EXPENSE | D |
 | 5-2000 | Selisih Persediaan (Opname) | EXPENSE | D |
 | 6-1000 … 6-1008 | Operating expenses: gaji (salaries), listrik/air/internet (utilities), sewa (rent), transportasi (transport), ATK (supplies), perawatan mesin (machine maintenance), konsumsi/lembur (meals/overtime), pajak/retribusi (local taxes). **6-1002 does not exist.** | EXPENSE | D |
-| 6-1009 | Beban MDR QRIS & EDC | EXPENSE | D |
+| 6-1009 | Beban MDR QRIS & EDC (name kept; only the QRIS MDR posts here now) | EXPENSE | D |
 
 There is no "contra" account type. Contra accounts are recognized by a normal balance opposite to their type.
 
@@ -54,23 +59,22 @@ The README's 21-account table is outdated.
 - Posting happens inside the caller's DB transaction, so an unbalanced journal rolls back the whole business
   operation.
 - Journals are never edited or deleted. Corrections are reversing entries (`POS_SALE_VOID`, `VOID_EXPENSE`,
-  `BOOKING_DP_REFUND`).
+  `MANUAL_REVERSAL`).
 
 ### `reference_type` values in use
-`POS_SALE`, `POS_SALE_VOID`, `BOOKING_DP`, `BOOKING_DP_REFUND`, `RECEIVABLE_PAYMENT`, `PURCHASE`, `DEBT_PAYMENT`,
+`POS_SALE`, `POS_SALE_VOID`, `PURCHASE`, `DEBT_PAYMENT`,
 `EXPENSE`, `VOID_EXPENSE`, `MANUAL_ADJUSTMENT`, `OPENING_BALANCE`, `STOCK_OPNAME`, `STOCK_IMPORT`,
 `STOCK_RECONCILIATION`, `STOCK_COST_CORRECTION`, `PERIOD_CLOSING`, `PERIOD_REOPEN`, `MANUAL_REVERSAL`,
 `ACCOUNT_OPENING`. Reuse one of these where it fits. If you add a new value, list it here.
+Historic only (no longer produced since 2026-09-30): `BOOKING_DP`, `BOOKING_DP_REFUND`, `RECEIVABLE_PAYMENT`. The
+journal screen has no filter group for them; they show under "Semua".
 
 ## Posting rules
 
 | Event | Debit | Credit | Where |
 |---|---|---|---|
-| POS sale | cash/bank per payment at `net_received`; 6-1009 fees; 2-1004 DP applied; 1-1002 if BON; 4-9000 discounts; 5-1000 FIFO cost | 4-1000 goods (gross); 4-1001 services (gross); 4-2000 EDC surcharge; 1-2000 FIFO cost | `Pos/CheckoutService::postJournal` |
+| POS sale | cash/bank per payment at `net_received`; 6-1009 QRIS MDR; 4-9000 discounts; 5-1000 FIFO cost | 4-1000 goods (gross); 4-1001 services (gross); 1-2000 FIFO cost | `Pos/CheckoutService::postJournal` |
 | POS void | mirror of the sale entry, dated today | | `Pos/SaleVoidService` |
-| Booking DP received | 1-1000 or 1-1001 | 2-1004 | `Pos/BookingService` |
-| Booking cancelled (refund) | 2-1004 | 1-1000 or 1-1001 | `Pos/BookingService` |
-| BON settlement | 1-1000 or 1-1001 | 1-1002 | `Pos/ReceivableService` |
 | Goods receipt | 1-2000 | 1-1000 (TUNAI), 1-1001 (TRANSFER_BCA), or 2-1000 (TEMPO) | `Inventory/GoodsReceiptService` |
 | Supplier payment | 2-1000 | 1-1000 or 1-1001 | `Inventory/PayableService` |
 | Stock value change (opname, import, reconciliation, cost fix) | 1-2000 if value rises | 5-2000 (existing product) or 3-1000 (product created in the operation) | `Inventory/InventoryValueJournal::record` (reverse direction if value falls) |
@@ -80,8 +84,8 @@ The README's 21-account table is outdated.
 | Period closing | every REVENUE/EXPENSE account's cumulative balance ≤ month end (credit accounts) | 3-2000, or the reverse if the account is net-debit; dated the month's last day, then locked | `Accounting/PeriodClosingService::close`. Reopen posts the mirrored `PERIOD_REOPEN` entry (OWNER only) and unlocks. Close and reopen `lockForUpdate()` the 3-2000 account row (`PeriodClosingService::serialize()`) so two closes/reopens can't run at once |
 | Account opening | 1-1000, 1-1001, 1-3000, 1-3999, 3-2000 as submitted | 3-1000, for the balancing difference | `Accounting/OpeningBalanceService::post`. Posted once (`ACCOUNT_OPENING`); further changes go through a manual journal. Posting `lockForUpdate()`s the 3-1000 account row before checking whether an opening entry already exists, so two concurrent posts can't both pass |
 
-Account routing for payment methods lives in `Pos/PosAccounts::forMethod`: TUNAI goes to 1-1000; every other method,
-including TRANSFER, QRIS, and EDC, goes to 1-1001.
+Account routing for payment methods lives in `Pos/PosAccounts::forMethod`: TUNAI goes to 1-1000; TRANSFER,
+TRANSFER_BCA and QRIS go to 1-1001.
 
 ## Reports
 
@@ -102,6 +106,10 @@ COA rather than hard-coded account lists, in `app/Services/Accounting/`:
   fixed assets, equity), so the buckets always reconcile to the cash change (`is_reconciled`).
   The `ACCOUNT_OPENING` journal is not a cash flow and is left out of the buckets; when it is dated inside
   the range, its 1-1000/1-1001 amount is added to `beginning_cash` instead, so reconciliation still holds.
+- Inactive accounts (1-1002, 2-1004, 4-2000) still appear in every report, as zero rows or with their historic
+  balances: no report query filters on `is_active` (only `ManualJournalRequest` does), so prior periods stay
+  reproducible and the balance sheet still balances. `CashFlowReport::bucket()` keeps 1-1002 and 2-1004 in the
+  customers bucket for historic entries.
 - **`ExpenseService`**, **`ManualJournalService`**, **`PeriodClosingService`**, and **`OpeningBalanceService`**
   are the posting-side services (see the posting rules table above).
 
@@ -113,6 +121,6 @@ triggers every mounted report to reload. There is no local fallback: a failed re
 retry.
 
 ## Known issues (verified 2026-09-30)
-- `GR-`, `OB3-INV-`, `BK-`, and `OPN-` document numbers still use the month of `now()` rather than the document
+- `GR-`, `OB3-INV-`, and `OPN-` document numbers still use the month of `now()` rather than the document
   date (only `JRN`/`BKK` were fixed to use the document date's month in Stage 4).
 - `ob3_cash_drawer` still differs from the 1-1000 ledger balance (roadmap sub-project 2).

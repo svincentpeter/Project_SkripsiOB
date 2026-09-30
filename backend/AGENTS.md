@@ -29,7 +29,7 @@ app/Services/                  business logic; one service per use case
   JournalDraft.php             fluent builder by account code: ->debit()->credit()->post()
   DocumentNumber.php           PREFIX-YYYYMM-#### with lockForUpdate (call inside a transaction)
   FifoCostingService.php       batch creation + FIFO allocation
-  Pos/                         CheckoutService, CartLines, PosAccounts, SaleVoidService, ReceivableService, BookingService
+  Pos/                         CheckoutService, CartLines, PosAccounts, SaleVoidService
   Inventory/                   GoodsReceipt, Payable, StockOpname(+Commit), StockSelectiveUpdate, StockExcelImport,
                                MonthlyStockLedger, InventoryValueJournal, Excel/* (reader, parser, brand resolver, match key)
   Payment/MidtransQrisService.php

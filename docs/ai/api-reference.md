@@ -41,18 +41,17 @@ purchases, has live batches), it is deactivated or refused with 422 instead of b
 ## POS and payments ([domain-pos.md](domain-pos.md))
 | Method | Path | Permission |
 |---|---|---|
-| GET | `/pos/payment-options` | `pos` |
+| GET | `/pos/payment-options` (`bank_providers`, `qris_providers`) | `pos` |
 | POST | `/pos/checkout` | `pos` |
 | GET | `/pos/transactions` (`search`, `date`, `limit` ≤ 500), `/pos/transactions/{id}` | `pos`, `receipt` |
 | POST | `/pos/transactions/{id}/void` (`reason`, min 5 characters) | `sale_void` |
-| GET | `/bookings` | `booking_dp`, `pos` |
-| POST | `/bookings`, `/bookings/{id}/cancel` | `booking_dp` |
-| GET | `/receivables` | `bon_receivable`, `accounting_hub` |
-| POST | `/receivables/{saleId}/payments` | `bon_receivable`, `accounting_hub` |
 | POST | `/payment/qris/charge`, `/payment/qris/simulate/{orderId}` | `pos` |
 | GET | `/payment/qris/status/{orderId}` | `pos` |
-| GET | `/settings/payment-providers`, `/settings/edc` | `role_settings`, `pos` |
-| POST / PUT `{id}` / DELETE `{id}` | `/settings/payment-providers`, `/settings/edc` | `role_settings` |
+| GET | `/settings/payment-providers` | `role_settings`, `pos` |
+| POST / PUT `{id}` / DELETE `{id}` | `/settings/payment-providers` | `role_settings` |
+
+The booking DP, BON receivable and EDC-settings endpoints were removed on 2026-09-30 and now return 404. Checkout
+rejects `bon`, `booking_id` and card-terminal methods with 422 (see [domain-pos.md](domain-pos.md)).
 
 ## Inventory ([domain-inventory.md](domain-inventory.md))
 | Method | Path | Permission |
