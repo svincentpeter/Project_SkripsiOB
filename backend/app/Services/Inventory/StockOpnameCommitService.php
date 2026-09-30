@@ -34,6 +34,8 @@ class StockOpnameCommitService
         $userId = $options['user_id'] ?? auth()->id() ?? 1;
         $onlyKeys = $options['only_match_keys'] ?? null;
 
+        // Setelah go-live stok masuk hanya lewat penerimaan barang; opsi paksa tidak melewati aturan ini.
+        InventoryValueJournal::assertBeforeGoLive('Impor stok Excel');
         $this->guardExistingSales($effectiveDate, $force);
 
         $products = $staging['products'] ?? [];

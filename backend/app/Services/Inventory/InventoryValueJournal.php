@@ -2,6 +2,8 @@
 
 namespace App\Services\Inventory;
 
+use App\Exceptions\PosRuleException;
+use App\Models\Account;
 use App\Models\JournalEntry;
 use App\Models\JournalItem;
 use App\Models\Product;
@@ -21,6 +23,9 @@ class InventoryValueJournal
     public const INVENTORY = '1-2000';
     public const OPENING_EQUITY = '3-1000';
     public const OPNAME_VARIANCE = '5-2000';
+
+    /** Awalan reference_id jurnal saldo awal persediaan (produk baru memakai 'PRODUCT-…'). */
+    public const OPENING_PREFIX = 'OPENING-INV-';
 
     public function __construct(private readonly AccountingEngine $engine)
     {
@@ -74,13 +79,45 @@ class InventoryValueJournal
     }
 
     /**
-     * Bukukan selisih antara nilai FIFO dan saldo buku 1-2000 sebagai saldo awal persediaan (idempoten).
+     * Jurnal saldo awal persediaan. Keberadaannya menandai buku persediaan sudah berjalan (go-live).
+     */
+    public static function openingEntry(): ?JournalEntry
+    {
+        return JournalEntry::where('reference_type', 'OPENING_BALANCE')
+            ->where('reference_id', 'like', self::OPENING_PREFIX.'%')
+            ->first();
+    }
+
+    /**
+     * Impor stok Excel dan rekonsiliasi stok membangun ulang batch; itu hanya sah sebagai migrasi sebelum go-live.
+     */
+    public static function assertBeforeGoLive(string $action): void
+    {
+        $entry = self::openingEntry();
+        if ($entry) {
+            throw new PosRuleException(
+                "{$action} hanya untuk migrasi stok sebelum saldo awal persediaan dibukukan ({$entry->entry_number}). "
+                .'Catat pembelian lewat Penerimaan Barang dan koreksi hitung fisik lewat Stock Opname.'
+            );
+        }
+    }
+
+    /**
+     * Bukukan selisih antara nilai FIFO dan saldo buku 1-2000 sebagai saldo awal persediaan, satu kali saja:
+     * selisih sesudahnya bukan modal pemilik dan harus ditelusuri (stock opname).
      */
     public function postOpeningBalance(): ?JournalEntry
     {
         return DB::transaction(function () {
+            // Kunci akun modal agar dua permintaan bersamaan tidak sama-sama lolos cek "belum ada".
+            Account::where('account_code', self::OPENING_EQUITY)->lockForUpdate()->first();
+            $existing = self::openingEntry();
+            if ($existing) {
+                throw new PosRuleException("Saldo awal persediaan sudah dibukukan ({$existing->entry_number}). Selisih FIFO berikutnya bukan modal: telusuri lewat stock opname.");
+            }
+
             $difference = self::summary()['difference'];
-            $reference = 'OPENING-INV-'.now()->format('YmdHis');
+            $reference = self::OPENING_PREFIX.now()->format('YmdHis');
 
             return $this->postDeltas(
                 [self::OPENING_EQUITY => $difference],

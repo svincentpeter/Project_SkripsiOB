@@ -6,11 +6,13 @@ use App\Models\ProductCategory;
 use App\Models\ServiceMaster;
 use App\Services\Inventory\InventoryValueJournal;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\Concerns\AlignsInventoryLedger;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
 
 class ProductMasterTest extends TestCase
 {
+    use AlignsInventoryLedger;
     use CreatesPosFixtures;
     use DatabaseTransactions;
 
@@ -29,7 +31,7 @@ class ProductMasterTest extends TestCase
 
     public function test_new_product_with_initial_stock_books_opening_balance(): void
     {
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
 
         $res = $this->postJson('/api/v1/products', $this->productPayload([
             'initial_batch' => ['source_name' => 'Stok awal gudang', 'batch_cost' => 600000, 'initial_qty' => 5],

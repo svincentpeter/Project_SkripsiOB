@@ -65,6 +65,10 @@ class StockSelectiveUpdateService
             throw new RuntimeException('Tidak ada produk yang dipilih untuk di-update.');
         }
 
+        if ($updateStock) {
+            InventoryValueJournal::assertBeforeGoLive('Update stok lewat rekonsiliasi Excel');
+        }
+
         $branchId = $options['branch_id'] ?? 3;
         $userId = $options['user_id'] ?? (auth()->id() ?? 1);
         $contextMonth = now()->format('Y-m');

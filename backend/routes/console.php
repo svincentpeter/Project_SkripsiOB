@@ -12,7 +12,13 @@ Artisan::command('inventory:opening-balance', function (\App\Services\Inventory\
     $this->line('Nilai FIFO    : Rp '.number_format($before['fifo_value'], 2, ',', '.'));
     $this->line('Saldo 1-2000  : Rp '.number_format($before['ledger_balance'], 2, ',', '.'));
 
-    $entry = $journal->postOpeningBalance();
+    try {
+        $entry = $journal->postOpeningBalance();
+    } catch (\App\Exceptions\PosRuleException $e) {
+        $this->error($e->getMessage());
+
+        return 1;
+    }
     $entry
         ? $this->info("Jurnal saldo awal {$entry->entry_number} dibukukan (selisih Rp ".number_format($before['difference'], 2, ',', '.').').')
         : $this->info('Saldo buku persediaan sudah sama dengan nilai FIFO; tidak ada jurnal.');

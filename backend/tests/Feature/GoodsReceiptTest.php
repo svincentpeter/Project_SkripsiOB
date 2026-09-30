@@ -8,11 +8,13 @@ use App\Models\ProductBatch;
 use App\Models\Supplier;
 use App\Services\Inventory\InventoryValueJournal;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\Concerns\AlignsInventoryLedger;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
 
 class GoodsReceiptTest extends TestCase
 {
+    use AlignsInventoryLedger;
     use CreatesPosFixtures;
     use DatabaseTransactions;
 
@@ -33,9 +35,9 @@ class GoodsReceiptTest extends TestCase
 
     public function test_cash_receipt_adds_batch_purchase_and_journal_keeping_valuation_aligned(): void
     {
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
         $product = $this->makeProduct(800000, [[2, 450000, '2026-08-01']]);
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
 
         $res = $this->restock($product, ['source_name' => 'Toko Grosir', 'payment_method' => 'TUNAI'])->assertCreated()
             ->assertJsonPath('data.purchase.status', 'LUNAS')
@@ -107,9 +109,9 @@ class GoodsReceiptTest extends TestCase
 
     public function test_zero_cost_receipt_posts_no_journal_and_keeps_valuation_aligned(): void
     {
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
         $product = $this->makeProduct(800000, [[2, 450000, '2026-08-01']]);
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
         $before = InventoryValueJournal::summary()['difference'];
 
         // Barang bonus supplier: harga pokok Rp 0, tidak ada nilai yang dijurnal.
@@ -140,9 +142,9 @@ class GoodsReceiptTest extends TestCase
 
     public function test_invoice_total_books_payable_exactly_and_absorbs_rounding_in_batches(): void
     {
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
         $product = $this->makeProduct(800000, [[2, 450000, '2026-08-01']]);
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
         $supplier = $this->supplier();
 
         // Faktur Rp 100.000 untuk 3 unit: tidak habis dibagi, modal per unit tidak bisa 2 desimal persis.

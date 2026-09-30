@@ -4,24 +4,26 @@ namespace Tests\Feature;
 
 use App\Services\Inventory\InventoryValueJournal;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\Concerns\AlignsInventoryLedger;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
 
 class StockOpnameTest extends TestCase
 {
+    use AlignsInventoryLedger;
     use CreatesPosFixtures;
     use DatabaseTransactions;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
     }
 
     public function test_shortage_consumes_oldest_batches_and_books_variance_expense(): void
     {
         $product = $this->makeProduct(1000000, [[2, 400000, '2026-07-01'], [5, 600000, '2026-08-01']]);
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
 
         $res = $this->postJson('/api/v1/inventory/stock-opname', [
             'items' => [['product_id' => $product->id, 'physical_qty' => 4]],
@@ -42,7 +44,7 @@ class StockOpnameTest extends TestCase
     public function test_surplus_adds_batch_at_latest_cost_and_reduces_variance(): void
     {
         $product = $this->makeProduct(1000000, [[2, 400000, '2026-07-01'], [1, 650000, '2026-08-01']]);
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
 
         $res = $this->postJson('/api/v1/inventory/stock-opname', [
             'items' => [['product_id' => $product->id, 'physical_qty' => 5]],

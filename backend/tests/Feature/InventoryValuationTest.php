@@ -2,38 +2,49 @@
 
 namespace Tests\Feature;
 
-use App\Models\Product;
-use App\Models\ProductBatch;
 use App\Services\Inventory\InventoryValueJournal;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Tests\Concerns\AlignsInventoryLedger;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
 
 class InventoryValuationTest extends TestCase
 {
+    use AlignsInventoryLedger;
     use CreatesPosFixtures;
     use DatabaseTransactions;
 
-    public function test_opening_balance_aligns_ledger_with_fifo_value_once(): void
+    public function test_opening_balance_is_booked_once_and_marks_go_live(): void
     {
+        if (InventoryValueJournal::openingEntry()) {
+            $this->markTestSkipped('DB test bersama sudah punya saldo awal persediaan permanen.');
+        }
         $this->makeProduct(1000000, [[3, 500000, '2026-08-01']]);
         $before = InventoryValueJournal::summary();
         $this->assertNotEquals(0.0, $before['difference']);
+        $this->getJson('/api/v1/inventory/valuation')->assertOk()->assertJsonPath('data.opening_posted', false);
 
         $res = $this->postJson('/api/v1/inventory/opening-balance')->assertOk()
-            ->assertJsonPath('data.valuation.difference', 0);
+            ->assertJsonPath('data.valuation.difference', 0)
+            ->assertJsonPath('data.valuation.opening_posted', true);
         $j = collect($res->json('data.journal.lines'))->keyBy('account_code');
         $this->assertEquals(abs($before['difference']), $j['3-1000']['credit'] + $j['3-1000']['debit']);
+        $this->assertStringStartsWith(InventoryValueJournal::OPENING_PREFIX, $res->json('data.journal.reference_id'));
 
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk()->assertJsonPath('data.journal', null);
-        $this->getJson('/api/v1/inventory/valuation')->assertOk()->assertJsonPath('data.difference', 0);
+        // Selisih baru sesudah go-live tidak lagi dibukukan ke modal.
+        $this->makeProduct(1000000, [[1, 400000, '2026-08-01']]);
+        $this->postJson('/api/v1/inventory/opening-balance')->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'sudah dibukukan'));
+        $this->artisan('inventory:opening-balance')->assertExitCode(1);
+        $this->getJson('/api/v1/inventory/valuation')->assertOk()
+            ->assertJsonPath('data.opening_posted', true)
+            ->assertJsonPath('data.difference', 400000);
     }
 
     public function test_record_books_existing_products_to_variance_and_new_products_to_equity(): void
     {
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
         $existing = $this->makeProduct(1000000, [[4, 500000, '2026-08-01']]);
-        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $this->alignInventoryLedger();
 
         $out = app(InventoryValueJournal::class)->record(function () use ($existing) {
             $existing->batches()->first()->update(['remaining_qty' => 3]); // hilang 1 unit @500rb

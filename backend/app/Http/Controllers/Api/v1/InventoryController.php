@@ -46,7 +46,13 @@ class InventoryController extends Controller
 
     public function valuation(): JsonResponse
     {
-        return response()->json(['success' => true, 'data' => InventoryValueJournal::summary()]);
+        return response()->json(['success' => true, 'data' => self::valuationData()]);
+    }
+
+    /** Nilai FIFO vs buku 1-2000, plus apakah saldo awal persediaan (go-live) sudah dibukukan. */
+    private static function valuationData(): array
+    {
+        return InventoryValueJournal::summary() + ['opening_posted' => InventoryValueJournal::openingEntry() !== null];
     }
 
     public function openingBalance(InventoryValueJournal $journal): JsonResponse
@@ -59,7 +65,7 @@ class InventoryController extends Controller
                 ? "Saldo awal persediaan dibukukan ({$entry->entry_number})."
                 : 'Saldo buku persediaan sudah sama dengan nilai FIFO.',
             'data' => [
-                'valuation' => InventoryValueJournal::summary(),
+                'valuation' => self::valuationData(),
                 'journal' => $entry?->toApiArray(),
             ],
         ]);

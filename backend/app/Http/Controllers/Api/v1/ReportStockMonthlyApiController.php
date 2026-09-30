@@ -97,6 +97,14 @@ class ReportStockMonthlyApiController extends Controller
                     return response()->json(['success' => false, 'message' => 'Batch tidak ditemukan pada produk ini.'], 422);
                 }
 
+                // HPP penjualan lalu dan hutang supplier tidak ikut berubah, jadi hanya batch yang belum tersentuh boleh dikoreksi.
+                if ($batch && ($batch->purchase_id !== null || $batch->remaining_qty !== $batch->initial_qty || $batch->allocations()->exists())) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Modal batch ini tidak bisa dikoreksi: batch sudah terjual atau berasal dari faktur penerimaan barang. Gunakan retur atau pembatalan penerimaan barang.',
+                    ], 422);
+                }
+
                 // Mengubah modal batch mengubah nilai persediaan → dijurnal ke selisih persediaan (5-2000).
                 $out = app(InventoryValueJournal::class)->record(function () use ($batch, $newCost, &$oldCost) {
                     if ($batch) {
