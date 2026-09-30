@@ -581,6 +581,8 @@ export interface BalanceSheet {
 export interface EquityChanges {
   opening_equity: number;
   owner_contributions: number;
+  /** Prive pemilik (3-3000) periode ini, angka positif; disajikan sebagai pengurang ekuitas. */
+  owner_drawings: number;
   net_income: number;
   closing_equity: number;
   difference: number;

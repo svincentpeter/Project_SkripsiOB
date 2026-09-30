@@ -89,7 +89,8 @@ export const EquityChangesTable: React.FC<{ changes: EquityChanges }> = ({ chang
     <table className="w-full text-xs border border-slate-200">
       <tbody>
         <tr><td className="py-1.5 px-3">Ekuitas awal periode</td><td className="py-1.5 px-3 text-right font-mono w-44">{formatRupiah(changes.opening_equity)}</td></tr>
-        <tr><td className="py-1.5 px-3">Setoran / (penarikan) modal & saldo awal</td><td className="py-1.5 px-3 text-right font-mono">{formatRupiah(changes.owner_contributions)}</td></tr>
+        <tr><td className="py-1.5 px-3">Setoran modal & saldo awal</td><td className="py-1.5 px-3 text-right font-mono">{formatRupiah(changes.owner_contributions)}</td></tr>
+        <tr><td className="py-1.5 px-3">Prive (pengambilan pemilik)</td><td className="py-1.5 px-3 text-right font-mono">{formatRupiah(-changes.owner_drawings)}</td></tr>
         <tr><td className="py-1.5 px-3">Laba (rugi) bersih periode</td><td className="py-1.5 px-3 text-right font-mono">{formatRupiah(changes.net_income)}</td></tr>
         <TotalRow label="EKUITAS AKHIR PERIODE" value={changes.closing_equity} />
       </tbody>

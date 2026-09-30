@@ -410,7 +410,8 @@ const balanceSection = (fs: FinancialStatements): ExportSection => {
 const equitySection = (fs: FinancialStatements): ExportSection =>
   lvSection('3. LAPORAN PERUBAHAN EKUITAS', [
     { label: 'Ekuitas awal periode', value: fs.equity_changes.opening_equity },
-    { label: 'Setoran / (penarikan) modal & saldo awal', value: fs.equity_changes.owner_contributions },
+    { label: 'Setoran modal & saldo awal', value: fs.equity_changes.owner_contributions },
+    { label: 'Prive (pengambilan pemilik)', value: -fs.equity_changes.owner_drawings },
     { label: 'Laba (rugi) bersih periode', value: fs.equity_changes.net_income },
     { label: 'EKUITAS AKHIR PERIODE', value: fs.equity_changes.closing_equity },
   ]);

@@ -113,7 +113,7 @@ describe('registry financial statements', () => {
       difference: 0,
       is_balanced: true,
     },
-    equity_changes: { opening_equity: 1100000, owner_contributions: 0, net_income: 250000, closing_equity: 1350000, difference: 0 },
+    equity_changes: { opening_equity: 1100000, owner_contributions: 0, owner_drawings: 0, net_income: 250000, closing_equity: 1350000, difference: 0 },
   };
 
   const cashFlow: CashFlowReport = {
@@ -144,6 +144,12 @@ describe('registry financial statements', () => {
   it('arus kas memuat saldo akhir', () => {
     const rows = buildExportDoc('fin_cash_flow', cashFlow, ctx).sections[0].rows;
     expect(rows.find((r) => r.label === 'Saldo Kas & Bank Akhir')?.value).toBe(450000);
+  });
+
+  it('perubahan ekuitas menampilkan prive sebagai pengurang', () => {
+    const withPrive = { ...statements, equity_changes: { ...statements.equity_changes, owner_drawings: 150000, closing_equity: 1200000 } };
+    const rows = buildExportDoc('fin_equity_statement', withPrive, ctx).sections[0].rows;
+    expect(rows.find((r) => r.label === 'Prive (pengambilan pemilik)')?.value).toBe(-150000);
   });
 
   it('sak emkm package memiliki 5 section', () => {
