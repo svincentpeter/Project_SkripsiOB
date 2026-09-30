@@ -4,11 +4,15 @@ namespace Tests\Unit;
 
 use App\Models\Product;
 use App\Models\ProductBatch;
+use App\Models\StockMovement;
 use App\Services\Inventory\MonthlyStockLedgerService;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 class MonthlyStockLedgerServiceTest extends TestCase
 {
+    use DatabaseTransactions;
+
     public function test_build_monthly_stock_ledger_allocates_fifo_layers_and_daily_sales(): void
     {
         $unique = time() . '_' . rand(100, 999);
@@ -70,5 +74,41 @@ class MonthlyStockLedgerServiceTest extends TestCase
         $this->assertCount(2, $row['layers']);
         $this->assertEquals(700000, (int) $row['layers'][0]['batch_cost']);
         $this->assertEquals(720000, (int) $row['layers'][1]['batch_cost']);
+    }
+
+    /** Retur penjualan menambah kolom masuk; retur pembelian dan batal penerimaan menguranginya. */
+    public function test_returns_and_goods_receipt_cancellations_count_in_the_restock_column(): void
+    {
+        $unique = uniqid();
+        $product = Product::create([
+            'product_code' => 'RET-'.$unique,
+            'barcode' => 'BC-RET-'.$unique,
+            'product_name' => 'Ban Retur '.$unique,
+            'brand' => 'Merek '.$unique,
+            'product_cost' => 500000,
+            'product_price' => 800000,
+            'product_quantity' => 10,
+            'stok_awal' => 10,
+            'is_active' => true,
+        ]);
+        foreach ([['MASUK', 5, 'GOODS_RECEIPT'], ['MASUK', 1, 'SALES_RETURN'], ['KELUAR', 2, 'PURCHASE_RETURN'], ['KELUAR', 3, 'GOODS_RECEIPT_CANCEL']] as [$type, $qty, $ref]) {
+            StockMovement::create([
+                'product_id' => $product->id,
+                'movement_type' => $type,
+                'quantity' => $qty,
+                'balance_after' => 0,
+                'reference_type' => $ref,
+                'reference_id' => $ref.'-'.$unique,
+                'branch_id' => 1,
+            ]);
+        }
+
+        $row = (new MonthlyStockLedgerService())->build(now()->format('Y-m'), $product->brand)['rows'][0];
+
+        $this->assertSame($product->id, $row['id']);
+        $this->assertSame(10, $row['opening']);
+        $this->assertSame(5 + 1 - 2 - 3, $row['restock']);
+        $this->assertSame(0, $row['sold']);
+        $this->assertSame(11, $row['remaining']);
     }
 }

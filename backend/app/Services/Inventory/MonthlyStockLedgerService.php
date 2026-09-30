@@ -89,6 +89,8 @@ class MonthlyStockLedgerService
         $typeCol = Schema::hasColumn('stock_movements', 'movement_type') ? 'movement_type' : 'type';
         $refCol = Schema::hasColumn('stock_movements', 'reference_type') ? 'reference_type' : 'ref_type';
 
+        // Kolom restock = mutasi masuk bersih non-penjualan: retur penjualan (MASUK) menambah, retur pembelian dan
+        // batal penerimaan (KELUAR) mengurangi. Kolom sold tetap dari nota penjualan.
         $movementsAggregated = StockMovement::query()
             ->whereIn('product_id', $productIds)
             ->where('created_at', '<=', $endDate)
@@ -103,7 +105,7 @@ class MonthlyStockLedgerService
                     ELSE 0 
                 END) as balance_before,
                 SUM(CASE 
-                    WHEN created_at >= ? AND ($refCol IN ('purchase', 'adjustment', 'GOODS_RECEIPT', 'RESTOCK') OR $refCol IS NULL OR $refCol = '')
+                    WHEN created_at >= ? AND ($refCol IN ('purchase', 'adjustment', 'GOODS_RECEIPT', 'RESTOCK', 'SALES_RETURN', 'PURCHASE_RETURN', 'GOODS_RECEIPT_CANCEL') OR $refCol IS NULL OR $refCol = '')
                     THEN (CASE WHEN ($typeCol = 'MASUK' OR $typeCol = 'in') THEN quantity ELSE -quantity END) 
                     ELSE 0 
                 END) as restock_month
