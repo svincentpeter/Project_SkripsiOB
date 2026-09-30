@@ -6,6 +6,7 @@ use App\Models\JournalEntry;
 use App\Models\PaymentProviderSetting;
 use App\Models\Product;
 use App\Models\ProductBatch;
+use App\Models\QrisTransaction;
 use App\Models\Sale;
 
 trait CreatesPosFixtures
@@ -87,6 +88,21 @@ trait CreatesPosFixtures
             'fee_threshold_amount' => $threshold,
             'is_active' => $active,
         ]);
+    }
+
+    /** Order QRIS Midtrans yang sudah tercatat (default lunas lewat webhook). Mengembalikan order id. */
+    protected function qrisOrder(float $gross, string $status = 'settlement'): string
+    {
+        $orderId = 'POS-T-'.uniqid();
+        QrisTransaction::create([
+            'order_id' => $orderId,
+            'gross_amount' => $gross,
+            'transaction_status' => $status,
+            'settlement_source' => $status === 'settlement' ? QrisTransaction::SOURCE_WEBHOOK : null,
+            'settled_at' => $status === 'settlement' ? now() : null,
+        ]);
+
+        return $orderId;
     }
 
     protected function checkout(array $payload)

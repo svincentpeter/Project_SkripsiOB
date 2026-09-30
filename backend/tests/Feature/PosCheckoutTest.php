@@ -3,8 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\JournalEntry;
+use App\Models\QrisTransaction;
+use App\Models\SalePayment;
 use App\Models\ServiceMaster;
-use App\Services\Payment\MidtransQrisService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
@@ -126,19 +127,71 @@ class PosCheckoutTest extends TestCase
     public function test_qris_reference_must_be_settled(): void
     {
         $product = $this->makeProduct();
-        $payload = [
+        $provider = $this->paymentProvider('qris');
+        $pay = fn (string $orderId) => [
             'items' => [$this->productLine($product)],
-            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'provider_id' => $this->paymentProvider('qris')->id, 'reference' => 'POS-TEST-'.uniqid()]],
+            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'provider_id' => $provider->id, 'reference' => $orderId]],
         ];
 
-        $this->mock(MidtransQrisService::class)
-            ->shouldReceive('checkStatus')->once()->andReturn(['transaction_status' => 'pending']);
-        $this->checkout($payload)->assertStatus(422);
+        $this->checkout($pay('POS-UNKNOWN-'.uniqid()))->assertStatus(422)
+            ->assertJsonPath('message', 'Pembayaran QRIS belum diterima (status: tidak ditemukan).');
+        $this->checkout($pay($this->qrisOrder(1000000, 'pending')))->assertStatus(422)
+            ->assertJsonPath('message', 'Pembayaran QRIS belum diterima (status: pending).');
         $this->assertSame(10, $product->fresh()->product_quantity);
 
-        $this->mock(MidtransQrisService::class)
-            ->shouldReceive('checkStatus')->once()->andReturn(['transaction_status' => 'settlement']);
+        $orderId = $this->qrisOrder(1000000);
+        $res = $this->checkout($pay($orderId))->assertCreated()->assertJsonPath('data.payments.0.reference', $orderId);
+
+        $this->assertEquals(
+            SalePayment::where('sale_id', $res->json('data.id'))->value('id'),
+            QrisTransaction::where('order_id', $orderId)->value('sale_payment_id')
+        );
+    }
+
+    public function test_settled_qris_order_backs_only_one_sale(): void
+    {
+        $product = $this->makeProduct();
+        $orderId = $this->qrisOrder(1000000);
+        $payload = [
+            'items' => [$this->productLine($product)],
+            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'provider_id' => $this->paymentProvider('qris')->id, 'reference' => $orderId]],
+        ];
+
         $this->checkout($payload)->assertCreated();
+        $this->checkout($payload)->assertStatus(422)
+            ->assertJsonPath('message', "Pembayaran QRIS {$orderId} sudah dipakai untuk nota lain.");
+
+        $this->assertSame(9, $product->fresh()->product_quantity);
+    }
+
+    public function test_qris_amount_must_equal_the_settled_amount(): void
+    {
+        $product = $this->makeProduct();
+        $orderId = $this->qrisOrder(900000);
+
+        $this->checkout([
+            'items' => [$this->productLine($product)],
+            'payments' => [['method' => 'QRIS', 'amount' => 1000000, 'provider_id' => $this->paymentProvider('qris')->id, 'reference' => $orderId]],
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Nominal QRIS yang lunas (Rp 900.000) tidak sama dengan nominal pembayaran QRIS (Rp 1.000.000).');
+
+        $this->assertNull(QrisTransaction::where('order_id', $orderId)->value('sale_payment_id'));
+        $this->assertSame(10, $product->fresh()->product_quantity);
+    }
+
+    public function test_one_qris_order_cannot_pay_two_rows_of_one_sale(): void
+    {
+        $product = $this->makeProduct();
+        $provider = $this->paymentProvider('qris');
+        $orderId = $this->qrisOrder(500000);
+        $row = ['method' => 'QRIS', 'amount' => 500000, 'provider_id' => $provider->id, 'reference' => $orderId];
+
+        $this->checkout([
+            'items' => [$this->productLine($product)],
+            'payments' => [$row, $row],
+        ])->assertStatus(422)->assertJsonPath('message', "Pembayaran QRIS {$orderId} sudah dipakai untuk nota lain.");
+
+        $this->assertSame(10, $product->fresh()->product_quantity);
     }
 
     public function test_edc_methods_are_rejected(): void

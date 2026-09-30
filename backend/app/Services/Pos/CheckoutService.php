@@ -4,6 +4,7 @@ namespace App\Services\Pos;
 
 use App\Exceptions\PosRuleException;
 use App\Models\PaymentProviderSetting;
+use App\Models\QrisTransaction;
 use App\Models\Sale;
 use App\Models\SaleDetail;
 use App\Models\SalePayment;
@@ -12,7 +13,7 @@ use App\Services\AccountingEngine;
 use App\Services\DocumentNumber;
 use App\Services\FifoCostingService;
 use App\Services\JournalDraft;
-use App\Services\Payment\MidtransQrisService;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -25,7 +26,6 @@ class CheckoutService
     public function __construct(
         private readonly FifoCostingService $fifo,
         private readonly AccountingEngine $engine,
-        private readonly MidtransQrisService $qris,
     ) {
     }
 
@@ -82,7 +82,9 @@ class CheckoutService
             ]);
 
             foreach ($payments as $payment) {
-                SalePayment::create(['sale_id' => $sale->id] + $payment);
+                $salePayment = SalePayment::create(['sale_id' => $sale->id] + Arr::except($payment, 'qris_transaction'));
+                // Order QRIS terkunci ke baris ini selamanya (juga setelah void): satu pelunasan, satu nota.
+                $payment['qris_transaction']?->update(['sale_payment_id' => $salePayment->id]);
             }
 
             $this->postJournal($sale, $lines, $payments, $notaDiscount, $fifoCogs);
@@ -97,6 +99,7 @@ class CheckoutService
     private function buildPayments(array $input, float $amountDue): array
     {
         $payments = [];
+        $claimed = [];
         foreach ($input as $row) {
             $method = $row['method'];
             $amount = round((float) $row['amount'], 2);
@@ -114,11 +117,12 @@ class CheckoutService
                 }
             }
 
+            // QRIS dinamis (ada nomor order Midtrans) harus lunas dan dipakai sekali. QRIS statis tanpa nomor order
+            // dicatat atas konfirmasi kasir; pemeriksaannya lewat rekonsiliasi bank 1-1001.
+            $qris = null;
             if ($method === 'QRIS' && ! empty($row['reference'])) {
-                $status = $this->qris->checkStatus($row['reference'])['transaction_status'] ?? 'pending';
-                if (! in_array($status, ['settlement', 'capture'], true)) {
-                    throw new PosRuleException('Pembayaran QRIS belum diterima (status: '.$status.').');
-                }
+                $qris = $this->claimQris($row['reference'], $amount, $claimed);
+                $claimed[] = $row['reference'];
             }
 
             $payments[] = [
@@ -132,6 +136,7 @@ class CheckoutService
                 'net_received' => round($amount - (float) $fee['fee_amount'], 2),
                 'provider_name' => $provider?->provider_name,
                 'reference' => $row['reference'] ?? null,
+                'qris_transaction' => $qris,
             ];
         }
 
@@ -143,6 +148,32 @@ class CheckoutService
         }
 
         return $payments;
+    }
+
+    /**
+     * Order QRIS Midtrans harus sudah lunas di qris_transactions (webhook, cek status, atau simulasi demo), belum
+     * dipakai nota lain (juga tidak dua kali di checkout ini), dan nominal lunasnya sama dengan baris pembayaran.
+     * Baris dikunci sampai transaksi selesai agar dua checkout bersamaan tidak memakai order yang sama.
+     *
+     * @param  array<int, string>  $claimed  order yang sudah dipakai baris sebelumnya di checkout ini
+     */
+    private function claimQris(string $orderId, float $amount, array $claimed): QrisTransaction
+    {
+        $tx = QrisTransaction::where('order_id', $orderId)->lockForUpdate()->first();
+
+        if (! $tx || ! $tx->isSettled()) {
+            throw new PosRuleException('Pembayaran QRIS belum diterima (status: '.($tx?->transaction_status ?? 'tidak ditemukan').').');
+        }
+        if ($tx->sale_payment_id || in_array($orderId, $claimed, true)) {
+            throw new PosRuleException("Pembayaran QRIS {$orderId} sudah dipakai untuk nota lain.");
+        }
+        if (abs((float) $tx->gross_amount - $amount) > 0.001) {
+            throw new PosRuleException(
+                'Nominal QRIS yang lunas (Rp '.number_format((float) $tx->gross_amount, 0, ',', '.').') tidak sama dengan nominal pembayaran QRIS (Rp '.number_format($amount, 0, ',', '.').').'
+            );
+        }
+
+        return $tx;
     }
 
     /**
