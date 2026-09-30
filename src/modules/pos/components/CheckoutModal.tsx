@@ -22,9 +22,10 @@ import {
 import { CartItem, PaymentMethod, SplitPaymentLine } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
 import { paymentApi, PaymentOptions } from '../../../services/api/paymentApi';
-import { providerIdOf } from '../../../services/api/posMappers';
+import { CheckoutPaymentMeta, providerIdOf } from '../../../services/api/posMappers';
 import { useServerData } from '../../accounting/hooks/useServerData';
 import { QrisDynamicModal } from './QrisDynamicModal';
+import { reusableSettledQris, SettledQris, settledQrisWarning } from '../settledQris';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -45,16 +46,8 @@ interface CheckoutModalProps {
     paymentMethod: PaymentMethod,
     cashTendered: number,
     notes?: string,
-    paymentMeta?: {
-      provider_id?: number;
-      provider_name?: string;
-      fee_percentage?: number;
-      fee_amount?: number;
-      net_received?: number;
-      split_payments?: SplitPaymentLine[];
-      reference?: string;
-    }
-  ) => void | Promise<void>;
+    paymentMeta?: CheckoutPaymentMeta
+  ) => boolean | Promise<boolean>; // true = nota tercatat di server
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -80,6 +73,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [qrisFlowType, setQrisFlowType] = useState<'DYNAMIC' | 'MANUAL'>('DYNAMIC');
   const [isQrisModalOpen, setIsQrisModalOpen] = useState<boolean>(false);
   const [qrisOrderId, setQrisOrderId] = useState<string>('');
+  // Order QRIS lunas yang belum tercatat di nota (checkout gagal setelah pelanggan bayar): dipakai ulang,
+  // bukan ditagih lagi. Tetap disimpan saat modal ditutup; dihapus hanya setelah checkout berhasil.
+  const [settledQris, setSettledQris] = useState<SettledQris | null>(null);
 
   // Split Payment State
   const [isSplitMode, setIsSplitMode] = useState<boolean>(false);
@@ -148,9 +144,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     totalSplitPaid > netPayable && splitCashTotal > 0
       ? Math.min(splitCashTotal, totalSplitPaid - netPayable)
       : 0;
-
-  const totalSplitFees = splitRows.reduce((sum, r) => sum + calculateRowMeta(r).feeAmt, 0);
-  const totalSplitNetReceived = Math.max(0, totalSplitPaid - totalSplitFees);
 
   const isSplitShort = totalSplitPaid < netPayable;
 
@@ -243,16 +236,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     });
   };
 
+  // Semua checkout lewat sini: order QRIS lunas yang tertunda baru dilepas setelah nota tercatat.
+  const confirmCheckout = async (...args: Parameters<typeof onConfirmCheckout>) => {
+    if (await onConfirmCheckout(...args)) setSettledQris(null);
+  };
+
+  const submitSettledQris = (orderId: string) =>
+    confirmCheckout('QRIS', netPayable, transactionNotes.trim() || undefined, {
+      provider_id: providerIdOf(qrisOptions, selectedQris, true),
+      reference: orderId,
+    });
+
   const handleQrisPaymentSuccess = () => {
     setIsQrisModalOpen(false);
-    onConfirmCheckout('QRIS', netPayable, transactionNotes.trim() || undefined, {
-      provider_id: providerIdOf(qrisOptions, selectedQris, true),
-      reference: qrisOrderId,
-      fee_percentage: qrisFeePct,
-      fee_amount: qrisFeeAmount,
-      net_received: qrisNetReceived,
-    });
+    setSettledQris({ orderId: qrisOrderId, amount: netPayable });
+    submitSettledQris(qrisOrderId);
   };
+
+  const checkoutSelection = { isSplitMode, paymentMethod, qrisFlowType, netPayable };
+  const settledWarning = settledQrisWarning(settledQris, checkoutSelection);
 
   const usesQris = isSplitMode ? splitRows.some((r) => r.method === 'QRIS') : paymentMethod === 'QRIS';
 
@@ -268,6 +270,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
     setSubmitError('');
+
+    const reusable = reusableSettledQris(settledQris, checkoutSelection);
+    if (reusable) {
+      submitSettledQris(reusable.orderId);
+      return;
+    }
 
     if (!isSplitMode && paymentMethod === 'QRIS' && qrisFlowType === 'DYNAMIC') {
       // Nomor order unik penuh: server menolak order QRIS yang sudah dipakai nota lain.
@@ -294,9 +302,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         };
       });
 
-      onConfirmCheckout('SPLIT', totalSplitPaid, transactionNotes.trim() || undefined, {
-        fee_amount: totalSplitFees,
-        net_received: totalSplitNetReceived,
+      confirmCheckout('SPLIT', totalSplitPaid, transactionNotes.trim() || undefined, {
         split_payments: detailedSplitRows,
       });
       return;
@@ -307,7 +313,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       ? selectedBank === 'BCA' ? 'TRANSFER_BCA' : 'TRANSFER'
       : paymentMethod;
 
-    onConfirmCheckout(
+    confirmCheckout(
       finalMethod,
       paymentMethod === 'TUNAI' ? cashTenderedVal : netPayable,
       transactionNotes.trim() || undefined,
@@ -317,10 +323,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           : paymentMethod === 'QRIS'
           ? providerIdOf(qrisOptions, selectedQris, true)
           : undefined,
-        provider_name: isTransfer ? selectedBank : paymentMethod === 'QRIS' ? selectedQris : undefined,
-        fee_percentage: paymentMethod === 'QRIS' ? qrisFeePct : 0,
-        fee_amount: paymentMethod === 'QRIS' ? qrisFeeAmount : 0,
-        net_received: paymentMethod === 'QRIS' ? qrisNetReceived : netPayable,
       }
     );
   };
@@ -1031,6 +1033,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </button>
                 </div>
               )}
+              {settledWarning && <div className="text-[11px] font-semibold text-amber-700">{settledWarning}</div>}
               {submitError && <div className="text-[11px] font-semibold text-rose-700">{submitError}</div>}
               <div className="flex items-center gap-2">
                 <button

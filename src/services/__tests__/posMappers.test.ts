@@ -46,7 +46,7 @@ describe('buildPayments', () => {
 
   it('sends the server provider id and never a client fee or provider name', () => {
     const [row] = buildPayments('QRIS', 900000, 0, {
-      provider_id: 3, provider_name: 'BCA', fee_percentage: 0.7, fee_amount: 6300, reference: 'POS-1',
+      provider_id: 3, reference: 'POS-1',
     });
     expect(row).toEqual({ method: 'QRIS', amount: 900000, tendered: undefined, provider_id: 3, reference: 'POS-1' });
     expect(row).not.toHaveProperty('fee_percentage');
@@ -73,7 +73,7 @@ describe('buildPayments', () => {
 
   it('never sends BON, DP or EDC fields', () => {
     const rows = [
-      ...buildPayments('TRANSFER_BCA', 500000, 0, { provider_name: 'BCA' }),
+      ...buildPayments('TRANSFER_BCA', 500000, 0, { provider_id: 1 }),
       ...buildPayments('SPLIT', 1000000, 0, {
         split_payments: [
           { id: 'a', method: 'TUNAI', amount: 400000 },

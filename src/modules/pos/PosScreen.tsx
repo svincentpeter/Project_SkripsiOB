@@ -439,9 +439,9 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     notes?: string,
     paymentMeta?: CheckoutPaymentMeta
   ) => {
-    if (await handleCheckoutSale(pm, cashTendered, notes, paymentMeta)) {
-      setShowCheckoutModal(false);
-    }
+    const ok = await handleCheckoutSale(pm, cashTendered, notes, paymentMeta);
+    if (ok) setShowCheckoutModal(false);
+    return ok;
   };
 
   const handleParkCurrentCart = () => {

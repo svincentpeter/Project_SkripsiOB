@@ -129,9 +129,6 @@ export interface CheckoutPayload {
 /** Data pembayaran yang dikumpulkan CheckoutModal. */
 export interface CheckoutPaymentMeta {
   provider_id?: number;
-  provider_name?: string;
-  fee_percentage?: number;
-  fee_amount?: number;
   split_payments?: SplitPaymentLine[];
   reference?: string;
 }
