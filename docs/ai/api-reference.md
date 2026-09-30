@@ -44,7 +44,8 @@ purchases, has live batches), it is deactivated or refused with 422 instead of b
 | GET | `/pos/payment-options` (`bank_providers`, `qris_providers`) | `pos` |
 | POST | `/pos/checkout` | `pos` |
 | GET | `/pos/transactions` (`search`, `date`, `limit` ≤ 500), `/pos/transactions/{id}` | `pos`, `receipt` |
-| POST | `/pos/transactions/{id}/void` (`reason`, min 5 characters) | `sale_void` |
+| POST | `/pos/transactions/{id}/void` (`reason`, min 5 characters; 422 once the sale has a return) | `sale_void` |
+| POST | `/pos/transactions/{id}/returns` (`{reason, items[{sale_detail_id, quantity}]}`; cash refund, needs an OPEN shift) → 201 `{sale, sales_return, journal}` | `sales_return` |
 | POST | `/payment/qris/charge` (records the order; response has `simulation_enabled`) | `pos` |
 | POST | `/payment/qris/simulate/{orderId}` (403 unless `MIDTRANS_ALLOW_SIMULATION`; only charged orders) | `pos` |
 | GET | `/payment/qris/status/{orderId}` | `pos` |
@@ -57,11 +58,13 @@ rejects `bon`, `booking_id` and card-terminal methods with 422 (see [domain-pos.
 ## Inventory ([domain-inventory.md](domain-inventory.md))
 | Method | Path | Permission |
 |---|---|---|
-| POST | `/inventory/restock` (goods receipt) | `goods_receipt` |
-| GET | `/purchases` | `goods_receipt`, `accounts_payable` |
-| POST | `/purchases/{id}/payments` (`account_code` 1-1000 or 1-1001) | `accounts_payable` |
-| GET | `/inventory/stock-movements`, `/inventory/valuation` | `inventory_view` |
-| POST | `/inventory/opening-balance` | `accounting_hub` |
+| POST | `/inventory/restock` (goods receipt; `purchase_date` ≤ today) | `goods_receipt` |
+| GET | `/purchases` (`status=open` skips `LUNAS` and `BATAL`) | `goods_receipt`, `accounts_payable`, `purchase_return` |
+| POST | `/purchases/{id}/payments` (`account_code` 1-1000 or 1-1001; `payment_date` ≤ today and ≥ the invoice date) | `accounts_payable` |
+| POST | `/purchases/{id}/returns` (`{quantity, reason, refund_account_code?}`) → 201 `{purchase, purchase_return, journal}` | `purchase_return` |
+| POST | `/purchases/{id}/cancel` (`{reason}`; only an untouched receipt) → 200 `{purchase, purchase_return, journal}` | `purchase_return` |
+| GET | `/inventory/stock-movements`, `/inventory/valuation` (includes `opening_posted`) | `inventory_view` |
+| POST | `/inventory/opening-balance` (one-shot: 422 once posted) | `accounting_hub` |
 | POST | `/inventory/stock-opname` | `stock_opname` |
 | POST | `/stock/import-preview` (multipart `excel_file`, `qty_column` G or H), `/stock/resolve-brand`, `/stock/resolve-name`, `/stock/ignore-unresolved`, `/stock/commit`, `/stock/bulk-update` (alias `/stock/reconciliation/bulk-update`) | `stock_opname` |
 | GET | `/stock/staging`, `/stock/template` | `stock_opname` |
@@ -90,7 +93,7 @@ The frontend calls all of these through `accountingApi.ts` and `expenseApi.ts`.
 | POST | `/accounting/periods/{period}/reopen` | `accounting_hub` + OWNER | `{reason}`; only the most recently closed period |
 | GET / POST | `/accounting/opening-balance` | `accounting_hub` | `{date, balances{code: amount}}`; posts once (`ACCOUNT_OPENING`) |
 | GET | `/accounting/accounts-payable` | `accounts_payable` | |
-| POST | `/accounting/accounts-payable/pay` | `accounts_payable` | per-supplier legacy path; the UI uses `/purchases/{id}/payments` |
+| POST | `/accounting/accounts-payable/pay` | `accounts_payable` | per-supplier legacy path; the UI uses `/purchases/{id}/payments`; `payment_date` ≤ today and ≥ the date of each invoice it pays; skips `BATAL` |
 
 ## Cash shifts and cash movements ([domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts))
 | Method | Path | Permission | Notes |
@@ -111,5 +114,6 @@ The frontend calls all of these through `accountingApi.ts` and `expenseApi.ts`.
 The OWNER role is ignored if sent. Unknown keys return 422.
 
 ## Console commands
-- `php artisan inventory:opening-balance` books the gap between FIFO value and the balance of account 1-2000 against 3-1000 (idempotent).
+- `php artisan inventory:opening-balance` books the gap between FIFO value and the balance of account 1-2000 against
+  3-1000. One-shot: it marks go-live, and after that it prints the refusal and exits 1.
 - `php artisan stock:opname --file= --period= [--qty-column=] [--dry-run] [--force]` is the CLI version of the Excel commit.

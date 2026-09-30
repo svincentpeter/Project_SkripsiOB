@@ -50,17 +50,29 @@ Findings addressed:
 
 ## Sub-project 3 — Transaction corrections
 
+→ spec `2026-09-30-transaction-corrections-design.md` — done (2026-09-30, commits `b8c5818..8037368` plus the docs
+commit), plan `docs/superpowers/plans/2026-09-30-transaction-corrections.md`.
+
 - 🟠 No partial sales return (only full void); no purchase return / goods
   receipt cancellation (only opname, which leaves the payable standing).
+  **Fixed:** `SalesReturnService` (cash refund, 4-9100, goods back to their batches) and `PurchaseReturnService`
+  (payable first, then refund; cancel of an untouched receipt → `BATAL`).
 - ~~🟠 No bad-debt write-off for 1-1002; booking DP cannot be forfeited to income; QRIS DP not verified, no MDR.~~
   Obsolete: BON and booking DP were removed on 2026-09-30 (`2026-09-30-remove-dp-bon-edc-design.md`).
 - 🟠 FIFO shortfall fallback credits 1-2000 at `product_cost` without consuming batches
   (`FifoCostingService.php:92-105`); void restores only allocated batches.
+  **Fixed:** a shortfall now rejects the sale (422); opname aligns the layers; void restores unallocated units as
+  `VOID-…` batches.
 - 🟠 Manual (non-catalogue) POS lines book revenue without cost of sales (`CheckoutService.php:91-94, 246`).
+  **Fixed:** manual lines are services only (4-1001, no cost of sales).
 - 🟡 Inventory opening-balance action can be re-run and silently books every FIFO/ledger gap to capital.
+  **Fixed:** one-shot; the entry marks go-live.
 - 🟡 Excel import/selective update books restocks as 5-2000/3-1000 instead of a purchase; batch cost edits never
   reach past cost of sales or the payable.
+  **Fixed:** both stock rebuilds are refused after go-live; batch cost edits only on untouched batches.
 - 🟡 Void/payment dates are not validated against the document date.
+  **Fixed:** payment date ≤ today and ≥ invoice date; GR date ≤ today; voids, returns and cancellations are dated
+  today and pass the engine's period lock.
 
 ## Sub-project 4 — SAK EMKM completeness
 

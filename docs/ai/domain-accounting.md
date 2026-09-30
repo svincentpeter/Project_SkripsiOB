@@ -3,7 +3,7 @@
 The thesis rests on one claim: every business event produces a balanced double-entry journal, and SAK EMKM
 reports (Laba Rugi, Posisi Keuangan/Neraca, Arus Kas) are derived from those journals. Keep that claim true.
 
-## Chart of accounts (27 accounts)
+## Chart of accounts (28 accounts)
 
 Defined in `backend/database/seeders/AccountCoaSeeder.php`. The seeder inserts only missing codes.
 Migration `2026_09_24_000003_add_pos_inventory_accounts.php` also inserts 2-1004, 4-2000, 5-2000, and 6-1009,
@@ -16,7 +16,8 @@ Migration `2026_09_30_000001_deactivate_dp_bon_edc_accounts.php` sets 1-1002, 2-
 2026-09-30. They stay in the COA because historic journals reference them; `ManualJournalRequest` rejects inactive
 accounts and the manual-journal picker hides them. 6-1009 stays active for the QRIS MDR.
 Migration `2026_10_02_000001_create_cash_sessions_and_cash_accounts.php` inserts 3-3000 Prive and 6-1010 Selisih Kas
-Kasir (and creates `cash_sessions`).
+Kasir (and creates `cash_sessions`). Migration `2026_10_03_000001_add_sales_return_account_and_permissions` inserts
+4-9100 Retur Penjualan (and the `sales_return`/`purchase_return` permission rows).
 
 | Code | Name | Type | Normal |
 |---|---|---|---|
@@ -35,6 +36,7 @@ Kasir (and creates `cash_sessions`).
 | 4-1001 | Pendapatan Jasa Servis & Spooring | REVENUE | C |
 | 4-2000 | Pendapatan Surcharge EDC. **Inactive** since 2026-09-30 (no card surcharge); historic entries only | REVENUE | C |
 | 4-9000 | Potongan Diskon Penjualan (contra-revenue) | REVENUE | D |
+| 4-9100 | Retur Penjualan (contra-revenue; sales returns) | REVENUE | D |
 | 5-1000 | Harga Pokok Penjualan (HPP) Ban Baru | EXPENSE | D |
 | 5-2000 | Selisih Persediaan (Opname) | EXPENSE | D |
 | 6-1000 … 6-1008 | Operating expenses: gaji (salaries), listrik/air/internet (utilities), sewa (rent), transportasi (transport), ATK (supplies), perawatan mesin (machine maintenance), konsumsi/lembur (meals/overtime), pajak/retribusi (local taxes). **6-1002 does not exist.** | EXPENSE | D |
@@ -63,13 +65,15 @@ The README's 21-account table is outdated.
 - Posting happens inside the caller's DB transaction, so an unbalanced journal rolls back the whole business
   operation.
 - Journals are never edited or deleted. Corrections are reversing entries (`POS_SALE_VOID`, `VOID_EXPENSE`,
-  `MANUAL_REVERSAL`).
+  `MANUAL_REVERSAL`, `GOODS_RECEIPT_CANCEL`) or new documents (`SALES_RETURN`, `PURCHASE_RETURN`).
 
 ### `reference_type` values in use
 `POS_SALE`, `POS_SALE_VOID`, `PURCHASE`, `DEBT_PAYMENT`,
 `EXPENSE`, `VOID_EXPENSE`, `MANUAL_ADJUSTMENT`, `OPENING_BALANCE`, `STOCK_OPNAME`, `STOCK_IMPORT`,
 `STOCK_RECONCILIATION`, `STOCK_COST_CORRECTION`, `PERIOD_CLOSING`, `PERIOD_REOPEN`, `MANUAL_REVERSAL`,
-`ACCOUNT_OPENING`, `CASH_SESSION_VARIANCE`, `CASH_DEPOSIT`, `OWNER_DRAWING`, `CAPITAL_INJECTION`. Reuse one of these where it fits. If you add a new value, list it here.
+`ACCOUNT_OPENING`, `CASH_SESSION_VARIANCE`, `CASH_DEPOSIT`, `OWNER_DRAWING`, `CAPITAL_INJECTION`, `SALES_RETURN`,
+`PURCHASE_RETURN`, `GOODS_RECEIPT_CANCEL`. Reuse one of these where it fits. If you add a new value, list it here.
+`TEST_ALIGN` is used by tests only (`AlignsInventoryLedger`), never in production.
 Historic only (no longer produced since 2026-09-30): `BOOKING_DP`, `BOOKING_DP_REFUND`, `RECEIVABLE_PAYMENT`. The
 journal screen has no filter group for them; they show under "Semua".
 
@@ -77,12 +81,15 @@ journal screen has no filter group for them; they show under "Semua".
 
 | Event | Debit | Credit | Where |
 |---|---|---|---|
-| POS sale | cash/bank per payment at `net_received`; 6-1009 QRIS MDR; 4-9000 discounts; 5-1000 FIFO cost | 4-1000 goods (gross); 4-1001 services (gross); 1-2000 FIFO cost | `Pos/CheckoutService::postJournal` |
+| POS sale | cash/bank per payment at `net_received`; 6-1009 QRIS MDR; 4-9000 discounts; 5-1000 FIFO cost | 4-1000 goods (gross); 4-1001 services (gross); 1-2000 FIFO cost | `Pos/CheckoutService::postJournal`. Manual lines are services only (4-1001, no cost of sales) |
 | POS void | mirror of the sale entry, dated today | | `Pos/SaleVoidService` |
+| Sales return | 4-9100 refund; 1-2000 restored cost | 1-1000 refund; 5-1000 restored cost | `Pos/SalesReturnService` (`SALES_RETURN`, `RTJ-YYYYMM-####`, dated today; the refund is always cash from the drawer) |
 | Goods receipt | 1-2000 | 1-1000 (TUNAI), 1-1001 (TRANSFER_BCA), or 2-1000 (TEMPO) | `Inventory/GoodsReceiptService` |
+| Purchase return | 2-1000 applied payable (TEMPO, capped at `remaining()`); 1-1000/1-1001 refund | 1-2000 | `Inventory/PurchaseReturnService::returnGoods` (`PURCHASE_RETURN`, `RTB-YYYYMM-####`, dated today) |
+| GR cancellation | mirror of the `PURCHASE` entry, `reversal_of_id` set | | `PurchaseReturnService::cancel` (`GOODS_RECEIPT_CANCEL`, `RTB-…`, dated today; a Rp 0 GR has no entry to mirror) |
 | Supplier payment | 2-1000 | 1-1000 or 1-1001 | `Inventory/PayableService` |
 | Stock value change (opname, import, reconciliation, cost fix) | 1-2000 if value rises | 5-2000 (existing product) or 3-1000 (product created in the operation) | `Inventory/InventoryValueJournal::record` (reverse direction if value falls) |
-| Opening inventory | 1-2000 | 3-1000, for the gap between FIFO value and the 1-2000 ledger balance | `InventoryValueJournal::postOpeningBalance` |
+| Opening inventory | 1-2000 | 3-1000, for the gap between FIFO value and the 1-2000 ledger balance | `InventoryValueJournal::postOpeningBalance`. Posted once (`OPENING_BALANCE`, reference `OPENING-INV-…`); the entry marks go-live and a second post is refused (422 / console exit 1). A Rp 0 gap posts nothing and does not mark go-live |
 | Expense | category `default_account_code` (6-1000…6-1008, seeded) | 1-1000 (TUNAI/KAS_LACI), else 1-1001 | `Accounting/ExpenseService`, now used by the UI. Void posts `VOID_EXPENSE`, the mirror of the original entry, linked by `reversal_of_id` |
 | Manual journal | as submitted | as submitted | `Accounting/ManualJournalService`. Control accounts 1-1002, 1-2000, 2-1000, 2-1004 are rejected (validated in `ManualJournalRequest`). Only manual journals (`MANUAL_ADJUSTMENT`) are reversible from the journal screen, once each |
 | Period closing | every REVENUE/EXPENSE account's cumulative balance ≤ month end (credit accounts) | 3-2000, or the reverse if the account is net-debit; dated the month's last day, then locked | `Accounting/PeriodClosingService::close`. Reopen posts the mirrored `PERIOD_REOPEN` entry (OWNER only) and unlocks. Close and reopen `lockForUpdate()` the 3-2000 account row (`PeriodClosingService::serialize()`) so two closes/reopens can't run at once |
@@ -104,20 +111,33 @@ the window, excluding `CASH_SESSION_VARIANCE`, grouped per `reference_type` (`Ca
 `PENDING_APPROVAL`) or carry an `opening_note`; closing requires `variance_reason` when counted ≠ expected. Approval
 (`cash_session_approve`, a non-OWNER cannot approve their own shift) posts `adjustment = variance + opening
 difference`, so afterwards 1-1000 equals the counted cash as of the close. `CashSessionService::requireOpen()` guards
-cash checkout (SP3 cash refunds will use it too). Lock order:
+cash checkout and every sales return (the refund is cash from the drawer). A sales return stores its shift on
+`sales_returns.cash_session_id`; its 1-1000 credit shows in the shift summary as "Retur penjualan (refund tunai)"
+(`LINE_LABELS` also label `PURCHASE_RETURN` and `GOODS_RECEIPT_CANCEL`; they touch 1-1000 only when the supplier's
+refund goes to the drawer, and they need no open shift). Lock order:
 - `requireOpen()`: S on the 1-1000 `accounts` row → plain read of the OPEN shift → S on that shift **by primary key**,
   re-checking `status = OPEN` (422 otherwise). The caller then takes the `DocumentNumber` locks (OB3-INV, JRN) and
   inserts `journal_items`; the FK `journal_items.account_id → accounts` takes S on the 1-1000 row, already held.
-- `open()`/`close()`/`approve()`: X on the 1-1000 `accounts` row first (`serialize()`), then X on the shift PK; only
-  `approve()` then takes the JRN number lock. `close()` reads `max(journal_entries.id)` after both locks, so a cash
-  sale in flight is inside the window.
+- `open()`/`close()`/`approve()`: X on the 1-1000 `accounts` row first (`serialize()`). `open()` then only checks that
+  no shift is OPEN and inserts a new row; it takes no X lock on a shift PK. `close()` and `approve()` then take X on
+  the shift PK; only `approve()` then takes the JRN number lock. `close()` reads `max(journal_entries.id)` after both
+  locks, so a cash sale in flight is inside the window.
+- Sales return (`SalesReturnService::create`): `requireOpen()` (S on 1-1000 → S on the shift PK) → X on the products
+  of the returned lines, by id → X on the sale → X on its `sale_batch_allocations` by primary key → the `RTJ` number
+  lock → S (current read) on prior `sales_return_items` → X on each batch that takes units back. The RTJ lock
+  serializes returns, so the gap locks of the prior-returns read never meet another return's insert.
+- Void (`SaleVoidService::void`): X on the sale's products (by id) → X on the sale → S (current read) on its
+  `sales_returns` → X on the batches. Products come before the sale and the batches, the same order as checkout and
+  opname (product → batch).
 
 Because every shift operation contends on the 1-1000 row at its first step, `close()` never holds X(1-1000) while
 waiting for a shift row that a sale holds (the FK S-lock cycle). Never lock shifts by the `status` predicate: its
-next-key lock collides with `approve()`'s status update. `open()`, `close()` and `approve()` retry a deadlock up to three
-times (`DB::transaction(..., 3)`): a cycle can still form through InnoDB's queue on the 1-1000 row (a sale holding
-S(1-1000) waits for the JRN lock, held by a cash expense whose FK S request queues behind a waiting shift X), and the
-waiting shift operation, which has written nothing yet, is the usual victim.
+next-key lock collides with `approve()`'s status update. `open()`, `close()`, `approve()` and the sales return run in
+`DB::transaction(..., 3)`: three attempts, so at most two retries. Laravel retries on a deadlock (1213) and on a
+lock-wait timeout (1205); both count as concurrency errors. Checkout and void run once (no retry). A cycle can still
+form through InnoDB's queue on the 1-1000 row (a sale holding S(1-1000) waits for the JRN lock, held by a cash expense
+whose FK S request queues behind a waiting shift X), and the waiting shift operation, which has written nothing yet,
+is the usual victim.
 
 Deposits, Prive and capital are single journals from `CashMovementService` (`cash_movement`).
 The POS drawer figure is the 1-1000 ledger balance (`GET /accounting/cash-balances`); the old per-browser counter
@@ -150,6 +170,11 @@ COA rather than hard-coded account lists, in `app/Services/Accounting/`:
 - **`CashFlowReport::build($from, $to)`** is the direct method: every journal that touches 1-1000/1-1001
   attributes its non-cash lines (credit − debit) to a bucket (customers, suppliers, expenses, other operating,
   fixed assets, equity), so the buckets always reconcile to the cash change (`is_reconciled`).
+  The return types need no special case: they are bucketed by account. A sales refund (4-9100, REVENUE) lowers
+  customers; its 1-2000/5-1000 lines net to zero inside suppliers. A supplier refund or a TUNAI/TRANSFER GR cancel
+  (1-2000) raises suppliers; the payable part of a purchase return and a TEMPO cancel touch no cash.
+- 4-9100 (REVENUE, normal DEBIT) is presented as contra revenue next to 4-9000 in the income statement (net revenue =
+  revenue − discounts and returns).
   The `ACCOUNT_OPENING` journal is not a cash flow and is left out of the buckets; when it is dated inside
   the range, its 1-1000/1-1001 amount is added to `beginning_cash` instead, so reconciliation still holds.
 - Inactive accounts (1-1002, 2-1004, 4-2000) still appear in every report, as zero rows or with their historic

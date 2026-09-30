@@ -16,7 +16,9 @@ Laravel 13 / PHP 8.3 / Sanctum 4 / PHPUnit 12 / phpoffice/phpspreadsheet. Larave
   no fallback key: without `MIDTRANS_SERVER_KEY` dynamic QRIS cannot be charged and the webhook rejects everything.
   `MIDTRANS_ALLOW_SIMULATION=true` (ignored in production mode) enables `/payment/qris/simulate` and the fake QR.
 - Fresh DB: `php artisan migrate --seed`, then `php artisan inventory:opening-balance` (the seeders
-  create FIFO batches but post no journals).
+  create FIFO batches but post no journals). It runs **once** per database: the entry marks go-live of the
+  inventory ledger, a second run exits 1, and afterwards the Excel commit and stock bulk-update are refused. Before
+  the first sale, run a stock opname on products whose quantity exceeds their FIFO batch layers (such a sale is 422).
 - `php artisan serve` → `http://127.0.0.1:8000`. All API routes live under `/api/v1` (`routes/api.php`).
 - CORS allows all origins without credentials (bearer tokens, not cookies).
 
@@ -31,11 +33,12 @@ app/Services/                  business logic; one service per use case
   JournalDraft.php             fluent builder by account code: ->debit()->credit()->post()
   DocumentNumber.php           PREFIX-YYYYMM-#### with lockForUpdate (call inside a transaction)
   FifoCostingService.php       batch creation + FIFO allocation
-  Pos/                         CheckoutService, CartLines, PosAccounts, SaleVoidService
+  Pos/                         CheckoutService, CartLines, PosAccounts, SaleVoidService, SalesReturnService
   Accounting/                  ExpenseService, ManualJournalService, PeriodClosingService, OpeningBalanceService,
                                CashSessionService (shifts), CashMovementService (deposit/Prive/capital), reports
-  Inventory/                   GoodsReceipt, Payable, StockOpname(+Commit), StockSelectiveUpdate, StockExcelImport,
-                               MonthlyStockLedger, InventoryValueJournal, Excel/* (reader, parser, brand resolver, match key)
+  Inventory/                   GoodsReceipt, Payable, PurchaseReturn (return + GR cancel), StockOpname(+Commit),
+                               StockSelectiveUpdate, StockExcelImport, MonthlyStockLedger, InventoryValueJournal,
+                               Excel/* (reader, parser, brand resolver, match key)
   Payment/MidtransQrisService.php   charge/status/simulate/webhook settlements → qris_transactions
 app/Support/Permissions.php    permission keys, roles, KASIR/GUDANG defaults
 app/Exceptions/                PosRuleException (renders 422 {message}), AccountingUnbalancedException
@@ -76,5 +79,8 @@ Follow the existing pattern when adding a feature:
   So test order can matter.
 - POS fixtures: `tests/Concerns/CreatesPosFixtures.php`. Excel fixture: `tests/Fixtures/stock-fixture.xlsx`.
 - Inventory tests assert `InventoryValueJournal::summary()['difference'] == 0` after each operation. Keep that
-  assertion in new stock tests.
+  assertion in new stock tests. Start aligned with `Tests\Concerns\AlignsInventoryLedger::alignInventoryLedger()`
+  (posts the gap as `TEST_ALIGN`); do not call `POST /inventory/opening-balance` for that, because it is one-shot and
+  marks go-live. Sales-return tests open a shift with `Tests\Concerns\OpensReturnCashSession`; test sales pay
+  `TRANSFER_BCA` so the TUNAI shift rule does not interfere.
 - Every new protected endpoint needs a 403 test for a role without the key.

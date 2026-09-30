@@ -28,6 +28,9 @@ Every correction of a sale or a purchase ends in a balanced journal that keeps t
   same date; 2-1004 is inactive.
 - The roadmap's "batch cost edits never reach past cost of sales or the payable" is resolved by *restricting* the
   edit (D18), not by re-costing past sales.
+- **Void-date validation** is not a separate check: a void posts its reversal dated today, which is never before the
+  sale and passes the engine's period lock (only fully elapsed months close). Cost if wrong: a backdated void path
+  (none exists) would be unguarded.
 
 ## Decisions
 

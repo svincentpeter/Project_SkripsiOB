@@ -14,8 +14,10 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
   1. Lock the product and its batches, then consume the oldest batches first.
   2. Cost each slice at `round(qty × batch_cost, 2)` and write `sale_batch_allocations`.
   3. Write a KELUAR/SALE movement.
-  4. If the batches run short, the method does **not** throw. The remainder is costed at `product_cost` with no
-     allocation row. Guard against this with the stock check in `CartLines`.
+  4. If the batches hold fewer units than requested, it throws `PosRuleException` (422, "Lakukan stock opname…"),
+     so the whole sale is rejected. There is no `product_cost` fallback any more. The stock check in `CartLines` uses
+     `product_quantity`, so a product whose quantity exceeds its batch layers passes that check and is stopped here.
+     Stock opname matches the batch layers to the physical count, which repairs old drift (see below).
 - Where batches come from:
 
   | Source | Service |
@@ -23,6 +25,7 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
   | Goods receipt | `FifoCostingService::addBatch` (this also sets `product_cost` to the latest cost) |
   | New product with `initial_batch` | `ProductController::store` |
   | Opname surplus, at the latest batch cost | `StockOpnameService` |
+  | Void of a sale line without allocation rows (`VOID-{ref}-{detail}-{i}`) | `SaleVoidService` |
   | Excel commit (`OPNAME-YYYYMM-…`) | `StockOpnameCommitService` |
   | Selective update (`RECON-YYYYMM-…`) | `StockSelectiveUpdateService` |
   | Seeders (`OB3-OPEN-…`) | `OmahBanBanBaruSeeder`, which loads 425 products from `seeders/data/omahban_ban_baru.json` |
@@ -39,8 +42,25 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
   - An increase posts Dr 1-2000; a decrease posts Cr 1-2000.
 - **Wrap every stock-changing operation that is not a sale or a purchase in `record()`.**
 - `postOpeningBalance()` books the whole gap between FIFO value and the ledger against 3-1000, as
-  `OPENING_BALANCE`. It is idempotent. Run it after seeding: `php artisan inventory:opening-balance` or
-  `POST /inventory/opening-balance`.
+  `OPENING_BALANCE` with reference `OPENING-INV-…`. It is **one-shot**: it locks the 3-1000 account row, and when
+  `openingEntry()` finds that entry it throws `PosRuleException` (422; the console command prints the message and
+  exits 1). Run it once per database, after seeding: `php artisan inventory:opening-balance` or
+  `POST /inventory/opening-balance`. A Rp 0 gap posts nothing and does not mark go-live.
+- The opening entry marks **go-live** of the inventory ledger. `assertBeforeGoLive()` then refuses the Excel commit
+  (`force` does not bypass it) and a selective update with `update_stock` (422). Cost and price updates still pass.
+  After go-live, purchases come in through goods receipt and count corrections through stock opname.
+- `GET /inventory/valuation` returns `opening_posted`; the valuation banner hides the opening-balance button once it
+  is true.
+- The void of a sale line whose units have no allocation rows (old fallback costing, or allocations deleted by an
+  Excel rebuild) brings those units back as new `VOID-…` batches, valued at the line's booked HPP minus its
+  allocated cost and split in cents by `FifoCostingService::centLayers()` (also used by goods receipt), dated the
+  sale date. The reversal's Dr 1-2000 then equals the restored FIFO value.
+
+### Go-live checklist
+1. Finish any Excel stock migration (commit, selective stock update) first: both are refused after go-live.
+2. Post the inventory opening balance once. It marks go-live.
+3. Before the first sale, run a stock opname on every product whose `product_quantity` exceeds Σ`remaining_qty` of
+   its batches. A sale beyond the FIFO layers is rejected with 422; the opname adds the missing layers.
 
 ## Goods receipt and payables
 - `POST /inventory/restock` goes to `GoodsReceiptService::receive`, in one transaction:
@@ -54,16 +74,44 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
   3. Post the journal at that total: Dr 1-2000, Cr 1-1000 (TUNAI), 1-1001 (TRANSFER_BCA), or 2-1000 (TEMPO).
   4. For TEMPO, `due_date` is the given date or `purchase_date + supplier.payment_terms_days`, and the status is
      `BELUM_LUNAS`.
-- `POST /purchases/{id}/payments` goes to `PayableService::pay`. It locks the purchase, refuses overpayment, posts
-  Dr 2-1000 / Cr 1-1000 or 1-1001 (`DEBT_PAYMENT`), and sets the status to `SEBAGIAN` or `LUNAS`. The frontend payables
+- `purchase_date` must not be in the future (422).
+- `POST /purchases/{id}/payments` goes to `PayableService::pay`. It locks the purchase, refuses a `LUNAS` or `BATAL`
+  invoice and overpayment, requires `payment_date` ≤ today (validation) and ≥ the invoice's `purchase_date` (in the
+  service, so the legacy path is covered too), posts Dr 2-1000 / Cr 1-1000 or 1-1001 (`DEBT_PAYMENT`), and sets the
+  status to `SEBAGIAN` or `LUNAS` (`LUNAS` once paid ≥ total − returned). The frontend payables
   tab uses this endpoint. The legacy route `POST /accounting/accounts-payable/pay` (`paySupplier`) spreads one payment
   across open invoices, oldest due date first.
 
+## Purchase returns and cancellation
+`Inventory/PurchaseReturnService`, permission `purchase_return` (GUDANG default true). Both are numbered
+`RTB-YYYYMM-####`, dated today, and stored in `purchase_returns` (`kind` RETURN or CANCEL) with one
+`purchase_return_items` row per batch. Lock order: purchase → product → batches.
+- **Return** (`POST /purchases/{id}/returns {quantity, reason, refund_account_code?}`): only units still in the GR's
+  own batches (`product_batches.purchase_id`) can go back; units already sold cannot. Newest batch first, so the
+  Rp 0.01 cent-split batch leaves first. Value = Σ qty × `batch_cost`, exact to the cent.
+  - The value reduces the open payable first (TEMPO only: Dr 2-1000, capped at `remaining()`); the rest is a refund
+    (Dr 1-1000 or 1-1001; default 1-1000 for a TUNAI receipt, else 1-1001; the request can override it). Cr 1-2000.
+    Journal `PURCHASE_RETURN`.
+  - `purchases.returned_amount` accumulates the value and `paid_amount` drops by the refund, so
+    `remaining() = total − returned − paid`. The status is recomputed (TEMPO: `LUNAS` once paid ≥ total − returned).
+- **Cancel** (`POST /purchases/{id}/cancel {reason}`): only when the GR is untouched: every batch still holds its
+  `initial_qty`, no sale allocation, no supplier payment and no earlier return. It zeroes the batches (never deletes
+  them), posts `GOODS_RECEIPT_CANCEL`, the mirror of the `PURCHASE` entry linked by `reversal_of_id` (a Rp 0 GR has
+  none), and sets the status `BATAL`. A cancelled GR cannot be paid, returned or cancelled again.
+- Both write a KELUAR stock movement (`PURCHASE_RETURN` / `GOODS_RECEIPT_CANCEL`) and lower `product_quantity`.
+- `GET /purchases?status=open` and the legacy `paySupplier` skip `BATAL`; the frontend payables list
+  (`payablesFromPurchases`) drops `BATAL` rows. `GET /accounting/accounts-payable` nets `returned_amount`.
+- Each purchase row carries `returned_amount`, `product_name`, `quantity` and `returnable_qty`. The UI is
+  "Penerimaan & Stok Opname → Retur / Batal Penerimaan" (`PurchaseReturnModal`).
+
 ## Stock opname and corrections
 - **Manual opname:** `POST /inventory/stock-opname` with `{items:[{product_id, physical_qty}], notes}` goes to
-  `StockOpnameService::adjust`. It is numbered `OPN-YYYYMM-####`. A shortage consumes the oldest batches; a surplus
-  creates a batch at the latest cost. `product_quantity` is set to the physical count and a movement is written.
-  The journal type is `STOCK_OPNAME`, posted via `record()`.
+  `StockOpnameService::adjust`. It is numbered `OPN-YYYYMM-####`. The batch layers are matched to the physical
+  count: the service sums `remaining_qty` with a locked current read (`lockForUpdate`, so a sale or receipt that
+  committed after the transaction's snapshot is seen). Fewer units than the layers consumes the oldest batches;
+  more creates a surplus batch at the latest cost. `product_quantity` is set to the physical count. A movement is
+  written only when the count differs from `product_quantity`, so an opname at the same count still repairs drifted
+  layers. The journal type is `STOCK_OPNAME`, posted via `record()`.
 - **Excel import:** preview, then resolve, then commit.
   - Preview: `POST /stock/import-preview`. Sheets are read from row 5, columns A–H:
     no, name, size, ring, cost, price, opening qty, and end-of-month qty (default column H).
@@ -77,16 +125,22 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
   - Resolve: `resolve-brand`, `resolve-name`, and `ignore-unresolved` fix staging rows that failed to resolve.
   - Commit: `POST /stock/commit {period, only_match_keys?, force?}`, or `php artisan stock:opname`, goes to
     `StockOpnameCommitService` (`STOCK_IMPORT`).
+    - After go-live it is always refused (422), `force` or not.
     - Without `force`, it refuses if any sales exist on or after the period start, or if unresolved rows remain.
     - It writes a rollback snapshot, then upserts products and rebuilds batches for the period.
     - A full sync zeroes products that are missing from the Excel and deactivates the ones that never sold.
 - **Selective update:** `POST /stock/bulk-update` goes to `StockSelectiveUpdateService` (`STOCK_RECONCILIATION`).
+  With `update_stock` it is refused after go-live.
   - Flags `update_cost` / `update_price` / `update_stock`, plus a `reason` (at least 3 characters).
   - Writes price audits.
   - When stock changes, it rebuilds batches sorted by cost ascending, with synthetic dates.
 - **Monthly FIFO ledger:** `GET /reports/stock-monthly?month&brand` goes to `MonthlyStockLedgerService`. It builds a
   spreadsheet view of opening, restock, daily sales, and cost layers.
+  - The "restock" column is net non-sale incoming stock for the month: receipts and sales returns count +, purchase
+    returns and GR cancellations count − (so it can be negative). Sales stay in the sold columns.
   - `POST …/inline-update` edits opening stock (via opname), batch cost (`STOCK_COST_CORRECTION`), or the old-stock tag.
+    A batch cost edit is allowed only for a batch with no purchase link, no sale allocation and
+    `remaining_qty = initial_qty`; otherwise 422 (use a purchase return or cancellation).
   - The server export is CSV. The UI exports xlsx client-side (`stockLedgerExcel.ts`).
 
 ## Product master
@@ -102,15 +156,19 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
 ## Frontend notes
 - The catalog cards' value is stock × `product_cost` (`calculateInventoryValuation`), **not** FIFO. The server
   valuation banner is the FIFO figure.
-- `stockReconciliationApi` falls back to client-side parsing and local writes on any error, including 422. Treat that
-  fallback as legacy, and surface server errors instead of extending it.
+- `stockReconciliationApi` falls back to client-side parsing and local writes when the server is unreachable. Commit
+  and bulk update rethrow once the server answered (an `ApiError` with a status, e.g. the go-live 422); the other
+  calls still fall back on any error. Treat the fallback as legacy, and surface server errors instead of extending it.
+- `StockMonthlyLedgerView` still shows a negative restock as 0, so a month with more purchase returns than receipts
+  shows 0 instead of the negative net.
 - The template download (`/stock/template`) is a plain link with no bearer token, so it probably returns 401.
 
-## Known issues (verified 2026-09-27)
-1. `product_quantity` can drift from Σ`remaining_qty`. Causes: the FIFO shortfall fallback, a void of such a sale,
-   selective updates with a negative delta and no batches, and inline edits of opening stock.
+## Known issues (verified 2026-09-27, updated 2026-09-30)
+1. `product_quantity` can drift from Σ`remaining_qty`. Causes: selective updates with a negative delta and no
+   batches, and inline edits of opening stock. A sale beyond the layers then fails with 422 until a stock opname.
 2. Excel commit and selective update **delete** batches from the same period. The FK cascade then deletes
-   `sale_batch_allocations`, which breaks later voids. `force` bypasses the sales guard.
+   `sale_batch_allocations`, which breaks later voids. `force` bypasses the sales guard. Both are refused after
+   go-live.
 3. `addBatch` batch codes use `rand(10,99)`; it now retries until the code is unused (the product row is locked),
    so collisions are gone, but more than 90 receipt batches of one product on one day would loop forever.
 4. Preview matches by match key or product code, but commit matches by match key only. Seeded `product_size` values

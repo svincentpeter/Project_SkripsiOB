@@ -13,8 +13,9 @@
    - Local code paths for that area are removed.
 
    Stages so far: stage 1 auth/RBAC (2026-09-23), stage 2 POS (2026-09-24), stage 3 inventory (2026-09-24), stage 4
-   accounting core (2026-09-29). Remaining client-only areas (returns/write-offs, depreciation,
-   dashboard/daily reports, QRIS hardening) are tracked as later sub-projects of the accounting roadmap.
+   accounting core (2026-09-29). Cash & bank, payment hardening and transaction corrections (returns) followed on
+   2026-09-30. Remaining areas (depreciation, CALK, dashboard/daily reports) are tracked as later sub-projects of the
+   accounting roadmap.
 3. **Commits:** Conventional Commits with a scope, in English, with the imperative subject in lowercase:
    `feat(pos): …`, `fix(accounting): …`, `test: …`, `docs(inventory): …`. The body explains why. Commits are made
    directly on `main`. When Claude writes the commit, it ends with the `Co-Authored-By: Claude …` trailer.
@@ -38,6 +39,7 @@
 | 09-24 | inventory server (stage 3) | done |
 | 09-29 | accounting server core (stage 4): expenses, manual journals, reversal, period closing/reopen, opening balances, reports | done |
 | 09-30 | cash & bank (roadmap SP2): cashier shifts, variance journal, deposits, Prive, capital | done |
+| 09-30 | transaction corrections (roadmap SP3) | done |
 | — | `API_DOCUMENTATION.md` | stale; use [api-reference.md](api-reference.md) |
 
 ## Testing
@@ -49,7 +51,8 @@
 | Backend | `cd backend && composer test` | MySQL `project-skripsi_ob_testing`, which must exist and be migrated. See [../../backend/AGENTS.md](../../backend/AGENTS.md#tests) |
 | E2E | `node tests/e2e/<file>.mjs` | Plain Playwright scripts, not `@playwright/test`. They need `npm run dev` (dev mode), the backend on :8000 with seeded users, and `VITE_DEV_LOGIN_PASSWORD`. They log in via the "Agus Subagyo" quick-login card, write screenshots and JSON to `tests/e2e/screenshots/`, and have **no pass/fail assertions** |
 
-As of 2026-09-30, the frontend passes: 28 test files, 142 tests, and `tsc` is clean.
+As of 2026-09-30 (after transaction corrections), the frontend passes: 29 test files, 147 tests, and `tsc` is clean.
+The backend passes 262 tests.
 
 ## Glossary (Indonesian → meaning)
 
@@ -77,6 +80,8 @@ As of 2026-09-30, the frontend passes: 28 test files, 142 tests, and `tsc` is cl
 | HPP | cost of goods sold (5-1000) |
 | Persediaan | inventory (1-2000) |
 | Stok opname | physical stock count and adjustment |
+| Retur penjualan / retur pembelian | sales return (`RTJ-…`, cash refund, 4-9100) / purchase return to the supplier (`RTB-…`); "Batal penerimaan" cancels an untouched goods receipt (status `BATAL`) |
+| Go-live (saldo awal persediaan dibukukan) | the one-shot inventory opening balance (`OPENING-INV-…`) is posted; afterwards Excel stock rebuilds are refused |
 | Selisih persediaan | inventory variance (5-2000) |
 | Penerimaan barang (GR) | goods receipt (`GR-…`) |
 | Kartu stok / mutasi | stock card / stock movement |

@@ -61,7 +61,7 @@ Backend (`cd backend`):
 ```bash
 php artisan serve                  # http://127.0.0.1:8000, API at /api/v1
 php artisan migrate --seed         # needs SEED_DEFAULT_PASSWORD in backend/.env
-php artisan inventory:opening-balance   # book FIFO stock value into ledger after seeding
+php artisan inventory:opening-balance   # book FIFO stock value into ledger ONCE per DB (marks go-live)
 composer test                      # runs against MySQL DB `project-skripsi_ob_testing`
 ```
 
@@ -76,8 +76,8 @@ The app started fully client-side (localStorage, briefly Supabase) and is being 
 | Feature | Source of truth | Stage |
 |---|---|---|
 | Login, session, role permissions | Server (Sanctum, `role_permissions`) | 1 (done) |
-| POS checkout (Tunai/Transfer/QRIS, split; every sale paid in full), void, sales history, QRIS (settlements in `qris_transactions`), payment providers and fees | Server | 2 (done); payment hardening 2026-09-30 |
-| Products, categories, services, suppliers, FIFO batches, goods receipt, payables, stock opname, Excel import, monthly stock ledger | Server | 3 (done) |
+| POS checkout (Tunai/Transfer/QRIS, split; every sale paid in full), void, partial sales returns (cash refund), sales history, QRIS (settlements in `qris_transactions`), payment providers and fees | Server | 2 (done); payment hardening, transaction corrections 2026-09-30 |
+| Products, categories, services, suppliers, FIFO batches, goods receipt, purchase returns and receipt cancellation, payables, stock opname, Excel import, monthly stock ledger | Server | 3 (done); transaction corrections 2026-09-30 |
 | Expenses, manual journals, journal reversal, account opening balances, period closing & lock | Server | 4 (done) |
 | Financial reports (journals, ledger, trial balance, statements, equity changes, cash flow) | Server, computed per period | 4 (done) |
 | Cashier shifts, drawer balance (= ledger 1-1000), cash deposits, Prive, capital injections | Server | SP2 cash & bank (done) |
@@ -95,13 +95,15 @@ Details: [docs/ai/architecture.md](docs/ai/architecture.md).
    which requires Σdebit = Σcredit to the cent (no tolerance). Never write `journal_entries`/`journal_items` directly.
    `createEntry` also rejects lines that are negative, two-sided or fewer than two, and any date on or before
    the period lock date (`PeriodLock`).
-2. **Account codes come from the COA.** 27 accounts (1-1002, 2-1004, 4-2000 inactive since 2026-09-30), seeded by `AccountCoaSeeder` (+ migration
-   `2026_09_24_000003`). The frontend has no COA copy; it loads `GET /accounts`. A new account needs only
+2. **Account codes come from the COA.** 28 accounts (1-1002, 2-1004, 4-2000 inactive since 2026-09-30; 4-9100 Retur
+   Penjualan added by `2026_10_03_000001`), seeded by `AccountCoaSeeder` (+ migration `2026_09_24_000003`). The frontend has no COA copy; it loads `GET /accounts`. A new account needs only
    a migration (so existing databases get it) and the seeder.
    See [docs/ai/domain-accounting.md](docs/ai/domain-accounting.md).
 3. **Stock only moves through services that keep FIFO and the ledger in step.** Stock changes go through
    `FifoCostingService`, the `Inventory/*` services, and `InventoryValueJournal::record()`, so that
    account 1-2000 = Σ(remaining_qty × batch_cost). Do not edit `product_quantity` or `product_batches` ad hoc.
+   A sale beyond the FIFO batch layers is rejected (422); the inventory opening balance is one-shot and marks
+   go-live, after which Excel stock rebuilds are refused.
    See [docs/ai/domain-inventory.md](docs/ai/domain-inventory.md).
 4. **Server-owned features are server-authoritative.** Money, stock, accounting, and document numbers for
    stages 1–4 are computed on the server. The frontend sends intent and maps the response; it must not

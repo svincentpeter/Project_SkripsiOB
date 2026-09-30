@@ -14,7 +14,8 @@ There are no credit sales, no customer down payments and no card-terminal paymen
 **Request** (`PosCheckoutRequest`):
 - Customer and vehicle fields, all optional.
 - `items[]`, each with `type` (PRODUCT/SERVICE), `product_id` / `service_id`, `name`, `quantity` (a whole number of
-  at least 1), `unit_price`, `discount_per_item`, `is_manual`, `cost_price`.
+  at least 1), `unit_price`, `discount_per_item`, `is_manual`, `cost_price`. `cost_price` is ignored: manual lines
+  are services only and have no cost of sales.
 - `discount_amount` (a discount on the whole receipt).
 - `payments[]`, each with `method`, `amount`, `tendered`, `provider_id` (id in `payment_provider_settings`),
   `reference` (Midtrans order id for dynamic QRIS). `fee_percentage` is `prohibited` (422): the server computes the fee.
@@ -31,7 +32,9 @@ including the removed card-terminal methods, fails validation on `payments.N.met
    - Catalogue products are locked and must be active. Their summed quantity must not exceed
      `products.product_quantity`; otherwise the server returns 422 "Stok X tidak cukup".
    - The item name is replaced with the catalogue name.
-   - Manual lines (`is_manual`) skip the stock check.
+   - Manual lines (`is_manual`) are services only: a manual PRODUCT line is rejected (422, "…belum terdaftar di
+     katalog…"), because goods need a catalogue entry and a goods receipt to have FIFO cost. A manual SERVICE line
+     books 4-1001 with HPP 0. The POS "Input Manual" form (`ManualItemForm`) offers only services.
    - Per line: `gross = qty × unit_price`, `net = gross − qty × discount_per_item`.
 2. Totals:
    - `subtotal = Σnet`
@@ -54,19 +57,45 @@ including the removed card-terminal methods, fails validation on `payments.N.met
    - `payment_method`: the single method used, or `SPLIT` (also used for a Rp 0 sale with no payment rows).
    - `status`: `LUNAS`.
 5. Lines are saved. Each catalogue product line calls `FifoCostingService::allocateFifo`, which writes
-   `sale_batch_allocations` and a KELUAR/SALE stock movement and sets line HPP from FIFO cost.
+   `sale_batch_allocations` and a KELUAR/SALE stock movement and sets line HPP from FIFO cost. If the product's batch
+   layers hold fewer units than the line needs, the whole sale is rejected (422, "Lakukan stock opname…"); there is
+   no `product_cost` fallback. `total_hpp` is the FIFO cost only, equal to the journaled 5-1000.
 6. `SalePayment` rows are saved and the journal is posted (see [domain-accounting.md](domain-accounting.md#posting-rules)).
 
 **Response:** `Sale::toReceiptArray()`, which includes `journals[]`. The frontend maps it with `mapSaleToTransaction`.
 The legacy columns `sales.booking_id`, `dp_applied`, `due_date`, `edc_bank`, `edc_type`, `surcharge_amount` and
 `sale_payments.edc_bank`, `edc_type`, `surcharge_amount` stay in the tables for history but are neither written nor
-returned. Sale statuses produced: `LUNAS` and `VOID`.
+returned. Sale statuses produced: `LUNAS` and `VOID`. A returned sale stays `LUNAS`; the receipt carries
+`returned_amount`, `returns[]`, per-item `returned_qty` and the `SALES_RETURN` journals.
+
+## Sales return (`POST /pos/transactions/{id}/returns`, permission `sales_return`)
+Request `{reason (min 5), items[{sale_detail_id, quantity}]}`. `SalesReturnService::create`, one transaction (three
+attempts on a deadlock or lock-wait timeout; lock order in
+[domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts)):
+- The refund is always **cash from the drawer**, whatever the original payment method, so an OPEN cashier shift is
+  required (422 "Buka shift kasir dulu…"). Its id is stored on `sales_returns.cash_session_id`.
+- The refund is computed by the server: the line's net value minus its cent-exact share of the nota discount (shares
+  proportional to `sub_total`, rounding remainder on the largest line). A partial return gets its share of that, and
+  the return that empties a line gets the rest, so Σ refunds of a fully returned nota = the nota total. The QRIS MDR
+  of the original sale is not refunded.
+- Product units go back to the batches the sale consumed, newest allocation first, at the allocation's `unit_cost`;
+  `sale_batch_allocations.quantity_returned` tracks what already came back. `product_quantity` goes up and a
+  MASUK/`SALES_RETURN` movement is written. Service lines (catalogue or manual) return revenue only.
+- Numbered `RTJ-YYYYMM-####`, dated today. Journal `SALES_RETURN`: Dr 4-9100 / Cr 1-1000 for the refund, Dr 1-2000 /
+  Cr 5-1000 for the restored cost. A return worth Rp 0 with no cost posts nothing.
+- Refused (422): a VOID sale; a quantity above what is left to return; a line of another nota; and the **first**
+  return of a nota that has a product line without a complete allocation trail (old fallback costing, or
+  allocations deleted by an Excel rebuild). Such a nota can still be voided.
+- The UI is the "Retur" button in Riwayat Struk (`SalesReturnModal`); the toast shows the refund to hand over.
 
 ## Void (`POST /pos/transactions/{id}/void`, permission `sale_void`, OWNER-only by default)
 `SaleVoidService`:
-- Refused if the sale is already VOID.
+- Refused if the sale is already VOID, and refused once the sale has any return (return the remaining units
+  instead).
 - Restores stock: every `sale_batch_allocations` row goes back to its batch, `product_quantity` goes back up, and a
-  MASUK/SALE_VOID movement is written.
+  MASUK/SALE_VOID movement is written. Units without allocation rows come back as new `VOID-…` batches at their
+  booked cost (the line's HPP minus its allocated cost, cent-split by `FifoCostingService::centLayers()`), dated the
+  sale date, so the reversal's Dr 1-2000 equals the restored FIFO value.
 - Posts `POS_SALE_VOID`, a mirror of the original entry dated **today**.
 - The sale is marked `VOID` with `voided_at`, `voided_by`, and `void_reason` (at least 5 characters).
 - No refund is sent to Midtrans or the bank.
@@ -116,11 +145,12 @@ a counted float, close shift with a counted drawer; the drawer amount shown is t
 (see [domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts)). The old `ob3_cash_drawer` counter is
 removed on load.
 
-## Known issues (verified 2026-09-27, still open)
+## Known issues (verified 2026-09-27, updated 2026-09-30)
 1. `unit_price` comes from the client. The server checks product existence and stock, not prices.
 2. A QRIS payment without a `reference` (static QRIS, or QRIS inside a split payment) is cashier-attested and not
    verified until bank reconciliation. Dynamic QRIS is verified (settled, single use, amount) since 2026-09-30.
-3. The stock check uses `product_quantity`, not batches. If batches run short, FIFO costs the remainder at
-   `product_cost` with no allocation row, and a later void restores quantity but not those batches.
-4. Manual-line cost is counted in `total_hpp` and `total_profit` but is not journaled. `total_profit` also ignores MDR fees.
-5. There is no period-lock check on void.
+3. `total_profit` ignores MDR fees.
+4. Void has no period-lock check of its own. None is needed: the reversal is dated today and the engine's period
+   lock applies to it, and only fully elapsed months can be closed.
+
+The FIFO shortfall fallback and the unjournaled manual-line cost were fixed on 2026-09-30 (transaction corrections).
