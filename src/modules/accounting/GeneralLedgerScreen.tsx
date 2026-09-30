@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  BookMarked, BookOpen, CreditCard, ExternalLink, FileText, Landmark, Lock, LockOpen, Plus, Scale, ShieldCheck, Users, Wallet,
+  BookMarked, BookOpen, CreditCard, ExternalLink, Factory, FileText, Landmark, Lock, LockOpen, Plus, Scale, ShieldCheck, Users, Wallet,
 } from 'lucide-react';
 import {
   ChartOfAccount,
@@ -19,6 +19,7 @@ import { useServerData } from './hooks/useServerData';
 import {
   AccountsPayableTab,
   CashBankTab,
+  FixedAssetsTab,
   GeneralLedgerTab,
   JournalTab,
   ManualJournalModal,
@@ -28,7 +29,7 @@ import {
   TrialBalanceTab,
 } from './components';
 
-export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'payables' | 'reports' | 'cash';
+export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'payables' | 'reports' | 'cash' | 'fixed-assets';
 
 interface GeneralLedgerScreenProps {
   ledgerVersion: number;
@@ -40,6 +41,8 @@ interface GeneralLedgerScreenProps {
   canUseHub: boolean;
   /** Izin `accounts_payable`: tab Pembantu Hutang (juga tampil dengan `accounting_hub`). */
   canUsePayables?: boolean;
+  /** Izin `fixed_assets`: register aset tetap & penyusutan. */
+  canManageFixedAssets?: boolean;
   onAddManualJournal: (payload: ManualJournalPayload) => Promise<boolean>;
   onReverseJournal: (journal: JournalEntry, reason: string) => Promise<boolean>;
   onClosePeriod: (period: string, notes: string) => Promise<boolean>;
@@ -52,7 +55,7 @@ interface GeneralLedgerScreenProps {
   canApproveCash?: boolean;
   /** Izin `cash_movement`: setor bank, prive, setoran modal. */
   canMoveCash?: boolean;
-  /** Dipanggil saat tab Kas & Bank membukukan jurnal. */
+  /** Dipanggil saat tab di layar ini (Kas & Bank, Aset Tetap) membukukan jurnal: App memuat ulang laporan dan saldo kas. */
   onLedgerChanged?: (journals: ApiJournal[]) => void;
 }
 
@@ -63,7 +66,23 @@ const TABS: { id: AccountingTabKey; label: string; icon: React.ComponentType<{ c
   { id: 'payables', label: '4. Pembantu Hutang', icon: CreditCard },
   { id: 'reports', label: '5. Laporan Keuangan', icon: FileText },
   { id: 'cash', label: '6. Kas & Bank', icon: Wallet },
+  { id: 'fixed-assets', label: '7. Aset Tetap', icon: Factory },
 ];
+
+interface TabAccess {
+  hub: boolean;
+  payables: boolean;
+  cash: boolean;
+  fixedAssets: boolean;
+}
+
+/** Laporan hub butuh accounting_hub; buku pembantu, kas dan modul SAK EMKM punya kunci izin sendiri (tanpa 403). */
+const isTabAllowed = (id: AccountingTabKey, access: TabAccess): boolean => {
+  if (id === 'cash') return access.cash;
+  if (id === 'fixed-assets') return access.fixedAssets;
+  if (id === 'payables') return access.hub || access.payables;
+  return access.hub;
+};
 
 export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   ledgerVersion,
@@ -73,6 +92,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   canReopenPeriod,
   canUseHub,
   canUsePayables = false,
+  canManageFixedAssets = false,
   onAddManualJournal,
   onReverseJournal,
   onClosePeriod,
@@ -85,11 +105,13 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   canMoveCash = false,
   onLedgerChanged = () => {},
 }) => {
-  const canManageCash = canApproveCash || canMoveCash;
-  // Peran tanpa accounting_hub hanya melihat tab yang endpoint-nya boleh ia panggil (tanpa 403).
-  const visibleTabs = TABS.filter((t) =>
-    t.id === 'cash' ? canManageCash : t.id === 'payables' ? canUseHub || canUsePayables : canUseHub,
-  );
+  const access: TabAccess = {
+    hub: canUseHub,
+    payables: canUsePayables,
+    cash: canApproveCash || canMoveCash,
+    fixedAssets: canManageFixedAssets,
+  };
+  const visibleTabs = TABS.filter((t) => isTabAllowed(t.id, access));
   const [selectedTab, setSelectedTab] = useState<AccountingTabKey>(initialTab);
   const activeTab = visibleTabs.some((t) => t.id === selectedTab) ? selectedTab : visibleTabs[0]?.id;
   const [isManualOpen, setIsManualOpen] = useState(false);
@@ -199,6 +221,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
         {activeTab === 'cash' && (
           <CashBankTab refreshKey={ledgerVersion} canApprove={canApproveCash} canMove={canMoveCash} onLedgerChanged={onLedgerChanged} />
         )}
+        {activeTab === 'fixed-assets' && <FixedAssetsTab refreshKey={ledgerVersion} onJournalsPosted={onLedgerChanged} />}
       </div>
 
       {canUseHub && (

@@ -1108,6 +1108,7 @@ function MainAppContent() {
                 canReopenPeriod={currentUser?.role === 'OWNER'}
                 canUseHub={can('accounting_hub')}
                 canUsePayables={can('accounts_payable')}
+                canManageFixedAssets={can('fixed_assets')}
                 onAddManualJournal={handleAddManualJournal}
                 onReverseJournal={handleReverseJournal}
                 onClosePeriod={handleClosePeriod}

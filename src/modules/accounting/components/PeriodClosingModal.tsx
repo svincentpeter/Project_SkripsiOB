@@ -104,7 +104,8 @@ export const PeriodClosingModal: React.FC<PeriodClosingModalProps> = ({ isOpen, 
           <p className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 leading-relaxed">
             Server membukukan jurnal penutup bertanggal {formatDateIndo(range.end)} yang memindahkan saldo seluruh akun pendapatan dan beban
             sampai tanggal itu ke Laba Ditahan (3-2000), termasuk bulan sebelumnya yang belum ditutup. Setelah itu transaksi bertanggal sampai
-            {' '}{formatDateIndo(range.end)} ditolak. Hanya pemilik yang dapat membuka kembali periode terakhir.
+            {' '}{formatDateIndo(range.end)} ditolak. Hanya pemilik yang dapat membuka kembali periode terakhir. Penyusutan aset tetap
+            sampai bulan ini harus sudah dijalankan (tab Aset Tetap), jika belum server menolak tutup buku.
           </p>
 
           <label className="block">

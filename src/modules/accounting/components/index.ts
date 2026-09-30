@@ -13,3 +13,5 @@ export * from './SakEmkmReportTab';
 export * from './PeriodPicker';
 export * from './ServerStatus';
 export * from './CashBankTab';
+export * from './FixedAssetModal';
+export * from './FixedAssetsTab';
