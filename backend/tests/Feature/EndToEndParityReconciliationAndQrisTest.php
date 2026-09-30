@@ -92,6 +92,7 @@ class EndToEndParityReconciliationAndQrisTest extends TestCase
 
     public function test_end_to_end_qris_midtrans_flow(): void
     {
+        config(['midtrans.server_key' => 'SB-Mid-server-phpunit', 'midtrans.allow_simulation' => true]);
         $orderId = 'POS-E2E-' . uniqid();
         $grossAmount = 500000;
 

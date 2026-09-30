@@ -10,30 +10,29 @@ use RuntimeException;
 class MidtransQrisService
 {
     protected string $serverKey;
-    protected string $clientKey;
     protected string $apiUrl;
-    protected bool $isProduction;
 
     public function __construct()
     {
-        $this->serverKey = config('midtrans.server_key', 'SB-Mid-server-TEST_KEY_DEMO_OMAHBAN');
-        $this->clientKey = config('midtrans.client_key', 'SB-Mid-client-TEST_KEY_DEMO_OMAHBAN');
-        $this->apiUrl = rtrim(config('midtrans.api_url', 'https://api.sandbox.midtrans.com'), '/');
-        $this->isProduction = (bool) config('midtrans.is_production', false);
+        // Tanpa kunci bawaan: kunci demo yang tertulis di repo membuat signature webhook bisa dipalsukan.
+        $this->serverKey = (string) config('midtrans.server_key');
+        $this->apiUrl = rtrim((string) config('midtrans.api_url'), '/');
     }
 
     /**
      * Membuat transaksi QRIS Dinamis melalui Midtrans Core API.
      *
-     * @param  string  $orderId  Nomor unik nota / invoice (misal POS-20260910-001)
+     * @param  string  $orderId  Nomor unik order QRIS (misal POS-1727650000000)
      * @param  int  $grossAmount  Nominal tagihan dalam Rupiah
      * @param  array  $customerDetails  Data opsional pelanggan
-     * @return array
      */
     public function createCharge(string $orderId, int $grossAmount, array $customerDetails = []): array
     {
         if ($grossAmount <= 0) {
             throw new RuntimeException('Nominal transaksi harus lebih besar dari Rp 0.');
+        }
+        if ($this->serverKey === '') {
+            return $this->fallbackOrFail($orderId, $grossAmount, 'MIDTRANS_SERVER_KEY belum diatur.');
         }
 
         $payload = [
@@ -57,38 +56,37 @@ class MidtransQrisService
                     'Content-Type' => 'application/json',
                 ])
                 ->post("{$this->apiUrl}/v2/charge", $payload);
-
-            $data = $response->json();
-
-            if ($response->successful() && isset($data['qr_string'])) {
-                $qrUrl = null;
-                if (! empty($data['actions'])) {
-                    foreach ($data['actions'] as $action) {
-                        if (($action['name'] ?? '') === 'generate-qr-code') {
-                            $qrUrl = $action['url'] ?? null;
-                            break;
-                        }
-                    }
-                }
-
-                return [
-                    'order_id' => $data['order_id'] ?? $orderId,
-                    'gross_amount' => (int) ($data['gross_amount'] ?? $grossAmount),
-                    'transaction_id' => $data['transaction_id'] ?? null,
-                    'transaction_status' => $data['transaction_status'] ?? 'pending',
-                    'qr_string' => $data['qr_string'],
-                    'qr_url' => $qrUrl,
-                    'expiry_time' => $data['expiry_time'] ?? now()->addMinutes(15)->toIso8601String(),
-                ];
-            }
-
-            // Jika response API gagal (misal invalid demo key), fallback ke generated simulation QR string
-            Log::warning('Midtrans API charge tidak mengembalikan QR string, fallback simulasi aktif', ['response' => $data]);
-            return $this->generateFallbackCharge($orderId, $grossAmount);
         } catch (\Throwable $e) {
             Log::error('Koneksi Midtrans charge gagal', ['exception' => $e]);
-            return $this->generateFallbackCharge($orderId, $grossAmount);
+
+            return $this->fallbackOrFail($orderId, $grossAmount, 'koneksi ke Midtrans gagal.');
         }
+
+        $data = $response->json();
+
+        if ($response->successful() && isset($data['qr_string'])) {
+            $qrUrl = null;
+            foreach ($data['actions'] ?? [] as $action) {
+                if (($action['name'] ?? '') === 'generate-qr-code') {
+                    $qrUrl = $action['url'] ?? null;
+                    break;
+                }
+            }
+
+            return [
+                'order_id' => $data['order_id'] ?? $orderId,
+                'gross_amount' => (int) ($data['gross_amount'] ?? $grossAmount),
+                'transaction_id' => $data['transaction_id'] ?? null,
+                'transaction_status' => $data['transaction_status'] ?? 'pending',
+                'qr_string' => $data['qr_string'],
+                'qr_url' => $qrUrl,
+                'expiry_time' => $data['expiry_time'] ?? now()->addMinutes(15)->toIso8601String(),
+            ];
+        }
+
+        Log::warning('Midtrans API charge tidak mengembalikan QR string', ['response' => $data]);
+
+        return $this->fallbackOrFail($orderId, $grossAmount, $data['status_message'] ?? 'respons Midtrans tidak berisi kode QR.');
     }
 
     /**
@@ -109,6 +107,10 @@ class MidtransQrisService
                 'settlement_time' => now()->toIso8601String(),
                 'is_simulated' => true,
             ];
+        }
+
+        if ($this->serverKey === '') {
+            return ['order_id' => $orderId, 'transaction_status' => 'pending', 'payment_type' => 'qris', 'is_simulated' => false];
         }
 
         try {
@@ -164,6 +166,19 @@ class MidtransQrisService
             'settlement_time' => now()->toIso8601String(),
             'message' => 'Status pembayaran berhasil disimulasikan LUNAS (Settlement).',
         ];
+    }
+
+    /**
+     * QR cadangan hanya boleh di mode demo sandbox; di luar itu kasir harus tahu QRIS gagal dibuat
+     * (QR palsu tidak bisa dibayar pelanggan).
+     */
+    protected function fallbackOrFail(string $orderId, int $grossAmount, string $reason): array
+    {
+        if (! config('midtrans.allow_simulation')) {
+            throw new RuntimeException($reason);
+        }
+
+        return $this->generateFallbackCharge($orderId, $grossAmount);
     }
 
     /**

@@ -40,7 +40,8 @@ class PaymentApiController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'QRIS Dinamis berhasil dibuat.',
-                'data' => $data,
+                // Kasir hanya menampilkan tombol simulasi bila server mengizinkannya.
+                'data' => $data + ['simulation_enabled' => (bool) config('midtrans.allow_simulation')],
             ]);
         } catch (\Throwable $e) {
             Log::error('Gagal membuat QRIS charge', ['exception' => $e]);
@@ -81,6 +82,13 @@ class PaymentApiController extends Controller
      */
     public function simulateQrisSettlement(string $orderId): JsonResponse
     {
+        if (! config('midtrans.allow_simulation')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Simulasi pembayaran QRIS hanya tersedia di mode demo sandbox.',
+            ], 403);
+        }
+
         try {
             $result = $this->qrisService->simulateSettlement($orderId);
 
@@ -109,8 +117,10 @@ class PaymentApiController extends Controller
         $transactionStatus = $payload['transaction_status'] ?? null;
 
         // Notifikasi Midtrans sah hanya bila signature_key = sha512(order_id + status_code + gross_amount + server_key).
-        $expected = hash('sha512', ($payload['order_id'] ?? '').($payload['status_code'] ?? '').($payload['gross_amount'] ?? '').config('midtrans.server_key'));
-        if (! is_string($payload['signature_key'] ?? null) || ! hash_equals($expected, $payload['signature_key'])) {
+        // Tanpa server key, sha512 atas string publik bisa dihitung siapa saja: tolak semua notifikasi.
+        $serverKey = (string) config('midtrans.server_key');
+        $expected = hash('sha512', ($payload['order_id'] ?? '').($payload['status_code'] ?? '').($payload['gross_amount'] ?? '').$serverKey);
+        if ($serverKey === '' || ! is_string($payload['signature_key'] ?? null) || ! hash_equals($expected, $payload['signature_key'])) {
             Log::warning('Midtrans webhook ditolak: signature tidak valid', ['order_id' => $orderId]);
 
             return response()->json(['success' => false, 'message' => 'Signature notifikasi tidak valid.'], 403);
