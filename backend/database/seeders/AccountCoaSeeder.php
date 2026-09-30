@@ -27,6 +27,7 @@ class AccountCoaSeeder extends Seeder
             ['account_code' => '4-1001', 'account_name' => 'Pendapatan Jasa Servis & Spooring', 'account_type' => 'REVENUE', 'normal_balance' => 'CREDIT'],
             ['account_code' => '4-2000', 'account_name' => 'Pendapatan Surcharge EDC', 'account_type' => 'REVENUE', 'normal_balance' => 'CREDIT', 'is_active' => false],
             ['account_code' => '4-9000', 'account_name' => 'Potongan Diskon Penjualan', 'account_type' => 'REVENUE', 'normal_balance' => 'DEBIT'],
+            ['account_code' => '4-9100', 'account_name' => 'Retur Penjualan', 'account_type' => 'REVENUE', 'normal_balance' => 'DEBIT'],
             ['account_code' => '5-1000', 'account_name' => 'Harga Pokok Penjualan (HPP) Ban Baru', 'account_type' => 'EXPENSE', 'normal_balance' => 'DEBIT'],
             ['account_code' => '5-2000', 'account_name' => 'Selisih Persediaan (Opname)', 'account_type' => 'EXPENSE', 'normal_balance' => 'DEBIT'],
             ['account_code' => '6-1000', 'account_name' => 'Beban Gaji & Uang Makan Karyawan', 'account_type' => 'EXPENSE', 'normal_balance' => 'DEBIT'],
