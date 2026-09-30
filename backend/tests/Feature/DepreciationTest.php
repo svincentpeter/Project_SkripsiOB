@@ -4,7 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\FixedAsset;
 use App\Models\JournalEntry;
+use App\Models\User;
+use App\Services\Accounting\PeriodClosingService;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -188,5 +192,57 @@ class DepreciationTest extends TestCase
         $this->actingAsRole('KASIR');
         $this->getJson(self::RUN.'?period=2019-01')->assertForbidden();
         $this->runPeriod('2019-01')->assertForbidden();
+    }
+
+    public function test_reopening_a_month_caught_up_later_does_not_depreciate_it_again(): void
+    {
+        $this->postJson('/api/v1/accounting/periods/close', ['period' => '2019-01'])->assertCreated();
+        $id = $this->openingAsset();
+        $this->runPeriod('2019-02')->assertCreated()->assertJsonPath('data.journals.0.total_debit', 200000);
+        $this->postJson('/api/v1/accounting/periods/2019-01/reopen', ['reason' => 'Koreksi'])->assertOk();
+
+        $this->getJson(self::RUN.'?period=2019-01')->assertOk()->assertJsonPath('data.total', 0);
+        $this->postJson('/api/v1/accounting/periods/close', ['period' => '2019-01'])->assertCreated();
+
+        $this->assertSame(1, JournalEntry::where('reference_type', 'DEPRECIATION')->count());
+        $this->assertEquals(200000, $this->accumulated($id));
+    }
+
+    public function test_fully_depreciated_asset_has_nothing_pending_after_its_useful_life(): void
+    {
+        $id = $this->openingAsset(['acquisition_cost' => 300000, 'useful_life_months' => 3]);
+        foreach (['2019-01', '2019-02', '2019-03'] as $period) {
+            $this->runPeriod($period)->assertCreated();
+        }
+
+        $this->getJson(self::RUN.'?period=2019-09')->assertOk()->assertJsonPath('data.total', 0)->assertJsonPath('data.lines', []);
+        $this->runPeriod('2019-09')->assertOk()->assertJsonPath('data.journals', []);
+        $this->assertEquals(300000, $this->accumulated($id));
+    }
+
+    /**
+     * Snapshot REPEATABLE READ dibuat pada bacaan biasa pertama. Tutup buku harus sudah memegang kunci register
+     * (X 1-3999) sebelum bacaan biasa pertamanya, agar saldo yang ditutup memuat penyusutan yang commit selama menunggu.
+     * Transaksi pembungkus tes sudah punya snapshot sejak setUp, jadi yang diuji adalah urutan kuerinya.
+     */
+    public function test_period_close_takes_the_register_lock_before_its_first_plain_read(): void
+    {
+        $user = User::firstOrFail();
+        $queries = [];
+        DB::listen(function (QueryExecuted $q) use (&$queries) {
+            $queries[] = $q;
+        });
+
+        app(PeriodClosingService::class)->close('2019-01', null, $user);
+
+        $isRegisterLock = fn (QueryExecuted $q) => str_contains($q->sql, 'for update') && in_array('1-3999', $q->bindings, true);
+        $isPlainRead = fn (QueryExecuted $q) => str_starts_with(strtolower($q->sql), 'select')
+            && ! str_contains($q->sql, 'for update') && ! str_contains($q->sql, 'lock in share mode');
+        $lockAt = collect($queries)->search($isRegisterLock);
+        $firstPlainRead = collect($queries)->search($isPlainRead);
+
+        $this->assertNotFalse($lockAt);
+        $this->assertNotFalse($firstPlainRead);
+        $this->assertLessThan($firstPlainRead, $lockAt);
     }
 }

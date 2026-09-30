@@ -19,6 +19,9 @@ class PeriodClosingService
 {
     public const RETAINED_EARNINGS = '3-2000';
 
+    /** Percobaan ulang saat deadlock, mis. X 1-3999 → nomor JRN vs saldo awal (nomor JRN → FK S 1-3999). */
+    private const ATTEMPTS = 3;
+
     public function __construct(
         private readonly AccountingEngine $engine,
         private readonly DepreciationService $depreciation,
@@ -45,6 +48,10 @@ class PeriodClosingService
 
         return DB::transaction(function () use ($period, $end, $notes, $user) {
             $this->serialize();
+            // Kunci register sebelum bacaan biasa pertama: snapshot REPEATABLE READ lalu dibuat setelah kunci diperoleh,
+            // sehingga saldo yang ditutup memuat penyusutan yang commit selama menunggu. Urutan X 3-2000 → X 1-3999 →
+            // nomor JRN; tidak ada alur yang memegang 1-3999 lalu meminta 3-2000.
+            FixedAssetService::lockRegister();
 
             $lock = PeriodLock::lockDate();
             if ($lock !== null && $end <= $lock) {
@@ -52,9 +59,7 @@ class PeriodClosingService
             }
 
             // Basis akrual SAK EMKM: beban penyusutan sampai bulan ini harus dibukukan sebelum periodenya dikunci.
-            // Urutan kunci X 3-2000 → X 1-3999 (register) → nomor JRN; tidak ada alur yang memegang 1-3999 lalu meminta 3-2000.
-            FixedAssetService::lockRegister();
-            $pending = $this->depreciation->pendingTotal($period);
+            $pending = $this->depreciation->pendingTotal($period, true);
             if ($pending > 0) {
                 throw new PosRuleException('Penyusutan aset tetap sampai '.$period.' belum dibukukan (Rp '
                     .number_format($pending, 0, ',', '.').'). Jalankan penyusutan periode itu di tab Aset Tetap sebelum tutup buku.');
@@ -95,7 +100,7 @@ class PeriodClosingService
                 'closed_by' => $user->id,
                 'closed_at' => now(),
             ]);
-        }, 3); // percobaan ulang saat deadlock, mis. X 1-3999 → nomor JRN vs saldo awal (nomor JRN → FK S 1-3999)
+        }, self::ATTEMPTS);
     }
 
     public function reopen(string $period, string $reason, User $user): AccountingPeriodClosing

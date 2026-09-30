@@ -13,8 +13,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Penyusutan garis lurus bulanan. Satu jurnal per bulan (Dr 6-1011 per aset / Cr 1-3999), bertanggal akhir bulan.
- * Jumlah per aset = penyusutan kumulatif yang seharusnya s/d bulan itu − yang sudah dibukukan s/d bulan itu,
- * sehingga menjalankan ulang tidak membukukan apa pun dan bulan yang terlanjur dikunci tersusul otomatis.
+ * Jumlah per aset = penyusutan kumulatif yang seharusnya s/d bulan itu − seluruh yang sudah dibukukan (bulan apa pun),
+ * sehingga menjalankan ulang tidak membukukan apa pun, bulan yang terlanjur dikunci tersusul otomatis, dan bulan yang
+ * dibuka kembali setelah tersusul di bulan berikutnya tidak disusutkan dua kali.
  */
 class DepreciationService
 {
@@ -34,23 +35,23 @@ class DepreciationService
     }
 
     /**
-     * Bacaan berkunci (current read): run() dan gerbang tutup buku memutuskan di bawah lockRegister(), dan snapshot
-     * REPEATABLE READ yang dibuat sebelum kunci diperoleh tidak melihat penyusutan/aset yang commit selama menunggu.
+     * $locking: bacaan berkunci (current read) untuk keputusan di bawah lockRegister() (run() dan gerbang tutup buku);
+     * snapshot REPEATABLE READ yang dibuat sebelum kunci diperoleh tidak melihat penyusutan/aset yang commit selama menunggu.
+     * Pratinjau (GET) membaca tanpa kunci.
      *
      * @return list<array{asset: FixedAsset, amount: float}>
      */
-    public function pendingLines(string $period): array
+    public function pendingLines(string $period, bool $locking = false): array
     {
         $assets = FixedAsset::where('status', 'ACTIVE')
             ->where('depreciation_start', '<=', $period)
             ->orderBy('code')
-            ->sharedLock()
+            ->when($locking, fn ($q) => $q->sharedLock())
             ->get();
         $posted = FixedAssetDepreciation::whereIn('fixed_asset_id', $assets->modelKeys())
-            ->where('period', '<=', $period)
             ->groupBy('fixed_asset_id')
             ->selectRaw('fixed_asset_id, SUM(amount) AS total')
-            ->sharedLock()
+            ->when($locking, fn ($q) => $q->sharedLock())
             ->pluck('total', 'fixed_asset_id');
 
         $lines = [];
@@ -64,9 +65,9 @@ class DepreciationService
         return $lines;
     }
 
-    public function pendingTotal(string $period): float
+    public function pendingTotal(string $period, bool $locking = false): float
     {
-        return round(array_sum(array_column($this->pendingLines($period), 'amount')), 2);
+        return round(array_sum(array_column($this->pendingLines($period, $locking), 'amount')), 2);
     }
 
     public function preview(string $period): array
@@ -80,7 +81,7 @@ class DepreciationService
             'period' => $period,
             'end_date' => $end,
             'is_locked' => $lock !== null && $end <= $lock,
-            'blocked_reason' => $this->blockedReason($period),
+            'blocked_reason' => $this->blockedReason($period, false),
             'lines' => array_map(fn (array $l) => [
                 'fixed_asset_id' => $l['asset']->id,
                 'code' => $l['asset']->code,
@@ -107,12 +108,12 @@ class DepreciationService
         return DB::transaction(function () use ($period) {
             FixedAssetService::lockRegister();
 
-            $reason = $this->blockedReason($period);
+            $reason = $this->blockedReason($period, true);
             if ($reason !== null) {
                 throw new PosRuleException($reason);
             }
 
-            $lines = $this->pendingLines($period);
+            $lines = $this->pendingLines($period, true);
             if ($lines === []) {
                 return null;
             }
@@ -139,9 +140,9 @@ class DepreciationService
     }
 
     /** Alasan penyusutan $period belum boleh dibukukan, atau null. */
-    private function blockedReason(string $period): ?string
+    private function blockedReason(string $period, bool $locking): ?string
     {
-        $lock = PeriodLock::lockDate(locking: true);
+        $lock = PeriodLock::lockDate($locking);
         if ($lock !== null && self::endOf($period) <= $lock) {
             return "Periode {$period} sudah ditutup; penyusutannya tidak dapat dibukukan lagi.";
         }
@@ -149,7 +150,7 @@ class DepreciationService
         // Bulan sebelumnya yang masih terbuka harus disusutkan dulu, agar beban tiap bulan jatuh di bulannya.
         $previous = Carbon::parse($period.'-01')->subMonthNoOverflow()->format('Y-m');
         $previousOpen = $lock === null || self::endOf($previous) > $lock;
-        if ($previousOpen && $this->pendingTotal($previous) > 0) {
+        if ($previousOpen && $this->pendingTotal($previous, $locking) > 0) {
             return "Penyusutan {$previous} belum dijalankan. Jalankan penyusutan bulan itu lebih dulu.";
         }
 
