@@ -19,9 +19,10 @@ import {
   Sparkles,
   Calendar,
 } from 'lucide-react';
-import { CartItem, PaymentMethod, StoreSettings, SplitPaymentLine } from '../../../shared/types';
+import { CartItem, PaymentMethod, PaymentProviderSetting, SplitPaymentLine } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
-import { INITIAL_BANK_PROVIDERS, INITIAL_QRIS_PROVIDERS } from '../../../shared/data/mockData';
+import { paymentApi, PaymentOptions } from '../../../services/api/paymentApi';
+import { useServerData } from '../../accounting/hooks/useServerData';
 import { QrisDynamicModal } from './QrisDynamicModal';
 
 interface CheckoutModalProps {
@@ -37,7 +38,6 @@ interface CheckoutModalProps {
     grandTotal: number;
   };
   netPayable: number;
-  storeSettings?: StoreSettings;
   onPrintPhysicalNota: () => void;
   onParkCart: () => void;
   onConfirmCheckout: (
@@ -45,6 +45,7 @@ interface CheckoutModalProps {
     cashTendered: number,
     notes?: string,
     paymentMeta?: {
+      provider_id?: number;
       provider_name?: string;
       fee_percentage?: number;
       fee_amount?: number;
@@ -64,7 +65,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   vehicleModel,
   totals,
   netPayable,
-  storeSettings,
   onPrintPhysicalNota,
   onParkCart,
   onConfirmCheckout,
@@ -84,8 +84,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [isSplitMode, setIsSplitMode] = useState<boolean>(false);
   const [splitRows, setSplitRows] = useState<SplitPaymentLine[]>([]);
 
-  const bankOptions = (storeSettings?.bank_providers || INITIAL_BANK_PROVIDERS).filter((b) => b.is_active);
-  const qrisOptions = (storeSettings?.qris_providers || INITIAL_QRIS_PROVIDERS).filter((q) => q.is_active);
+  // Provider transfer & QRIS dari server: fee MDR yang tampil sama dengan yang dibukukan checkout.
+  const paymentOptions = useServerData<PaymentOptions | null>(
+    () => (isOpen ? paymentApi.getPaymentOptions() : Promise.resolve(null)),
+    [isOpen]
+  );
+  const bankOptions = (paymentOptions.data?.bank_providers ?? []).filter((b) => b.is_active);
+  const qrisOptions = (paymentOptions.data?.qris_providers ?? []).filter((q) => q.is_active);
+
+  /** Id provider server untuk nama pilihan kasir; QRIS jatuh ke provider pertama, sama seperti hitungan fee. */
+  const providerIdOf = (options: PaymentProviderSetting[], name?: string, fallbackToFirst = false): number | undefined => {
+    const found = options.find((o) => o.provider_name === name) ?? (fallbackToFirst ? options[0] : undefined);
+    return found ? Number(found.id) : undefined;
+  };
 
   useEffect(() => {
     if (bankOptions.length > 0 && !bankOptions.some((b) => b.provider_name === selectedBank)) {
@@ -234,7 +245,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const handleQrisPaymentSuccess = () => {
     setIsQrisModalOpen(false);
     onConfirmCheckout('QRIS', netPayable, transactionNotes.trim() || undefined, {
-      provider_name: 'Midtrans QRIS',
+      provider_id: providerIdOf(qrisOptions, selectedQris, true),
       reference: qrisOrderId,
       fee_percentage: qrisFeePct,
       fee_amount: qrisFeeAmount,
@@ -246,7 +257,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     if (isSplitMode ? isSplitShort : isCashShort) return;
 
     if (!isSplitMode && paymentMethod === 'QRIS' && qrisFlowType === 'DYNAMIC') {
-      const generatedOrderId = `POS-${Date.now().toString().slice(-8)}`;
+      // Nomor order unik penuh: server menolak order QRIS yang sudah dipakai nota lain.
+      const generatedOrderId = `POS-${Date.now()}`;
       setQrisOrderId(generatedOrderId);
       setIsQrisModalOpen(true);
       return;
@@ -257,6 +269,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         const calcs = calculateRowMeta(row);
         return {
           ...row,
+          provider_id:
+            row.method === 'QRIS'
+              ? providerIdOf(qrisOptions, row.provider_name, true)
+              : row.method === 'TUNAI'
+              ? undefined
+              : providerIdOf(bankOptions, row.provider_name),
           fee_percentage: calcs.feePct,
           fee_amount: calcs.feeAmt,
           net_received: calcs.netRec,
@@ -281,6 +299,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       paymentMethod === 'TUNAI' ? cashTenderedVal : netPayable,
       transactionNotes.trim() || undefined,
       {
+        provider_id: isTransfer
+          ? providerIdOf(bankOptions, selectedBank)
+          : paymentMethod === 'QRIS'
+          ? providerIdOf(qrisOptions, selectedQris, true)
+          : undefined,
         provider_name: isTransfer ? selectedBank : paymentMethod === 'QRIS' ? selectedQris : undefined,
         fee_percentage: paymentMethod === 'QRIS' ? qrisFeePct : 0,
         fee_amount: paymentMethod === 'QRIS' ? qrisFeeAmount : 0,
@@ -698,7 +721,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             </button>
                           </div>
 
-                          {qrisFlowType === 'DYNAMIC' ? (
+                          {qrisFlowType === 'DYNAMIC' && (
                             <div className="bg-white/80 p-3 rounded-xl border border-cyan-200 space-y-2">
                               <div className="flex items-start gap-2 text-cyan-900">
                                 <div className="w-6 h-6 rounded-lg bg-cyan-100 flex items-center justify-center text-cyan-700 shrink-0 mt-0.5">
@@ -714,11 +737,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                 </div>
                               </div>
                             </div>
-                          ) : (
-                            <div className="space-y-2">
+                          )}
+
+                          {/* Provider menentukan potongan MDR yang dihitung server, di mode dinamis maupun statis. */}
+                          <div className="space-y-2">
                               <span className="text-[11px] font-semibold text-cyan-800 block">
-                                Pilih Rekening Merchant QRIS:
+                                Provider QRIS (menentukan potongan MDR):
                               </span>
+                              {paymentOptions.error && (
+                                <span className="text-[11px] font-semibold text-rose-700 block">
+                                  Gagal memuat provider pembayaran: {paymentOptions.error}
+                                </span>
+                              )}
                               <div className="flex flex-wrap gap-1.5">
                                 {qrisOptions.map((qris) => (
                                   <button
@@ -735,8 +765,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                   </button>
                                 ))}
                               </div>
-                            </div>
-                          )}
+                          </div>
 
                           <div className="pt-2 border-t border-cyan-200/80 space-y-1.5 text-[11px]">
                             {netPayable > qrisThreshold && qrisFeePct > 0 ? (

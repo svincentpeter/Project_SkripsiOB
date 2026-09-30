@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ApiSale, buildPayments, cartLineToPayload, mapSaleToTransaction, serviceCartProduct } from '../api/posMappers';
+import { ApiSale, buildPayments, cartLineToPayload, mapPaymentProvider, mapSaleToTransaction, serviceCartProduct } from '../api/posMappers';
 import { CartItem, ProductItem, ServiceMasterItem } from '../../shared/types';
 
 const product = { id: '42', product_name: 'Bridgestone Ecopia', name: 'Bridgestone Ecopia', product_price: 900000, stock: 5 } as ProductItem;
@@ -39,28 +39,32 @@ describe('cartLineToPayload', () => {
 
 describe('buildPayments', () => {
   it('single cash keeps tendered amount for change', () => {
-    expect(buildPayments('TUNAI', 950000, 1000000)).toEqual([
-      expect.objectContaining({ method: 'TUNAI', amount: 950000, tendered: 1000000, fee_percentage: 0 }),
-    ]);
+    const rows = buildPayments('TUNAI', 950000, 1000000, { provider_id: 3 });
+    expect(rows).toEqual([expect.objectContaining({ method: 'TUNAI', amount: 950000, tendered: 1000000 })]);
+    expect(rows[0].provider_id).toBeUndefined();
   });
 
-  it('only sends QRIS fee percentage when a fee was charged', () => {
-    expect(buildPayments('QRIS', 400000, 0, { fee_percentage: 0.7, fee_amount: 0 })[0].fee_percentage).toBe(0);
-    expect(buildPayments('QRIS', 900000, 0, { fee_percentage: 0.7, fee_amount: 6300, reference: 'POS-1' })[0])
-      .toMatchObject({ fee_percentage: 0.7, reference: 'POS-1' });
+  it('sends the server provider id and never a client fee or provider name', () => {
+    const [row] = buildPayments('QRIS', 900000, 0, {
+      provider_id: 3, provider_name: 'BCA', fee_percentage: 0.7, fee_amount: 6300, reference: 'POS-1',
+    });
+    expect(row).toEqual({ method: 'QRIS', amount: 900000, tendered: undefined, provider_id: 3, reference: 'POS-1' });
+    expect(row).not.toHaveProperty('fee_percentage');
+    expect(row).not.toHaveProperty('provider_name');
   });
 
   it('split overpay becomes change taken from the cash row', () => {
     const rows = buildPayments('SPLIT', 1000000, 0, {
       split_payments: [
         { id: 'a', method: 'TUNAI', amount: 500000 },
-        { id: 'b', method: 'QRIS', provider_name: 'BCA', amount: 600000, fee_percentage: 0.3, fee_amount: 1800 },
+        { id: 'b', method: 'QRIS', provider_name: 'BCA', provider_id: 5, amount: 600000, fee_percentage: 0.3, fee_amount: 1800 },
       ],
     });
     expect(rows).toEqual([
       expect.objectContaining({ method: 'TUNAI', amount: 400000, tendered: 500000 }),
-      expect.objectContaining({ method: 'QRIS', amount: 600000, fee_percentage: 0.3, provider_name: 'BCA' }),
+      expect.objectContaining({ method: 'QRIS', amount: 600000, provider_id: 5 }),
     ]);
+    rows.forEach((row) => expect(row).not.toHaveProperty('fee_percentage'));
   });
 
   it('sends no payment rows for a Rp 0 sale', () => {
@@ -78,6 +82,20 @@ describe('buildPayments', () => {
       }),
     ];
     rows.forEach((row) => expect(removedKeys(row, REMOVED_PAYMENT_KEYS)).toEqual([]));
+  });
+});
+
+describe('mapPaymentProvider', () => {
+  it('turns server decimal strings into numbers', () => {
+    expect(
+      mapPaymentProvider({
+        id: 4, method_type: 'qris', provider_name: 'BCA', provider_code: null,
+        fee_percentage: '0.30', fee_threshold_amount: '500000.00', is_active: true,
+      })
+    ).toEqual({
+      id: 4, method_type: 'qris', provider_name: 'BCA', provider_code: undefined,
+      fee_percentage: 0.3, fee_threshold_amount: 500000, is_active: true,
+    });
   });
 });
 

@@ -152,6 +152,7 @@ export interface SplitPaymentLine {
   method: PaymentMethod;
   amount: number;
   provider_name?: string;
+  provider_id?: number; // id payment_provider_settings di server (fee dihitung server)
   fee_percentage?: number;
   fee_amount?: number;
   net_received?: number;

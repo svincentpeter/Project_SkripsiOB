@@ -2,6 +2,7 @@ import {
   CartItem,
   JournalEntry,
   PaymentMethod,
+  PaymentProviderSetting,
   PosTransaction,
   ProductItem,
   ServiceMasterItem,
@@ -105,12 +106,12 @@ export interface CartLinePayload {
   cost_price?: number;
 }
 
+/** Fee MDR dan nama provider dihitung server dari provider_id (payment_provider_settings); klien tidak mengirimnya. */
 export interface PaymentPayload {
   method: 'TUNAI' | 'TRANSFER' | 'TRANSFER_BCA' | 'QRIS';
   amount: number;
   tendered?: number;
-  fee_percentage?: number;
-  provider_name?: string;
+  provider_id?: number;
   reference?: string;
 }
 
@@ -127,6 +128,7 @@ export interface CheckoutPayload {
 
 /** Data pembayaran yang dikumpulkan CheckoutModal. */
 export interface CheckoutPaymentMeta {
+  provider_id?: number;
   provider_name?: string;
   fee_percentage?: number;
   fee_amount?: number;
@@ -183,8 +185,8 @@ export const cartLineToPayload = (item: CartItem): CartLinePayload => {
 };
 
 /**
- * Susun baris pembayaran dari hasil CheckoutModal. Persentase fee hanya dikirim bila
- * modal memang membebankan fee (MDR QRIS di atas ambang), sehingga server menghitung nominal yang sama.
+ * Susun baris pembayaran dari hasil CheckoutModal. Klien hanya menyebut provider (provider_id);
+ * persentase dan nominal fee MDR dihitung server dari pengaturan provider yang sama.
  */
 export const buildPayments = (
   method: PaymentMethod,
@@ -199,8 +201,7 @@ export const buildPayments = (
         method: m,
         amount: num(row.amount),
         tendered: m === 'TUNAI' ? num(row.amount) : undefined,
-        fee_percentage: num(row.fee_amount) > 0 ? num(row.fee_percentage) : 0,
-        provider_name: row.provider_name,
+        provider_id: m === 'TUNAI' ? undefined : row.provider_id,
       };
     });
 
@@ -226,8 +227,7 @@ export const buildPayments = (
       method: m,
       amount: amountDue,
       tendered: m === 'TUNAI' ? cashTendered : undefined,
-      fee_percentage: num(meta.fee_amount) > 0 ? num(meta.fee_percentage) : 0,
-      provider_name: meta.provider_name,
+      provider_id: m === 'TUNAI' ? undefined : meta.provider_id,
       reference: meta.reference,
     },
   ];
@@ -355,3 +355,28 @@ export const mapSaleToTransaction = (s: ApiSale): PosTransaction => {
   };
 };
 
+
+// ---------------------------------------------------------------------------
+// Provider pembayaran (payment_provider_settings)
+// ---------------------------------------------------------------------------
+
+/** Baris payment_provider_settings dari server; kolom desimal datang sebagai string ("0.30"). */
+export interface ApiPaymentProvider {
+  id: number;
+  method_type: 'bank' | 'qris';
+  provider_name: string;
+  provider_code?: string | null;
+  fee_percentage: number | string;
+  fee_threshold_amount: number | string;
+  is_active: boolean;
+}
+
+export const mapPaymentProvider = (p: ApiPaymentProvider): PaymentProviderSetting => ({
+  id: p.id,
+  method_type: p.method_type,
+  provider_name: p.provider_name,
+  provider_code: p.provider_code ?? undefined,
+  fee_percentage: num(p.fee_percentage),
+  fee_threshold_amount: num(p.fee_threshold_amount),
+  is_active: !!p.is_active,
+});

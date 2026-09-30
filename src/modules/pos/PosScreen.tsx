@@ -1350,7 +1350,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         vehicleModel={vehicleModel}
         totals={totals}
         netPayable={netPayable}
-        storeSettings={storeSettings}
         onPrintPhysicalNota={handlePrintCurrentCartNota}
         onParkCart={handleParkCurrentCart}
         onConfirmCheckout={handleConfirmCheckoutFromModal}

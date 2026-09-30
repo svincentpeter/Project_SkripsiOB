@@ -343,8 +343,8 @@ export const QrisDynamicModal: React.FC<QrisDynamicModalProps> = ({
             </div>
           )}
 
-          {/* Sandbox & Demo Assist Bar */}
-          {!isLoading && !isSettled && (
+          {/* Sandbox & Demo Assist Bar: hanya bila server mengizinkan simulasi (MIDTRANS_ALLOW_SIMULATION) */}
+          {!isLoading && !isSettled && chargeData?.simulation_enabled && (
             <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
