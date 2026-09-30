@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FixedAssetRequest;
 use App\Models\FixedAsset;
+use App\Services\Accounting\DepreciationService;
 use App\Services\Accounting\FixedAssetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -62,5 +63,26 @@ class FixedAssetController extends Controller
                 'journals' => $result['journal'] ? [$result['journal']->toApiArray()] : [],
             ],
         ]);
+    }
+
+    public function depreciationPreview(Request $request, DepreciationService $depreciation): JsonResponse
+    {
+        $data = $request->validate(['period' => 'required|date_format:Y-m']);
+
+        return response()->json(['success' => true, 'data' => $depreciation->preview($data['period'])]);
+    }
+
+    public function runDepreciation(Request $request, DepreciationService $depreciation): JsonResponse
+    {
+        $data = $request->validate(['period' => 'required|date_format:Y-m']);
+        $entry = $depreciation->run($data['period']);
+
+        return response()->json([
+            'success' => true,
+            'message' => $entry
+                ? "Penyusutan {$data['period']} dibukukan ({$entry->entry_number})."
+                : "Tidak ada penyusutan yang perlu dibukukan untuk {$data['period']}.",
+            'data' => ['journals' => $entry ? [$entry->toApiArray()] : []],
+        ], $entry ? 201 : 200);
     }
 }

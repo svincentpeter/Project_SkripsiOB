@@ -11,9 +11,10 @@ use Illuminate\Support\Carbon;
  */
 final class PeriodLock
 {
-    public static function lockDate(): ?string
+    /** $locking: bacaan berkunci (S) untuk keputusan yang diambil di bawah kunci lain. */
+    public static function lockDate(bool $locking = false): ?string
     {
-        $date = AccountingPeriodClosing::whereNull('reopened_at')->max('end_date');
+        $date = AccountingPeriodClosing::whereNull('reopened_at')->when($locking, fn ($q) => $q->sharedLock())->max('end_date');
 
         return $date ? Carbon::parse($date)->toDateString() : null;
     }

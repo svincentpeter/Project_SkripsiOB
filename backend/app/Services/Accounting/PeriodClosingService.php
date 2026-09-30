@@ -19,8 +19,10 @@ class PeriodClosingService
 {
     public const RETAINED_EARNINGS = '3-2000';
 
-    public function __construct(private readonly AccountingEngine $engine)
-    {
+    public function __construct(
+        private readonly AccountingEngine $engine,
+        private readonly DepreciationService $depreciation,
+    ) {
     }
 
     public function summary(): array
@@ -47,6 +49,15 @@ class PeriodClosingService
             $lock = PeriodLock::lockDate();
             if ($lock !== null && $end <= $lock) {
                 throw new PosRuleException("Periode {$period} sudah termasuk periode yang ditutup (sampai {$lock}).");
+            }
+
+            // Basis akrual SAK EMKM: beban penyusutan sampai bulan ini harus dibukukan sebelum periodenya dikunci.
+            // Urutan kunci X 3-2000 → X 1-3999 (register) → nomor JRN; tidak ada alur yang memegang 1-3999 lalu meminta 3-2000.
+            FixedAssetService::lockRegister();
+            $pending = $this->depreciation->pendingTotal($period);
+            if ($pending > 0) {
+                throw new PosRuleException('Penyusutan aset tetap sampai '.$period.' belum dibukukan (Rp '
+                    .number_format($pending, 0, ',', '.').'). Jalankan penyusutan periode itu di tab Aset Tetap sebelum tutup buku.');
             }
 
             $draft = new JournalDraft();
@@ -84,7 +95,7 @@ class PeriodClosingService
                 'closed_by' => $user->id,
                 'closed_at' => now(),
             ]);
-        });
+        }, 3); // percobaan ulang saat deadlock, mis. X 1-3999 → nomor JRN vs saldo awal (nomor JRN → FK S 1-3999)
     }
 
     public function reopen(string $period, string $reason, User $user): AccountingPeriodClosing

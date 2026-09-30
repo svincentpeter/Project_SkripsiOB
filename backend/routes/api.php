@@ -168,6 +168,8 @@ Route::prefix('v1')->group(function () {
             Route::get('/', [FixedAssetController::class, 'index']);
             Route::post('/', [FixedAssetController::class, 'store']);
             Route::post('{id}/void', [FixedAssetController::class, 'void'])->whereNumber('id');
+            Route::get('depreciation', [FixedAssetController::class, 'depreciationPreview']);
+            Route::post('depreciation', [FixedAssetController::class, 'runDepreciation']);
         });
 
         // SAK EMKM Accounting Hub & Reports
