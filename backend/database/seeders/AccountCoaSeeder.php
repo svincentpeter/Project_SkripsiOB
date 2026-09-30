@@ -40,6 +40,12 @@ class AccountCoaSeeder extends Seeder
             ['account_code' => '6-1008', 'account_name' => 'Beban Pajak & Retribusi Daerah', 'account_type' => 'EXPENSE', 'normal_balance' => 'DEBIT'],
             ['account_code' => '6-1009', 'account_name' => 'Beban MDR QRIS & EDC', 'account_type' => 'EXPENSE', 'normal_balance' => 'DEBIT'],
             ['account_code' => '6-1010', 'account_name' => 'Selisih Kas Kasir (Lebih/Kurang)', 'account_type' => 'EXPENSE', 'normal_balance' => 'DEBIT'],
+            // SP4 SAK EMKM: penyusutan, akrual/dibayar di muka, biaya & bunga bank.
+            ['account_code' => '1-1100', 'account_name' => 'Beban Dibayar di Muka', 'account_type' => 'ASSET', 'normal_balance' => 'DEBIT'],
+            ['account_code' => '2-1100', 'account_name' => 'Beban Yang Masih Harus Dibayar', 'account_type' => 'LIABILITY', 'normal_balance' => 'CREDIT'],
+            ['account_code' => '4-3000', 'account_name' => 'Pendapatan Bunga Bank', 'account_type' => 'REVENUE', 'normal_balance' => 'CREDIT'],
+            ['account_code' => '6-1011', 'account_name' => 'Beban Penyusutan Aset Tetap', 'account_type' => 'EXPENSE', 'normal_balance' => 'DEBIT'],
+            ['account_code' => '6-1012', 'account_name' => 'Beban Administrasi Bank', 'account_type' => 'EXPENSE', 'normal_balance' => 'DEBIT'],
         ];
 
         // Hanya akun yang belum ada yang dibuat (idempoten, satu query cek).

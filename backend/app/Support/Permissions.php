@@ -13,6 +13,7 @@ final class Permissions
         'expenses', 'accounts_payable', 'accounting_hub', 'financial_reports', 'role_settings',
         'cash_session', 'cash_session_approve', 'cash_movement',
         'sales_return', 'purchase_return',
+        'fixed_assets', 'bank_reconciliation',
     ];
 
     public const ROLES = ['OWNER', 'KASIR', 'GUDANG'];

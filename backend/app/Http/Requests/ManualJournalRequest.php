@@ -35,7 +35,7 @@ class ManualJournalRequest extends FormRequest
     {
         return [
             'date.before_or_equal' => 'Tanggal jurnal tidak boleh melebihi hari ini.',
-            'items.*.account_code.not_in' => 'Akun kontrol (piutang, persediaan, hutang, uang muka DP) hanya berubah lewat transaksi sumbernya, bukan jurnal manual.',
+            'items.*.account_code.not_in' => 'Akun kontrol (piutang, persediaan, hutang, uang muka DP, aset tetap dan akumulasi penyusutan) hanya berubah lewat transaksi sumbernya, bukan jurnal manual.',
             'items.*.account_code.exists' => 'Kode akun tidak ada di bagan akun atau tidak aktif.',
         ];
     }

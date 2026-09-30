@@ -107,6 +107,9 @@ class CashFlowReport
         $code = $account->account_code;
 
         return match (true) {
+            // Bunga bank = arus kas operasi lain; bayar di muka & pelunasan akrual = pembayaran beban (SP4).
+            $code === '4-3000' => 'other_operating',
+            in_array($code, ['1-1100', '2-1100'], true) => 'expenses',
             $account->account_type === 'REVENUE', in_array($code, ['1-1002', '2-1004'], true) => 'customers',
             str_starts_with($code, '5-'), in_array($code, ['1-2000', '2-1000'], true) => 'suppliers',
             $account->account_type === 'EXPENSE' => 'expenses',

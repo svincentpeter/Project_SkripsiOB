@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ManualJournalService
 {
-    public const CONTROL_ACCOUNTS = ['1-1002', '1-2000', '2-1000', '2-1004'];
+    /** 1-3000/1-3999 hanya berubah lewat register aset tetap (perolehan, pembatalan, penyusutan) atau saldo awal akun. */
+    public const CONTROL_ACCOUNTS = ['1-1002', '1-2000', '2-1000', '2-1004', '1-3000', '1-3999'];
 
     public function __construct(private readonly AccountingEngine $engine)
     {
