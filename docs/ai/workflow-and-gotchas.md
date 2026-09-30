@@ -48,7 +48,7 @@
 | Backend | `cd backend && composer test` | MySQL `project-skripsi_ob_testing`, which must exist and be migrated. See [../../backend/AGENTS.md](../../backend/AGENTS.md#tests) |
 | E2E | `node tests/e2e/<file>.mjs` | Plain Playwright scripts, not `@playwright/test`. They need `npm run dev` (dev mode), the backend on :8000 with seeded users, and `VITE_DEV_LOGIN_PASSWORD`. They log in via the "Agus Subagyo" quick-login card, write screenshots and JSON to `tests/e2e/screenshots/`, and have **no pass/fail assertions** |
 
-As of 2026-09-30, the frontend passes: 25 test files, 127 tests, and `tsc` is clean.
+As of 2026-09-30, the frontend passes: 26 test files, 135 tests, and `tsc` is clean.
 
 ## Glossary (Indonesian → meaning)
 
@@ -95,8 +95,8 @@ As of 2026-09-30, the frontend passes: 25 test files, 127 tests, and `tsc` is cl
   back to local processing on server 422s. When debugging "data not showing", check the network tab and backend logs.
 - **Mock data.** Accounting data (expenses, journals, balances, reports) is server-owned and has no mock seed.
   `src/shared/data/mockData.ts` now only supplies non-accounting defaults: `DEFAULT_ROLE_PERMISSIONS` (fallback
-  when the permissions request fails), `INITIAL_STORE_SETTINGS`, the bank/QRIS provider defaults used by
-  `CheckoutModal`, and category seeds for the legacy local category services. Its product,
+  when the permissions request fails), `INITIAL_STORE_SETTINGS`, and category seeds for the legacy local category
+  services (bank/QRIS providers are server-only since 2026-09-30). Its product,
   transaction, supplier, stock-mutation and trend arrays are legacy; only tests and dead imports use them.
 - **"Reset data"** in the UI only runs `localStorage.clear()` and reloads, which also logs the user out. Its text
   mentions Supabase, which is misleading.
@@ -114,9 +114,8 @@ As of 2026-09-30, the frontend passes: 25 test files, 127 tests, and `tsc` is cl
   If a test fails only when the whole suite runs, suspect test order.
 - **Windows.** Paths contain `C:\laragon\www\…`. The DB name has a hyphen (`project-skripsi_ob`), so quote it in SQL.
 - **Security items still open:**
-  - The QRIS `/simulate` endpoint is not environment-gated.
-  - The Midtrans demo key is the fallback when no key is set.
-  - Fee percentages and prices are trusted from the client.
+  - Prices (`unit_price`) are trusted from the client (fees are server-side since 2026-09-30).
+  - Static QRIS (no Midtrans order id) is cashier-attested until bank reconciliation.
   - `SUPABASE_VERCEL_SETUP.md` contains a publishable key and default passwords.
 
 ## Legacy you can ignore

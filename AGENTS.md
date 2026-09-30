@@ -76,11 +76,11 @@ The app started fully client-side (localStorage, briefly Supabase) and is being 
 | Feature | Source of truth | Stage |
 |---|---|---|
 | Login, session, role permissions | Server (Sanctum, `role_permissions`) | 1 (done) |
-| POS checkout (Tunai/Transfer/QRIS, split; every sale paid in full), void, sales history, QRIS | Server | 2 (done) |
+| POS checkout (Tunai/Transfer/QRIS, split; every sale paid in full), void, sales history, QRIS (settlements in `qris_transactions`), payment providers and fees | Server | 2 (done); payment hardening 2026-09-30 |
 | Products, categories, services, suppliers, FIFO batches, goods receipt, payables, stock opname, Excel import, monthly stock ledger | Server | 3 (done) |
 | Expenses, manual journals, journal reversal, account opening balances, period closing & lock | Server | 4 (done) |
 | Financial reports (journals, ledger, trial balance, statements, equity changes, cash flow) | Server, computed per period | 4 (done) |
-| Cash drawer balance, store settings, payment fee settings, parked orders, cart | **Client** (localStorage `ob3_*` keys) | not scheduled |
+| Cash drawer balance, store settings (receipt text), parked orders, cart | **Client** (localStorage `ob3_*` keys) | not scheduled |
 
 Accounting components fetch their own server data (`useServerData`) keyed by the chosen period and by
 `ledgerVersion`, which `App.tsx` increments through `notifyLedgerChanged` whenever a server action returns journals.
@@ -108,7 +108,8 @@ Details: [docs/ai/architecture.md](docs/ai/architecture.md).
    middleware. Keys are listed in `backend/app/Support/Permissions.php` and must match `PermissionKey`
    in `src/shared/types/index.ts`. OWNER always passes.
 6. **Document numbers** use `DocumentNumber::next()` (`PREFIX-YYYYMM-####`) inside a DB transaction.
-7. **Secrets:** never commit `.env*` (except `.env.example`), seeded passwords, or Midtrans keys.
+7. **Secrets:** never commit `.env*` (except `.env.example`), seeded passwords, or Midtrans keys. There is no
+   fallback Midtrans key; the QRIS demo simulation needs `MIDTRANS_ALLOW_SIMULATION=true` (sandbox only).
 
 ## Existing docs: trust order
 

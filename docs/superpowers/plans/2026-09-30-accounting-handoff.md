@@ -26,6 +26,9 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
    `$env:DB_DATABASE='project-skripsi_ob_testing'; php artisan migrate --force`).
    New Stage 4 migrations: `2026_09_29_000001_harden_journal_entries_and_add_period_closings`,
    `2026_09_29_000002_add_void_audit_to_expenses_and_seed_categories`.
+   Payment hardening added `2026_10_01_000001_create_qris_transactions_table`. For a QRIS demo without real Midtrans
+   sandbox keys add `MIDTRANS_ALLOW_SIMULATION=true` to `backend/.env` (never in production); with real sandbox keys
+   set `MIDTRANS_SERVER_KEY`/`MIDTRANS_CLIENT_KEY` instead.
 3. Run the gates (`composer test`, `npm run lint && npm test`), then open the app as owner and repeat the
    browser check from section 1. The bundled `composer.phar` on this machine is too old for the
    `composer test` script (`@no_additional_args`); use `cd backend && php artisan config:clear && php artisan test`
@@ -60,7 +63,7 @@ In roadmap order; details and file references are in the roadmap.
 | 3 | Transaction corrections | Partial sales return, purchase return / goods-receipt cancel, FIFO shortfall fallback, manual POS line cost, one-shot inventory opening balance, Excel import vs purchase, date validation for voids/payments |
 | 4 | SAK EMKM completeness | Fixed asset register + monthly straight-line depreciation (new expense account), real CALK in UI/export, PPh Final 0.5% (confirm scope with supervisor), accruals/prepayments |
 | 5 | Operational reports & dashboard | Daily cash report, daily recap, per-cashier recap; dashboard figures from server reports (fix VOID/all-month expense totals, FIFO value, UTC "today") |
-| 6 | Payment hardening | Unique QRIS reference + amount check, gate `/payment/qris/simulate` to dev, server-side fee % and payment account |
+| 6 | Payment hardening | **Done** (`2026-09-30-payment-hardening-design.md`): `qris_transactions` (settled amount, single use), simulation behind `MIDTRANS_ALLOW_SIMULATION`, no fallback Midtrans key, server-side fees via `provider_id`; one bank account 1-1001 kept by ruling |
 
 > 2026-09-30: booking DP, BON credit sales and EDC were removed from the POS
 > (`docs/superpowers/specs/2026-09-30-remove-dp-bon-edc-design.md`), so bad-debt write-off and DP forfeit are no

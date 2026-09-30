@@ -16,7 +16,8 @@ There are no credit sales, no customer down payments and no card-terminal paymen
 - `items[]`, each with `type` (PRODUCT/SERVICE), `product_id` / `service_id`, `name`, `quantity` (a whole number of
   at least 1), `unit_price`, `discount_per_item`, `is_manual`, `cost_price`.
 - `discount_amount` (a discount on the whole receipt).
-- `payments[]`, each with `method`, `amount`, `tendered`, `fee_percentage` (0–10), `provider_name`, `reference`.
+- `payments[]`, each with `method`, `amount`, `tendered`, `provider_id` (id in `payment_provider_settings`),
+  `reference` (Midtrans order id for dynamic QRIS). `fee_percentage` is `prohibited` (422): the server computes the fee.
 - `bon` and `booking_id` are `prohibited`: an old client that still sends them gets 422 with an Indonesian message
   instead of a silently different sale.
 
@@ -36,10 +37,16 @@ including the removed card-terminal methods, fails validation on `payments.N.met
      A `tax_rate` sent by an old client is ignored (`test_sale_never_carries_ppn`).
 3. Payments:
    - Σ`amount` must equal `grand` within 0.001.
-   - Cash: `tendered ≥ amount`, change is calculated per row, and the fee is forced to 0.
-   - Transfer and QRIS: `fee = amount × pct`, `net_received = amount − fee`. In practice only QRIS carries a fee
-     (the MDR, expensed to 6-1009).
-   - QRIS with a `reference`: Midtrans status must be `settlement` or `capture`.
+   - Cash: `tendered ≥ amount`, change is calculated per row, no fee, `provider_id` ignored.
+   - Transfer: optional `provider_id` of an active `bank` provider (its name is stored); no fee.
+   - QRIS: `provider_id` of an active `qris` provider is required; fee = `PaymentProviderSetting::calculateQrisFee`
+     (`round(amount × pct / 100)` only when `amount > fee_threshold_amount`), `net_received = amount − fee`, MDR to 6-1009.
+   - QRIS with a `reference` (dynamic): the `qris_transactions` row is locked and must be `settlement`, unused
+     (`sale_payment_id` null, not twice in one checkout) and have `gross_amount` = the row amount; after the insert it
+     is linked to the `sale_payments.id` for good (void does not release it). QRIS without a reference (static sticker)
+     is cashier-attested; bank reconciliation of 1-1001 is its check.
+   - Every transfer and QRIS row is booked to the one bank account 1-1001 (`PosAccounts::forMethod`); the provider
+     only labels the bank the money came through.
 4. The sale is saved:
    - Number: `OB3-INV-YYYYMM-####` via `DocumentNumber`.
    - `payment_method`: the single method used, or `SPLIT` (also used for a Rp 0 sale with no payment rows).
@@ -65,29 +72,31 @@ returned. Sale statuses produced: `LUNAS` and `VOID`.
   the void does not touch `receivable_payments` or `sales_bookings`.
 
 ## QRIS (Midtrans)
-- Config in `backend/config/midtrans.php` (`MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION`).
-  Sandbox is the default, and a demo key is the fallback.
-- `POST /payment/qris/charge` calls Midtrans `/v2/charge` (`payment_type: qris`). **If Midtrans fails, it silently
-  returns a fake EMV QR string with `is_fallback: true`.**
-- `GET /payment/qris/status/{orderId}` checks the cache key `midtrans_sim_{orderId}` first, then Midtrans. Any error
-  counts as `pending`.
-- `POST /payment/qris/simulate/{orderId}` writes `settlement` into that cache. It is a dev helper but is **not
-  environment-gated**.
-- The webhook (`POST /payment/midtrans/webhook`, public) checks
-  `sha512(order_id.status_code.gross_amount.server_key)` with `hash_equals`. On settlement or capture it only writes
-  the cache; nothing is persisted.
-- Frontend: `CheckoutModal` generates `POS-{8 digits}`, and `QrisDynamicModal` charges and then polls every 2.5 s.
-  The order id is sent as the payment `reference`.
+- Config in `backend/config/midtrans.php` (`MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_IS_PRODUCTION`,
+  `MIDTRANS_ALLOW_SIMULATION`). Sandbox is the default. **No fallback key.** `allow_simulation` is false by default
+  and always false in production mode.
+- Orders and settlements live in `qris_transactions` (one row per order id, see [data-model.md](data-model.md)).
+- `POST /payment/qris/charge` calls Midtrans `/v2/charge` and records the order as `pending` at the requested amount.
+  The response has `simulation_enabled`. A Midtrans failure (or no key) is a 422; only with simulation on does it
+  return a fake EMV QR (`is_fallback: true`).
+- `GET /payment/qris/status/{orderId}` answers a settled row from the DB; otherwise it asks Midtrans and records a
+  `settlement`/`capture` answer with Midtrans' `gross_amount` (source `STATUS_API`). Errors count as `pending`.
+- `POST /payment/qris/simulate/{orderId}` is 403 unless simulation is on; then it settles an order created by
+  `/charge` at its charged amount (source `SIMULATION`), 422 for an unknown order.
+- The webhook (`POST /payment/midtrans/webhook`, public) checks `sha512(order_id.status_code.gross_amount.server_key)`
+  with `hash_equals` and rejects everything when no server key is set. On settlement or capture it records the
+  signed `gross_amount` (source `WEBHOOK`). Settling is idempotent: the first settlement wins.
+- Frontend: `CheckoutModal` generates `POS-{Date.now()}`, and `QrisDynamicModal` charges and then polls every 2.5 s;
+  its demo bar is shown only when `simulation_enabled`. The order id is sent as the payment `reference`.
 
 ## Fees and payment settings
-- The backend has `payment_provider_settings` (bank and QRIS) with CRUD endpoints under `/settings/payment-providers`,
-  plus `GET /pos/payment-options` (`bank_providers`, `qris_providers`). The `edc_settings` table is kept for history
-  but unused; its endpoints were removed.
-- **The frontend does not use them.** `CheckoutModal` reads bank and QRIS providers from localStorage
-  `ob3_store_settings`, falling back to `INITIAL_BANK_PROVIDERS` / `INITIAL_QRIS_PROVIDERS` in `mockData.ts`. It
-  computes the fee % (including the QRIS threshold logic) and sends `fee_percentage`, and **the server trusts it**.
-  Moving this to the server is listed as future work in the POS spec. `App.tsx` drops the legacy `edc_settings` and
-  `coa_receivable_account` properties when it loads the saved settings.
+- `payment_provider_settings` (bank and QRIS) is the only source of providers and fees. CRUD under
+  `/settings/payment-providers` (writes need `role_settings`), cashier list `GET /pos/payment-options`.
+- `CheckoutModal` loads `GET /pos/payment-options` each time it opens, shows the MDR preview from the same rows and
+  sends only `provider_id`; the QRIS provider picker is shown for dynamic and static QRIS.
+- Settings → "Metode Pembayaran" (`PaymentMethodsTab`) creates, toggles and deletes providers on the server and saves
+  edited table cells on blur. `ob3_store_settings` no longer holds providers; `App.tsx` drops legacy
+  `bank_providers`, `qris_providers`, `edc_settings` and `coa_receivable_account` when it loads the saved settings.
 
 ## Still client-side in POS
 - Cart (`ob3_cart`) and on-screen totals (`calculateCartTotals`).
@@ -97,10 +106,9 @@ returned. Sale statuses produced: `LUNAS` and `VOID`.
   that is never saved.
 
 ## Known issues (verified 2026-09-27, still open)
-1. `unit_price` and `fee_percentage` come from the client. The server checks product existence and stock, not prices.
-2. QRIS can be recorded as paid without real payment. Any `pos` user can call `/simulate`, and a QRIS payment without a
-   `reference` (static QRIS, or QRIS inside a split payment) is not verified. Checkout does not compare the Midtrans
-   amount with the payment amount.
+1. `unit_price` comes from the client. The server checks product existence and stock, not prices.
+2. A QRIS payment without a `reference` (static QRIS, or QRIS inside a split payment) is cashier-attested and not
+   verified until bank reconciliation. Dynamic QRIS is verified (settled, single use, amount) since 2026-09-30.
 3. The stock check uses `product_quantity`, not batches. If batches run short, FIFO costs the remainder at
    `product_cost` with no allocation row, and a later void restores quantity but not those batches.
 4. Manual-line cost is counted in `total_hpp` and `total_profit` but is not journaled. `total_profit` also ignores MDR fees.

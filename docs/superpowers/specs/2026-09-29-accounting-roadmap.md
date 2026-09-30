@@ -77,7 +77,7 @@ Findings addressed:
   "FIFO" value is qty × latest cost; UTC date; payment mix includes voided sales; hard-coded "95%+ margin".
   Source these from server reports instead.
 
-## Sub-project 6 — Payment hardening (can run any time)
+## Sub-project 6 — Payment hardening — **done** (spec `2026-09-30-payment-hardening-design.md`, plan `2026-09-30-payment-hardening.md`)
 
 - 🔴 One settled QRIS payment can back many sales (`sale_payments.reference` not unique, amount not compared).
 - 🟠 `/payment/qris/simulate` not environment-gated; Midtrans demo key fallback.

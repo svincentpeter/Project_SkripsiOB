@@ -12,7 +12,9 @@ Laravel 13 / PHP 8.3 / Sanctum 4 / PHPUnit 12 / phpoffice/phpspreadsheet. Larave
   `DB_CONNECTION=sqlite`, so set the MySQL values yourself (host 127.0.0.1, port 3306, user root, empty password).
 - Required env: `APP_KEY`, `DB_*`, `SEED_DEFAULT_PASSWORD` (the user seeder throws without it),
   `SANCTUM_EXPIRATION=720` (minutes). Optional: `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`,
-  `MIDTRANS_IS_PRODUCTION`, `MIDTRANS_MERCHANT_ID` (see `config/midtrans.php`; a demo sandbox key is the fallback).
+  `MIDTRANS_IS_PRODUCTION`, `MIDTRANS_MERCHANT_ID`, `MIDTRANS_ALLOW_SIMULATION` (see `config/midtrans.php`). There is
+  no fallback key: without `MIDTRANS_SERVER_KEY` dynamic QRIS cannot be charged and the webhook rejects everything.
+  `MIDTRANS_ALLOW_SIMULATION=true` (ignored in production mode) enables `/payment/qris/simulate` and the fake QR.
 - Fresh DB: `php artisan migrate --seed`, then `php artisan inventory:opening-balance` (the seeders
   create FIFO batches but post no journals).
 - `php artisan serve` → `http://127.0.0.1:8000`. All API routes live under `/api/v1` (`routes/api.php`).
@@ -32,7 +34,7 @@ app/Services/                  business logic; one service per use case
   Pos/                         CheckoutService, CartLines, PosAccounts, SaleVoidService
   Inventory/                   GoodsReceipt, Payable, StockOpname(+Commit), StockSelectiveUpdate, StockExcelImport,
                                MonthlyStockLedger, InventoryValueJournal, Excel/* (reader, parser, brand resolver, match key)
-  Payment/MidtransQrisService.php
+  Payment/MidtransQrisService.php   charge/status/simulate/webhook settlements → qris_transactions
 app/Support/Permissions.php    permission keys, roles, KASIR/GUDANG defaults
 app/Exceptions/                PosRuleException (renders 422 {message}), AccountingUnbalancedException
 routes/console.php             `inventory:opening-balance`; app/Console/Commands/StockOpname.php = `stock:opname`

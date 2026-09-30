@@ -19,7 +19,7 @@ Source of truth is `backend/routes/api.php`. Regenerate this list with
 |---|---|---|
 | GET | `/health` | status plus database connectivity |
 | POST | `/auth/login` | throttled |
-| POST | `/payment/midtrans/webhook` | verified by sha512 signature (403 on mismatch) |
+| POST | `/payment/midtrans/webhook` | verified by sha512 signature (403 on mismatch or when no server key is set); records the settled amount |
 
 ## Authenticated, any role
 | Method | Path | Notes |
@@ -45,7 +45,8 @@ purchases, has live batches), it is deactivated or refused with 422 instead of b
 | POST | `/pos/checkout` | `pos` |
 | GET | `/pos/transactions` (`search`, `date`, `limit` ≤ 500), `/pos/transactions/{id}` | `pos`, `receipt` |
 | POST | `/pos/transactions/{id}/void` (`reason`, min 5 characters) | `sale_void` |
-| POST | `/payment/qris/charge`, `/payment/qris/simulate/{orderId}` | `pos` |
+| POST | `/payment/qris/charge` (records the order; response has `simulation_enabled`) | `pos` |
+| POST | `/payment/qris/simulate/{orderId}` (403 unless `MIDTRANS_ALLOW_SIMULATION`; only charged orders) | `pos` |
 | GET | `/payment/qris/status/{orderId}` | `pos` |
 | GET | `/settings/payment-providers` | `role_settings`, `pos` |
 | POST / PUT `{id}` / DELETE `{id}` | `/settings/payment-providers` | `role_settings` |
