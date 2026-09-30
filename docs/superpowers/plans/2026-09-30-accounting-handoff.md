@@ -15,8 +15,8 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
   After the DP/BON/EDC removal (2026-09-30) the counts were backend 194, frontend 127; after cash & bank (SP2) they
   were backend 232, frontend 142 (28 test files); after transaction corrections (SP3) they are backend 262 (1510
   assertions), frontend 147 (29 test files), `tsc` clean.
-- Transaction corrections (sub-project 3) are **implemented and reviewed** (commits `b8c5818..8037368` plus the docs
-  commit). Its browser checklist has **not been run yet** (section 2c).
+- Transaction corrections (sub-project 3) are **implemented and reviewed** (commits `b8c5818` through `8037368`,
+  interleaved with SP2 follow-ups, plus the docs commit). Its browser checklist has **not been run yet** (section 2c).
 - Browser check (owner, dev DB, after B7): journals, ledger, trial balance ("Seimbang"), statements
   (balance sheet "Seimbang", cash flow "Terekonsiliasi") and the Biaya screen load from the server with no
   console errors. It was run before the final fix wave; re-check after setup (step 2.3).

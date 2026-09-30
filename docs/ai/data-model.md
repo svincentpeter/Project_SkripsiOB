@@ -48,7 +48,6 @@ See [domain-inventory.md](domain-inventory.md) for how they can drift.
 | `qris_transactions` | `order_id` (unique), `gross_amount`, `transaction_status` (pending/settlement), `settlement_source` (WEBHOOK/STATUS_API/SIMULATION), `settled_at`, `sale_payment_id` (nullable, **unique** FK `sale_payments`) | one row per dynamic QRIS order (migration `2026_10_01_000001`). Created by charge, settled by webhook/status/simulation, claimed once by checkout |
 | `receivable_payments` | `sale_id` (FK cascade), `payment_date`, `amount`, `account_code`, `journal_entry_number` | settlements of BON (credit) sales. **Unused since 2026-09-30** (BON removed); kept for history |
 | `sales_bookings` | `booking_number` (`BK-YYYYMM-####`), customer/vehicle fields, `items` (JSON), `estimated_total`, `dp_amount`, `payment_method`, `dp_account_code`, `status` (ACTIVE/CONVERTED/CANCELLED), `converted_sale_id` | customer pre-orders with a down payment. **Unused since 2026-09-30** (booking DP removed); kept for history |
-
 | `sales_returns` | `reference` (unique, `RTJ-YYYYMM-####`), `sale_id` (FK), `return_date`, `reason`, `refund_amount`, `cost_amount`, `cash_session_id` (FK `cash_sessions`), `journal_entry_number`, `created_by`, `operator_name` | one partial sales return (migration `2026_10_03_000002`); refund is cash from the drawer |
 | `sales_return_items` | `sales_return_id` (FK cascade), `sale_detail_id` (FK), `quantity`, `refund_amount`, `cost_amount` | returned units per sale line |
 

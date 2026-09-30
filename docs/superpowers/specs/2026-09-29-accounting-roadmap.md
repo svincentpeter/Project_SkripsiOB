@@ -50,8 +50,8 @@ Findings addressed:
 
 ## Sub-project 3 — Transaction corrections
 
-→ spec `2026-09-30-transaction-corrections-design.md` — done (2026-09-30, commits `b8c5818..8037368` plus the docs
-commit), plan `docs/superpowers/plans/2026-09-30-transaction-corrections.md`.
+→ spec `2026-09-30-transaction-corrections-design.md` — done (2026-09-30, commits `b8c5818` through `8037368`,
+interleaved with SP2 follow-ups, plus the docs commit), plan `docs/superpowers/plans/2026-09-30-transaction-corrections.md`.
 
 - 🟠 No partial sales return (only full void); no purchase return / goods
   receipt cancellation (only opname, which leaves the payable standing).

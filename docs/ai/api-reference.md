@@ -59,7 +59,7 @@ rejects `bon`, `booking_id` and card-terminal methods with 422 (see [domain-pos.
 | Method | Path | Permission |
 |---|---|---|
 | POST | `/inventory/restock` (goods receipt; `purchase_date` ≤ today) | `goods_receipt` |
-| GET | `/purchases` (`status=open` skips `LUNAS` and `BATAL`) | `goods_receipt`, `accounts_payable`, `purchase_return` |
+| GET | `/purchases` (`status=open` = TEMPO purchases that are not `LUNAS` or `BATAL`) | `goods_receipt`, `accounts_payable`, `purchase_return` |
 | POST | `/purchases/{id}/payments` (`account_code` 1-1000 or 1-1001; `payment_date` ≤ today and ≥ the invoice date) | `accounts_payable` |
 | POST | `/purchases/{id}/returns` (`{quantity, reason, refund_account_code?}`) → 201 `{purchase, purchase_return, journal}` | `purchase_return` |
 | POST | `/purchases/{id}/cancel` (`{reason}`; only an untouched receipt) → 200 `{purchase, purchase_return, journal}` | `purchase_return` |

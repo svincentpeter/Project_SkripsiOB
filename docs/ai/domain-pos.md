@@ -25,11 +25,12 @@ There are no credit sales, no customer down payments and no card-terminal paymen
 Payment methods (`PosAccounts::CHECKOUT_METHODS`): `TUNAI`, `TRANSFER`, `TRANSFER_BCA`, `QRIS`. Any other method,
 including the removed card-terminal methods, fails validation on `payments.N.method` (422).
 
-**Server flow** (`CheckoutService::checkout`, one transaction):
+**Server flow** (`CheckoutService::checkout`, one transaction; three attempts on a deadlock or lock-wait timeout, lock
+order in [domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts)):
 0. If any payment is `TUNAI`, an open cashier shift is required (`CashSessionService::requireOpen()`, 422
    "Shift kasir belum dibuka…"). Transfer/QRIS-only sales need no shift.
 1. `CartLines::build`:
-   - Catalogue products are locked and must be active. Their summed quantity must not exceed
+   - All catalogue products are locked first, sorted by id, and must be active. Their summed quantity must not exceed
      `products.product_quantity`; otherwise the server returns 422 "Stok X tidak cukup".
    - The item name is replaced with the catalogue name.
    - Manual lines (`is_manual`) are services only: a manual PRODUCT line is rejected (422, "…belum terdaftar di
@@ -89,7 +90,7 @@ attempts on a deadlock or lock-wait timeout; lock order in
 - The UI is the "Retur" button in Riwayat Struk (`SalesReturnModal`); the toast shows the refund to hand over.
 
 ## Void (`POST /pos/transactions/{id}/void`, permission `sale_void`, OWNER-only by default)
-`SaleVoidService`:
+`SaleVoidService` (one transaction, three attempts on a deadlock or lock-wait timeout):
 - Refused if the sale is already VOID, and refused once the sale has any return (return the remaining units
   instead).
 - Restores stock: every `sale_batch_allocations` row goes back to its batch, `product_quantity` goes back up, and a

@@ -126,15 +126,20 @@ refund goes to the drawer, and they need no open shift). Lock order:
   of the returned lines, by id → X on the sale → X on its `sale_batch_allocations` by primary key → the `RTJ` number
   lock → S (current read) on prior `sales_return_items` → X on each batch that takes units back. The RTJ lock
   serializes returns, so the gap locks of the prior-returns read never meet another return's insert.
-- Void (`SaleVoidService::void`): X on the sale's products (by id) → X on the sale → S (current read) on its
-  `sales_returns` → X on the batches. Products come before the sale and the batches, the same order as checkout and
-  opname (product → batch).
+- Void (`SaleVoidService::void`): X on the sale's products, sorted by id → X on the sale → S (current read) on its
+  `sales_returns` → X on the batches.
+- Checkout: `requireOpen()` for a TUNAI payment → X on the cart's catalogue products, sorted by id (`CartLines`) →
+  the OB3-INV number → X on the batches (`product_id` index, ascending) → JRN. Opname: X on its products sorted by id
+  → the OPN number → X on their batches. Purchase return and GR cancel: X on the purchase → X on its product → X on
+  its batches through the `product_id` index. Every flow locks products before batches, and every multi-product
+  flow locks its products sorted by id, so no two of them form a product/batch cycle.
 
 Because every shift operation contends on the 1-1000 row at its first step, `close()` never holds X(1-1000) while
 waiting for a shift row that a sale holds (the FK S-lock cycle). Never lock shifts by the `status` predicate: its
 next-key lock collides with `approve()`'s status update. `open()`, `close()`, `approve()` and the sales return run in
-`DB::transaction(..., 3)`: three attempts, so at most two retries. Laravel retries on a deadlock (1213) and on a
-lock-wait timeout (1205); both count as concurrency errors. Checkout and void run once (no retry). A cycle can still
+`DB::transaction(..., 3)`, as do checkout, void, the purchase return and the GR cancel: three attempts, so at most
+two retries. Laravel retries on a deadlock (1213) and on a lock-wait timeout (1205); both count as concurrency errors.
+Every retried closure only writes to the database. The opname runs once (no retry). A cycle can still
 form through InnoDB's queue on the 1-1000 row (a sale holding S(1-1000) waits for the JRN lock, held by a cash expense
 whose FK S request queues behind a waiting shift X), and the waiting shift operation, which has written nothing yet,
 is the usual victim.
@@ -173,10 +178,10 @@ COA rather than hard-coded account lists, in `app/Services/Accounting/`:
   The return types need no special case: they are bucketed by account. A sales refund (4-9100, REVENUE) lowers
   customers; its 1-2000/5-1000 lines net to zero inside suppliers. A supplier refund or a TUNAI/TRANSFER GR cancel
   (1-2000) raises suppliers; the payable part of a purchase return and a TEMPO cancel touch no cash.
-- 4-9100 (REVENUE, normal DEBIT) is presented as contra revenue next to 4-9000 in the income statement (net revenue =
-  revenue − discounts and returns).
   The `ACCOUNT_OPENING` journal is not a cash flow and is left out of the buckets; when it is dated inside
   the range, its 1-1000/1-1001 amount is added to `beginning_cash` instead, so reconciliation still holds.
+- 4-9100 (REVENUE, normal DEBIT) is presented as contra revenue next to 4-9000 in the income statement (net revenue =
+  revenue − discounts and returns).
 - Inactive accounts (1-1002, 2-1004, 4-2000) still appear in every report, as zero rows or with their historic
   balances: no report query filters on `is_active` (only `ManualJournalRequest` does), so prior periods stay
   reproducible and the balance sheet still balances. `CashFlowReport::bucket()` keeps 1-1002 and 2-1004 in the

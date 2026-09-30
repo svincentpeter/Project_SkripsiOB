@@ -40,6 +40,9 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
   - Products that already existed post against 5-2000 (Selisih Persediaan).
   - Products created inside `fn` post against 3-1000 (opening equity).
   - An increase posts Dr 1-2000; a decrease posts Cr 1-2000.
+  - The optional 5th argument `lockedProductIds` (the opname passes it) measures only those products, which the caller
+    has already locked, with locking current reads. Without it the snapshot is a consistent read of the whole table,
+    which can predate a sale that commits before the caller's locks.
 - **Wrap every stock-changing operation that is not a sale or a purchase in `record()`.**
 - `postOpeningBalance()` books the whole gap between FIFO value and the ledger against 3-1000, as
   `OPENING_BALANCE` with reference `OPENING-INV-…`. It is **one-shot**: it locks the 3-1000 account row, and when
@@ -85,7 +88,10 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
 ## Purchase returns and cancellation
 `Inventory/PurchaseReturnService`, permission `purchase_return` (GUDANG default true). Both are numbered
 `RTB-YYYYMM-####`, dated today, and stored in `purchase_returns` (`kind` RETURN or CANCEL) with one
-`purchase_return_items` row per batch. Lock order: purchase → product → batches.
+`purchase_return_items` row per batch. Lock order: purchase → product → the GR's batches, read through the
+`product_id` index (`purchase_id` has no index; a filter on it alone would lock the whole table) in ascending order
+and sorted newest-first in PHP (a descending scan would lock the neighbouring product's record). Both run in
+`DB::transaction(..., 3)`.
 - **Return** (`POST /purchases/{id}/returns {quantity, reason, refund_account_code?}`): only units still in the GR's
   own batches (`product_batches.purchase_id`) can go back; units already sold cannot. Newest batch first, so the
   Rp 0.01 cent-split batch leaves first. Value = Σ qty × `batch_cost`, exact to the cent.
@@ -106,12 +112,13 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
 
 ## Stock opname and corrections
 - **Manual opname:** `POST /inventory/stock-opname` with `{items:[{product_id, physical_qty}], notes}` goes to
-  `StockOpnameService::adjust`. It is numbered `OPN-YYYYMM-####`. The batch layers are matched to the physical
-  count: the service sums `remaining_qty` with a locked current read (`lockForUpdate`, so a sale or receipt that
-  committed after the transaction's snapshot is seen). Fewer units than the layers consumes the oldest batches;
-  more creates a surplus batch at the latest cost. `product_quantity` is set to the physical count. A movement is
-  written only when the count differs from `product_quantity`, so an opname at the same count still repairs drifted
-  layers. The journal type is `STOCK_OPNAME`, posted via `record()`.
+  `StockOpnameService::adjust`. One transaction locks all its products sorted by id, then draws the
+  `OPN-YYYYMM-####` number, then runs `record()` scoped to those products: the before and after values are locked
+  current reads, so a sale or receipt that committed after the transaction's snapshot is not journaled again. The
+  batch layers are matched to the physical count: the service sums `remaining_qty` with a locked current read. Fewer
+  units than the layers consumes the oldest batches; more creates a surplus batch at the latest cost.
+  `product_quantity` is set to the physical count. A movement is written only when the count differs from
+  `product_quantity`, so an opname at the same count still repairs drifted layers. The journal type is `STOCK_OPNAME`, posted via `record()`.
 - **Excel import:** preview, then resolve, then commit.
   - Preview: `POST /stock/import-preview`. Sheets are read from row 5, columns A–H:
     no, name, size, ring, cost, price, opening qty, and end-of-month qty (default column H).
@@ -159,8 +166,8 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
 - `stockReconciliationApi` falls back to client-side parsing and local writes when the server is unreachable. Commit
   and bulk update rethrow once the server answered (an `ApiError` with a status, e.g. the go-live 422); the other
   calls still fall back on any error. Treat the fallback as legacy, and surface server errors instead of extending it.
-- `StockMonthlyLedgerView` still shows a negative restock as 0, so a month with more purchase returns than receipts
-  shows 0 instead of the negative net.
+- `StockMonthlyLedgerView` shows the restock column as "Masuk (neto)" with its sign (`formatSignedQty`: +N, −N or 0),
+  so a month with more purchase returns than receipts shows the negative net.
 - The template download (`/stock/template`) is a plain link with no bearer token, so it probably returns 401.
 
 ## Known issues (verified 2026-09-27, updated 2026-09-30)
@@ -169,8 +176,8 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
 2. Excel commit and selective update **delete** batches from the same period. The FK cascade then deletes
    `sale_batch_allocations`, which breaks later voids. `force` bypasses the sales guard. Both are refused after
    go-live.
-3. `addBatch` batch codes use `rand(10,99)`; it now retries until the code is unused (the product row is locked),
-   so collisions are gone, but more than 90 receipt batches of one product on one day would loop forever.
+3. `addBatch` batch codes end in a free number from 10–99 per product and day (the product row is locked), so
+   collisions are gone, but a 91st receipt batch of one product on one day is refused with a 422.
 4. Preview matches by match key or product code, but commit matches by match key only. Seeded `product_size` values
    (`"165 R13"`) differ from Excel column C (`"165"`), so a commit may duplicate seeded products.
 5. The monthly ledger orders layers by cost, not purchase date. It ignores `PENYESUAIAN` movements in the opening
