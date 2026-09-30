@@ -54,6 +54,8 @@ class CashSessionService
         'SALES_RETURN' => 'Retur penjualan (refund tunai)',
         'PURCHASE_RETURN' => 'Retur pembelian (refund tunai supplier)',
         'GOODS_RECEIPT_CANCEL' => 'Batal penerimaan barang (refund tunai)',
+        'FIXED_ASSET_ACQUISITION' => 'Pembelian aset tetap tunai',
+        'FIXED_ASSET_VOID' => 'Pembatalan pembelian aset tetap tunai',
     ];
 
     public function __construct(private readonly AccountingEngine $engine)

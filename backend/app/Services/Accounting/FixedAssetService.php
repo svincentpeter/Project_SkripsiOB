@@ -24,6 +24,9 @@ class FixedAssetService
     public const ACQUISITION = 'FIXED_ASSET_ACQUISITION';
     public const VOID = 'FIXED_ASSET_VOID';
 
+    /** Percobaan ulang saat deadlock/lock wait timeout, mis. X 1-3999 → nomor JRN vs saldo awal (X 3-1000 → JRN → FK S 1-3999). */
+    private const ATTEMPTS = 3;
+
     public function __construct(private readonly AccountingEngine $engine)
     {
     }
@@ -86,7 +89,7 @@ class FixedAssetService
             }
 
             return ['asset' => $asset->fresh(), 'journal' => $journal];
-        });
+        }, self::ATTEMPTS);
     }
 
     /**
@@ -96,6 +99,8 @@ class FixedAssetService
     {
         return DB::transaction(function () use ($id, $reason, $user) {
             // funding tidak pernah berubah, jadi dibaca tanpa kunci untuk menentukan kunci laci lebih dulu.
+            // Bacaan ini menetapkan snapshot REPEATABLE READ sebelum kunci diperoleh: setiap keputusan di bawah kunci
+            // wajib bacaan berkunci (current read), agar penyusutan yang commit selama menunggu kunci tetap terlihat.
             self::lockDrawer((string) FixedAsset::whereKey($id)->value('funding'));
             self::lockRegister();
             $asset = FixedAsset::lockForUpdate()->findOrFail($id);
@@ -103,7 +108,7 @@ class FixedAssetService
             if ($asset->status === 'VOID') {
                 throw new PosRuleException("Aset {$asset->code} sudah dibatalkan.");
             }
-            if ($asset->depreciations()->exists()) {
+            if ($asset->depreciations()->sharedLock()->exists()) {
                 throw new PosRuleException("Aset {$asset->code} sudah disusutkan; pembatalan hanya untuk aset yang belum pernah disusutkan.");
             }
 
@@ -124,7 +129,7 @@ class FixedAssetService
             $asset->update(['status' => 'VOID', 'void_reason' => $reason, 'voided_by' => $user->id, 'voided_at' => now()]);
 
             return ['asset' => $asset->fresh(), 'journal' => $journal];
-        });
+        }, self::ATTEMPTS);
     }
 
     /**

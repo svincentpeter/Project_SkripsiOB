@@ -38,6 +38,36 @@ class FixedAssetRequest extends FormRequest
             'depreciation_start.prohibited_unless' => 'Bulan mulai penyusutan hanya diisi untuk aset dari saldo awal; aset yang dibeli mulai disusutkan pada bulan perolehan.',
             'opening_accumulated_depreciation.prohibited_unless' => 'Akumulasi penyusutan awal hanya untuk aset dari saldo awal.',
             'category.in' => 'Kategori aset tidak dikenal.',
+            'funding.in' => 'Sumber dana harus Tunai, Transfer, atau Saldo awal.',
+            'acquisition_date.date_format' => 'Tanggal perolehan harus berformat YYYY-MM-DD.',
+            'depreciation_start.date_format' => 'Bulan mulai penyusutan harus berformat YYYY-MM.',
+            'name.max' => 'Nama aset maksimal :max karakter.',
+            'notes.max' => 'Catatan maksimal :max karakter.',
+            'useful_life_months.min' => 'Umur manfaat minimal :min bulan.',
+            'useful_life_months.max' => 'Umur manfaat maksimal :max bulan.',
+            // Sisa aturan: pesan umum dengan nama field berbahasa Indonesia (locale aplikasi en).
+            'required' => ':Attribute wajib diisi.',
+            'string' => ':Attribute harus berupa teks.',
+            'numeric' => ':Attribute harus berupa angka.',
+            'integer' => ':Attribute harus berupa bilangan bulat.',
+            'min' => ':Attribute minimal :min.',
+            'max' => ':Attribute maksimal :max.',
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'name' => 'nama aset',
+            'category' => 'kategori',
+            'acquisition_date' => 'tanggal perolehan',
+            'acquisition_cost' => 'harga perolehan',
+            'residual_value' => 'nilai residu',
+            'useful_life_months' => 'umur manfaat (bulan)',
+            'funding' => 'sumber dana',
+            'depreciation_start' => 'bulan mulai penyusutan',
+            'opening_accumulated_depreciation' => 'akumulasi penyusutan awal',
+            'notes' => 'catatan',
         ];
     }
 
