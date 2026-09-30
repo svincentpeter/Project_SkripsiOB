@@ -27,7 +27,7 @@ class AuthorizationTest extends TestCase
             ['GET', '/api/v1/accounting/journals'],
             ['GET', '/api/v1/accounting/financial-statements'],
             ['GET', '/api/v1/accounting/accounts-payable'],
-            ['POST', '/api/v1/settings/edc'],
+            ['POST', '/api/v1/settings/payment-providers'],
             ['GET', '/api/v1/settings/role-permissions'],
             ['POST', '/api/v1/payment/qris/charge'],
         ];

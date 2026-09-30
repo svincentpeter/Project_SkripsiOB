@@ -4,7 +4,6 @@ use App\Http\Controllers\Api\v1\AccountController;
 use App\Http\Controllers\Api\v1\AccountingPeriodController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
-use App\Http\Controllers\Api\v1\BookingController;
 use App\Http\Controllers\Api\v1\ExpenseController;
 use App\Http\Controllers\Api\v1\InventoryController;
 use App\Http\Controllers\Api\v1\OpeningBalanceController;
@@ -14,7 +13,6 @@ use App\Http\Controllers\Api\v1\PosController;
 use App\Http\Controllers\Api\v1\ProductCategoryController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\PurchaseController;
-use App\Http\Controllers\Api\v1\ReceivableController;
 use App\Http\Controllers\Api\v1\ReportStockMonthlyApiController;
 use App\Http\Controllers\Api\v1\RolePermissionController;
 use App\Http\Controllers\Api\v1\ServiceCategoryController;
@@ -94,31 +92,12 @@ Route::prefix('v1')->group(function () {
         });
         Route::post('pos/transactions/{id}/void', [PosController::class, 'void'])->middleware('permission:sale_void');
 
-        // Booking inden & DP
-        Route::get('bookings', [BookingController::class, 'index'])->middleware('permission:booking_dp,pos');
-        Route::middleware('permission:booking_dp')->group(function () {
-            Route::post('bookings', [BookingController::class, 'store']);
-            Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel']);
-        });
-
-        // Piutang BON pelanggan
-        Route::middleware('permission:bon_receivable,accounting_hub')->group(function () {
-            Route::get('receivables', [ReceivableController::class, 'index']);
-            Route::post('receivables/{saleId}/payments', [ReceivableController::class, 'pay']);
-        });
-
-        // Payment Method Settings (Parity ProjectOmahBan)
-        Route::middleware('permission:role_settings,pos')->group(function () {
-            Route::get('settings/payment-providers', [PaymentMethodSettingController::class, 'indexProviders']);
-            Route::get('settings/edc', [PaymentMethodSettingController::class, 'indexEdc']);
-        });
+        // Pengaturan rekening transfer & provider QRIS (EDC tidak lagi didukung)
+        Route::get('settings/payment-providers', [PaymentMethodSettingController::class, 'indexProviders'])->middleware('permission:role_settings,pos');
         Route::middleware('permission:role_settings')->group(function () {
             Route::post('settings/payment-providers', [PaymentMethodSettingController::class, 'storeProvider']);
             Route::put('settings/payment-providers/{id}', [PaymentMethodSettingController::class, 'updateProvider']);
             Route::delete('settings/payment-providers/{id}', [PaymentMethodSettingController::class, 'deleteProvider']);
-            Route::post('settings/edc', [PaymentMethodSettingController::class, 'storeEdc']);
-            Route::put('settings/edc/{id}', [PaymentMethodSettingController::class, 'updateEdc']);
-            Route::delete('settings/edc/{id}', [PaymentMethodSettingController::class, 'deleteEdc']);
         });
 
         // Inventory Restock, Movements & Opname

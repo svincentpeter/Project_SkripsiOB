@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\EdcSetting;
 use App\Models\PaymentProviderSetting;
 use App\Models\Product;
 use App\Models\ProductBatch;
@@ -24,14 +23,12 @@ class PaymentMethodSettingsParityTest extends TestCase
                 'data' => [
                     'bank_providers',
                     'qris_providers',
-                    'edc_settings',
                 ],
             ]);
 
         $data = $response->json('data');
         $this->assertNotEmpty($data['bank_providers']);
         $this->assertNotEmpty($data['qris_providers']);
-        $this->assertNotEmpty($data['edc_settings']);
     }
 
     public function test_payment_providers_crud_endpoints(): void
@@ -60,32 +57,5 @@ class PaymentMethodSettingsParityTest extends TestCase
         $delRes->assertStatus(200);
 
         $this->assertNull(PaymentProviderSetting::find($providerId));
-    }
-
-    public function test_edc_settings_crud_endpoints(): void
-    {
-        // Store
-        $postRes = $this->postJson('/api/v1/settings/edc', [
-            'bank_name' => 'CIMB Niaga',
-            'payment_type' => 'Credit',
-            'fee_percentage' => 2.20,
-            'is_active' => true,
-        ]);
-        $postRes->assertStatus(201);
-        $edcId = $postRes->json('data.id');
-
-        // Update
-        $putRes = $this->putJson("/api/v1/settings/edc/{$edcId}", [
-            'fee_percentage' => 2.50,
-            'is_active' => false,
-        ]);
-        $putRes->assertStatus(200)
-            ->assertJsonPath('data.fee_percentage', '2.50');
-
-        // Delete
-        $delRes = $this->deleteJson("/api/v1/settings/edc/{$edcId}");
-        $delRes->assertStatus(200);
-
-        $this->assertNull(EdcSetting::find($edcId));
     }
 }

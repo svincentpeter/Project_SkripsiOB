@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\PaymentProviderSetting;
-use App\Models\EdcSetting;
 use App\Models\Supplier;
 use App\Models\Product;
 use App\Models\ProductBatch;
@@ -27,7 +26,7 @@ class DatabaseSeeder extends Seeder
         $this->call(UserSeeder::class);
         $this->call(RolePermissionSeeder::class);
 
-        // 3. Payment Providers & Surcharges
+        // 3. Provider pembayaran (transfer & QRIS)
         PaymentProviderSetting::firstOrCreate(
             ['provider_code' => 'QRIS_BCA'],
             [

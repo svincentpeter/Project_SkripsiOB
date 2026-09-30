@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
-use App\Models\EdcSetting;
 use App\Models\PaymentProviderSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,29 +10,15 @@ use Illuminate\Http\Request;
 class PaymentMethodSettingController extends Controller
 {
     /**
-     * Get active payment options for POS cashier checkout.
+     * Opsi pembayaran aktif untuk kasir: rekening transfer dan provider QRIS.
      */
     public function getPaymentOptions(): JsonResponse
     {
-        $banks = PaymentProviderSetting::active()
-            ->bank()
-            ->get();
-
-        $qris = PaymentProviderSetting::active()
-            ->qris()
-            ->get();
-
-        $edc = EdcSetting::active()
-            ->orderBy('bank_name')
-            ->orderBy('payment_type')
-            ->get();
-
         return response()->json([
             'success' => true,
             'data' => [
-                'bank_providers' => $banks,
-                'qris_providers' => $qris,
-                'edc_settings' => $edc,
+                'bank_providers' => PaymentProviderSetting::active()->bank()->get(),
+                'qris_providers' => PaymentProviderSetting::active()->qris()->get(),
             ],
         ]);
     }
@@ -117,84 +102,6 @@ class PaymentMethodSettingController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Provider pembayaran berhasil dihapus.',
-        ]);
-    }
-
-    /**
-     * List all EDC settings.
-     */
-    public function indexEdc(): JsonResponse
-    {
-        $edc = EdcSetting::orderBy('bank_name')->orderBy('payment_type')->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $edc,
-        ]);
-    }
-
-    /**
-     * Store new EDC setting.
-     */
-    public function storeEdc(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'bank_name' => 'required|string|max:100',
-            'payment_type' => 'required|in:Debit,Credit',
-            'fee_percentage' => 'required|numeric|min:0|max:100',
-            'charge_to_customer' => 'boolean',
-            'is_active' => 'boolean',
-            'notes' => 'nullable|string',
-        ]);
-
-        // Auto default charge_to_customer for Credit if not specified
-        if (!isset($validated['charge_to_customer'])) {
-            $validated['charge_to_customer'] = ($validated['payment_type'] === 'Credit');
-        }
-
-        $edc = EdcSetting::create($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Pengaturan EDC berhasil ditambahkan.',
-            'data' => $edc,
-        ], 201);
-    }
-
-    /**
-     * Update existing EDC setting.
-     */
-    public function updateEdc(Request $request, $id): JsonResponse
-    {
-        $edc = EdcSetting::findOrFail($id);
-
-        $validated = $request->validate([
-            'fee_percentage' => 'sometimes|required|numeric|min:0|max:100',
-            'charge_to_customer' => 'boolean',
-            'is_active' => 'boolean',
-            'notes' => 'nullable|string',
-        ]);
-
-        $edc->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Pengaturan EDC berhasil diperbarui.',
-            'data' => $edc,
-        ]);
-    }
-
-    /**
-     * Delete EDC setting.
-     */
-    public function deleteEdc($id): JsonResponse
-    {
-        $edc = EdcSetting::findOrFail($id);
-        $edc->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Pengaturan EDC berhasil dihapus.',
         ]);
     }
 }
