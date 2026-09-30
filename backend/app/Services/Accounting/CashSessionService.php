@@ -29,6 +29,12 @@ class CashSessionService
     public const REFERENCE_TYPE = 'CASH_SESSION_VARIANCE';
 
     /**
+     * Percobaan ulang saat deadlock (1213). Siklus yang tersisa melewati antrean kunci baris 1-1000, mis. checkout
+     * (S 1-1000, menunggu nomor JRN) ↔ biaya tunai (memegang nomor JRN, menunggu S 1-1000 di belakang X yang antre).
+     */
+    private const ATTEMPTS = 3;
+
+    /**
      * Label baris ringkasan per jenis jurnal. Jenis lain tetap dihitung dan tampil dengan kodenya;
      * sub-proyek berikutnya menambahkan labelnya di sini (mis. SALES_RETURN).
      */
@@ -53,12 +59,14 @@ class CashSessionService
 
     /**
      * Shift yang sedang dibuka; 422 bila belum ada. Dipakai checkout tunai (dan retur tunai), di dalam transaksi.
-     * Kunci S per primary key membuat close() (kunci X baris yang sama) menunggu sampai transaksi ini commit,
-     * sehingga uang tunai selalu masuk jendela shift. Jangan mengunci lewat predikat status: next-key lock pada
-     * indeks status bentrok dengan approve() yang memegang kunci nomor JRN (deadlock).
+     * Kunci S baris akun 1-1000 lebih dulu: open/close/approve mengambil kunci X baris yang sama sebagai langkah
+     * pertama, jadi close() menunggu sampai penjualan tunai commit (uang selalu masuk jendela shift) dan tidak ada
+     * siklus dengan kunci S FK yang diambil insert journal_items 1-1000. Lalu kunci S per primary key + cek ulang
+     * status. Jangan mengunci lewat predikat status: next-key lock pada indeks status bentrok dengan approve().
      */
     public static function requireOpen(): CashSession
     {
+        Account::where('account_code', self::CASH)->sharedLock()->first();
         $open = self::current();
         $session = $open ? CashSession::whereKey($open->id)->sharedLock()->first() : null;
         if ($session === null || $session->status !== CashSession::OPEN) {
@@ -151,7 +159,7 @@ class CashSessionService
                 'status' => CashSession::OPEN,
                 'branch_id' => 3,
             ]);
-        });
+        }, self::ATTEMPTS);
     }
 
     public function close(int $id, User $user, float $countedCash, ?string $reason): CashSession
@@ -183,7 +191,7 @@ class CashSessionService
             ])->save();
 
             return $session;
-        });
+        }, self::ATTEMPTS);
     }
 
     /**
@@ -229,7 +237,7 @@ class CashSessionService
             ]);
 
             return ['session' => $session, 'journal' => $journal];
-        });
+        }, self::ATTEMPTS);
     }
 
     /** Baris jurnal POSTED pada akun kas laci. */
