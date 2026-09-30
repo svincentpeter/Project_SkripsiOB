@@ -21,6 +21,11 @@ class CartLines
     {
         $requested = [];
         $lines = [];
+        // Kunci semua produk katalog urut id sebelum membaca apa pun, sama dengan void, retur dan opname: urutan
+        // keranjang yang berlawanan dengan transaksi lain tidak boleh membentuk siklus deadlock.
+        $ids = collect($items)->where('type', 'PRODUCT')->pluck('product_id')->filter()
+            ->map(fn ($id) => (int) $id)->unique()->sort()->values();
+        $products = Product::whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
 
         foreach ($items as $item) {
             $type = $item['type'];
@@ -41,7 +46,7 @@ class CartLines
                 if (empty($item['product_id'])) {
                     throw new PosRuleException("Produk \"{$name}\" tidak terdaftar di katalog.");
                 }
-                $product = Product::lockForUpdate()->find($item['product_id']);
+                $product = $products->get((int) $item['product_id']);
                 if (! $product || ! $product->is_active) {
                     throw new PosRuleException("Produk \"{$name}\" tidak ditemukan atau sudah nonaktif.");
                 }

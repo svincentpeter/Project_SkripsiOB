@@ -95,7 +95,7 @@ class CheckoutService
             $this->postJournal($sale, $lines, $payments, $notaDiscount, $fifoCogs);
 
             return $sale->fresh();
-        });
+        }, 3); // korban deadlock/lock-wait diulang; closure hanya menulis DB, jadi aman diulang
     }
 
     /**

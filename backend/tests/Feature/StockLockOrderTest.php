@@ -8,6 +8,8 @@ use App\Services\AccountingEngine;
 use App\Services\Inventory\PurchaseReturnService;
 use App\Services\Inventory\StockOpnameService;
 use App\Services\JournalDraft;
+use App\Services\Pos\CartLines;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
@@ -145,5 +147,32 @@ class StockLockOrderTest extends TestCase
         $journal = $this->journalByAccount($out['reference'], 'STOCK_OPNAME');
         $this->assertEquals(100000, $journal['5-2000']['debit']);
         $this->assertEquals(100000, $journal['1-2000']['credit']);
+    }
+
+    /**
+     * Checkout mengunci produk keranjang urut id, sama dengan void, retur dan opname. Keranjang [B, A] yang menunggu A
+     * tidak boleh sudah memegang B (dua urutan berlawanan = deadlock).
+     */
+    public function test_checkout_locks_cart_products_in_id_order(): void
+    {
+        [$a, $b] = $this->onSide(fn () => [
+            $this->sideProduct([[5, 0, '2026-08-01']]),
+            $this->sideProduct([[5, 0, '2026-08-01']]),
+        ]);
+        $side = DB::connection('side');
+        $side->beginTransaction();
+        $side->table('products')->where('id', $a->id)->lockForUpdate()->first();
+
+        DB::beginTransaction();
+        DB::statement('SET SESSION innodb_lock_wait_timeout = 1');
+        try {
+            CartLines::build([$this->productLine($b), $this->productLine($a)]);
+            $this->fail('Checkout tidak menunggu kunci produk A.');
+        } catch (QueryException $e) {
+            $this->assertStringContainsString('Lock wait timeout', $e->getMessage());
+        }
+
+        // Transaksi utama masih terbuka: kunci yang sudah didapat tetap dipegang. B harus masih bebas.
+        $this->assertNotEmpty($side->select('SELECT id FROM products WHERE id = ? FOR UPDATE NOWAIT', [$b->id]));
     }
 }

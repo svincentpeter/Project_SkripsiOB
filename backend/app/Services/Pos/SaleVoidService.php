@@ -53,7 +53,7 @@ class SaleVoidService
             ]);
 
             return $sale->fresh();
-        });
+        }, 3); // korban deadlock/lock-wait diulang; closure hanya menulis DB, jadi aman diulang
     }
 
     /**
