@@ -29,13 +29,13 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
   | receipt (Riwayat Struk) | `receipt` |
   | inventory (Produk & Jasa) | `inventory_view` |
   | expenses (Biaya Toko) | `expenses` |
-  | ledger (Buku Besar) | `accounting_hub` or `accounts_payable` |
+  | ledger (Buku Besar) | `accounting_hub`, `accounts_payable`, `cash_session_approve` or `cash_movement` (non-hub roles see only the tabs their keys allow: `payables` with `accounts_payable`, `cash` with a cash key; the first visible tab opens by default) |
   | financials (Laporan Keuangan) | `financial_reports` |
   | settings | `role_settings` (the Roles tab is OWNER only) |
 
 - Action-level gates use `can(key)` from App.tsx, passed down as booleans (for example `canVoid={can('sale_void')}`).
 - Sub-tabs inside a screen are local `useState` (Inventory: `katalog | buku_fifo | kategori | jasa | stok_mutasi | supplier`;
-  Ledger: `journals | ledger | trial-balance | payables | reports`).
+  Ledger: `journals | ledger | trial-balance | payables | reports | cash`).
 
 ### State
 - All app-wide state (~25 `useState`) lives in `MainAppContent` in `App.tsx`. Screens get data through props and
@@ -61,7 +61,7 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
   message comes from the server's `message`. A **401** clears the token and triggers the handler registered with
   `setUnauthorizedHandler` (App.tsx logs the user out with a "Sesi Berakhir" toast).
 - Modules: `authApi`, `productApi`, `posApi`, `inventoryApi`, `paymentApi`, `stockReconciliationApi` (imported
-  directly), and `expenseApi` / `accountingApi`. Accounting screens call them through `useServerData`
+  directly), and `expenseApi` / `accountingApi` / `cashApi` (shifts and cash movements). Accounting screens call them through `useServerData`
   (`src/modules/accounting/hooks/useServerData.ts`), a small hook keyed by the chosen period and by
   `ledgerVersion`, a counter in `App.tsx` that `notifyLedgerChanged` increments whenever a server action
   returns journals (checkout, void, expense, manual journal, period close/reopen, opening balance, …). There

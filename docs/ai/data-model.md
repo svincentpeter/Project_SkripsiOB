@@ -69,7 +69,7 @@ Providers and fees are server-only since 2026-09-30: the POS reads `GET /pos/pay
 ## Accounting
 | Table | Key columns | Notes |
 |---|---|---|
-| `accounts` | `account_code` (unique), `account_name`, `account_type` (ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE), `normal_balance` (DEBIT/CREDIT), `is_active` | 25 rows; see [domain-accounting.md](domain-accounting.md) |
+| `accounts` | `account_code` (unique), `account_name`, `account_type` (ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE), `normal_balance` (DEBIT/CREDIT), `is_active` | 27 rows; see [domain-accounting.md](domain-accounting.md) |
 | `journal_entries` | `entry_number` (unique, `JRN-YYYYMM-####`), `entry_date`, `reference_type`, `reference_id`, `description`, `total_debit`, `total_credit`, `status` (POSTED), `created_by` (nullable FK `users`), `reversal_of_id` (nullable, unique, FK `journal_entries`) | `reversal_of_id` links a reversal to its original; the unique constraint caps an entry at one reversal |
 | `journal_items` | `journal_entry_id` (FK cascade), `account_id` (FK), `debit`, `credit`, `note` | |
 | `accounting_period_closings` | `period` (YYYY-MM), `end_date`, `closing_entry_id` (nullable FK `journal_entries`), `net_income`, `notes`, `closed_by`, `closed_at`, `reopened_at`, `reopened_by`, `reopen_reason`, `reopen_entry_id` (nullable FK `journal_entries`) | one row per closed month; lock date = `max(end_date)` where `reopened_at` is null |

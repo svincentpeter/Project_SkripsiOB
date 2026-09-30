@@ -98,7 +98,7 @@ The frontend calls all of these through `accountingApi.ts` and `expenseApi.ts`.
 | GET | `/cash-sessions/current` | `cash_session`, `cash_session_approve` | `{session (with lines, expected_cash) \| null, book_balance}` |
 | POST | `/cash-sessions/open` | `cash_session` | `{opening_float, opening_note?}`; note required when the float ≠ book balance; one open shift at a time |
 | POST | `/cash-sessions/{id}/close` | `cash_session` | `{counted_cash, variance_reason?}`; reason required for a variance; → `PENDING_APPROVAL` |
-| GET | `/cash-sessions` | `cash_session_approve` | 30 newest, pending first |
+| GET | `/cash-sessions` | `cash_session_approve` | `status?` (`OPEN`/`PENDING_APPROVAL`/`CLOSED`) filter; 30 newest, pending first |
 | POST | `/cash-sessions/{id}/approve` | `cash_session_approve` | posts `CASH_SESSION_VARIANCE` (6-1010) unless 0; returns `{session, journals}` |
 | GET | `/cash-movements` | `cash_movement` | 50 newest deposit/Prive/capital journals |
 | POST | `/cash-movements` | `cash_movement` | `{type: DEPOSIT\|DRAWING\|CAPITAL, date ≤ today, amount, account_code (1-1000/1-1001, not for DEPOSIT), description}` → 201 journal |

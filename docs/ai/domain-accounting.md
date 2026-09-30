@@ -15,6 +15,8 @@ Migration `2026_09_30_000001_deactivate_dp_bon_edc_accounts.php` sets 1-1002, 2-
 (inserting them inactive if missing): booking DP, BON credit sales and the EDC surcharge were removed from the POS on
 2026-09-30. They stay in the COA because historic journals reference them; `ManualJournalRequest` rejects inactive
 accounts and the manual-journal picker hides them. 6-1009 stays active for the QRIS MDR.
+Migration `2026_10_02_000001_create_cash_sessions_and_cash_accounts.php` inserts 3-3000 Prive and 6-1010 Selisih Kas
+Kasir (and creates `cash_sessions`).
 
 | Code | Name | Type | Normal |
 |---|---|---|---|
@@ -95,16 +97,26 @@ TRANSFER_BCA and QRIS go to 1-1001.
 
 ## Cash drawer and shifts
 
-The drawer is account 1-1000 (only TUNAI posts there). A cashier shift (`cash_sessions`) is a window of journal ids
-(`from_entry_id`, `to_entry_id`]. Expected cash = `opening_float` + Σ(debit − credit) on 1-1000 of POSTED journals in
+The drawer is account 1-1000 (of the POS payments, only TUNAI posts there). A cashier shift (`cash_sessions`) is a
+window of journal ids (`from_entry_id`, `to_entry_id`]. Expected cash = `opening_float` + Σ(debit − credit) on 1-1000 of POSTED journals in
 the window, excluding `CASH_SESSION_VARIANCE`, grouped per `reference_type` (`CashSessionService::summary`, labels in
 `LINE_LABELS`). The opening float must match the book balance (1-1000 + adjustments of shifts still
 `PENDING_APPROVAL`) or carry an `opening_note`; closing requires `variance_reason` when counted ≠ expected. Approval
 (`cash_session_approve`, a non-OWNER cannot approve their own shift) posts `adjustment = variance + opening
-difference`, so afterwards 1-1000 equals the counted cash. `CashSessionService::requireOpen()` guards cash checkout
-(and SP3 cash refunds). Deposits, Prive and capital are single journals from `CashMovementService` (`cash_movement`).
+difference`, so afterwards 1-1000 equals the counted cash as of the close. `CashSessionService::requireOpen()` guards
+cash checkout (SP3 cash refunds will use it too). It finds the OPEN shift without a lock, then takes a shared lock
+**by primary key** and re-checks the status, so `close()` (X lock on the same row) waits for an in-flight cash sale.
+Never lock by the `status` predicate: its next-key lock collides with `approve()`, which holds the JRN number lock
+(deadlock). Deposits, Prive and capital are single journals from `CashMovementService` (`cash_movement`).
 The POS drawer figure is the 1-1000 ledger balance (`GET /accounting/cash-balances`); the old per-browser counter
-`ob3_cash_drawer` and `cashPortion` no longer exist.
+`ob3_cash_drawer` and `cashPortion` no longer exist. The UI is `CashBankTab` (Buku Besar → "6. Kas & Bank": approvals
+and owner cash movements); the journal screen groups these entries under the "Kas & Modal" filter.
+
+**Go-live order:** post Buku Besar → Saldo Awal (`ACCOUNT_OPENING`, 1-1000) *before* opening the first shift. A shift
+opened first books the whole float as an opening difference, journaled to 6-1010 as an overage on approval; the later
+opening entry then shows up as the opposite shortage in the next shift. It nets to zero but misstates the P&L, maybe
+across two months. For the same reason an `ACCOUNT_OPENING` or backdated drawer movement posted while a shift is open
+counts inside that shift. The approval table shows the opening difference apart from the counting variance.
 
 ## Reports
 

@@ -35,7 +35,9 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
    as the gate.
 4. **Enter the account opening balances once** (Buku Besar → "Saldo Awal"): cash drawer 1-1000, bank 1-1001,
    fixed assets 1-3000, accumulated depreciation 1-3999, retained earnings 3-2000. Until then bank 1-1001 shows
-   negative (a supplier was paid from bank before any opening balance existed).
+   negative (a supplier was paid from bank before any opening balance existed). Do this **before the first cashier
+   shift is opened**: a shift opened first books the whole float as an opening difference, which approval journals
+   to 6-1010 as an overage (reversed as a shortage in the next shift once the opening balance is posted).
 
 Not in git (only on the old machine — copy them yourself if you need them):
 - `docs/flowchart/`, `docs/flowchart.zip`, `.claude/`.
