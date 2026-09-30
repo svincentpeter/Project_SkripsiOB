@@ -180,6 +180,37 @@ class MidtransQrisApiTest extends TestCase
         $this->assertDatabaseMissing('qris_transactions', ['order_id' => $payload['order_id']]);
     }
 
+    public function test_webhook_replay_with_an_edited_transaction_status_does_not_settle(): void
+    {
+        // transaction_status tidak ikut ditandatangani: notifikasi pending (201) sah yang statusnya diubah jadi settlement.
+        $payload = $this->signed(['order_id' => 'POS-WH-'.uniqid(), 'status_code' => '201', 'gross_amount' => '150000.00', 'transaction_status' => 'settlement']);
+
+        $this->postJson('/api/v1/payment/midtrans/webhook', $payload)->assertOk();
+        $this->assertDatabaseMissing('qris_transactions', ['order_id' => $payload['order_id'], 'transaction_status' => 'settlement']);
+    }
+
+    public function test_status_check_settles_only_the_order_midtrans_reports(): void
+    {
+        $orderId = 'POS-OTHER-'.uniqid();
+        Http::fake(["https://api.sandbox.midtrans.com/v2/{$orderId}/status" => Http::response([
+            'status_code' => '200', 'order_id' => 'POS-SOMETHING-ELSE', 'gross_amount' => '350000.00', 'transaction_status' => 'settlement',
+        ], 200)]);
+
+        $this->getJson("/api/v1/payment/qris/status/{$orderId}")->assertJsonPath('data.transaction_status', 'pending');
+        $this->assertDatabaseMissing('qris_transactions', ['order_id' => $orderId]);
+        $this->assertDatabaseMissing('qris_transactions', ['order_id' => 'POS-SOMETHING-ELSE']);
+    }
+
+    public function test_status_check_url_encodes_the_order_id(): void
+    {
+        $orderId = 'POS-Q?x=1#y';
+        Http::fake(fn () => Http::response(['status_code' => '404', 'transaction_status' => 'pending'], 404));
+
+        $this->getJson('/api/v1/payment/qris/status/'.rawurlencode($orderId))->assertJsonPath('data.transaction_status', 'pending');
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.sandbox.midtrans.com/v2/POS-Q%3Fx%3D1%23y/status');
+    }
+
     public function test_webhook_is_rejected_when_no_server_key_is_configured(): void
     {
         config(['midtrans.server_key' => '']);

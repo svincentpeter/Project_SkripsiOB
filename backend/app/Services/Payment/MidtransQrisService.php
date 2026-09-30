@@ -63,7 +63,7 @@ class MidtransQrisService
         try {
             $response = Http::withBasicAuth($this->serverKey, '')
                 ->withHeaders(['Accept' => 'application/json'])
-                ->get("{$this->apiUrl}/v2/{$orderId}/status");
+                ->get("{$this->apiUrl}/v2/".rawurlencode($orderId).'/status');
         } catch (\Throwable $e) {
             Log::error('Gagal periksa status Midtrans', ['order_id' => $orderId, 'exception' => $e]);
 
@@ -76,8 +76,13 @@ class MidtransQrisService
 
         $data = $response->json();
         $status = $data['transaction_status'] ?? 'pending';
+        // Catat di bawah order_id yang dilaporkan Midtrans, dan hanya bila itu memang order yang ditanyakan.
+        $reportedId = $data['order_id'] ?? null;
+        if (! is_string($reportedId) || strcasecmp($reportedId, $orderId) !== 0) {
+            return $pending;
+        }
         if (in_array($status, ['settlement', 'capture'], true)) {
-            return $this->markSettled($orderId, (float) ($data['gross_amount'] ?? 0), QrisTransaction::SOURCE_STATUS_API)->toStatusArray();
+            return $this->markSettled($reportedId, (float) ($data['gross_amount'] ?? 0), QrisTransaction::SOURCE_STATUS_API)->toStatusArray();
         }
 
         return ['order_id' => $orderId, 'transaction_status' => $status, 'payment_type' => 'qris', 'is_simulated' => false];

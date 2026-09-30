@@ -108,7 +108,10 @@ class PaymentApiController extends Controller
 
         Log::info('Midtrans webhook diterima', ['order_id' => $orderId, 'status' => $transactionStatus]);
 
-        if (is_string($orderId) && $orderId !== '' && in_array($transactionStatus, ['settlement', 'capture'], true)) {
+        // transaction_status tidak ikut ditandatangani: notifikasi sah lain (mis. pending 201) bisa diputar ulang dengan
+        // status diubah. status_code ikut ditandatangani, jadi lunas hanya bila keduanya menyatakan berhasil (200).
+        $signedSuccess = (string) ($payload['status_code'] ?? '') === '200';
+        if ($signedSuccess && is_string($orderId) && $orderId !== '' && in_array($transactionStatus, ['settlement', 'capture'], true)) {
             $this->qrisService->markSettled($orderId, (float) ($payload['gross_amount'] ?? 0), QrisTransaction::SOURCE_WEBHOOK);
         }
 
