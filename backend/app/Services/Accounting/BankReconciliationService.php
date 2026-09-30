@@ -30,6 +30,9 @@ class BankReconciliationService
 
     private const MAX_ROWS = 1000;
 
+    /** Batas nominal satu mutasi, sama dengan validasi input manual. */
+    private const MAX_AMOUNT = 10000000000;
+
     /** Percobaan ulang saat deadlock/lock wait timeout (kunci celah indeks antarimpor/pencocokan, nomor JRN). */
     private const ATTEMPTS = 3;
 
@@ -54,7 +57,8 @@ class BankReconciliationService
 
     /**
      * Impor CSV (semua baris atau tidak sama sekali). Baris yang sama persis dengan mutasi yang sudah
-     * tersimpan sebelum impor dilewati, sehingga mengimpor ulang berkas yang sama aman.
+     * tersimpan sebelum impor dilewati sebanyak salinan yang sudah tersimpan, sehingga mengimpor ulang berkas
+     * yang sama aman dan hanya salinan berlebih (baris kembar dalam berkas) yang ditambahkan.
      *
      * @return array{imported: int, skipped: int}
      */
@@ -66,12 +70,15 @@ class BankReconciliationService
         return DB::transaction(function () use ($rows, $dates, $user) {
             // Bacaan mengunci: dua impor berkas yang sama bersamaan saling menunggu, yang kedua melihat baris yang pertama.
             $existing = BankStatementLine::whereBetween('statement_date', [min($dates), max($dates)])->lockForUpdate()->get()
-                ->mapWithKeys(fn (BankStatementLine $l) => [self::key($l->statement_date->toDateString(), $l->description, (float) $l->amount) => true]);
+                ->countBy(fn (BankStatementLine $l) => self::key($l->statement_date->toDateString(), $l->description, (float) $l->amount))
+                ->all();
 
             $imported = 0;
             $skipped = 0;
             foreach ($rows as $row) {
-                if (isset($existing[self::key($row['statement_date'], $row['description'], $row['amount'])])) {
+                $key = self::key($row['statement_date'], $row['description'], $row['amount']);
+                if (($existing[$key] ?? 0) > 0) {
+                    $existing[$key]--;
                     $skipped++;
                     continue;
                 }
@@ -94,7 +101,8 @@ class BankReconciliationService
         $lines = preg_split('/\r\n|\n|\r/', trim($csv)) ?: [];
         $header = (string) array_shift($lines);
         $delimiter = substr_count($header, ';') > substr_count($header, ',') ? ';' : ',';
-        $index = array_flip(array_map(fn ($c) => strtolower(trim((string) $c)), str_getcsv($header, $delimiter)));
+        $headerCells = str_getcsv($header, $delimiter);
+        $index = array_flip(array_map(fn ($c) => strtolower(trim((string) $c)), $headerCells));
         foreach (['tanggal', 'keterangan', 'jumlah'] as $column) {
             if (! isset($index[$column])) {
                 throw new PosRuleException("Kolom '{$column}' tidak ditemukan. Baris pertama wajib berisi kolom: tanggal, keterangan, jumlah.");
@@ -113,6 +121,9 @@ class BankReconciliationService
             }
 
             $cells = str_getcsv($line, $delimiter);
+            if (count($cells) !== count($headerCells)) {
+                throw new PosRuleException("Baris {$rowNumber}: jumlah kolom tidak sama dengan baris judul (keterangan yang berisi pemisah harus diberi tanda kutip).");
+            }
             $date = self::parseDate(trim((string) ($cells[$index['tanggal']] ?? '')));
             $description = trim((string) ($cells[$index['keterangan']] ?? ''));
             $amount = str_replace(' ', '', trim((string) ($cells[$index['jumlah']] ?? '')));
@@ -125,6 +136,9 @@ class BankReconciliationService
             }
             if (! preg_match('/^-?\d+(\.\d{1,2})?$/', $amount) || round((float) $amount, 2) == 0.0) {
                 throw new PosRuleException("Baris {$rowNumber}: jumlah harus angka bukan nol tanpa pemisah ribuan (contoh 150000 atau -6500).");
+            }
+            if (abs((float) $amount) > self::MAX_AMOUNT) {
+                throw new PosRuleException("Baris {$rowNumber}: jumlah maksimal 10.000.000.000 per mutasi.");
             }
 
             $rows[] = ['statement_date' => $date, 'description' => $description, 'amount' => round((float) $amount, 2)];
@@ -149,6 +163,9 @@ class BankReconciliationService
             $item = JournalItem::with(['account', 'journalEntry'])->lockForUpdate()->findOrFail($journalItemId);
             if ($item->account?->account_code !== self::BANK || $item->journalEntry?->status !== 'POSTED') {
                 throw new PosRuleException('Hanya baris jurnal akun Bank BCA (1-1001) yang dapat dicocokkan.');
+            }
+            if ($item->journalEntry->reference_type === OpeningBalanceService::REFERENCE_TYPE) {
+                throw new PosRuleException('Jurnal saldo awal akun bukan mutasi bank dan tidak dapat dicocokkan.');
             }
             if ($this->itemTaken($item->id)) {
                 throw new PosRuleException('Baris jurnal ini sudah dicocokkan dengan mutasi lain.');
@@ -280,9 +297,13 @@ class BankReconciliationService
         $lines = BankStatementLine::with('journalItem.journalEntry')
             ->whereBetween('statement_date', [$start, $end])
             ->orderBy('statement_date')->orderBy('id')->get();
-        $unrecorded = BankStatementLine::whereNull('journal_item_id')->where('statement_date', '<=', $end)
+        // Status per akhir bulan: pencocokan dengan sisi yang bertanggal setelah $end belum berlaku di bulan ini,
+        // jadi laporan bulan lalu tidak berubah ketika setoran/biayanya baru dicocokkan bulan berikutnya.
+        $unrecorded = BankStatementLine::with('journalItem.journalEntry')->where('statement_date', '<=', $end)
+            ->where(fn ($q) => $q->whereNull('journal_item_id')
+                ->orWhereHas('journalItem.journalEntry', fn ($e) => $e->where('entry_date', '>', $end)))
             ->orderBy('statement_date')->orderBy('id')->get();
-        $outstanding = $this->unmatchedLedgerItems($from, $end);
+        $outstanding = $this->unmatchedLedgerItems($from, $end, clearedBy: $end);
 
         $statement = BankReconciliation::where('period', $period)->value('statement_ending_balance');
         $book = CashFlowReport::cashBalances($end)[self::BANK];
@@ -325,8 +346,12 @@ class BankReconciliationService
         ];
     }
 
-    /** Baris jurnal 1-1001 yang belum dicocokkan (tanpa jurnal saldo awal akun). */
-    private function unmatchedLedgerItems(string $from, string $to): Collection
+    /**
+     * Baris jurnal 1-1001 yang belum dicocokkan (tanpa jurnal saldo awal akun). Dengan $clearedBy, baris yang
+     * dicocokkan dengan mutasi bertanggal setelah $clearedBy tetap dihitung belum cocok (laporan per akhir bulan);
+     * tanpa itu (pencocokan otomatis) setiap baris yang sudah dicocokkan disingkirkan.
+     */
+    private function unmatchedLedgerItems(string $from, string $to, ?string $clearedBy = null): Collection
     {
         $bankId = Account::where('account_code', self::BANK)->value('id');
 
@@ -336,7 +361,9 @@ class BankReconciliationService
             ->where('e.status', 'POSTED')
             ->where('e.reference_type', '!=', OpeningBalanceService::REFERENCE_TYPE)
             ->whereBetween('e.entry_date', [$from, $to])
-            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('bank_statement_lines as b')->whereColumn('b.journal_item_id', 'journal_items.id'))
+            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('bank_statement_lines as b')
+                ->whereColumn('b.journal_item_id', 'journal_items.id')
+                ->when($clearedBy !== null, fn ($q) => $q->where('b.statement_date', '<=', $clearedBy)))
             ->orderBy('e.entry_date')->orderBy('journal_items.id')
             ->get(['journal_items.id', 'journal_items.debit', 'journal_items.credit', 'e.entry_number', 'e.entry_date', 'e.reference_type', 'e.description']);
     }

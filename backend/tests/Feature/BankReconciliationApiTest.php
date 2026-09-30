@@ -18,13 +18,13 @@ class BankReconciliationApiTest extends TestCase
     private const URL = '/api/v1/accounting/bank-reconciliation';
 
     /** Baris jurnal 1-1001 dari jurnal uji; mengembalikan id baris bank. */
-    private function bankEntry(string $date, float $amount, string $counter): int
+    private function bankEntry(string $date, float $amount, string $counter, string $type = 'TEST'): int
     {
         $draft = new JournalDraft();
         $amount > 0
             ? $draft->debit('1-1001', $amount, 'uji')->credit($counter, $amount, 'uji')
             : $draft->debit($counter, -$amount, 'uji')->credit('1-1001', -$amount, 'uji');
-        $entry = $draft->post(app(AccountingEngine::class), 'TEST', 'BR-'.uniqid(), 'Uji rekonsiliasi', $date);
+        $entry = $draft->post(app(AccountingEngine::class), $type, 'BR-'.uniqid(), 'Uji rekonsiliasi', $date);
 
         return (int) JournalItem::where('journal_entry_id', $entry->id)
             ->whereHas('account', fn ($q) => $q->where('account_code', '1-1001'))->value('id');
@@ -185,6 +185,93 @@ class BankReconciliationApiTest extends TestCase
             ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'ditutup'));
         $this->assertNull(BankStatementLine::find($charge)->journal_item_id);
         $this->assertSame(0, JournalEntry::where('reference_id', "REKON-{$charge}")->count());
+    }
+
+    public function test_a_past_month_stays_reconciled_after_its_items_clear_next_month(): void
+    {
+        $this->bankEntry('2019-05-03', 500000, '4-1000');
+        $late = $this->bankEntry('2019-05-30', 300000, '4-1000');
+        $juneCharge = $this->bankEntry('2019-06-01', -6500, '6-1012');
+        $this->line('2019-05-04', 'TRSF CUST', 500000);
+        $mayCharge = $this->line('2019-05-31', 'BIAYA ADM', -6500);
+        $juneDeposit = $this->line('2019-06-02', 'SETORAN 30 MEI', 300000);
+        $this->postJson(self::URL.'/auto-match', ['period' => '2019-05'])->assertOk()->assertJsonPath('data.matched', 1);
+
+        $may = $this->getJson(self::URL.'?period=2019-05')->assertOk()->json('data');
+        $this->putJson(self::URL.'/2019-05', ['statement_ending_balance' => round($may['book_balance'] - 300000 - 6500, 2)])
+            ->assertOk()->assertJsonPath('data.is_reconciled', true);
+
+        // Dicocokkan di bulan Juni: setoran 30 Mei masuk rekening 2 Juni, biaya 31 Mei baru dibukukan 1 Juni.
+        $this->postJson(self::URL."/lines/{$juneDeposit}/match", ['journal_item_id' => $late])->assertOk();
+        $this->postJson(self::URL."/lines/{$mayCharge}/match", ['journal_item_id' => $juneCharge])->assertOk();
+
+        $may = $this->getJson(self::URL.'?period=2019-05')->assertOk()->json('data');
+        $this->assertTrue($may['is_reconciled']);
+        $this->assertEquals(300000, $may['deposits_in_transit']);
+        $this->assertSame([$late], array_column($may['outstanding_ledger'], 'journal_item_id'));
+        $this->assertEquals(6500, $may['unrecorded_debits']);
+        $this->assertSame([$mayCharge], array_column($may['unrecorded_bank'], 'id'));
+
+        $june = $this->getJson(self::URL.'?period=2019-06')->assertOk()->json('data');
+        $this->assertSame([], $june['outstanding_ledger']);
+        $this->assertSame([], $june['unrecorded_bank']);
+        $this->putJson(self::URL.'/2019-06', ['statement_ending_balance' => $june['book_balance']])
+            ->assertOk()->assertJsonPath('data.is_reconciled', true);
+    }
+
+    public function test_opening_balance_lines_cannot_be_matched(): void
+    {
+        $opening = $this->bankEntry('2019-05-01', 500000, '3-1000', 'ACCOUNT_OPENING');
+        $lineId = $this->line('2019-05-04', 'SALDO', 500000);
+
+        $this->postJson(self::URL."/lines/{$lineId}/match", ['journal_item_id' => $opening])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'saldo awal'));
+    }
+
+    public function test_auto_match_skips_ambiguous_candidates_and_respects_the_three_day_window(): void
+    {
+        $this->bankEntry('2019-05-03', 400000, '4-1000');
+        $this->bankEntry('2019-05-05', 400000, '4-1000');
+        $threeDays = $this->bankEntry('2019-05-10', 150000, '4-1000');
+        $this->bankEntry('2019-05-20', 250000, '4-1000');
+        $ambiguous = $this->line('2019-05-04', 'DUA KANDIDAT', 400000);
+        $this->line('2019-05-13', 'TIGA HARI', 150000);
+        $fourDays = $this->line('2019-05-24', 'EMPAT HARI', 250000);
+
+        $this->postJson(self::URL.'/auto-match', ['period' => '2019-05'])->assertOk()->assertJsonPath('data.matched', 1);
+
+        $this->assertSame([$threeDays], BankStatementLine::whereNotNull('journal_item_id')->pluck('journal_item_id')->all());
+        $this->assertNull(BankStatementLine::find($ambiguous)->journal_item_id);
+        $this->assertNull(BankStatementLine::find($fourDays)->journal_item_id);
+    }
+
+    public function test_csv_rows_must_have_the_header_column_count_and_a_bounded_amount(): void
+    {
+        $before = BankStatementLine::count();
+
+        $this->post(self::URL.'/import', ['file' => $this->csv("tanggal,keterangan,jumlah\n2019-05-04,PAY 100, 200,500000\n")], ['Accept' => 'application/json'])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'Baris 2: jumlah kolom'));
+        $this->post(self::URL.'/import', ['file' => $this->csv("tanggal,keterangan,jumlah\n2019-05-04,KURANG\n")], ['Accept' => 'application/json'])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'Baris 2: jumlah kolom'));
+        $this->post(self::URL.'/import', ['file' => $this->csv("tanggal,keterangan,jumlah\n2019-05-04,OK,1\n2019-05-04,BESAR,10000000001\n")], ['Accept' => 'application/json'])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'Baris 3'));
+        $this->assertSame($before, BankStatementLine::count());
+
+        $this->post(self::URL.'/import', ['file' => $this->csv("tanggal,keterangan,jumlah\n2019-05-04,\"PAY 100, 200\",500000\n")], ['Accept' => 'application/json'])
+            ->assertCreated()->assertJsonPath('data.imported', 1);
+        $this->assertEquals(500000, BankStatementLine::where('description', 'PAY 100, 200')->value('amount'));
+    }
+
+    public function test_csv_accepts_a_bom_and_short_dates_and_imports_only_surplus_copies(): void
+    {
+        $this->post(self::URL.'/import', ['file' => $this->csv("\xEF\xBB\xBFTanggal;Keterangan;Jumlah\n4/5/2019;KEMBAR;1000\n")], ['Accept' => 'application/json'])
+            ->assertCreated()->assertJsonPath('data.imported', 1);
+        $this->assertSame('2019-05-04', BankStatementLine::where('description', 'KEMBAR')->first()->statement_date->toDateString());
+
+        // Berkas berisi dua baris kembar, satu sudah tersimpan → hanya salinan kedua yang diimpor.
+        $this->post(self::URL.'/import', ['file' => $this->csv("tanggal;keterangan;jumlah\n2019-05-04;KEMBAR;1000\n2019-05-04;KEMBAR;1000\n")], ['Accept' => 'application/json'])
+            ->assertCreated()->assertJsonPath('data.imported', 1)->assertJsonPath('data.skipped', 1);
+        $this->assertSame(2, BankStatementLine::where('description', 'KEMBAR')->count());
     }
 
     public function test_roles_without_bank_reconciliation_are_forbidden(): void
