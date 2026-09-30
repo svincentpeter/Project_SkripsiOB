@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\v1\AccountController;
 use App\Http\Controllers\Api\v1\AccountingPeriodController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
+use App\Http\Controllers\Api\v1\CashMovementController;
 use App\Http\Controllers\Api\v1\CashSessionController;
 use App\Http\Controllers\Api\v1\ExpenseController;
 use App\Http\Controllers\Api\v1\InventoryController;
@@ -102,6 +103,12 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:cash_session_approve')->group(function () {
             Route::get('cash-sessions', [CashSessionController::class, 'index']);
             Route::post('cash-sessions/{id}/approve', [CashSessionController::class, 'approve'])->whereNumber('id');
+        });
+
+        // Mutasi kas pemilik: setor bank, prive, setoran modal
+        Route::middleware('permission:cash_movement')->group(function () {
+            Route::get('cash-movements', [CashMovementController::class, 'index']);
+            Route::post('cash-movements', [CashMovementController::class, 'store']);
         });
 
         // Pengaturan rekening transfer & provider QRIS (EDC tidak lagi didukung)

@@ -181,22 +181,31 @@ class FinancialReportService
             ? 0.0
             : $this->balanceSheet(Carbon::parse($from)->subDay()->toDateString())['equity']['total'];
 
+        // Ekuitas bersaldo normal debit (Prive 3-3000) disajikan terpisah sebagai pengurang ekuitas (SAK EMKM).
         $contributions = 0.0;
+        $drawings = 0.0;
         foreach (LedgerBalances::forRange($from, $to, excludeClosing: true) as $b) {
-            if ($b->account->account_type === 'EQUITY') {
+            if ($b->account->account_type !== 'EQUITY') {
+                continue;
+            }
+            if ($b->account->normal_balance === 'DEBIT') {
+                $drawings += $b->signed('DEBIT');
+            } else {
                 $contributions += $b->signed('CREDIT');
             }
         }
         $contributions = round($contributions, 2);
+        $drawings = round($drawings, 2);
         $netIncome = $this->incomeStatement($from, $to)['net_income'];
         $closing = $this->balanceSheet($to)['equity']['total'];
 
         return [
             'opening_equity' => $opening,
             'owner_contributions' => $contributions,
+            'owner_drawings' => $drawings,
             'net_income' => $netIncome,
             'closing_equity' => $closing,
-            'difference' => round($closing - $opening - $contributions - $netIncome, 2),
+            'difference' => round($closing - $opening - $contributions + $drawings - $netIncome, 2),
         ];
     }
 
