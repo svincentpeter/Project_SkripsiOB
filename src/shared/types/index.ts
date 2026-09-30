@@ -518,7 +518,10 @@ export type PermissionKey =
   | 'accounts_payable'
   | 'accounting_hub'
   | 'financial_reports'
-  | 'role_settings';
+  | 'role_settings'
+  | 'cash_session'
+  | 'cash_session_approve'
+  | 'cash_movement';
 
 export interface UserSession {
   id: string | number;

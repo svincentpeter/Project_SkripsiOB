@@ -67,6 +67,13 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     description: 'Membatalkan nota: jurnal pembalik dibukukan dan stok dikembalikan ke batch FIFO asal. Titik kontrol internal — sebaiknya hanya Owner.',
     icon: <Ban className="w-4 h-4 text-rose-600" />,
   },
+  {
+    key: 'cash_session',
+    label: 'Buka & Tutup Shift Kasir',
+    category: 'KASIR_POS',
+    description: 'Menghitung kas awal dan kas akhir laci. Penjualan tunai hanya bisa diproses selama shift dibuka.',
+    icon: <Wallet className="w-4 h-4 text-blue-600" />,
+  },
 
   // 2. INVENTORI & GUDANG
   {
@@ -126,6 +133,20 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     category: 'AKUNTANSI_BIAYA',
     description: 'Laporan Laba Rugi metode FIFO, Neraca Posisi Keuangan seimbang, dan CALK.',
     icon: <FileText className="w-4 h-4 text-amber-600" />,
+  },
+  {
+    key: 'cash_movement',
+    label: 'Mutasi Kas Pemilik (Setor Bank, Prive, Modal)',
+    category: 'AKUNTANSI_BIAYA',
+    description: 'Membukukan setoran kas laci ke bank, pengambilan prive, dan setoran modal pemilik. Sebaiknya hanya Owner.',
+    icon: <Building className="w-4 h-4 text-amber-600" />,
+  },
+  {
+    key: 'cash_session_approve',
+    label: 'Setujui Tutup Shift & Selisih Kas',
+    category: 'MANAJEMEN_OWNER',
+    description: 'Menyetujui hasil hitung kas shift; selisihnya dijurnal ke akun 6-1010. Titik kontrol internal — sebaiknya hanya Owner.',
+    icon: <CheckCircle2 className="w-4 h-4 text-indigo-600" />,
   },
 
   // 4. MANAJEMEN & DASHBOARD

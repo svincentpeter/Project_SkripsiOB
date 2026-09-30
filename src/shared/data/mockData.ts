@@ -27,6 +27,9 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     accounting_hub: false,
     financial_reports: false,
     role_settings: false,
+    cash_session: true,
+    cash_session_approve: false,
+    cash_movement: false,
   },
   GUDANG: {
     dashboard: false,
@@ -42,6 +45,9 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     accounting_hub: false,
     financial_reports: false,
     role_settings: false,
+    cash_session: false,
+    cash_session_approve: false,
+    cash_movement: false,
   },
 };
 
