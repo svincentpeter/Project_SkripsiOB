@@ -54,7 +54,8 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
 
   const approve = async (session: ApiCashSession) => {
     const adjustment = session.adjustment ?? 0;
-    if (!window.confirm(`Setujui shift #${session.id}? Selisih ${formatRupiah(adjustment)} dijurnal ke 6-1010 Selisih Kas Kasir.`)) return;
+    const parts = `selisih kas awal ${formatRupiah(session.opening_difference)} + selisih hitung ${formatRupiah(session.variance ?? 0)}`;
+    if (!window.confirm(`Setujui shift #${session.id}? Selisih ${formatRupiah(adjustment)} (${parts}) dijurnal ke 6-1010 Selisih Kas Kasir.`)) return;
     setApprovingId(session.id);
     try {
       const res = await cashApi.approve(session.id);
@@ -142,6 +143,11 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
                         <td className="py-2 px-2 text-right font-mono">{s.counted_cash === null ? '-' : formatRupiah(s.counted_cash)}</td>
                         <td className={`py-2 px-2 text-right font-mono font-bold ${adj < 0 ? 'text-rose-700' : adj > 0 ? 'text-emerald-700' : 'text-slate-600'}`}>
                           {s.adjustment === null ? '-' : formatRupiah(s.adjustment)}
+                          {s.opening_difference !== 0 && (
+                            <span className="block text-[10px] font-normal text-slate-500">
+                              awal {formatRupiah(s.opening_difference)} • hitung {s.variance === null ? '-' : formatRupiah(s.variance)}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2 px-2 text-slate-600 max-w-[220px]">{[s.opening_note, s.variance_reason].filter(Boolean).join(' • ') || '-'}</td>
                         <td className="py-2 px-2">
