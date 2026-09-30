@@ -57,6 +57,12 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
 
   if (!isOpen) return null;
 
+  // Form yang belum dikirim tidak ikut terbawa saat modal dibuka lagi.
+  const close = () => {
+    setPending(null);
+    onClose();
+  };
+
   const start = (purchase: ApiPurchase, kind: PendingAction['kind']) => {
     setPending({ purchase, kind });
     setQuantity(1);
@@ -104,7 +110,7 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
               penerimaan yang belum terjual, belum dibayar, dan belum diretur.
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup" className="text-slate-400 hover:text-slate-600">
+          <button type="button" onClick={close} aria-label="Tutup" className="text-slate-400 hover:text-slate-600">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -154,7 +160,7 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
                     <button
                       type="button"
                       onClick={() => start(p, 'CANCEL')}
-                      disabled={p.status === 'BATAL'}
+                      disabled={p.status === 'BATAL' || (p.returned_amount ?? 0) > 0 || p.returnable_qty !== p.quantity}
                       className="px-2 py-1 rounded-lg border border-red-300 text-red-700 font-bold hover:bg-red-50 disabled:opacity-40"
                     >
                       Batalkan
@@ -229,13 +235,15 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
                 onClick={() => setPending(null)}
                 className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg"
               >
-                Batal
+                Kembali
               </button>
               <button
                 type="button"
                 onClick={submit}
                 disabled={busy}
-                className="px-3 py-1.5 text-xs font-extrabold text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50"
+                className={`px-3 py-1.5 text-xs font-extrabold text-white rounded-lg disabled:opacity-50 ${
+                  pending.kind === 'CANCEL' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'
+                }`}
               >
                 {busy ? 'Memproses…' : pending.kind === 'RETURN' ? 'Bukukan Retur' : 'Batalkan Penerimaan'}
               </button>
