@@ -19,7 +19,7 @@ import { ProductItem, PosTransaction, StockMutation } from '../../../shared/type
 import { apiClient } from '../../../services/api';
 import type { ApiJournal } from '../../../services/api';
 import { useToast } from '../../../shared/components';
-import { formatRupiah, formatNumber } from '../../../shared/utils/formatters';
+import { formatRupiah, formatNumber, formatSignedQty } from '../../../shared/utils/formatters';
 import {
   calculateClientStockLedger,
   StockLedgerRow,
@@ -187,7 +187,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                 <span className="text-xs font-semibold text-slate-500">pcs</span>
               </h3>
               <p className="text-[10px] text-slate-500 mt-1">
-                Awal: {reportData?.summary?.total_opening || 0} | Restock: +{reportData?.summary?.total_restock || 0}
+                Awal: {reportData?.summary?.total_opening || 0} | Masuk neto: {formatSignedQty(reportData?.summary?.total_restock)}
               </p>
             </div>
             <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/80 flex items-center justify-center shrink-0">
@@ -368,7 +368,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                   Awal
                 </th>
                 <th className="py-2.5 px-2 font-extrabold text-center bg-indigo-950 text-indigo-200 border-r border-indigo-900">
-                  Masuk
+                  Masuk (neto)
                 </th>
                 <th className="py-2.5 px-2 font-extrabold text-center bg-indigo-950 text-indigo-200 border-r border-indigo-900">
                   Sisa
@@ -535,7 +535,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
 
                         {/* 8. Restock */}
                         <td className="py-2 px-2 text-center font-mono font-semibold text-slate-700 bg-indigo-50/15 border-r border-slate-200">
-                          {row.restock > 0 ? `+${row.restock}` : '0'}
+                          {formatSignedQty(row.restock)}
                         </td>
 
                         {/* 9. Sisa */}
@@ -691,7 +691,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                   {reportData?.summary?.total_opening || 0}
                 </td>
                 <td className="py-2.5 px-2 text-center font-mono font-extrabold text-slate-800 border-r border-slate-200 bg-indigo-50/40">
-                  +{reportData?.summary?.total_restock || 0}
+                  {formatSignedQty(reportData?.summary?.total_restock)}
                 </td>
                 <td className="py-2.5 px-2 text-center font-mono font-extrabold text-emerald-800 border-r border-slate-200 bg-emerald-50/60">
                   {reportData?.summary?.total_remaining || 0}

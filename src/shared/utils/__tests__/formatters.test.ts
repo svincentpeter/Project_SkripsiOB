@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { terbilangRupiah, formatRupiah } from '../formatters';
+import { terbilangRupiah, formatRupiah, formatSignedQty } from '../formatters';
 
 describe('formatters - terbilangRupiah', () => {
   it('should correctly convert numbers to Indonesian words', () => {
@@ -13,5 +13,14 @@ describe('formatters - terbilangRupiah', () => {
 
   it('should handle negative numbers gracefully', () => {
     expect(terbilangRupiah(-350000)).toBe('Tiga ratus lima puluh ribu rupiah');
+  });
+});
+
+describe('formatters - formatSignedQty', () => {
+  it('shows the sign of a net stock movement, including a negative net inflow', () => {
+    expect(formatSignedQty(5)).toBe('+5');
+    expect(formatSignedQty(-5)).toBe('−5');
+    expect(formatSignedQty(0)).toBe('0');
+    expect(formatSignedQty(undefined)).toBe('0');
   });
 });

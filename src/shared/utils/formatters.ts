@@ -18,6 +18,12 @@ export const formatNumber = (value: number): string => {
   return new Intl.NumberFormat('id-ID').format(value);
 };
 
+/** Mutasi qty bertanda: +5, −5 (tanda minus), atau 0. Masuk neto buku stok bisa negatif karena retur pembelian. */
+export const formatSignedQty = (value: number | undefined): string => {
+  const n = value ?? 0;
+  return n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0';
+};
+
 export const formatDateIndo = (dateStr: string): string => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
