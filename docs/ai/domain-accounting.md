@@ -3,7 +3,7 @@
 The thesis rests on one claim: every business event produces a balanced double-entry journal, and SAK EMKM
 reports (Laba Rugi, Posisi Keuangan/Neraca, Arus Kas) are derived from those journals. Keep that claim true.
 
-## Chart of accounts (28 accounts)
+## Chart of accounts (33 accounts)
 
 Defined in `backend/database/seeders/AccountCoaSeeder.php`. The seeder inserts only missing codes.
 Migration `2026_09_24_000003_add_pos_inventory_accounts.php` also inserts 2-1004, 4-2000, 5-2000, and 6-1009,
@@ -18,23 +18,28 @@ accounts and the manual-journal picker hides them. 6-1009 stays active for the Q
 Migration `2026_10_02_000001_create_cash_sessions_and_cash_accounts.php` inserts 3-3000 Prive and 6-1010 Selisih Kas
 Kasir (and creates `cash_sessions`). Migration `2026_10_03_000001_add_sales_return_account_and_permissions` inserts
 4-9100 Retur Penjualan (and the `sales_return`/`purchase_return` permission rows).
+Migration `2026_10_04_000001_add_sak_emkm_accounts.php` adds 1-1100, 2-1100, 4-3000, 6-1011 and 6-1012 (SP4, SAK EMKM
+completeness).
 
 | Code | Name | Type | Normal |
 |---|---|---|---|
 | 1-1000 | Kas Toko Laci Kasir (cash drawer) | ASSET | D |
 | 1-1001 | Bank BCA Cabang 3 | ASSET | D |
 | 1-1002 | Piutang Dagang (AR). **Inactive** since 2026-09-30 (no credit sales); historic entries only | ASSET | D |
+| 1-1100 | Beban Dibayar di Muka (prepaid expenses) | ASSET | D |
 | 1-2000 | Persediaan Ban Baru Cabang 3 (inventory, FIFO) | ASSET | D |
-| 1-3000 | Peralatan Bengkel & Mesin Spooring | ASSET | D |
-| 1-3999 | Akumulasi Penyusutan Mesin (contra-asset) | ASSET | C |
+| 1-3000 | Peralatan Bengkel & Mesin Spooring. Control account: only the fixed asset register (and the account opening balance) posts here | ASSET | D |
+| 1-3999 | Akumulasi Penyusutan Mesin (contra-asset). Control account: only the fixed asset register (and the account opening balance) posts here | ASSET | C |
 | 2-1000 | Hutang Dagang Supplier (AP) | LIABILITY | C |
 | 2-1004 | Uang Muka Pelanggan (DP Booking). **Inactive** since 2026-09-30 (no booking DP); historic entries only | LIABILITY | C |
+| 2-1100 | Beban Yang Masih Harus Dibayar (accrued expenses) | LIABILITY | C |
 | 3-1000 | Modal Disetor Pemilik | EQUITY | C |
 | 3-2000 | Laba Ditahan Cabang 3 | EQUITY | C |
 | 3-3000 | Prive Pemilik (owner drawings; contra-equity, not closed by period closing) | EQUITY | D |
 | 4-1000 | Pendapatan Penjualan Ban Baru | REVENUE | C |
 | 4-1001 | Pendapatan Jasa Servis & Spooring | REVENUE | C |
 | 4-2000 | Pendapatan Surcharge EDC. **Inactive** since 2026-09-30 (no card surcharge); historic entries only | REVENUE | C |
+| 4-3000 | Pendapatan Bunga Bank (bank interest) | REVENUE | C |
 | 4-9000 | Potongan Diskon Penjualan (contra-revenue) | REVENUE | D |
 | 4-9100 | Retur Penjualan (contra-revenue; sales returns) | REVENUE | D |
 | 5-1000 | Harga Pokok Penjualan (HPP) Ban Baru | EXPENSE | D |
@@ -42,6 +47,8 @@ Kasir (and creates `cash_sessions`). Migration `2026_10_03_000001_add_sales_retu
 | 6-1000 … 6-1008 | Operating expenses: gaji (salaries), listrik/air/internet (utilities), sewa (rent), transportasi (transport), ATK (supplies), perawatan mesin (machine maintenance), konsumsi/lembur (meals/overtime), pajak/retribusi (local taxes). **6-1002 does not exist.** | EXPENSE | D |
 | 6-1009 | Beban MDR QRIS & EDC (name kept; only the QRIS MDR posts here now) | EXPENSE | D |
 | 6-1010 | Selisih Kas Kasir (Lebih/Kurang): cashier over/short, posted when a shift is approved | EXPENSE | D |
+| 6-1011 | Beban Penyusutan Aset Tetap (depreciation) | EXPENSE | D |
+| 6-1012 | Beban Administrasi Bank (bank charges) | EXPENSE | D |
 
 There is no "contra" account type. Contra accounts are recognized by a normal balance opposite to their type.
 
@@ -65,14 +72,15 @@ The README's 21-account table is outdated.
 - Posting happens inside the caller's DB transaction, so an unbalanced journal rolls back the whole business
   operation.
 - Journals are never edited or deleted. Corrections are reversing entries (`POS_SALE_VOID`, `VOID_EXPENSE`,
-  `MANUAL_REVERSAL`, `GOODS_RECEIPT_CANCEL`) or new documents (`SALES_RETURN`, `PURCHASE_RETURN`).
+  `MANUAL_REVERSAL`, `GOODS_RECEIPT_CANCEL`, `FIXED_ASSET_VOID`) or new documents (`SALES_RETURN`, `PURCHASE_RETURN`).
 
 ### `reference_type` values in use
 `POS_SALE`, `POS_SALE_VOID`, `PURCHASE`, `DEBT_PAYMENT`,
 `EXPENSE`, `VOID_EXPENSE`, `MANUAL_ADJUSTMENT`, `OPENING_BALANCE`, `STOCK_OPNAME`, `STOCK_IMPORT`,
 `STOCK_RECONCILIATION`, `STOCK_COST_CORRECTION`, `PERIOD_CLOSING`, `PERIOD_REOPEN`, `MANUAL_REVERSAL`,
 `ACCOUNT_OPENING`, `CASH_SESSION_VARIANCE`, `CASH_DEPOSIT`, `OWNER_DRAWING`, `CAPITAL_INJECTION`, `SALES_RETURN`,
-`PURCHASE_RETURN`, `GOODS_RECEIPT_CANCEL`. Reuse one of these where it fits. If you add a new value, list it here.
+`PURCHASE_RETURN`, `GOODS_RECEIPT_CANCEL`, `FIXED_ASSET_ACQUISITION`, `FIXED_ASSET_VOID`, `DEPRECIATION`,
+`ADJUSTING_ENTRY`, `ADJUSTING_REVERSAL`, `BANK_RECON_ADJUSTMENT`. Reuse one of these where it fits. If you add a new value, list it here.
 `TEST_ALIGN` is used by tests only (`AlignsInventoryLedger`), never in production.
 Historic only (no longer produced since 2026-09-30): `BOOKING_DP`, `BOOKING_DP_REFUND`, `RECEIVABLE_PAYMENT`. The
 journal screen has no filter group for them; they show under "Semua".
@@ -91,10 +99,14 @@ journal screen has no filter group for them; they show under "Semua".
 | Stock value change (opname, import, reconciliation, cost fix) | 1-2000 if value rises | 5-2000 (existing product) or 3-1000 (product created in the operation) | `Inventory/InventoryValueJournal::record` (reverse direction if value falls) |
 | Opening inventory | 1-2000 | 3-1000, for the gap between FIFO value and the 1-2000 ledger balance | `InventoryValueJournal::postOpeningBalance`. Posted once (`OPENING_BALANCE`, reference `OPENING-INV-…`); the entry marks go-live and a second post is refused (422 / console exit 1). A Rp 0 gap posts nothing and does not mark go-live |
 | Expense | category `default_account_code` (6-1000…6-1008, seeded) | 1-1000 (TUNAI/KAS_LACI), else 1-1001 | `Accounting/ExpenseService`, now used by the UI. Void posts `VOID_EXPENSE`, the mirror of the original entry, linked by `reversal_of_id` |
-| Manual journal | as submitted | as submitted | `Accounting/ManualJournalService`. Control accounts 1-1002, 1-2000, 2-1000, 2-1004 are rejected (validated in `ManualJournalRequest`). Only manual journals (`MANUAL_ADJUSTMENT`) are reversible from the journal screen, once each |
-| Period closing | every REVENUE/EXPENSE account's cumulative balance ≤ month end (credit accounts) | 3-2000, or the reverse if the account is net-debit; dated the month's last day, then locked | `Accounting/PeriodClosingService::close`. Reopen posts the mirrored `PERIOD_REOPEN` entry (OWNER only) and unlocks. Close and reopen `lockForUpdate()` the 3-2000 account row (`PeriodClosingService::serialize()`) so two closes/reopens can't run at once |
+| Manual journal | as submitted | as submitted | `Accounting/ManualJournalService`. Control accounts 1-1002, 1-2000, 2-1000, 2-1004, 1-3000, 1-3999 are rejected (`ManualJournalService::CONTROL_ACCOUNTS`, validated in `ManualJournalRequest`). Only manual journals (`MANUAL_ADJUSTMENT`) are reversible from the journal screen, once each |
+| Period closing | every REVENUE/EXPENSE account's cumulative balance ≤ month end (credit accounts) | 3-2000, or the reverse if the account is net-debit; dated the month's last day, then locked | `Accounting/PeriodClosingService::close`. Reopen posts the mirrored `PERIOD_REOPEN` entry (OWNER only) and unlocks. Close and reopen `lockForUpdate()` the 3-2000 account row (`PeriodClosingService::serialize()`) so two closes/reopens can't run at once. Refuses a month while `DepreciationService::pendingTotal(period) > 0` (depreciation not run) |
 | Account opening | 1-1000, 1-1001, 1-3000, 1-3999, 3-2000 as submitted | 3-1000, for the balancing difference | `Accounting/OpeningBalanceService::post`. Posted once (`ACCOUNT_OPENING`); further changes go through a manual journal. Posting `lockForUpdate()`s the 3-1000 account row before checking whether an opening entry already exists, so two concurrent posts can't both pass |
 | Cashier shift approved | 6-1010 (shortage) or 1-1000 (overage) | 1-1000 (shortage) or 6-1010 (overage), amount = counted − book | `Accounting/CashSessionService::approve` (`CASH_SESSION_VARIANCE`, `SHIFT-{id}`, dated the approval day; no journal when 0) |
+| Fixed asset bought | 1-3000 | 1-1000 (TUNAI) or 1-1001 (TRANSFER); `OPENING` assets post nothing (already in the account opening balance) | `Accounting/FixedAssetService::create` (`FIXED_ASSET_ACQUISITION`, reference = asset code `AT-YYYYMM-####`, dated the acquisition date). Void only before any depreciation: mirror `FIXED_ASSET_VOID` dated today, `reversal_of_id` |
+| Monthly depreciation | 6-1011 per asset | 1-3999 total; dated the month's last day, reference `SUSUT-YYYY-MM` | `Accounting/DepreciationService::run`. Straight line on cost − residual − opening accumulated, over `useful_life_months`, full month from `depreciation_start`; cumulative in cents so reruns post nothing and locked months are caught up; the previous open month must run first; `fixed_asset_depreciations` keeps one row per asset per run |
+| Adjusting entry (AJP) | 6-xxxx expense (not 6-1011) | 2-1100 (`ACCRUAL`) or 1-1100 (`PREPAID`); dated the month's last day, reference `AJP-YYYYMM-####` | `Accounting/AdjustingEntryService::create` (`ADJUSTING_ENTRY`). `auto_reverse` (accruals only) posts the mirror `ADJUSTING_REVERSAL` immediately, dated day 1 of the next month |
+| Bank charge / interest from the statement | 6-1012, or 1-1001 | 1-1001, or 4-3000; dated the statement date, reference `REKON-{lineId}` | `Accounting/BankReconciliationService::postAdjustment` (`BANK_RECON_ADJUSTMENT`); the statement line is matched to the new 1-1001 line |
 | Cash-to-bank deposit | 1-1001 | 1-1000 | `Accounting/CashMovementService` (`CASH_DEPOSIT`, `KAS-YYYYMM-####`) |
 | Owner drawing (Prive) | 3-3000 | 1-1000 or 1-1001 | `Accounting/CashMovementService` (`OWNER_DRAWING`) |
 | Capital injection | 1-1000 or 1-1001 | 3-1000 | `Accounting/CashMovementService` (`CAPITAL_INJECTION`) |
@@ -132,7 +144,9 @@ refund goes to the drawer, and they need no open shift). Lock order:
   the OB3-INV number → X on the batches (`product_id` index, ascending) → JRN. Opname: X on its products sorted by id
   → the OPN number → X on their batches. Purchase return and GR cancel: X on the purchase → X on its product → X on
   its batches through the `product_id` index. Every flow locks products before batches, and every multi-product
-  flow locks its products sorted by id, so no two of them form a product/batch cycle.
+  flow above locks its products sorted by id, so no two of them form a product/batch cycle. Exception:
+  `Inventory/StockSelectiveUpdateService` (stock bulk update) still locks products one by one in input order; it
+  runs no retry, so a rare deadlock against a checkout/opname surfaces as an error to retry by hand.
 
 Because every shift operation contends on the 1-1000 row at its first step, `close()` never holds X(1-1000) while
 waiting for a shift row that a sale holds (the FK S-lock cycle). Never lock shifts by the `status` predicate: its
@@ -154,6 +168,82 @@ opened first books the whole float as an opening difference, journaled to 6-1010
 opening entry then shows up as the opposite shortage in the next shift. It nets to zero but misstates the P&L, maybe
 across two months. For the same reason an `ACCOUNT_OPENING` or backdated drawer movement posted while a shift is open
 counts inside that shift. The approval table shows the opening difference apart from the counting variance.
+
+## Fixed assets, adjusting entries and bank reconciliation (SP4)
+
+UI: Buku Besar → "7. Aset Tetap" (`fixed_assets`) and "8. Rekonsiliasi Bank" (`bank_reconciliation`); the
+"AJP Akrual / Dibayar di Muka" button in the Buku Besar header (`accounting_hub`); the CALK is "5. CALK" in
+`SakEmkmReportTab` (Laporan Keuangan screen and the ledger's reports tab). The journal screen groups the new entries
+under the filters "Aset Tetap", "AJP Akrual/Prabayar" and "Rekonsiliasi Bank".
+
+**Fixed asset register.** `fixed_assets` is the sub-ledger of 1-3000/1-3999 (`FixedAssetService::summary` compares the
+active register with both ledger balances; the tab shows "Cocok" when both differences are 0). A bought asset
+(`TUNAI`/`TRANSFER`) posts its acquisition and starts depreciating in its acquisition month. An `OPENING` asset posts
+nothing: its cost and prior depreciation are already in the account opening balance (`ACCOUNT_OPENING`, which may post
+1-3000/1-3999), and it carries its own `depreciation_start` (not before the acquisition month) and
+`opening_accumulated_depreciation`. There is no disposal: an asset can only be voided before its first depreciation.
+
+**Depreciation semantics** (`DepreciationService`, `FixedAsset::expectedCentsThrough`):
+- Cumulative: per asset, amount = expected depreciation through the month (in cents, `intdiv`, full base once the
+  useful life is reached, so the last month absorbs rounding) − everything already posted for that asset in any month.
+  A rerun posts nothing (200 "Tidak ada penyusutan…").
+- Catch-up: months already locked when the asset entered the register (an `OPENING` asset with an old
+  `depreciation_start`) are caught up in the first open month's journal. A run is refused for a locked month, and
+  while the previous month is open and still has pending depreciation.
+- Reopen: after a month is reopened, depreciation already caught up in a later month's journal stays there; the
+  reopened month shows nothing pending (by design, no double depreciation).
+- Period close is blocked while `pendingTotal(period) > 0` (422 "Penyusutan aset tetap sampai … belum dibukukan").
+- The AJP form rejects 6-1011, and manual journals reject 1-3000/1-3999, so depreciation comes from the register
+  (a manual journal could still debit 6-1011, but not credit 1-3999).
+
+**AJP.** Accruals (`ACCRUAL`, Cr 2-1100) and used-up prepayments (`PREPAID`, Cr 1-1100) for the current or an earlier
+open month. Only accruals may auto-reverse; the `ADJUSTING_REVERSAL` is posted at once, dated day 1 of the next
+month, and linked by `reversal_of_id`. Paying the accrued expense later is a normal posting (for example a manual
+journal Dr 2-1100 / Cr 1-1001), which the cash-flow report puts under expenses.
+
+**Bank reconciliation semantics** (`BankReconciliationService`, account 1-1001 only):
+- Statement lines (`bank_statement_lines`, + money in, − money out) are matched **1:1** to 1-1001 journal lines
+  (`journal_item_id` is unique): same amount and direction (in = debit, out = credit). `ACCOUNT_OPENING` lines cannot be
+  matched and are never outstanding; ledger lines dated before the month of the first statement line (the cut-over)
+  are treated as already cleared.
+- Auto-match (`POST …/auto-match`): an unmatched statement line dated ≤ the month end is matched only when exactly
+  one unmatched ledger line has the same amount and direction within ±3 days; ambiguous lines stay for manual matching.
+- Past periods are judged **as of the period end**: a statement line matched to a journal dated after the month end
+  still counts as unrecorded that month, and a ledger line matched to a statement line dated after the month end is
+  still outstanding, so last month's report does not change when its items are matched next month.
+- An unrecorded statement line can be booked with `post-adjustment`: money out → Dr 6-1012 / Cr 1-1001, money in →
+  Dr 1-1001 / Cr 4-3000, dated the statement date (refused in a locked period: book it with a manual journal in an
+  open period). Such a match cannot be undone with unmatch; a matched line must be unmatched before it can be deleted.
+- CSV import (`POST …/import`, multipart `file`, ≤ 1 MB): the header row must name `tanggal`, `keterangan`, `jumlah`
+  (any order; delimiter `;` or `,`, whichever the header uses more; a UTF-8 BOM is ignored). Dates `YYYY-MM-DD` or
+  `DD/MM/YYYY`, not in the future; `jumlah` is a non-zero number with a dot for decimals (max 2) and no thousands
+  separator, |amount| ≤ 10,000,000,000; a description containing the delimiter must be quoted (a row whose cell count
+  differs from the header is rejected). Blank lines are skipped; max 1000 rows. All-or-nothing: one bad row rejects the
+  whole file. Rows identical (date, description, amount) to lines already stored are skipped once per stored copy,
+  so re-importing a file is safe and only surplus duplicates inside the file are added.
+- Status: "Terekonsiliasi" when the statement ending balance (`bank_reconciliations`, one per month, may be negative
+  and carry cents) is entered and the difference is 0.
+
+**CALK.** Built on the server (`CalkReport`) from the same journals as the balance sheet. The entity details are
+constants in `CalkReport::ENTITY` (`backend/app/Services/Accounting/CalkReport.php`); the legal form and address are
+placeholders until the owner confirms them. The PPh Final 0.5% (PP 55/2022) appears only as policy text; it is not
+accrued (user decision): tax paid is expensed to 6-1008 when paid. The payables note nets purchase returns and
+receipt cancellations by `return_date`, so an invoice cancelled after the month end still shows in that month.
+
+**Locking.** Every decision taken under a lock uses locking reads (current reads: `lockForUpdate`/`sharedLock`, or
+`PeriodLock::lockDate(locking: true)`): a plain read taken first fixes the REPEATABLE READ snapshot, which then misses
+rows committed while waiting for the lock. Lock orders:
+- Asset create/void: optional S on 1-1000 (TUNAI funding, like `CashSessionService::requireOpen()`) →
+  `FixedAssetService::lockRegister()` (X on the 1-3999 `accounts` row) → the `AT` number / X on the asset → JRN.
+  Never take `lockRegister()` after a number lock.
+- Depreciation run: `lockRegister()` first, then locking reads of the lock date, assets and posted depreciation → JRN.
+- Period close: X on 3-2000 (`serialize()`) → X on 1-3999 (`lockRegister()`, right after serialize, before any plain
+  read) → the pending-depreciation check → JRN. No flow holds 1-3999 and then asks for 3-2000.
+- AJP and bank-recon `post-adjustment`: S on 3-2000 → locking `lockDate` → (the statement line) → the `AJP` number /
+  JRN. The S lock makes them wait for a close in progress, so they cannot post into a month being closed.
+- Asset create/void, depreciation run, period close, AJP, and bank-recon import/match/auto-match/post-adjustment run
+  in `DB::transaction(..., 3)` (`ATTEMPTS = 3`): three attempts on a deadlock or lock-wait timeout (for example
+  X 1-3999 → JRN against the opening balance's X 3-1000 → JRN → FK S 1-3999). Reopen, unmatch and delete-line run once.
 
 ## Reports
 
@@ -186,7 +276,20 @@ COA rather than hard-coded account lists, in `app/Services/Accounting/`:
   balances: no report query filters on `is_active` (only `ManualJournalRequest` does), so prior periods stay
   reproducible and the balance sheet still balances. `CashFlowReport::bucket()` keeps 1-1002 and 2-1004 in the
   customers bucket for historic entries.
-- **`ExpenseService`**, **`ManualJournalService`**, **`PeriodClosingService`**, and **`OpeningBalanceService`**
+- **`CalkReport::build($period)`** (`GET /reports/calk?period=YYYY-MM`) returns the CALK: entity constants, SAK EMKM
+  compliance statement, seven policy texts (basis, cash & bank, FIFO inventory, straight-line depreciation, revenue,
+  accrual expenses, tax incl. PPh Final 0.5% as policy text only — not accrued), and notes for cash & bank (with the
+  month's bank reconciliation status), inventory (1-2000; FIFO value per category only for the current month),
+  prepaid/accrued expenses, fixed assets (register as of the month end next to 1-3000/1-3999), payables per supplier
+  as of the month end (TEMPO purchases − payments dated ≤ end − returns/cancels' `payable_amount` with `return_date`
+  ≤ end, plus a balancing "penyesuaian lain" line to 2-1000) and equity (the balance-sheet equity section).
+- **`BankReconciliationService::report($period)`**: statement ending balance + deposits in transit − outstanding
+  payments = book 1-1001 + unrecorded bank credits − unrecorded bank debits. Ledger lines before the month of the
+  first statement line (the cut-over) and `ACCOUNT_OPENING` lines are never outstanding.
+- `CashFlowReport::bucket()` puts 4-3000 in "other operating" and 1-1100/2-1100 in "expenses"; depreciation and AJP
+  entries touch no cash account and never appear in the cash-flow statement.
+- **`ExpenseService`**, **`ManualJournalService`**, **`PeriodClosingService`**, **`OpeningBalanceService`**,
+  **`FixedAssetService`**, **`DepreciationService`**, **`AdjustingEntryService`** and **`BankReconciliationService`**
   are the posting-side services (see the posting rules table above).
 
 On the frontend, `accountingApi.ts` / `expenseApi.ts` are typed clients and `accountingMappers.ts` maps the wire

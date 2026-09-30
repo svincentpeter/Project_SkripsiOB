@@ -81,7 +81,7 @@ The frontend calls all of these through `accountingApi.ts` and `expenseApi.ts`.
 | POST | `/expenses` | `expenses` | multipart; `{expense_date, category_id, amount, payment_method, bank_name?, recipient_name, description, attachment?}` |
 | POST | `/expenses/{id}/void` | `expenses` | `{reason}`; posts `VOID_EXPENSE` linked by `reversal_of_id`; voiding a voided expense is 422 |
 | GET | `/accounting/journals` | `accounting_hub` | `start_date, end_date, types (comma list), search, account_code, page, per_page≤100`; paginated |
-| POST | `/accounting/journals/manual` | `accounting_hub` | `{date≤today, description, items[{account_code, debit, credit, note}]}`; control accounts (1-1002, 1-2000, 2-1000, 2-1004) rejected |
+| POST | `/accounting/journals/manual` | `accounting_hub` | `{date≤today, description, items[{account_code, debit, credit, note}]}`; control accounts (1-1002, 1-2000, 2-1000, 2-1004, 1-3000, 1-3999) rejected |
 | POST | `/accounting/journals/{entryNumber}/reverse` | `accounting_hub` | `{reason}`; only `MANUAL_ADJUSTMENT` entries, once each |
 | GET | `/accounting/general-ledger` | `accounting_hub` | `account_code, start_date, end_date` |
 | GET | `/accounting/trial-balance` | `accounting_hub` | `as_of` |
@@ -89,11 +89,27 @@ The frontend calls all of these through `accountingApi.ts` and `expenseApi.ts`.
 | GET | `/accounting/cash-flow` | `financial_reports`, `accounting_hub` | `start_date, end_date`; direct method |
 | GET | `/accounting/cash-balances` | `expenses`, `accounting_hub`, `financial_reports`, `cash_session` | `{1-1000, 1-1001}` as of today |
 | GET | `/accounting/periods` | `accounting_hub` | lock date, recent closings, suggested period to close |
-| POST | `/accounting/periods/close` | `accounting_hub` | `{period: YYYY-MM, notes}`; only a fully-elapsed month |
+| POST | `/accounting/periods/close` | `accounting_hub` | `{period: YYYY-MM, notes}`; only a fully-elapsed month; 422 while depreciation for the period is pending |
 | POST | `/accounting/periods/{period}/reopen` | `accounting_hub` + OWNER | `{reason}`; only the most recently closed period |
 | GET / POST | `/accounting/opening-balance` | `accounting_hub` | `{date, balances{code: amount}}`; posts once (`ACCOUNT_OPENING`) |
 | GET | `/accounting/accounts-payable` | `accounts_payable` | |
 | POST | `/accounting/accounts-payable/pay` | `accounts_payable` | per-supplier legacy path; the UI uses `/purchases/{id}/payments`; `payment_date` ≤ today and ≥ the date of each invoice it pays; skips `BATAL` |
+
+## SAK EMKM: fixed assets, AJP, bank reconciliation, CALK
+The frontend calls these through `sakEmkmApi.ts` (see [domain-accounting.md](domain-accounting.md#fixed-assets-adjusting-entries-and-bank-reconciliation-sp4)).
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/accounting/fixed-assets` | `fixed_assets` | register + summary vs ledger 1-3000/1-3999 |
+| POST | `/accounting/fixed-assets` | `fixed_assets` | `{name, category PERALATAN_BENGKEL\|INVENTARIS_TOKO\|KENDARAAN, acquisition_date≤today, acquisition_cost, residual_value?, useful_life_months 1..600, funding TUNAI\|TRANSFER\|OPENING, depreciation_start (OPENING only), opening_accumulated_depreciation (OPENING only), notes?}` → 201 `{asset, journals}`; residual + opening accumulated ≤ cost |
+| POST | `/accounting/fixed-assets/{id}/void` | `fixed_assets` | `{reason}`; only before any depreciation → `{asset, journals}` |
+| GET / POST | `/accounting/fixed-assets/depreciation` | `fixed_assets` | `period=YYYY-MM` (≤ current month); GET previews, POST posts (201) or reports nothing pending (200) |
+| POST | `/accounting/adjusting-entries` | `accounting_hub` | `{period, kind ACCRUAL\|PREPAID, account_code 6-xxxx (not 6-1011), amount, description, auto_reverse (ACCRUAL only)}` → 201 `{journals}` |
+| GET | `/accounting/bank-reconciliation` | `bank_reconciliation` | `period=YYYY-MM` report |
+| PUT | `/accounting/bank-reconciliation/{period}` | `bank_reconciliation` | `{statement_ending_balance}` (may be negative) → the report |
+| POST | `/accounting/bank-reconciliation/lines`, `/import` (multipart `file`, CSV `tanggal,keterangan,jumlah`), `/auto-match` | `bank_reconciliation` | `lines`: `{statement_date≤today, description, amount≠0}`; `auto-match`: `{period}` |
+| DELETE / POST | `/accounting/bank-reconciliation/lines/{id}`, `/lines/{id}/match` (`journal_item_id`), `/lines/{id}/unmatch`, `/lines/{id}/post-adjustment` | `bank_reconciliation` | `post-adjustment` → 201 `{journals}` |
+| GET | `/reports/calk` | `financial_reports`, `accounting_hub` | `period=YYYY-MM` (≤ current month) |
 
 ## Cash shifts and cash movements ([domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts))
 | Method | Path | Permission | Notes |

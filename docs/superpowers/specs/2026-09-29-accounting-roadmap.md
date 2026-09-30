@@ -50,8 +50,8 @@ Findings addressed:
 
 ## Sub-project 3 — Transaction corrections
 
-→ spec `2026-09-30-transaction-corrections-design.md` — done (2026-09-30, commits `b8c5818` through `8037368`,
-interleaved with SP2 follow-ups, plus the docs commit), plan `docs/superpowers/plans/2026-09-30-transaction-corrections.md`.
+→ spec `2026-09-30-transaction-corrections-design.md` — done (2026-09-30, commits `b8c5818` through `67ffe0b`,
+interleaved with SP2 follow-ups and the first SP4 commits; the final fix wave is `f25e9d6`…`67ffe0b`), plan `docs/superpowers/plans/2026-09-30-transaction-corrections.md`.
 
 - 🟠 No partial sales return (only full void); no purchase return / goods
   receipt cancellation (only opname, which leaves the payable standing).
@@ -74,13 +74,16 @@ interleaved with SP2 follow-ups, plus the docs commit), plan `docs/superpowers/p
   **Fixed:** payment date ≤ today and ≥ invoice date; GR date ≤ today; voids, returns and cancellations are dated
   today and pass the engine's period lock.
 
-## Sub-project 4 — SAK EMKM completeness
+## Sub-project 4 — SAK EMKM completeness  → spec `2026-09-30-sak-emkm-completeness-design.md` (done)
+
+> Plan `docs/superpowers/plans/2026-09-30-sak-emkm-completeness.md`; commits `496d084` through the docs commit,
+> interleaved with the SP3 final wave and SP5. Browser checklist (task M1) pending, run by the user.
 
 - 🟠 Fixed asset register and monthly straight-line depreciation (new Beban Penyusutan account; reference:
   `Modules/AssetManagement/Services/DepreciationService.php`).
 - 🟠 A real CALK (compliance statement, entity info, policies, breakdowns of inventory, fixed
   assets, payables) visible in the UI and in exports.
-- 🟡 PPh Final UMKM 0.5% accrual (decide with the thesis supervisor whether it is in scope).
+- 🟡 PPh Final UMKM 0.5% accrual — decided out of scope (user, 2026-09-30); stated in the CALK tax policy only.
 - 🟡 Adjusting-entry workflow for accruals/prepayments; bank reconciliation.
 
 ## Sub-project 5 — Operational reports & dashboard

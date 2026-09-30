@@ -13,10 +13,18 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
   plus a final-review fix wave (commits `590e3b0..b220424`).
 - Gates at push time: backend `composer test` 188/188, frontend `npm run lint` clean, `npm test` 123/123.
   After the DP/BON/EDC removal (2026-09-30) the counts were backend 194, frontend 127; after cash & bank (SP2) they
-  were backend 232, frontend 142 (28 test files); after transaction corrections (SP3) they are backend 262 (1510
-  assertions), frontend 147 (29 test files), `tsc` clean.
-- Transaction corrections (sub-project 3) are **implemented and reviewed** (commits `b8c5818` through `8037368`,
-  interleaved with SP2 follow-ups, plus the docs commit). Its browser checklist has **not been run yet** (section 2c).
+  were backend 232, frontend 142 (28 test files); after transaction corrections (SP3) they were backend 262 (1510
+  assertions), frontend 147 (29 test files); after the SP3 final fix wave (`67ffe0b`, which ran interleaved with the
+  first SP4 tasks, so the backend figure includes their tests) backend 300, frontend 148. After SP4 (last code
+  commit `f0a4c10`) one run of both gates printed backend **340 tests, 2126 assertions**, frontend **168 tests in 31
+  files**, `tsc` clean; these figures already include the SP5 commits made alongside (up to `7039cfa`).
+- Transaction corrections (sub-project 3) are **implemented and reviewed** (commits `b8c5818` through `67ffe0b`,
+  interleaved with SP2 follow-ups and the first SP4 commits; its final fix wave is `f25e9d6 0aca67e f18a3b2 180335f
+  83430a8 ad30156 0b9380c aa4d9be 67ffe0b`). Its browser checklist has **not been run yet** (section 2c).
+- SAK EMKM completeness (sub-project 4) is **implemented and reviewed** (`496d084`, `6f3fd03`+`457bca7`,
+  `ea83ee2`+`5a61c7b`, `9a8503d`, `1795ee8`+`5e22dec`, `fee0f4f`+`efc70ac`, `f1c0810`, `f13adca`, `3b071fa`,
+  `ceb9dec`+`f0a4c10`, `d470ba3`, plus the docs commit). Its browser checklist and the CALK entity details are
+  **pending on the user** (section 2d).
 - Browser check (owner, dev DB, after B7): journals, ledger, trial balance ("Seimbang"), statements
   (balance sheet "Seimbang", cash flow "Terekonsiliasi") and the Biaya screen load from the server with no
   console errors. It was run before the final fix wave; re-check after setup (step 2.3).
@@ -35,7 +43,9 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
    set `MIDTRANS_SERVER_KEY`/`MIDTRANS_CLIENT_KEY` instead.
    Transaction corrections added `2026_10_03_000001_add_sales_return_account_and_permissions`,
    `2026_10_03_000002_create_sales_returns_tables` and `2026_10_03_000003_create_purchase_returns_tables` (all
-   additive).
+   additive). SAK EMKM completeness added `2026_10_04_000001_add_sak_emkm_accounts`,
+   `2026_10_04_000002_create_fixed_assets_tables`, `2026_10_04_000003_create_bank_reconciliation_tables` and
+   `2026_10_04_000004_unique_fixed_asset_depreciation_period` (all additive; already applied to the dev DB).
 3. Run the gates (`composer test`, `npm run lint && npm test`), then open the app as owner and repeat the
    browser check from section 1. The bundled `composer.phar` on this machine is too old for the
    `composer test` script (`@no_additional_args`); use `cd backend && php artisan config:clear && php artisan test`
@@ -45,6 +55,9 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
    negative (a supplier was paid from bank before any opening balance existed). Do this **before the first cashier
    shift is opened**: a shift opened first books the whole float as an opening difference, which approval journals
    to 6-1010 as an overage (reversed as a shortage in the next shift once the opening balance is posted).
+   Then register every machine already in 1-3000/1-3999 in Buku Besar → "7. Aset Tetap" with "Sudah tercatat di
+   Saldo Awal" (`OPENING`), so the register matches the ledger ("Cocok"), and run depreciation month by month before
+   closing a period (a close is refused while depreciation is pending).
 
 5. **Inventory go-live.** `php artisan inventory:opening-balance` (or the valuation banner button) is **one-shot**: the
    `OPENING-INV-…` entry marks go-live of the inventory ledger, and a second run is refused (422 / console exit 1).
@@ -84,6 +97,24 @@ As owner on the dev DB:
 - [ ] POS "Input Manual" offers only services.
 - [ ] No console errors.
 
+## 2d. SAK EMKM completeness: pending user items
+
+- [ ] **Confirm the CALK entity details.** `CalkReport::ENTITY` in `backend/app/Services/Accounting/CalkReport.php`
+  holds placeholders: legal form "Usaha mikro, kecil dan menengah (UMKM) milik perseorangan", address "Magelang, Jawa
+  Tengah". The owner must confirm the legal form and the full address; change the constant if they differ (it is
+  the only place, printed in the CALK screen and exports).
+- [ ] **Browser checklist (task M1 of `docs/superpowers/plans/2026-09-30-sak-emkm-completeness.md`).** Run by the user,
+  as owner on the dev DB (`npm run dev:all`): Aset Tetap (buy by transfer → `FIXED_ASSET_ACQUISITION`; an `OPENING`
+  machine matching the opening balance → "Cocok"; preview/run depreciation for last and this month; a second run
+  says "Tidak ada penyusutan…"; void a fresh test asset); Tutup Buku refused while depreciation is pending; AJP accrual
+  with auto-reversal (two journals) and prepaid without reversal; Rekonsiliasi Bank (CSV import `tanggal;keterangan;jumlah`,
+  auto-match, manual match, book an admin fee and interest, statement balance → "Terekonsiliasi", Excel/PDF export);
+  Laporan Keuangan → 5. CALK (nine notes, PDF/Word and the SAK EMKM package; balance sheet "Seimbang", cash flow
+  "Terekonsiliasi" with interest under "Arus kas operasi lainnya"); Hak Akses lists "Register Aset Tetap & Penyusutan"
+  and "Rekonsiliasi Bank BCA" (off for Kasir/Gudang), and Gudang with only the asset key sees only the Aset Tetap tab.
+- PPh Final 0.5% stays out of scope (user decision 2026-09-30): the CALK states it as tax policy only; nothing is
+  accrued.
+
 ## 3. Next sub-projects (each: brainstorm → spec → plan → implement)
 
 In roadmap order; details and file references are in the roadmap.
@@ -92,7 +123,7 @@ In roadmap order; details and file references are in the roadmap.
 |---|---|---|
 | 2 | Cash & bank (**done**, `2026-09-30-cash-and-bank`) | Cashier shift open/close with counted cash and required variance reason, variance journal (new over/short account), cash→bank deposit, owner drawings (new Prive account), capital injection; replace the `ob3_cash_drawer` counter with the 1-1000 ledger balance |
 | 3 | Transaction corrections (**done**, `2026-09-30-transaction-corrections`; browser checklist pending, 2c) | Partial sales return (cash refund, 4-9100), purchase return / goods-receipt cancel, FIFO shortfall → 422, manual POS lines services only, one-shot inventory opening balance (go-live), Excel stock rebuilds refused after go-live, payment/GR date validation |
-| 4 | SAK EMKM completeness | Fixed asset register + monthly straight-line depreciation (new expense account), real CALK in UI/export, PPh Final 0.5% (confirm scope with supervisor), accruals/prepayments |
+| 4 | SAK EMKM completeness | Fixed asset register + monthly straight-line depreciation (new expense account), real CALK in UI/export, PPh Final 0.5% (confirm scope with supervisor), accruals/prepayments — **done** (`2026-09-30-sak-emkm-completeness`) |
 | 5 | Operational reports & dashboard | Daily cash report, daily recap, per-cashier recap; dashboard figures from server reports (fix VOID/all-month expense totals, FIFO value, UTC "today") |
 | 6 | Payment hardening | **Done** (`2026-09-30-payment-hardening-design.md`): `qris_transactions` (settled amount, single use), simulation behind `MIDTRANS_ALLOW_SIMULATION`, no fallback Midtrans key, server-side fees via `provider_id`; one bank account 1-1001 kept by ruling |
 

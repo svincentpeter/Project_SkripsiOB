@@ -14,8 +14,8 @@
 
    Stages so far: stage 1 auth/RBAC (2026-09-23), stage 2 POS (2026-09-24), stage 3 inventory (2026-09-24), stage 4
    accounting core (2026-09-29). Cash & bank, payment hardening and transaction corrections (returns) followed on
-   2026-09-30. Remaining areas (depreciation, CALK, dashboard/daily reports) are tracked as later sub-projects of the
-   accounting roadmap.
+   2026-09-30, then SAK EMKM completeness (fixed assets and depreciation, AJP, bank reconciliation, CALK). The
+   remaining area (dashboard/daily reports) is tracked as a later sub-project of the accounting roadmap.
 3. **Commits:** Conventional Commits with a scope, in English, with the imperative subject in lowercase:
    `feat(pos): …`, `fix(accounting): …`, `test: …`, `docs(inventory): …`. The body explains why. Commits are made
    directly on `main`. When Claude writes the commit, it ends with the `Co-Authored-By: Claude …` trailer.
@@ -40,6 +40,7 @@
 | 09-29 | accounting server core (stage 4): expenses, manual journals, reversal, period closing/reopen, opening balances, reports | done |
 | 09-30 | cash & bank (roadmap SP2): cashier shifts, variance journal, deposits, Prive, capital | done |
 | 09-30 | transaction corrections (roadmap SP3) | done |
+| 09-30 | SAK EMKM completeness (SP4): fixed assets & depreciation, AJP, bank reconciliation, CALK | done |
 | — | `API_DOCUMENTATION.md` | stale; use [api-reference.md](api-reference.md) |
 
 ## Testing
@@ -51,8 +52,8 @@
 | Backend | `cd backend && composer test` | MySQL `project-skripsi_ob_testing`, which must exist and be migrated. See [../../backend/AGENTS.md](../../backend/AGENTS.md#tests) |
 | E2E | `node tests/e2e/<file>.mjs` | Plain Playwright scripts, not `@playwright/test`. They need `npm run dev` (dev mode), the backend on :8000 with seeded users, and `VITE_DEV_LOGIN_PASSWORD`. They log in via the "Agus Subagyo" quick-login card, write screenshots and JSON to `tests/e2e/screenshots/`, and have **no pass/fail assertions** |
 
-As of 2026-09-30 (after transaction corrections), the frontend passes: 29 test files, 147 tests, and `tsc` is clean.
-The backend passes 262 tests.
+As of 2026-10-01 (after SAK EMKM completeness, with the SP5 commits made alongside), the frontend passes: 31 test
+files, 168 tests, and `tsc` is clean. The backend passes 340 tests (2126 assertions).
 
 ## Glossary (Indonesian → meaning)
 
@@ -88,6 +89,10 @@ The backend passes 262 tests.
 | Buku besar / neraca saldo | general ledger / trial balance |
 | Laba rugi / posisi keuangan (neraca) / arus kas | income statement / balance sheet / cash flow |
 | Jurnal umum / penyesuaian / penutup / pembalik (storno) | general / adjusting / closing / reversing journal |
+| Aset tetap / penyusutan / akumulasi penyusutan | fixed asset / depreciation (6-1011) / accumulated depreciation (1-3999) |
+| AJP (jurnal penyesuaian) / akrual / dibayar di muka | month-end adjusting entry / accrued expense (2-1100) / prepaid expense (1-1100) |
+| Rekening koran / rekonsiliasi bank | bank statement / bank reconciliation |
+| CALK | Catatan atas Laporan Keuangan, notes to the financial statements |
 | BKK (Bukti Kas Keluar) | cash-out voucher, i.e. an expense (`BKK-…`) |
 | Beban | expense |
 | Modal / laba ditahan | owner's capital (3-1000) / retained earnings (3-2000) |
@@ -125,7 +130,8 @@ The backend passes 262 tests.
 - **Windows.** Paths contain `C:\laragon\www\…`. The DB name has a hyphen (`project-skripsi_ob`), so quote it in SQL.
 - **Security items still open:**
   - Prices (`unit_price`) are trusted from the client (fees are server-side since 2026-09-30).
-  - Static QRIS (no Midtrans order id) is cashier-attested until bank reconciliation.
+  - Static QRIS (no Midtrans order id) is cashier-attested; it is only checked when its 1-1001 line is matched in the
+    monthly bank reconciliation.
   - `SUPABASE_VERCEL_SETUP.md` contains a publishable key and default passwords.
 
 ## Legacy you can ignore

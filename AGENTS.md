@@ -81,6 +81,7 @@ The app started fully client-side (localStorage, briefly Supabase) and is being 
 | Expenses, manual journals, journal reversal, account opening balances, period closing & lock | Server | 4 (done) |
 | Financial reports (journals, ledger, trial balance, statements, equity changes, cash flow) | Server, computed per period | 4 (done) |
 | Cashier shifts, drawer balance (= ledger 1-1000), cash deposits, Prive, capital injections | Server | SP2 cash & bank (done) |
+| Fixed asset register & depreciation, adjusting entries (AJP), bank reconciliation, CALK | Server | SP4 (done) |
 | Store settings (receipt text), parked orders, cart | **Client** (localStorage `ob3_*` keys) | not scheduled |
 
 Accounting components fetch their own server data (`useServerData`) keyed by the chosen period and by
@@ -95,8 +96,8 @@ Details: [docs/ai/architecture.md](docs/ai/architecture.md).
    which requires Σdebit = Σcredit to the cent (no tolerance). Never write `journal_entries`/`journal_items` directly.
    `createEntry` also rejects lines that are negative, two-sided or fewer than two, and any date on or before
    the period lock date (`PeriodLock`).
-2. **Account codes come from the COA.** 28 accounts (1-1002, 2-1004, 4-2000 inactive since 2026-09-30; 4-9100 Retur
-   Penjualan added by `2026_10_03_000001`), seeded by `AccountCoaSeeder` (+ migration `2026_09_24_000003`). The frontend has no COA copy; it loads `GET /accounts`. A new account needs only
+2. **Account codes come from the COA.** 33 accounts (1-1002, 2-1004, 4-2000 inactive since 2026-09-30; 4-9100 Retur
+   Penjualan added by `2026_10_03_000001`; 1-1100, 2-1100, 4-3000, 6-1011, 6-1012 added by `2026_10_04_000001`), seeded by `AccountCoaSeeder` (+ migration `2026_09_24_000003`). The frontend has no COA copy; it loads `GET /accounts`. A new account needs only
    a migration (so existing databases get it) and the seeder.
    See [docs/ai/domain-accounting.md](docs/ai/domain-accounting.md).
 3. **Stock only moves through services that keep FIFO and the ledger in step.** Stock changes go through

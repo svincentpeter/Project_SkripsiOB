@@ -1,6 +1,6 @@
 # Data model
 
-Source of truth: `backend/database/migrations/` (30 migrations). Models: `backend/app/Models/`.
+Source of truth: `backend/database/migrations/` (34 migrations). Models: `backend/app/Models/`.
 `database/schema_project_skripsi_ob.sql` and `supabase_schema.sql` are **stale**, so ignore them.
 Most early migrations wrap `Schema::create` in `hasTable` guards. New migrations should be additive:
 add columns and insert-if-missing rows, and never rewrite old migrations.
@@ -73,13 +73,21 @@ Providers and fees are server-only since 2026-09-30: the POS reads `GET /pos/pay
 ## Accounting
 | Table | Key columns | Notes |
 |---|---|---|
-| `accounts` | `account_code` (unique), `account_name`, `account_type` (ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE), `normal_balance` (DEBIT/CREDIT), `is_active` | 28 rows; see [domain-accounting.md](domain-accounting.md) |
+| `accounts` | `account_code` (unique), `account_name`, `account_type` (ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE), `normal_balance` (DEBIT/CREDIT), `is_active` | 33 rows (1-1100, 2-1100, 4-3000, 6-1011, 6-1012 added by `2026_10_04_000001`); see [domain-accounting.md](domain-accounting.md) |
 | `journal_entries` | `entry_number` (unique, `JRN-YYYYMM-####`), `entry_date`, `reference_type`, `reference_id`, `description`, `total_debit`, `total_credit`, `status` (POSTED), `created_by` (nullable FK `users`), `reversal_of_id` (nullable, unique, FK `journal_entries`) | `reversal_of_id` links a reversal to its original; the unique constraint caps an entry at one reversal |
 | `journal_items` | `journal_entry_id` (FK cascade), `account_id` (FK), `debit`, `credit`, `note` | |
 | `accounting_period_closings` | `period` (YYYY-MM), `end_date`, `closing_entry_id` (nullable FK `journal_entries`), `net_income`, `notes`, `closed_by`, `closed_at`, `reopened_at`, `reopened_by`, `reopen_reason`, `reopen_entry_id` (nullable FK `journal_entries`) | one row per closed month; lock date = `max(end_date)` where `reopened_at` is null |
 | `expense_categories` | `category_code` (unique), `category_name`, `default_account_code` | seeded, 8 rows (GAJI…PAJAK, mapped to 6-1000…6-1008), matching the frontend `ExpenseCategory` strings |
 | `expenses` | `reference` (`BKK-YYYYMM-####`), `expense_date`, `category_id`, `amount`, `payment_method`, `bank_name`, `recipient_name`, `description`, `attachment_path`, `approved_by`, `status` (ACTIVE/VOID), `void_reason`, `voided_by`, `voided_at`, `created_by` (nullable FK `users`) | attachment is stored after the journal posts and deleted if the transaction fails |
 | `cash_sessions` | `user_id`, `opened_at`, `opening_float`, `book_opening`, `opening_note`, `from_entry_id`, `to_entry_id`, `closed_at`, `closed_by`, `expected_cash`, `counted_cash`, `variance`, `variance_reason`, `status` (OPEN/PENDING_APPROVAL/CLOSED), `approved_by`, `approved_at`, `journal_entry_id` | cashier shifts for the single drawer (1-1000); window = journal ids in (`from_entry_id`, `to_entry_id`]; `adjustment` (= `variance` + `opening_float` − `book_opening`) is journaled on approval |
+
+## Fixed assets and bank reconciliation (SP4)
+| Table | Key columns | Notes |
+|---|---|---|
+| `fixed_assets` | `code` (`AT-YYYYMM-####`), `name`, `category`, `acquisition_date`, `acquisition_cost`, `residual_value`, `useful_life_months`, `depreciation_start` (YYYY-MM), `opening_accumulated_depreciation`, `funding` (TUNAI/TRANSFER/OPENING), `journal_entry_number`, `status` (ACTIVE/VOID), `void_reason`, `voided_by`, `voided_at`, `created_by` | sub-ledger of 1-3000/1-3999 (migration `2026_10_04_000002`) |
+| `fixed_asset_depreciations` | `fixed_asset_id`, `period`, `amount`, `journal_entry_id` | one row per asset per depreciation run; unique (`fixed_asset_id`, `period`) since `2026_10_04_000004` |
+| `bank_statement_lines` | `statement_date`, `description`, `amount` (+ in, − out), `source` (MANUAL/CSV), `journal_item_id` (unique, nullable) | matched when `journal_item_id` is set (migration `2026_10_04_000003`) |
+| `bank_reconciliations` | `period` (unique), `statement_ending_balance`, `updated_by` | status is computed by the report |
 
 ## Not in the database
 - Excel import staging is stored in a single shared file, `backend/storage/app/stock_migration/stock_staging.json`.

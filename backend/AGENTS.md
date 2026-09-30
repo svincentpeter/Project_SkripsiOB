@@ -35,7 +35,9 @@ app/Services/                  business logic; one service per use case
   FifoCostingService.php       batch creation + FIFO allocation
   Pos/                         CheckoutService, CartLines, PosAccounts, SaleVoidService, SalesReturnService
   Accounting/                  ExpenseService, ManualJournalService, PeriodClosingService, OpeningBalanceService,
-                               CashSessionService (shifts), CashMovementService (deposit/Prive/capital), reports
+                               CashSessionService (shifts), CashMovementService (deposit/Prive/capital),
+                               FixedAssetService, DepreciationService, AdjustingEntryService,
+                               BankReconciliationService, CalkReport, reports
   Inventory/                   GoodsReceipt, Payable, PurchaseReturn (return + GR cancel), StockOpname(+Commit),
                                StockSelectiveUpdate, StockExcelImport, MonthlyStockLedger, InventoryValueJournal,
                                Excel/* (reader, parser, brand resolver, match key)
