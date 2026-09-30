@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  BookMarked, BookOpen, CreditCard, ExternalLink, Factory, FileText, Landmark, Lock, LockOpen, Plus, Scale, ShieldCheck, Users, Wallet,
+  BookMarked, BookOpen, CalendarClock, CreditCard, ExternalLink, Factory, FileText, Landmark, Lock, LockOpen, Plus, Scale, ShieldCheck, Users, Wallet,
 } from 'lucide-react';
 import {
   ChartOfAccount,
@@ -12,12 +12,16 @@ import {
 } from '../../shared/types';
 import { accountingApi } from '../../services/api';
 import type { ApiJournal } from '../../services/api';
+import { sakEmkmApi } from '../../services/api/sakEmkmApi';
+import type { AdjustingEntryInput } from '../../shared/types/sakEmkm';
+import { useToast } from '../../shared/components';
 import { previousMonth } from '../../services/accountingPeriod';
 import { formatDateIndo } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
 import { useServerData } from './hooks/useServerData';
 import {
   AccountsPayableTab,
+  AdjustingEntryModal,
   CashBankTab,
   FixedAssetsTab,
   GeneralLedgerTab,
@@ -117,6 +121,20 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isClosingOpen, setIsClosingOpen] = useState(false);
   const [isOpeningOpen, setIsOpeningOpen] = useState(false);
+  const [isAdjustingOpen, setIsAdjustingOpen] = useState(false);
+  const toast = useToast();
+
+  // Hanya POST yang ditangkap: pekerjaan setelah sukses di luar catch agar galat UI tidak tampil sebagai "ditolak" untuk AJP yang sudah dibukukan.
+  const handleAdjustingEntry = async (input: AdjustingEntryInput): Promise<boolean> => {
+    const res = await sakEmkmApi.createAdjustingEntry(input).catch((err: unknown) => {
+      toast.error('AJP Ditolak Server', err instanceof Error ? err.message : 'Permintaan ditolak server.');
+      return null;
+    });
+    if (!res) return false;
+    onLedgerChanged(res.journals);
+    toast.success('AJP Dibukukan', `${res.journals.map((j) => j.entry_number).join(' dan pembaliknya ')} tersimpan di server.`);
+    return true;
+  };
 
   // Endpoint periode & saldo awal khusus accounting_hub: tanpa akses itu jangan kirim permintaan.
   const periods = useServerData(() => (canUseHub ? accountingApi.periods() : Promise.resolve(null)), [ledgerVersion, canUseHub]);
@@ -185,6 +203,13 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
               </button>
             )}
             {canUseHub && (
+              <button type="button" onClick={() => setIsAdjustingOpen(true)}
+                className="px-3.5 py-2 text-xs font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl flex items-center gap-1.5 cursor-pointer">
+                <CalendarClock className="w-3.5 h-3.5" />
+                <span>AJP Akrual / Dibayar di Muka</span>
+              </button>
+            )}
+            {canUseHub && (
               <button type="button" onClick={() => setIsManualOpen(true)}
                 className="px-3.5 py-2 text-xs font-extrabold text-white bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer">
                 <Plus className="w-4 h-4" />
@@ -227,6 +252,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
       {canUseHub && (
         <>
           <ManualJournalModal isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} accounts={accounts} onSubmit={onAddManualJournal} />
+          <AdjustingEntryModal isOpen={isAdjustingOpen} onClose={() => setIsAdjustingOpen(false)} accounts={accounts} onSubmit={handleAdjustingEntry} />
           <PeriodClosingModal
             isOpen={isClosingOpen}
             onClose={() => setIsClosingOpen(false)}

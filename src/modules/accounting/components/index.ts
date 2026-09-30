@@ -15,3 +15,4 @@ export * from './ServerStatus';
 export * from './CashBankTab';
 export * from './FixedAssetModal';
 export * from './FixedAssetsTab';
+export * from './AdjustingEntryModal';
