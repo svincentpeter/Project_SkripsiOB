@@ -380,3 +380,13 @@ export const mapPaymentProvider = (p: ApiPaymentProvider): PaymentProviderSettin
   fee_threshold_amount: num(p.fee_threshold_amount),
   is_active: !!p.is_active,
 });
+
+/** Id provider server untuk nama pilihan kasir; QRIS jatuh ke provider pertama, sama seperti hitungan fee. */
+export const providerIdOf = (
+  options: PaymentProviderSetting[],
+  name?: string,
+  fallbackToFirst = false
+): number | undefined => {
+  const found = options.find((o) => o.provider_name === name) ?? (fallbackToFirst ? options[0] : undefined);
+  return found ? Number(found.id) : undefined;
+};

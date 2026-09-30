@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ApiSale, buildPayments, cartLineToPayload, mapPaymentProvider, mapSaleToTransaction, serviceCartProduct } from '../api/posMappers';
-import { CartItem, ProductItem, ServiceMasterItem } from '../../shared/types';
+import { ApiSale, buildPayments, cartLineToPayload, mapPaymentProvider, mapSaleToTransaction, providerIdOf, serviceCartProduct } from '../api/posMappers';
+import { CartItem, PaymentProviderSetting, ProductItem, ServiceMasterItem } from '../../shared/types';
 
 const product = { id: '42', product_name: 'Bridgestone Ecopia', name: 'Bridgestone Ecopia', product_price: 900000, stock: 5 } as ProductItem;
 const service: ServiceMasterItem = {
@@ -96,6 +96,20 @@ describe('mapPaymentProvider', () => {
       id: 4, method_type: 'qris', provider_name: 'BCA', provider_code: undefined,
       fee_percentage: 0.3, fee_threshold_amount: 500000, is_active: true,
     });
+  });
+});
+
+describe('providerIdOf', () => {
+  const opts = [
+    { id: 1, method_type: 'qris', provider_name: 'BCA', is_active: true },
+    { id: '2', method_type: 'qris', provider_name: 'Mandiri', is_active: true },
+  ] as PaymentProviderSetting[];
+
+  it('finds the provider by name and only falls back to the first one when asked', () => {
+    expect(providerIdOf(opts, 'Mandiri')).toBe(2);
+    expect(providerIdOf(opts, 'Unknown')).toBeUndefined();
+    expect(providerIdOf(opts, 'Unknown', true)).toBe(1);
+    expect(providerIdOf([], 'BCA', true)).toBeUndefined();
   });
 });
 

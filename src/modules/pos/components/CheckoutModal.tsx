@@ -19,9 +19,10 @@ import {
   Sparkles,
   Calendar,
 } from 'lucide-react';
-import { CartItem, PaymentMethod, PaymentProviderSetting, SplitPaymentLine } from '../../../shared/types';
+import { CartItem, PaymentMethod, SplitPaymentLine } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
 import { paymentApi, PaymentOptions } from '../../../services/api/paymentApi';
+import { providerIdOf } from '../../../services/api/posMappers';
 import { useServerData } from '../../accounting/hooks/useServerData';
 import { QrisDynamicModal } from './QrisDynamicModal';
 
@@ -92,11 +93,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const bankOptions = (paymentOptions.data?.bank_providers ?? []).filter((b) => b.is_active);
   const qrisOptions = (paymentOptions.data?.qris_providers ?? []).filter((q) => q.is_active);
 
-  /** Id provider server untuk nama pilihan kasir; QRIS jatuh ke provider pertama, sama seperti hitungan fee. */
-  const providerIdOf = (options: PaymentProviderSetting[], name?: string, fallbackToFirst = false): number | undefined => {
-    const found = options.find((o) => o.provider_name === name) ?? (fallbackToFirst ? options[0] : undefined);
-    return found ? Number(found.id) : undefined;
-  };
+  // QRIS dinamis menagih pelanggan sebelum checkout: jangan dibuka bila provider server belum siap.
+  const providersPending = paymentOptions.loading || !!paymentOptions.error;
+  const qrisUnavailable = providersPending || qrisOptions.length === 0;
+  const [submitError, setSubmitError] = useState<string>('');
 
   useEffect(() => {
     if (bankOptions.length > 0 && !bankOptions.some((b) => b.provider_name === selectedBank)) {
@@ -112,8 +112,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Dynamic fee calculations
   const currentQrisSetting = qrisOptions.find((q) => q.provider_name === selectedQris) || qrisOptions[0];
-  const qrisFeePct = currentQrisSetting?.fee_percentage ?? 0.30;
-  const qrisThreshold = currentQrisSetting?.fee_threshold_amount ?? 500000;
+  // Tanpa provider dari server tidak ada angka fee (jangan menebak dari nilai bawaan).
+  const qrisFeePct = currentQrisSetting?.fee_percentage ?? 0;
+  const qrisThreshold = currentQrisSetting?.fee_threshold_amount ?? 0;
   const qrisFeeAmount = (paymentMethod === 'QRIS' && netPayable > qrisThreshold && qrisFeePct > 0)
     ? Math.round(netPayable * (qrisFeePct / 100))
     : 0;
@@ -126,8 +127,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     if (row.method === 'QRIS') {
       const qSetting = qrisOptions.find((q) => q.provider_name === row.provider_name) || qrisOptions[0];
-      feePct = qSetting?.fee_percentage ?? 0.30;
-      const th = qSetting?.fee_threshold_amount ?? 500000;
+      feePct = qSetting?.fee_percentage ?? 0;
+      const th = qSetting?.fee_threshold_amount ?? 0;
       if (row.amount > th && feePct > 0) {
         feeAmt = Math.round(row.amount * (feePct / 100));
       }
@@ -253,8 +254,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     });
   };
 
+  const usesQris = isSplitMode ? splitRows.some((r) => r.method === 'QRIS') : paymentMethod === 'QRIS';
+
   const handleFinalSubmit = () => {
     if (isSplitMode ? isSplitShort : isCashShort) return;
+
+    // Server menolak QRIS tanpa provider (422) setelah pelanggan bayar: cegah sebelum QR ditampilkan.
+    const qrisProviderMissing = isSplitMode
+      ? splitRows.some((r) => r.method === 'QRIS' && providerIdOf(qrisOptions, r.provider_name, true) === undefined)
+      : paymentMethod === 'QRIS' && providerIdOf(qrisOptions, selectedQris, true) === undefined;
+    if (usesQris && (providersPending || qrisProviderMissing)) {
+      setSubmitError('Provider QRIS belum tersedia dari server. Muat ulang provider atau pilih metode lain.');
+      return;
+    }
+    setSubmitError('');
 
     if (!isSplitMode && paymentMethod === 'QRIS' && qrisFlowType === 'DYNAMIC') {
       // Nomor order unik penuh: server menolak order QRIS yang sudah dipakai nota lain.
@@ -566,11 +579,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           <button
                             type="button"
                             onClick={() => setPaymentMethod('QRIS')}
+                            disabled={qrisUnavailable}
                             className={`py-2 px-1 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 cursor-pointer ${
                               paymentMethod === 'QRIS'
                                 ? 'bg-cyan-50 border-cyan-500 text-cyan-900 shadow-xs'
                                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
-                            }`}
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
                           >
                             <QrCode className="w-4 h-4 text-cyan-600" />
                             <span className="text-[11px] truncate">QRIS</span>
@@ -744,11 +758,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                               <span className="text-[11px] font-semibold text-cyan-800 block">
                                 Provider QRIS (menentukan potongan MDR):
                               </span>
-                              {paymentOptions.error && (
-                                <span className="text-[11px] font-semibold text-rose-700 block">
-                                  Gagal memuat provider pembayaran: {paymentOptions.error}
-                                </span>
-                              )}
                               <div className="flex flex-wrap gap-1.5">
                                 {qrisOptions.map((qris) => (
                                   <button
@@ -768,7 +777,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           </div>
 
                           <div className="pt-2 border-t border-cyan-200/80 space-y-1.5 text-[11px]">
-                            {netPayable > qrisThreshold && qrisFeePct > 0 ? (
+                            {!currentQrisSetting ? (
+                              <div className="flex items-center justify-between text-cyan-900">
+                                <span>Potongan MDR:</span>
+                                <span className="font-mono font-bold">-</span>
+                              </div>
+                            ) : netPayable > qrisThreshold && qrisFeePct > 0 ? (
                               <div className="flex items-center justify-between text-cyan-900">
                                 <span>Potongan MDR ({qrisFeePct}% beban toko):</span>
                                 <span className="font-mono font-bold text-rose-600">
@@ -857,13 +871,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                                       <button
                                         key={m}
                                         type="button"
+                                        disabled={m === 'QRIS' && qrisUnavailable}
                                         onClick={() =>
                                           handleUpdateSplitRow(idx, {
                                             method: m,
                                             provider_name: m === 'TRANSFER' ? (selectedBank || 'BCA') : m === 'QRIS' ? (selectedQris || 'BCA') : undefined,
                                           })
                                         }
-                                        className={`py-1 px-1 rounded-lg text-[10.5px] font-bold transition-all border text-center cursor-pointer ${
+                                        className={`py-1 px-1 rounded-lg text-[10.5px] font-bold transition-all border text-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                                           isActive
                                             ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                                             : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -998,6 +1013,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
             {/* Footer Modal Actions */}
             <div className="pt-4 border-t border-slate-200 space-y-2">
+              {(providersPending || qrisOptions.length === 0) && (
+                <div className="flex items-center justify-between gap-2 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5">
+                  <span>
+                    {paymentOptions.error
+                      ? `Gagal memuat provider pembayaran: ${paymentOptions.error}`
+                      : paymentOptions.loading
+                      ? 'Memuat provider pembayaran dari server...'
+                      : 'Belum ada provider QRIS aktif; QRIS tidak dapat dipakai.'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={paymentOptions.reload}
+                    className="px-2 py-0.5 rounded border border-amber-300 bg-white hover:bg-amber-100 cursor-pointer shrink-0"
+                  >
+                    Muat ulang
+                  </button>
+                </div>
+              )}
+              {submitError && <div className="text-[11px] font-semibold text-rose-700">{submitError}</div>}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -1012,7 +1046,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 <button
                   type="button"
                   onClick={handleFinalSubmit}
-                  disabled={isSplitMode ? isSplitShort : isCashShort}
+                  disabled={(isSplitMode ? isSplitShort : isCashShort) || (usesQris && providersPending)}
                   className="flex-1 py-3 px-4 rounded-xl text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
                 >
                   <Check className="w-4 h-4" />
