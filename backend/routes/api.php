@@ -93,6 +93,7 @@ Route::prefix('v1')->group(function () {
             Route::get('pos/transactions/{id}', [PosController::class, 'show']);
         });
         Route::post('pos/transactions/{id}/void', [PosController::class, 'void'])->middleware('permission:sale_void');
+        Route::post('pos/transactions/{id}/returns', [PosController::class, 'salesReturn'])->middleware('permission:sales_return');
 
         // Shift kasir (satu laci = akun 1-1000); selisih kas dijurnal saat pemilik menyetujui
         Route::get('cash-sessions/current', [CashSessionController::class, 'current'])->middleware('permission:cash_session,cash_session_approve');

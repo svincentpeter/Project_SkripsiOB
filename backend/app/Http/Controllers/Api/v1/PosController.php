@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PosCheckoutRequest;
 use App\Models\Sale;
 use App\Services\Pos\CheckoutService;
+use App\Services\Pos\SalesReturnService;
 use App\Services\Pos\SaleVoidService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ class PosController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Sale::with(['details.product', 'payments'])
+        $query = Sale::with(['details.product', 'payments', 'returns.items'])
             ->orderBy('date', 'desc')
             ->orderBy('id', 'desc');
 
@@ -57,6 +58,28 @@ class PosController extends Controller
             'message' => "Nota {$sale->reference} dibatalkan.",
             'data' => $sale->toReceiptArray(),
         ]);
+    }
+
+    public function salesReturn(Request $request, int $id, SalesReturnService $returns): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => 'required|string|min:5|max:255',
+            'items' => 'required|array|min:1',
+            'items.*.sale_detail_id' => 'required|integer|distinct',
+            'items.*.quantity' => 'required|integer|min:1',
+        ]);
+        $out = $returns->create($id, $data['items'], $data['reason'], $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => "Retur {$out['return']->reference} dibukukan. Serahkan refund tunai Rp "
+                .number_format((float) $out['return']->refund_amount, 0, ',', '.').'.',
+            'data' => [
+                'sale' => $out['sale']->toReceiptArray(),
+                'sales_return' => $out['return']->toApiArray(),
+                'journal' => $out['journal']?->toApiArray(),
+            ],
+        ], 201);
     }
 
     public function checkout(PosCheckoutRequest $request, CheckoutService $checkout): JsonResponse

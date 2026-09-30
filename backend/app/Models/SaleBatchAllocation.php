@@ -16,12 +16,14 @@ class SaleBatchAllocation extends Model
         'sale_detail_id',
         'product_batch_id',
         'quantity_allocated',
+        'quantity_returned',
         'unit_cost',
         'total_cost',
     ];
 
     protected $casts = [
         'quantity_allocated' => 'integer',
+        'quantity_returned' => 'integer',
         'unit_cost' => 'decimal:2',
         'total_cost' => 'decimal:2',
     ];

@@ -79,17 +79,25 @@ class Sale extends Model
         return $this->hasMany(SalePayment::class);
     }
 
+    public function returns(): HasMany
+    {
+        return $this->hasMany(SalesReturn::class)->orderBy('id');
+    }
+
     /**
      * Satu bentuk nota untuk seluruh respons POS (checkout, riwayat, void).
      */
     public function toReceiptArray(): array
     {
-        $this->loadMissing(['details.product', 'payments']);
+        $this->loadMissing(['details.product', 'payments', 'returns.items']);
         $journal = JournalEntry::with('items.account')
-            ->where('reference_id', $this->reference)
-            ->whereIn('reference_type', ['POS_SALE', 'POS_SALE_VOID'])
+            ->where(fn ($q) => $q->where('reference_id', $this->reference)->whereIn('reference_type', ['POS_SALE', 'POS_SALE_VOID']))
+            ->orWhere(fn ($q) => $q->where('reference_type', 'SALES_RETURN')->whereIn('reference_id', $this->returns->pluck('reference')))
             ->orderBy('id')
             ->get();
+        $returnedQty = $this->returns->flatMap(fn (SalesReturn $r) => $r->items)
+            ->groupBy('sale_detail_id')
+            ->map(fn ($rows) => (int) $rows->sum('quantity'));
 
         return [
             'id' => $this->id,
@@ -117,6 +125,8 @@ class Sale extends Model
             'voided_at' => $this->voided_at?->toIso8601String(),
             'voided_by' => $this->voided_by,
             'void_reason' => $this->void_reason,
+            'returned_amount' => round((float) $this->returns->sum('refund_amount'), 2),
+            'returns' => $this->returns->map(fn (SalesReturn $r) => $r->toApiArray())->values()->all(),
             'items' => $this->details->map(fn (SaleDetail $d) => [
                 'id' => $d->id,
                 'item_type' => $d->item_type,
@@ -130,6 +140,7 @@ class Sale extends Model
                 'sub_total' => (float) $d->sub_total,
                 'unit_cost_hpp' => (float) $d->unit_cost_hpp,
                 'total_cost_hpp' => (float) $d->total_cost_hpp,
+                'returned_qty' => (int) ($returnedQty[$d->id] ?? 0),
                 'product' => $d->product ? [
                     'id' => $d->product->id,
                     'product_name' => $d->product->product_name,

@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\Sale;
 use App\Models\SaleDetail;
+use App\Models\SalesReturn;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\AccountingEngine;
@@ -31,6 +32,9 @@ class SaleVoidService
 
             if ($sale->status === 'VOID') {
                 throw new PosRuleException("Nota {$sale->reference} sudah pernah dibatalkan.");
+            }
+            if (SalesReturn::where('sale_id', $sale->id)->exists()) {
+                throw new PosRuleException("Nota {$sale->reference} sudah punya retur; kembalikan sisa barangnya lewat retur penjualan.");
             }
 
             $this->restoreStock($sale, $user);
