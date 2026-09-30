@@ -27,9 +27,9 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
    New Stage 4 migrations: `2026_09_29_000001_harden_journal_entries_and_add_period_closings`,
    `2026_09_29_000002_add_void_audit_to_expenses_and_seed_categories`.
 3. Run the gates (`composer test`, `npm run lint && npm test`), then open the app as owner and repeat the
-   browser check from section 1. On the previous machine the bundled `composer.phar` was too old for the
-   `composer test` script (`@no_additional_args`); `cd backend && php artisan config:clear && php artisan test`
-   is the equivalent gate.
+   browser check from section 1. The bundled `composer.phar` on this machine is too old for the
+   `composer test` script (`@no_additional_args`); use `cd backend && php artisan config:clear && php artisan test`
+   as the gate.
 4. **Enter the account opening balances once** (Buku Besar → "Saldo Awal"): cash drawer 1-1000, bank 1-1001,
    fixed assets 1-3000, accumulated depreciation 1-3999, retained earnings 3-2000. Until then bank 1-1001 shows
    negative (a supplier was paid from bank before any opening balance existed).
@@ -46,6 +46,9 @@ Not in git (only on the old machine — copy them yourself if you need them):
 - [x] Fix the purchase-invoice calculator (roadmap "Separate small fix"). Done in `3db23f0`: payable and inventory
   are booked at the supplier invoice total; the total is split in cents across up to two FIFO batches so batch
   value = journal = payable; DPP/PPN are stored on `purchases` (migration `2026_09_30_100001`).
+- [ ] **Task M1 is still pending** (`docs/superpowers/plans/2026-09-30-remove-dp-bon-edc.md`): dev DB reset
+  `php artisan migrate:fresh --seed` + `php artisan inventory:opening-balance`, re-enter the opening balances, run
+  the browser checklist. It is a manual step run by the user only.
 
 ## 3. Next sub-projects (each: brainstorm → spec → plan → implement)
 

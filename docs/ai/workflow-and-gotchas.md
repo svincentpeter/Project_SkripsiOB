@@ -48,7 +48,7 @@
 | Backend | `cd backend && composer test` | MySQL `project-skripsi_ob_testing`, which must exist and be migrated. See [../../backend/AGENTS.md](../../backend/AGENTS.md#tests) |
 | E2E | `node tests/e2e/<file>.mjs` | Plain Playwright scripts, not `@playwright/test`. They need `npm run dev` (dev mode), the backend on :8000 with seeded users, and `VITE_DEV_LOGIN_PASSWORD`. They log in via the "Agus Subagyo" quick-login card, write screenshots and JSON to `tests/e2e/screenshots/`, and have **no pass/fail assertions** |
 
-As of 2026-09-30, the frontend passes: 25 test files, 122 tests, and `tsc` is clean.
+As of 2026-09-30, the frontend passes: 25 test files, 127 tests, and `tsc` is clean.
 
 ## Glossary (Indonesian → meaning)
 
