@@ -63,6 +63,10 @@ describe('buildPayments', () => {
     ]);
   });
 
+  it('sends no payment rows for a Rp 0 sale', () => {
+    expect(buildPayments('TUNAI', 0, 0)).toEqual([]);
+  });
+
   it('never sends BON, DP or EDC fields', () => {
     const rows = [
       ...buildPayments('TRANSFER_BCA', 500000, 0, { provider_name: 'BCA' }),

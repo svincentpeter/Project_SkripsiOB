@@ -217,6 +217,9 @@ export const buildPayments = (
     return rows.filter((r) => r.amount > 0);
   }
 
+  // Penjualan Rp 0 tidak punya baris pembayaran (server menolak amount < 0,01).
+  if (amountDue <= 0) return [];
+
   const m = method as PaymentPayload['method'];
   return [
     {
