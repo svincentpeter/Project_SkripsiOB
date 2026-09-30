@@ -58,8 +58,14 @@ describe('invoiceSummary', () => {
       dpp: 2711495,
       ppn: 298264,
       total: 3009759,
-      modal: 3009760,
     });
+  });
+
+  it('DPP + PPN selalu sama dengan total faktur (total inilah yang dibukukan server)', () => {
+    for (const [qty, price, mode] of [[3, 33333.33, 'include'], [7, 677873.75, 'exclude'], [1, 1, 'exclude']] as const) {
+      const s = invoiceSummary(qty, price, mode);
+      expect(s.dpp + s.ppn).toBe(s.total);
+    }
   });
 
   it('memisahkan DPP dan PPN dari total bila faktur sudah termasuk PPN', () => {
@@ -68,7 +74,6 @@ describe('invoiceSummary', () => {
       dpp: 2000000,
       ppn: 220000,
       total: 2220000,
-      modal: 2220000,
     });
   });
 });

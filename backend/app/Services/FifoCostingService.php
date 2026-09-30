@@ -138,7 +138,11 @@ class FifoCostingService
         return DB::transaction(function () use ($productId, $qty, $unitCost, $sourceName, $date, $branchId) {
             $product = Product::lockForUpdate()->findOrFail($productId);
             $date = $date ?: now()->toDateString();
-            $batchCode = 'BATCH-' . $product->product_code . '-' . date('Ymd', strtotime($date)) . '-' . rand(10, 99);
+            // Produk sudah dikunci, jadi cek-lalu-buat aman; satu penerimaan bisa membuat dua batch di hari yang sama.
+            // ponytail: maks 90 kode per produk per hari (rand 10-99), ganti ke nomor urut bila pernah terlampaui.
+            do {
+                $batchCode = 'BATCH-' . $product->product_code . '-' . date('Ymd', strtotime($date)) . '-' . rand(10, 99);
+            } while (ProductBatch::where('batch_code', $batchCode)->exists());
 
             $batch = ProductBatch::create([
                 'product_id' => $productId,

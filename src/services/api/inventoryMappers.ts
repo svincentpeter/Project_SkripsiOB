@@ -68,6 +68,8 @@ export interface ApiPurchase {
   payment_method: 'TUNAI' | 'TRANSFER_BCA' | 'TEMPO';
   due_date?: string | null;
   total_amount: number;
+  dpp_amount?: number;
+  ppn_amount?: number;
   paid_amount: number;
   remaining_amount: number;
   status: 'LUNAS' | 'BELUM_LUNAS' | 'SEBAGIAN';
@@ -231,6 +233,9 @@ export interface RestockPayload {
   product_id: number;
   quantity: number;
   batch_cost: number;
+  invoice_total?: number;
+  dpp_amount?: number;
+  ppn_amount?: number;
   supplier_id?: number;
   source_name: string;
   supplier_invoice?: string;
@@ -250,10 +255,15 @@ export const restockPayload = (input: GoodsReceiptInput, suppliers: SupplierItem
   const supplier = suppliers.find((s) => s.supplier_name === input.supplier_name);
   const method = PAYMENT_TERMS[input.payment_terms ?? 'TEMPO_HUTANG'] ?? 'TEMPO';
   const supplierId = Number(supplier?.id);
+  const total = input.invoice_total;
   return {
     product_id: Number(input.product_id),
     quantity: input.incoming_qty,
-    batch_cost: input.unit_cost,
+    // Dengan total faktur, modal per unit tidak dibulatkan agar lolos cek server |total − qty × modal| ≤ Rp 1.
+    batch_cost: total ? total / input.incoming_qty : input.unit_cost,
+    invoice_total: total || undefined,
+    dpp_amount: input.dpp_amount,
+    ppn_amount: input.ppn_amount,
     supplier_id: Number.isInteger(supplierId) && supplierId > 0 ? supplierId : undefined,
     source_name: input.supplier_name,
     supplier_invoice: input.supplier_invoice || undefined,

@@ -53,7 +53,7 @@ See [domain-inventory.md](domain-inventory.md) for how they can drift.
 ## Purchasing
 | Table | Key columns | Notes |
 |---|---|---|
-| `purchases` | `purchase_number` (`GR-YYYYMM-####`), `supplier_id`, `supplier_name`, `supplier_invoice`, `purchase_date`, `payment_method` (TUNAI/TRANSFER_BCA/TEMPO), `due_date`, `total_amount`, `paid_amount`, `status` (LUNAS/BELUM_LUNAS/SEBAGIAN), `journal_entry_number` | one goods receipt. `remaining()` = total − paid |
+| `purchases` | `purchase_number` (`GR-YYYYMM-####`), `supplier_id`, `supplier_name`, `supplier_invoice`, `purchase_date`, `payment_method` (TUNAI/TRANSFER_BCA/TEMPO), `due_date`, `total_amount`, `dpp_amount`, `ppn_amount` (supplier invoice, informational), `paid_amount`, `status` (LUNAS/BELUM_LUNAS/SEBAGIAN), `journal_entry_number` | one goods receipt. `remaining()` = total − paid |
 | `purchase_payments` | `purchase_id` (FK cascade), `payment_date`, `amount`, `account_code`, `journal_entry_number` | payments against supplier debt |
 
 ## Payment settings

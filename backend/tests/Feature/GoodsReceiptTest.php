@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\JournalEntry;
 use App\Models\Product;
+use App\Models\ProductBatch;
 use App\Models\Supplier;
 use App\Services\Inventory\InventoryValueJournal;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -124,6 +125,62 @@ class GoodsReceiptTest extends TestCase
         $this->assertFalse(JournalEntry::where('reference_type', 'PURCHASE')
             ->where('reference_id', $res->json('data.purchase.purchase_number'))->exists());
         $this->assertEquals($before, InventoryValueJournal::summary()['difference']);
+    }
+
+    public function test_invoice_total_books_payable_exactly_and_absorbs_rounding_in_batches(): void
+    {
+        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $product = $this->makeProduct(800000, [[2, 450000, '2026-08-01']]);
+        $this->postJson('/api/v1/inventory/opening-balance')->assertOk();
+        $supplier = $this->supplier();
+
+        // Faktur Rp 100.000 untuk 3 unit: tidak habis dibagi, modal per unit tidak bisa 2 desimal persis.
+        $res = $this->restock($product, [
+            'supplier_id' => $supplier->id, 'payment_method' => 'TEMPO', 'quantity' => 3, 'batch_cost' => 33333.33,
+            'invoice_total' => 100000, 'dpp_amount' => 90090, 'ppn_amount' => 9910,
+        ])->assertCreated()
+            ->assertJsonPath('data.purchase.total_amount', 100000)
+            ->assertJsonPath('data.purchase.remaining_amount', 100000)
+            ->assertJsonPath('data.purchase.dpp_amount', 90090)
+            ->assertJsonPath('data.purchase.ppn_amount', 9910);
+
+        $number = $res->json('data.purchase.purchase_number');
+        $j = $this->journalByAccount($number, 'PURCHASE');
+        $this->assertEquals(100000, $j['1-2000']['debit']);
+        $this->assertEquals(100000, $j['2-1000']['credit']);
+
+        $batches = ProductBatch::where('purchase_id', $res->json('data.purchase.id'))->orderBy('id')->get();
+        $this->assertSame(3, (int) $batches->sum('initial_qty'));
+        $this->assertEquals(100000, round($batches->sum(fn ($b) => $b->initial_qty * (float) $b->batch_cost), 2));
+        $this->assertEquals([33333.33, 33333.34], $batches->map(fn ($b) => (float) $b->batch_cost)->all());
+        $this->assertSame(5, $product->fresh()->product_quantity);
+        $this->assertEquals(0.0, InventoryValueJournal::summary()['difference']);
+    }
+
+    public function test_invoice_total_far_from_quantity_times_cost_or_unbalanced_dpp_ppn_is_rejected(): void
+    {
+        $product = $this->makeProduct();
+        $base = ['source_name' => 'Toko Grosir', 'payment_method' => 'TUNAI', 'quantity' => 3, 'batch_cost' => 33333.33];
+
+        $this->restock($product, $base + ['invoice_total' => 100002])->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'Total faktur'));
+        $this->restock($product, $base + ['invoice_total' => 0])->assertStatus(422);
+        $this->restock($product, $base + ['invoice_total' => 100000, 'dpp_amount' => 90000, 'ppn_amount' => 9900])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'DPP'));
+        $this->assertSame(10, $product->fresh()->product_quantity);
+    }
+
+    public function test_receipt_without_invoice_total_keeps_quantity_times_cost(): void
+    {
+        $res = $this->restock($this->makeProduct(), ['source_name' => 'Toko Grosir', 'payment_method' => 'TUNAI', 'quantity' => 3, 'batch_cost' => 33333.33])
+            ->assertCreated()
+            ->assertJsonPath('data.purchase.total_amount', 99999.99)
+            ->assertJsonPath('data.purchase.dpp_amount', 0)
+            ->assertJsonPath('data.purchase.ppn_amount', 0);
+
+        $this->assertSame(1, ProductBatch::where('purchase_id', $res->json('data.purchase.id'))->count());
+        $j = $this->journalByAccount($res->json('data.purchase.purchase_number'), 'PURCHASE');
+        $this->assertEquals(99999.99, $j['1-1000']['credit']);
     }
 
     public function test_permissions(): void

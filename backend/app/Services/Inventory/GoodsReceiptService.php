@@ -2,6 +2,7 @@
 
 namespace App\Services\Inventory;
 
+use App\Exceptions\PosRuleException;
 use App\Models\Product;
 use App\Models\Purchase;
 use App\Models\Supplier;
@@ -37,8 +38,9 @@ class GoodsReceiptService
             $supplierName = $supplier?->supplier_name ?? $data['source_name'];
             $date = $data['purchase_date'] ?? now()->toDateString();
             $method = $data['payment_method'];
-            $total = round((int) $data['quantity'] * (float) $data['batch_cost'], 2);
+            $qty = (int) $data['quantity'];
             $isTempo = $method === 'TEMPO';
+            [$total, $layers] = $this->costLayers($data, $qty);
 
             $dueDate = null;
             if ($isTempo) {
@@ -55,17 +57,25 @@ class GoodsReceiptService
                 'payment_method' => $method,
                 'due_date' => $dueDate,
                 'total_amount' => $total,
+                'dpp_amount' => $data['dpp_amount'] ?? 0,
+                'ppn_amount' => $data['ppn_amount'] ?? 0,
                 'paid_amount' => $isTempo ? 0 : $total,
                 'status' => $isTempo && $total > 0 ? 'BELUM_LUNAS' : 'LUNAS',
                 'notes' => $data['notes'] ?? null,
                 'operator_name' => $user?->name,
             ]);
 
-            $batch = $this->fifo->addBatch($product->id, (int) $data['quantity'], (float) $data['batch_cost'], $supplierName, $date);
-            $batch->update(['purchase_id' => $purchase->id]);
+            $batches = [];
+            foreach ($layers as [$layerQty, $layerCost]) {
+                $b = $this->fifo->addBatch($product->id, $layerQty, $layerCost, $supplierName, $date);
+                $b->update(['purchase_id' => $purchase->id]);
+                $batches[] = $b;
+            }
+            $batch = $batches[0];
+            $codes = implode(', ', array_map(fn ($b) => $b->batch_code, $batches));
 
             $draft = (new JournalDraft())
-                ->debit('1-2000', $total, "Pembelian {$data['quantity']} pcs {$product->product_name} ({$batch->batch_code})")
+                ->debit('1-2000', $total, "Pembelian {$qty} pcs {$product->product_name} ({$codes})")
                 ->credit(self::PAYMENT_ACCOUNTS[$method], $total, $isTempo ? "Hutang dagang {$supplierName}" : "Pembayaran {$method} ke {$supplierName}");
 
             // Barang bonus (harga pokok Rp 0) tidak mengubah nilai persediaan: tanpa jurnal.
@@ -77,5 +87,58 @@ class GoodsReceiptService
 
             return ['purchase' => $purchase->fresh(), 'batch' => $batch, 'journal' => $journal];
         });
+    }
+
+    /**
+     * Total yang dibukukan dan lapisan batch [qty, modal/unit].
+     *
+     * Tanpa invoice_total (klien lama / Excel): qty × batch_cost, satu batch.
+     * Dengan invoice_total: hutang/kas dan 1-2000 persis sebesar total faktur. Kolom batch_cost hanya 2 desimal,
+     * jadi total dibagi dalam sen: (qty − sisa) unit di modal dasar, lalu `sisa` unit di modal dasar + Rp 0,01
+     * sebagai batch terakhir. Σ(qty × modal) = total faktur tanpa selisih, sehingga FIFO = buku besar 1-2000.
+     *
+     * @return array{0: float, 1: list<array{0: int, 1: float}>}
+     */
+    private function costLayers(array $data, int $qty): array
+    {
+        $cost = (float) $data['batch_cost'];
+        $dpp = $data['dpp_amount'] ?? null;
+        $ppn = $data['ppn_amount'] ?? null;
+
+        if (! isset($data['invoice_total'])) {
+            $total = round($qty * $cost, 2);
+            $this->assertDppPpn($dpp, $ppn, $total);
+
+            return [$total, [[$qty, $cost]]];
+        }
+
+        $cents = (int) round((float) $data['invoice_total'] * 100);
+        if ($cents <= 0) {
+            throw new PosRuleException('Total faktur harus lebih besar dari 0.');
+        }
+        // Toleransi Rp 1 per baris faktur (penerimaan ini satu baris) untuk pembulatan modal per unit.
+        if (abs($cents - (int) round($qty * $cost * 100)) > 100) {
+            throw new PosRuleException('Total faktur Rp '.number_format($cents / 100, 2, ',', '.')
+                .' tidak cocok dengan jumlah × modal per unit (Rp '.number_format($qty * $cost, 2, ',', '.').').');
+        }
+
+        $total = $cents / 100;
+        $this->assertDppPpn($dpp, $ppn, $total);
+
+        $base = intdiv($cents, $qty);
+        $rest = $cents % $qty;
+        $layers = [[$qty - $rest, $base / 100]];
+        if ($rest > 0) {
+            $layers[] = [$rest, ($base + 1) / 100];
+        }
+
+        return [$total, $layers];
+    }
+
+    private function assertDppPpn(mixed $dpp, mixed $ppn, float $total): void
+    {
+        if ($dpp !== null && $ppn !== null && (int) round(((float) $dpp + (float) $ppn) * 100) !== (int) round($total * 100)) {
+            throw new PosRuleException('DPP + PPN harus sama dengan total faktur (Rp '.number_format($total, 2, ',', '.').').');
+        }
     }
 }

@@ -61,6 +61,25 @@ describe('restockPayload', () => {
       restockPayload({ product_id: '42', incoming_qty: 1, unit_cost: 1, supplier_name: 'Toko Lain', payment_terms: 'TUNAI_BANK', due_date: '2026-10-30' }, suppliers)
     ).toMatchObject({ supplier_id: undefined, source_name: 'Toko Lain', payment_method: 'TRANSFER_BCA', due_date: undefined });
   });
+
+  it('sends the supplier invoice total with DPP/PPN and a unit cost matching that total', () => {
+    const payload = restockPayload(
+      {
+        product_id: '42', incoming_qty: 3, unit_cost: 33333, invoice_total: 100000, dpp_amount: 90090, ppn_amount: 9910,
+        supplier_name: 'Toko Lain', payment_terms: 'TUNAI_KAS',
+      },
+      suppliers
+    );
+    expect(payload).toMatchObject({ quantity: 3, invoice_total: 100000, dpp_amount: 90090, ppn_amount: 9910 });
+    expect(payload.batch_cost * payload.quantity).toBeCloseTo(100000, 6);
+  });
+
+  it('omits the invoice fields for old callers, so the server books quantity × unit cost', () => {
+    const payload = restockPayload({ product_id: '42', incoming_qty: 4, unit_cost: 500000, supplier_name: 'Toko Lain', payment_terms: 'TUNAI_KAS' }, suppliers);
+    expect(payload.batch_cost).toBe(500000);
+    expect(payload.invoice_total).toBeUndefined();
+    expect(payload.dpp_amount).toBeUndefined();
+  });
 });
 
 describe('server records to UI', () => {

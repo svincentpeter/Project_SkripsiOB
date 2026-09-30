@@ -468,6 +468,10 @@ export interface GoodsReceiptInput {
   product_id: string;
   incoming_qty: number;
   unit_cost: number;
+  /** Total faktur supplier (termasuk PPN bila ada); server membukukan hutang/kas dan persediaan persis sebesar ini. */
+  invoice_total?: number;
+  dpp_amount?: number;
+  ppn_amount?: number;
   supplier_name: string;
   supplier_invoice?: string;
   receipt_date?: string;

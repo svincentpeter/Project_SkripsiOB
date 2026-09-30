@@ -9,7 +9,7 @@ class Purchase extends Model
 {
     protected $fillable = [
         'purchase_number', 'supplier_id', 'supplier_name', 'supplier_invoice', 'purchase_date',
-        'payment_method', 'due_date', 'total_amount', 'paid_amount', 'status',
+        'payment_method', 'due_date', 'total_amount', 'dpp_amount', 'ppn_amount', 'paid_amount', 'status',
         'journal_entry_number', 'notes', 'operator_name',
     ];
 
@@ -17,6 +17,8 @@ class Purchase extends Model
         'purchase_date' => 'date',
         'due_date' => 'date',
         'total_amount' => 'decimal:2',
+        'dpp_amount' => 'decimal:2',
+        'ppn_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
     ];
 
@@ -47,6 +49,8 @@ class Purchase extends Model
             'payment_method' => $this->payment_method,
             'due_date' => $this->due_date?->toDateString(),
             'total_amount' => (float) $this->total_amount,
+            'dpp_amount' => (float) $this->dpp_amount,
+            'ppn_amount' => (float) $this->ppn_amount,
             'paid_amount' => (float) $this->paid_amount,
             'remaining_amount' => $this->remaining(),
             'status' => $this->status,

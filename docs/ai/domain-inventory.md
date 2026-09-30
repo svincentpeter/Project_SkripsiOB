@@ -45,8 +45,13 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
 ## Goods receipt and payables
 - `POST /inventory/restock` goes to `GoodsReceiptService::receive`, in one transaction:
   1. Create a `purchases` row numbered `GR-YYYYMM-####`.
-  2. Call `addBatch` and link the batch through `purchase_id`.
-  3. Post the journal: Dr 1-2000, Cr 1-1000 (TUNAI), 1-1001 (TRANSFER_BCA), or 2-1000 (TEMPO).
+  2. Call `addBatch` and link the batch through `purchase_id`. When the client sends `invoice_total` (the goods
+     receipt modal does), the total is split in cents: `qty − r` units at the base cost and, if the total does not
+     divide evenly, a second batch of `r` units at base + Rp 0.01, so Σ(qty × batch_cost) equals the invoice total
+     exactly. `invoice_total` must be within Rp 1 of `quantity × batch_cost`, and `dpp_amount + ppn_amount` must
+     equal it (both stored on `purchases`; PPN is capitalized, there is no PPN Masukan account). Without
+     `invoice_total` the old rule applies: one batch, total = quantity × batch_cost.
+  3. Post the journal at that total: Dr 1-2000, Cr 1-1000 (TUNAI), 1-1001 (TRANSFER_BCA), or 2-1000 (TEMPO).
   4. For TEMPO, `due_date` is the given date or `purchase_date + supplier.payment_terms_days`, and the status is
      `BELUM_LUNAS`.
 - `POST /purchases/{id}/payments` goes to `PayableService::pay`. It locks the purchase, refuses overpayment, posts
@@ -106,8 +111,8 @@ The shop sells new tires (ban baru), inner tubes (ban dalam), and truck tires, p
    selective updates with a negative delta and no batches, and inline edits of opening stock.
 2. Excel commit and selective update **delete** batches from the same period. The FK cascade then deletes
    `sale_batch_allocations`, which breaks later voids. `force` bypasses the sales guard.
-3. `addBatch` batch codes use `rand(10,99)`, so two receipts of the same product on the same day can collide on
-   the unique index.
+3. `addBatch` batch codes use `rand(10,99)`; it now retries until the code is unused (the product row is locked),
+   so collisions are gone, but more than 90 receipt batches of one product on one day would loop forever.
 4. Preview matches by match key or product code, but commit matches by match key only. Seeded `product_size` values
    (`"165 R13"`) differ from Excel column C (`"165"`), so a commit may duplicate seeded products.
 5. The monthly ledger orders layers by cost, not purchase date. It ignores `PENYESUAIAN` movements in the opening

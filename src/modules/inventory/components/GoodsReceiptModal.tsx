@@ -153,6 +153,9 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
       product_id: selectedProductId,
       incoming_qty: incomingQty,
       unit_cost: unitCost,
+      invoice_total: summary.total,
+      dpp_amount: summary.dpp,
+      ppn_amount: summary.ppn,
       supplier_name: supplierName.trim(),
       supplier_invoice: supplierInvoice.trim() || undefined,
       receipt_date: receiptDate,
@@ -371,10 +374,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
               </div>
             </dl>
             <p className="text-[11px] text-slate-500">
-              Cocokkan dengan baris DPP / PPN / total di nota supplier. PPN pembelian menjadi bagian modal persediaan.
-              {summary.modal !== summary.total && (
-                <> Nilai dibukukan {formatRupiah(summary.modal)} (jumlah × modal per unit; selisih pembulatan rupiah).</>
-              )}
+              Cocokkan dengan baris DPP / PPN / total di nota supplier. PPN pembelian menjadi bagian modal persediaan;
+              hutang / pembayaran dibukukan persis sebesar total faktur.
             </p>
           </div>
 
@@ -383,7 +384,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
               <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                 <DollarSign className="w-4 h-4 text-emerald-600" /> Syarat Pembayaran Pengadaan
               </label>
-              <span className="text-xs text-slate-500">Nilai Dibukukan: <b className="text-emerald-600 font-bold">{formatRupiah(summary.modal)}</b></span>
+              <span className="text-xs text-slate-500">Nilai Dibukukan: <b className="text-emerald-600 font-bold">{formatRupiah(summary.total)}</b></span>
             </div>
 
             <div className="grid grid-cols-3 gap-2">

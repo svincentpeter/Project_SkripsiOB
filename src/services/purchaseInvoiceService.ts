@@ -5,9 +5,10 @@ import { ProductBatch } from '../shared/types';
  * (resources/js/reports-v2/stock-monthly/receipt-cart.js).
  *
  * Toko non-PKP: PPN pembelian tidak dikreditkan, jadi ikut menjadi modal persediaan.
- * Harga faktur diketik apa adanya (boleh 2 desimal); modal batch selalu rupiah bulat:
+ * Harga faktur diketik apa adanya (boleh 2 desimal); modal per unit yang ditampilkan dibulatkan ke rupiah:
  *   - "exclude": faktur belum termasuk PPN, modal = faktur × 1,11
  *   - "include": faktur sudah termasuk PPN, modal = faktur
+ * Yang dibukukan server adalah total faktur (invoiceSummary().total); pembulatan diserap modal batch FIFO.
  *
  * Hitungan memakai sen (bilangan bulat) supaya 0,5 tidak meleset akibat floating point.
  */
@@ -18,8 +19,6 @@ export interface InvoiceSummary {
   dpp: number;
   ppn: number;
   total: number;
-  /** Nilai yang dibukukan ke persediaan: jumlah × modal per unit (bisa selisih pembulatan dari total faktur). */
-  modal: number;
 }
 
 const toCents = (price: number): number => Math.max(0, Math.round((Number(price) || 0) * 100));
@@ -54,15 +53,14 @@ export const invoicePriceFromCost = (cost: number, mode: PpnMode): number => {
 export const invoiceSummary = (quantity: number, unitPrice: number, mode: PpnMode): InvoiceSummary => {
   const qty = Math.max(0, Math.round(Number(quantity) || 0));
   const faktur = Math.round((qty * toCents(unitPrice)) / 100);
-  const modal = qty * costFromInvoice(unitPrice, mode);
 
   if (mode === 'include') {
     const dpp = Math.round((faktur * 100) / 111);
-    return { mode, dpp, ppn: faktur - dpp, total: faktur, modal };
+    return { mode, dpp, ppn: faktur - dpp, total: faktur };
   }
 
   const ppn = Math.round((faktur * 11) / 100);
-  return { mode, dpp: faktur, ppn, total: faktur + ppn, modal };
+  return { mode, dpp: faktur, ppn, total: faktur + ppn };
 };
 
 /** Modal batch aktif terbaru (tanggal masuk, lalu id terbesar); fallback ke product_cost. */
