@@ -519,28 +519,43 @@ function MainAppContent() {
   /** Pesan error server untuk toast. */
   const errorMessage = (err: unknown) => (err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
 
+  /**
+   * Dokumen sudah dibukukan server (201): galat saat memperbarui tampilan tidak boleh tampil sebagai "ditolak",
+   * karena modal lalu tetap terbuka dan klik kedua membukukan retur/refund kedua.
+   */
+  const afterBooked = (update: () => void) => {
+    try {
+      update();
+    } catch (err) {
+      toast.warning('Sudah Dibukukan', `Dokumen tersimpan di server, tetapi tampilan gagal diperbarui (${errorMessage(err)}). Muat ulang halaman.`);
+    }
+  };
+
   // Retur penjualan di server: refund tunai dari laci (shift kasir harus buka), barang kembali ke batch FIFO asal.
   const handleSalesReturn = async (
     txId: string,
     items: { sale_detail_id: number; quantity: number }[],
     reason: string
   ): Promise<boolean> => {
+    let res: Awaited<ReturnType<typeof posApi.createSalesReturn>>;
     try {
-      const res = await posApi.createSalesReturn(txId, { items, reason });
-      const tx = mapSaleToTransaction(res.sale);
-      setTransactions((prev) => prev.map((t) => (t.id === txId ? tx : t)));
-      if (currentReceiptTx?.id === txId) setCurrentReceiptTx(tx);
-      if (res.journal) notifyLedgerChanged([res.journal]);
-      handleRefreshProducts();
-      toast.success(
-        'Retur Penjualan Dibukukan',
-        `${res.sales_return.reference}: serahkan refund tunai ${formatRupiah(res.sales_return.refund_amount)} dari laci.`
-      );
-      return true;
+      res = await posApi.createSalesReturn(txId, { items, reason });
     } catch (err) {
       toast.error('Retur Ditolak', errorMessage(err));
       return false;
     }
+    afterBooked(() => {
+      if (res.journal) notifyLedgerChanged([res.journal]);
+      handleRefreshProducts();
+      const tx = mapSaleToTransaction(res.sale);
+      setTransactions((prev) => prev.map((t) => (t.id === txId ? tx : t)));
+      if (currentReceiptTx?.id === txId) setCurrentReceiptTx(tx);
+      toast.success(
+        'Retur Penjualan Dibukukan',
+        `${res.sales_return.reference}: serahkan refund tunai ${formatRupiah(res.sales_return.refund_amount)} dari laci.`
+      );
+    });
+    return true;
   };
 
   // Retur pembelian: hutang dikurangi dulu, sisanya refund kas/bank; persediaan dan daftar hutang dimuat ulang.
@@ -548,8 +563,14 @@ function MainAppContent() {
     purchaseId: number,
     payload: { quantity: number; reason: string; refund_account_code?: '1-1000' | '1-1001' }
   ): Promise<boolean> => {
+    let res: Awaited<ReturnType<typeof inventoryApi.returnPurchase>>;
     try {
-      const res = await inventoryApi.returnPurchase(purchaseId, payload);
+      res = await inventoryApi.returnPurchase(purchaseId, payload);
+    } catch (err) {
+      toast.error('Retur Pembelian Ditolak', errorMessage(err));
+      return false;
+    }
+    afterBooked(() => {
       if (res.journal) notifyLedgerChanged([res.journal]);
       refreshPayables();
       handleRefreshProducts();
@@ -557,26 +578,26 @@ function MainAppContent() {
         'Retur Pembelian Dibukukan',
         `${res.purchase_return.reference}: ${formatRupiah(res.purchase_return.total_amount)} dikembalikan ke ${res.purchase.supplier_name}.`
       );
-      return true;
-    } catch (err) {
-      toast.error('Retur Pembelian Ditolak', errorMessage(err));
-      return false;
-    }
+    });
+    return true;
   };
 
   // Pembatalan penerimaan yang belum tersentuh: jurnal cermin pembelian.
   const handleCancelReceipt = async (purchaseId: number, reason: string): Promise<boolean> => {
+    let res: Awaited<ReturnType<typeof inventoryApi.cancelPurchase>>;
     try {
-      const res = await inventoryApi.cancelPurchase(purchaseId, reason);
-      if (res.journal) notifyLedgerChanged([res.journal]);
-      refreshPayables();
-      handleRefreshProducts();
-      toast.warning('Penerimaan Dibatalkan', `${res.purchase.purchase_number} dibatalkan (${res.purchase_return.reference}).`);
-      return true;
+      res = await inventoryApi.cancelPurchase(purchaseId, reason);
     } catch (err) {
       toast.error('Pembatalan Ditolak', errorMessage(err));
       return false;
     }
+    afterBooked(() => {
+      if (res.journal) notifyLedgerChanged([res.journal]);
+      refreshPayables();
+      handleRefreshProducts();
+      toast.warning('Penerimaan Dibatalkan', `${res.purchase.purchase_number} dibatalkan (${res.purchase_return.reference}).`);
+    });
+    return true;
   };
 
   // Stock opname di server: FIFO + jurnal selisih persediaan (5-2000)
