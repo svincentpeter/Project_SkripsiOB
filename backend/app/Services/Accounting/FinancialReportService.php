@@ -227,7 +227,8 @@ class FinancialReportService
             ->where('e.status', 'POSTED');
     }
 
-    private static function incomeSection(Account $account): ?string
+    /** Bagian laba rugi sebuah akun; dipakai juga oleh rekap harian agar angkanya sama dengan Laba Rugi. */
+    public static function incomeSection(Account $account): ?string
     {
         return match ($account->account_type) {
             'REVENUE' => $account->normal_balance === 'CREDIT' ? 'revenue' : 'contra_revenue',

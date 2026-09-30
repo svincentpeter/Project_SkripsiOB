@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
 use App\Http\Controllers\Api\v1\BankReconciliationController;
 use App\Http\Controllers\Api\v1\CalkController;
+use App\Http\Controllers\Api\v1\DailyReportController;
 use App\Http\Controllers\Api\v1\FixedAssetController;
 use App\Http\Controllers\Api\v1\CashMovementController;
 use App\Http\Controllers\Api\v1\CashSessionController;
@@ -156,6 +157,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/export', [ReportStockMonthlyApiController::class, 'exportExcel'])->middleware('permission:inventory_view');
             Route::post('/inline-update', [ReportStockMonthlyApiController::class, 'inlineUpdate'])->middleware('permission:stock_opname');
         });
+
+        // Laporan operasional harian (sub-proyek 5): baca saja, dihitung dari jurnal server
+        Route::get('reports/daily-recap', [DailyReportController::class, 'recap'])->middleware('permission:dashboard,financial_reports');
 
         // Expense Management (BKK) & Void Reversal
         Route::middleware('permission:expenses')->group(function () {
