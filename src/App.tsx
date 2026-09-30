@@ -1016,6 +1016,9 @@ function MainAppContent() {
                 accounts={accounts}
                 payableInvoices={payableInvoices}
                 cashInDrawer={cashBalances['1-1000']}
+                canApproveCash={can('cash_session_approve')}
+                canMoveCash={can('cash_movement')}
+                onLedgerChanged={notifyLedgerChanged}
                 canReopenPeriod={currentUser?.role === 'OWNER'}
                 canUseHub={can('accounting_hub')}
                 onAddManualJournal={handleAddManualJournal}

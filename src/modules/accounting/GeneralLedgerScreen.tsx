@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  BookMarked, BookOpen, CreditCard, ExternalLink, FileText, Landmark, Lock, LockOpen, Plus, Scale, ShieldCheck, Users,
+  BookMarked, BookOpen, CreditCard, ExternalLink, FileText, Landmark, Lock, LockOpen, Plus, Scale, ShieldCheck, Users, Wallet,
 } from 'lucide-react';
 import {
   ChartOfAccount,
@@ -11,12 +11,14 @@ import {
   PayableInvoice,
 } from '../../shared/types';
 import { accountingApi } from '../../services/api';
+import type { ApiJournal } from '../../services/api';
 import { previousMonth } from '../../services/accountingPeriod';
 import { formatDateIndo } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
 import { useServerData } from './hooks/useServerData';
 import {
   AccountsPayableTab,
+  CashBankTab,
   GeneralLedgerTab,
   JournalTab,
   ManualJournalModal,
@@ -26,7 +28,7 @@ import {
   TrialBalanceTab,
 } from './components';
 
-export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'payables' | 'reports';
+export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'payables' | 'reports' | 'cash';
 
 interface GeneralLedgerScreenProps {
   ledgerVersion: number;
@@ -44,6 +46,12 @@ interface GeneralLedgerScreenProps {
   onPayDebt: (input: DebtPaymentInput) => void;
   onNavigateToFinancials?: () => void;
   initialTab?: AccountingTabKey;
+  /** Izin `cash_session_approve`: menyetujui tutup shift kasir. */
+  canApproveCash?: boolean;
+  /** Izin `cash_movement`: setor bank, prive, setoran modal. */
+  canMoveCash?: boolean;
+  /** Dipanggil saat tab Kas & Bank membukukan jurnal. */
+  onLedgerChanged?: (journals: ApiJournal[]) => void;
 }
 
 const TABS: { id: AccountingTabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -52,6 +60,7 @@ const TABS: { id: AccountingTabKey; label: string; icon: React.ComponentType<{ c
   { id: 'trial-balance', label: '3. Neraca Saldo', icon: Scale },
   { id: 'payables', label: '4. Pembantu Hutang', icon: CreditCard },
   { id: 'reports', label: '5. Laporan Keuangan', icon: FileText },
+  { id: 'cash', label: '6. Kas & Bank', icon: Wallet },
 ];
 
 /** Tab yang tidak memanggil endpoint khusus accounting_hub. */
@@ -72,8 +81,12 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   onPayDebt,
   onNavigateToFinancials,
   initialTab = 'journals',
+  canApproveCash = false,
+  canMoveCash = false,
+  onLedgerChanged = () => {},
 }) => {
-  const visibleTabs = canUseHub ? TABS : TABS.filter((t) => SUBLEDGER_TABS.includes(t.id));
+  const canManageCash = canApproveCash || canMoveCash;
+  const visibleTabs = TABS.filter((t) => (t.id === 'cash' ? canManageCash : canUseHub || SUBLEDGER_TABS.includes(t.id)));
   const [selectedTab, setSelectedTab] = useState<AccountingTabKey>(
     canUseHub || SUBLEDGER_TABS.includes(initialTab) ? initialTab : 'payables',
   );
@@ -182,6 +195,9 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
         {activeTab === 'trial-balance' && <TrialBalanceTab refreshKey={ledgerVersion} onNavigateToReports={() => setSelectedTab('reports')} />}
         {activeTab === 'payables' && <AccountsPayableTab invoices={payableInvoices} cashInDrawer={cashInDrawer} onPayDebt={onPayDebt} />}
         {activeTab === 'reports' && <SakEmkmReportTab refreshKey={ledgerVersion} />}
+        {activeTab === 'cash' && (
+          <CashBankTab refreshKey={ledgerVersion} canApprove={canApproveCash} canMove={canMoveCash} onLedgerChanged={onLedgerChanged} />
+        )}
       </div>
 
       {canUseHub && (

@@ -21,6 +21,7 @@ const TYPE_GROUPS: { id: string; label: string; types: string[] }[] = [
   { id: 'PURCHASE', label: 'Pembelian', types: ['PURCHASE'] },
   { id: 'EXPENSE', label: 'Biaya', types: ['EXPENSE', 'VOID_EXPENSE'] },
   { id: 'DEBT', label: 'Bayar Hutang', types: ['DEBT_PAYMENT'] },
+  { id: 'CASH', label: 'Kas & Modal', types: ['CASH_SESSION_VARIANCE', 'CASH_DEPOSIT', 'OWNER_DRAWING', 'CAPITAL_INJECTION'] },
   { id: 'INVENTORY', label: 'Persediaan', types: ['STOCK_OPNAME', 'STOCK_IMPORT', 'STOCK_RECONCILIATION', 'STOCK_COST_CORRECTION', 'OPENING_BALANCE'] },
   { id: 'ADJUSTMENT', label: 'Penyesuaian', types: ['MANUAL_ADJUSTMENT', 'MANUAL_REVERSAL', 'ACCOUNT_OPENING'] },
   { id: 'CLOSING', label: 'Tutup Buku', types: ['PERIOD_CLOSING', 'PERIOD_REOPEN'] },
@@ -34,6 +35,10 @@ const TYPE_BADGE: Record<string, string> = {
   ACCOUNT_OPENING: 'SALDO AWAL',
   PERIOD_CLOSING: 'JURNAL PENUTUP',
   PERIOD_REOPEN: 'BUKA PERIODE',
+  CASH_SESSION_VARIANCE: 'SELISIH KAS',
+  CASH_DEPOSIT: 'SETOR BANK',
+  OWNER_DRAWING: 'PRIVE',
+  CAPITAL_INJECTION: 'SETOR MODAL',
 };
 
 export const JournalTab: React.FC<JournalTabProps> = ({ refreshKey = 0, onOpenManualModal, onReverseJournal }) => {

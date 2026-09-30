@@ -12,3 +12,4 @@ export * from './FinancialStatementsPrintModal';
 export * from './SakEmkmReportTab';
 export * from './PeriodPicker';
 export * from './ServerStatus';
+export * from './CashBankTab';
