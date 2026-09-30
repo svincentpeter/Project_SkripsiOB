@@ -7,9 +7,11 @@ use App\Models\JournalEntry;
 use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\Sale;
+use App\Models\SaleDetail;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\AccountingEngine;
+use App\Services\FifoCostingService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
@@ -63,6 +65,7 @@ class SaleVoidService
             if (! $product) {
                 continue;
             }
+            $this->restoreUnallocated($sale, $detail, $product);
             $product->increment('product_quantity', $detail->quantity);
 
             StockMovement::create([
@@ -74,6 +77,32 @@ class SaleVoidService
                 'reference_id' => $sale->reference,
                 'description' => "Pengembalian stok void nota {$sale->reference}",
                 'operator_name' => $user->name,
+                'branch_id' => $product->branch_id ?? 3,
+            ]);
+        }
+    }
+
+    /**
+     * Unit tanpa baris alokasi (HPP cadangan lama, atau alokasi terhapus impor Excel) kembali sebagai batch baru senilai
+     * HPP yang dulu dijurnal, sehingga Dr 1-2000 pada jurnal pembalik sama dengan nilai FIFO yang dipulihkan.
+     */
+    private function restoreUnallocated(Sale $sale, SaleDetail $detail, Product $product): void
+    {
+        $units = $detail->quantity - (int) $detail->allocations->sum('quantity_allocated');
+        if ($units <= 0) {
+            return;
+        }
+
+        $cents = (int) round(((float) $detail->total_cost_hpp - (float) $detail->allocations->sum('total_cost')) * 100);
+        foreach (FifoCostingService::centLayers($units, max(0, $cents)) as $i => [$qty, $cost]) {
+            ProductBatch::create([
+                'product_id' => $product->id,
+                'batch_code' => "VOID-{$sale->reference}-{$detail->id}-{$i}",
+                'source_name' => "Pengembalian void {$sale->reference}",
+                'purchase_date' => $sale->date->toDateString(),
+                'batch_cost' => $cost,
+                'initial_qty' => $qty,
+                'remaining_qty' => $qty,
                 'branch_id' => $product->branch_id ?? 3,
             ]);
         }

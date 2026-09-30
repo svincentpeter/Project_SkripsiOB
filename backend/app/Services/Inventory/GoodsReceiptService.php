@@ -128,14 +128,7 @@ class GoodsReceiptService
         $total = $cents / 100;
         $this->assertDppPpn($dpp, $ppn, $total);
 
-        $base = intdiv($cents, $qty);
-        $rest = $cents % $qty;
-        $layers = [[$qty - $rest, $base / 100]];
-        if ($rest > 0) {
-            $layers[] = [$rest, ($base + 1) / 100];
-        }
-
-        return [$total, $layers];
+        return [$total, FifoCostingService::centLayers($qty, $cents)];
     }
 
     private function assertDppPpn(mixed $dpp, mixed $ppn, float $total): void

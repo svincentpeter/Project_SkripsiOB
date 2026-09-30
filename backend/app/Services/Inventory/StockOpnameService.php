@@ -33,27 +33,33 @@ class StockOpnameService
                 $system = (int) $product->product_quantity;
                 $physical = (int) $item['physical_qty'];
                 $diff = $physical - $system;
-                if ($diff === 0) {
+                // Lapisan FIFO dicocokkan ke hitungan fisik juga, sehingga stok tanpa batch (drift lama) ikut terkoreksi.
+                $layerDiff = $physical - (int) ProductBatch::where('product_id', $product->id)->sum('remaining_qty');
+                if ($diff === 0 && $layerDiff === 0) {
                     continue;
                 }
 
-                $diff < 0
-                    ? $this->consumeOldest($product, -$diff)
-                    : $this->addSurplusBatch($product, $diff, $reference);
+                if ($layerDiff < 0) {
+                    $this->consumeOldest($product, -$layerDiff);
+                } elseif ($layerDiff > 0) {
+                    $this->addSurplusBatch($product, $layerDiff, $reference);
+                }
 
                 $product->update(['product_quantity' => $physical]);
 
-                StockMovement::create([
-                    'product_id' => $product->id,
-                    'movement_type' => $diff > 0 ? 'MASUK' : 'KELUAR',
-                    'quantity' => abs($diff),
-                    'balance_after' => $physical,
-                    'reference_type' => 'STOCK_OPNAME',
-                    'reference_id' => $reference,
-                    'description' => 'Stock opname: sistem '.$system.', fisik '.$physical.($notes ? " ({$notes})" : ''),
-                    'operator_name' => $user?->name ?? 'Admin Opname',
-                    'branch_id' => $product->branch_id ?? 3,
-                ]);
+                if ($diff !== 0) {
+                    StockMovement::create([
+                        'product_id' => $product->id,
+                        'movement_type' => $diff > 0 ? 'MASUK' : 'KELUAR',
+                        'quantity' => abs($diff),
+                        'balance_after' => $physical,
+                        'reference_type' => 'STOCK_OPNAME',
+                        'reference_id' => $reference,
+                        'description' => 'Stock opname: sistem '.$system.', fisik '.$physical.($notes ? " ({$notes})" : ''),
+                        'operator_name' => $user?->name ?? 'Admin Opname',
+                        'branch_id' => $product->branch_id ?? 3,
+                    ]);
+                }
 
                 $adjustments[] = [
                     'product_id' => $product->id,

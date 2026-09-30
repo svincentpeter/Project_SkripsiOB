@@ -43,11 +43,13 @@ class FifoCostingService
                 ->orderBy('id', 'asc')
                 ->get();
 
-            $totalAvailable = $batches->sum('remaining_qty');
-
+            $totalAvailable = (int) $batches->sum('remaining_qty');
             if ($totalAvailable < $quantityToDeduct) {
-                // If batches don't have enough recorded layers, fallback to product_cost for the difference
-                // but let's allocate what we have
+                // Tanpa lapisan biaya, HPP tidak terukur FIFO dan 1-2000 akan menyimpang dari nilai batch.
+                throw new PosRuleException(
+                    "Stok {$product->product_name} hanya punya {$totalAvailable} unit berlapis biaya FIFO (diminta {$quantityToDeduct}). "
+                    .'Lakukan stock opname untuk menyelaraskan stok.'
+                );
             }
 
             $needed = $quantityToDeduct;
@@ -90,21 +92,6 @@ class FifoCostingService
                 $allocations[] = $allocationData;
             }
 
-            // If there's still unmet quantity (e.g. stock exists without batch layer), use product_cost
-            if ($needed > 0) {
-                $fallbackUnitCost = (float) $product->product_cost;
-                $fallbackLineCost = round($needed * $fallbackUnitCost, 2);
-                $totalCogs += $fallbackLineCost;
-
-                $allocations[] = [
-                    'product_batch_id' => null,
-                    'batch_code' => 'DEFAULT_COST',
-                    'quantity_allocated' => $needed,
-                    'unit_cost' => $fallbackUnitCost,
-                    'total_cost' => $fallbackLineCost,
-                ];
-            }
-
             // Deduct total product_quantity
             $newQuantity = max(0, $product->product_quantity - $quantityToDeduct);
             $product->product_quantity = $newQuantity;
@@ -129,6 +116,24 @@ class FifoCostingService
                 'remaining_stock' => $newQuantity,
             ];
         });
+    }
+
+    /**
+     * Bagi total (dalam sen) ke lapisan batch: (qty − sisa) unit di modal dasar dan `sisa` unit di modal dasar + Rp 0,01,
+     * karena batch_cost hanya 2 desimal. Σ(qty × modal) = total persis, sehingga nilai FIFO = jurnal.
+     *
+     * @return list<array{0: int, 1: float}>
+     */
+    public static function centLayers(int $qty, int $cents): array
+    {
+        $base = intdiv($cents, $qty);
+        $rest = $cents % $qty;
+        $layers = [[$qty - $rest, $base / 100]];
+        if ($rest > 0) {
+            $layers[] = [$rest, ($base + 1) / 100];
+        }
+
+        return $layers;
     }
 
     /**
