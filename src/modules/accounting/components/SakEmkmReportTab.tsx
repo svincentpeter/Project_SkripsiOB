@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Printer } from 'lucide-react';
 import { accountingApi } from '../../../services/api';
-import { PeriodSelection, currentMonth, resolvePeriod } from '../../../services/accountingPeriod';
+import { sakEmkmApi } from '../../../services/api/sakEmkmApi';
+import { PeriodSelection, currentMonth, monthLabel, resolvePeriod } from '../../../services/accountingPeriod';
 import { formatRupiah } from '../../../shared/utils/formatters';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
 import { useServerData } from '../hooks/useServerData';
+import { CalkView } from './CalkView';
 import { CashFlowStatementTab } from './CashFlowStatementTab';
 import { FinancialStatementsPrintModal } from './FinancialStatementsPrintModal';
 import { PeriodPicker } from './PeriodPicker';
@@ -15,13 +17,14 @@ interface SakEmkmReportTabProps {
   refreshKey?: number;
 }
 
-type ReportTab = 'income' | 'balance' | 'equity' | 'cashflow';
+type ReportTab = 'income' | 'balance' | 'equity' | 'cashflow' | 'calk';
 
 const TABS: { id: ReportTab; label: string }[] = [
   { id: 'income', label: '1. Laba Rugi' },
   { id: 'balance', label: '2. Posisi Keuangan' },
   { id: 'equity', label: '3. Perubahan Ekuitas' },
   { id: 'cashflow', label: '4. Arus Kas' },
+  { id: 'calk', label: '5. CALK' },
 ];
 
 const Kpi: React.FC<{ label: string; value: string; note: string; tone?: 'neutral' | 'good' | 'bad' }> = ({ label, value, note, tone = 'neutral' }) => (
@@ -45,7 +48,11 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
   const cashFlow = useServerData(() => accountingApi.cashFlow(query), [query.start_date, query.end_date, refreshKey]);
   const fs = statements.data;
   const cf = cashFlow.data;
-  const active = tab === 'cashflow' ? cashFlow : statements;
+  // CALK disusun per bulan: bulan dari tanggal akhir periode yang dipilih.
+  const calkPeriod = range.end_date.slice(0, 7);
+  const calk = useServerData(() => sakEmkmApi.calk(calkPeriod), [calkPeriod, refreshKey]);
+  const active: { data: unknown; loading: boolean; error: string | null; reload: () => void } =
+    tab === 'cashflow' ? cashFlow : tab === 'calk' ? calk : statements;
   const ctx = { periodLabel: range.label, startDate: range.start_date, endDate: range.end_date };
   const netRevenue = fs?.income_statement.net_revenue ?? 0;
   const margin = fs && netRevenue !== 0 ? (fs.income_statement.net_income / netRevenue) * 100 : 0;
@@ -97,7 +104,8 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
           {fs && tab === 'balance' && <ExportMenu reportId="fin_balance_sheet" data={fs} ctx={ctx} />}
           {fs && tab === 'equity' && <ExportMenu reportId="fin_equity_statement" data={fs} ctx={ctx} />}
           {cf && tab === 'cashflow' && <ExportMenu reportId="fin_cash_flow" data={cf} ctx={ctx} />}
-          {fs && cf && <ExportMenu reportId="sak_emkm_package" data={{ financials: fs, cashFlow: cf }} ctx={ctx} />}
+          {calk.data && tab === 'calk' && <ExportMenu reportId="fin_calk" data={calk.data} ctx={ctx} />}
+          {fs && cf && calk.data && <ExportMenu reportId="sak_emkm_package" data={{ financials: fs, cashFlow: cf, calk: calk.data }} ctx={ctx} />}
           {fs && (
             <button type="button" onClick={() => setIsPrintOpen(true)}
               className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg flex items-center gap-1.5 cursor-pointer">
@@ -116,6 +124,12 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
         {fs && tab === 'balance' && <BalanceSheetTables sheet={fs.balance_sheet} />}
         {fs && tab === 'equity' && <EquityChangesTable changes={fs.equity_changes} />}
         {cf && tab === 'cashflow' && <CashFlowStatementTab cashFlow={cf} periodLabel={range.label} />}
+        {tab === 'calk' && period.kind !== 'month' && (
+          <p className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+            CALK disusun per bulan; yang ditampilkan adalah {monthLabel(calkPeriod)} (bulan tanggal akhir periode).
+          </p>
+        )}
+        {calk.data && tab === 'calk' && <CalkView calk={calk.data} />}
       </div>
 
       {fs && (

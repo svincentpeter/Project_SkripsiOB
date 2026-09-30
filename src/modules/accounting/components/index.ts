@@ -17,3 +17,4 @@ export * from './FixedAssetModal';
 export * from './FixedAssetsTab';
 export * from './AdjustingEntryModal';
 export * from './BankReconciliationTab';
+export * from './CalkView';

@@ -3,7 +3,7 @@ import type { ExpenseRecord, JournalEntry, PosTransaction, ProductItem } from '.
 import { setExportConfig } from '../exportConfig';
 import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
 import type { CashFlowReport, FinancialStatements, StatementLine } from '../../types';
-import type { BankReconciliationReport } from '../../types/sakEmkm';
+import type { BankReconciliationReport, CalkReport } from '../../types/sakEmkm';
 
 setExportConfig(null, null);
 const ctx = { periodLabel: '01 Sep 2026 - 08 Sep 2026', startDate: '2026-09-01', endDate: '2026-09-08' };
@@ -133,6 +133,37 @@ describe('registry financial statements', () => {
     is_reconciled: true,
   };
 
+  const calk: CalkReport = {
+    period: '2026-09', start_date: '2026-09-01', end_date: '2026-09-30',
+    entity: { name: 'Omah Ban Cabang 3', address: 'Magelang, Jawa Tengah', activity: 'Perdagangan ban.', legal_form: 'UMKM perseorangan.', tax_status: 'non-PKP.', currency: 'Rupiah (Rp)' },
+    compliance: 'Laporan keuangan disusun sesuai SAK EMKM.',
+    policies: [
+      { title: 'Persediaan', body: 'Metode FIFO.' },
+      { title: 'Aset tetap dan penyusutan', body: 'Garis lurus.' },
+    ],
+    notes: {
+      cash_and_bank: { lines: [{ code: '1-1000', name: 'Kas', amount: 150000 }, { code: '1-1001', name: 'Bank BCA', amount: 300000 }], total: 450000, bank_statement_balance: 300000, bank_reconciled: true },
+      inventory: { ledger_balance: 700000, method: 'FIFO', breakdown: [{ category: 'Ban Baru', quantity: 2, value: 700000 }], breakdown_as_of: '2026-09-30' },
+      prepaid_expenses: { balance: 1000000 },
+      accrued_expenses: { balance: 300000 },
+      fixed_assets: {
+        assets: [{ code: 'AT-202609-0001', name: 'Mesin Spooring', category: 'Peralatan & Mesin Bengkel', acquisition_date: '2026-09-01', useful_life_months: 48, cost: 1000000, accumulated: 200000, book_value: 800000 }],
+        total_cost: 1000000, total_accumulated: 200000, total_book_value: 800000, ledger_cost: 1000000, ledger_accumulated: 200000, depreciation_expense: 20833.33,
+      },
+      payables: { suppliers: [{ supplier_name: 'PT Ban Jaya', amount: 300000 }], subledger_total: 300000, other_adjustments: 0, ledger_balance: 300000 },
+      equity: { lines: [{ code: '3-1000', name: 'Modal', amount: 1100000 }], total: 1100000 },
+    },
+  };
+
+  it('calk memiliki 9 catatan dengan pernyataan kepatuhan dan kebijakan', () => {
+    const doc = buildExportDoc('fin_calk', calk, ctx);
+    expect(doc.sections).toHaveLength(9);
+    expect(doc.sections[1].rows[0].uraian).toContain('SAK EMKM');
+    expect(doc.sections[2].rows.map((r) => r.uraian)).toContain('Persediaan: Metode FIFO.');
+    expect(doc.sections[6].rows[0].nilai_buku).toBe(800000);
+    expect(doc.sections[6].totals?.nilai_buku).toBe(800000);
+  });
+
   it('laba rugi memuat setiap akun dan potongan bernilai negatif', () => {
     const doc = buildExportDoc('fin_income_statement', statements, ctx);
     expect(doc.sections[0].rows.length).toBe(8);
@@ -156,9 +187,10 @@ describe('registry financial statements', () => {
     expect(rows.find((r) => r.label === 'Prive (pengambilan pemilik)')?.value).toBe(-150000);
   });
 
-  it('sak emkm package memiliki 5 section', () => {
-    const doc = buildExportDoc('sak_emkm_package', { financials: statements, cashFlow }, ctx);
-    expect(doc.sections.length).toBe(5);
+  it('sak emkm package memuat 4 laporan dan 9 catatan CALK', () => {
+    const doc = buildExportDoc('sak_emkm_package', { financials: statements, cashFlow, calk }, ctx);
+    expect(doc.sections.length).toBe(13);
+    expect(doc.sections[4].title).toBe('CALK 1. INFORMASI UMUM');
   });
 });
 

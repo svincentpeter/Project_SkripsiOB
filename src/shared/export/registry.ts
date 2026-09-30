@@ -9,7 +9,7 @@ import type {
   TrialBalanceResult,
 } from '../types';
 import type { ExpenseRecord, PosTransaction, ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
-import type { BankReconciliationReport } from '../types/sakEmkm';
+import type { BankReconciliationReport, CalkReport } from '../types/sakEmkm';
 import { EXPENSE_CATEGORY_CONFIG, formatRupiah } from '../utils/formatters';
 import { buildKop } from './kop';
 import type { ExportCtx, ExportDoc, ExportFormat, ExportSection } from './types';
@@ -435,23 +435,69 @@ const cashFlowSection = (cf: CashFlowReport): ExportSection =>
     { label: 'Rincian: Bank BCA Akhir', value: cf.ending_bank },
   ]);
 
-const calkSection = (fs: FinancialStatements): ExportSection => {
-  const is = fs.income_statement;
-  const bs = fs.balance_sheet;
-  return {
-    title: '5. CATATAN ATAS LAPORAN KEUANGAN (CALK)',
-    columns: [{ key: 'uraian', label: 'Uraian', type: 'text', width: 110 }],
-    rows: [
-      'Laporan keuangan disusun berdasarkan SAK EMKM dengan basis akrual dan asumsi kelangsungan usaha.',
-      'Entitas: Omah Ban Cabang 3, Magelang — usaha dagang ban dan jasa spooring; bukan Pengusaha Kena Pajak, sehingga tidak memungut PPN atas penjualan.',
-      'Persediaan dinilai dengan metode FIFO; PPN atas pembelian dikapitalisasi ke harga perolehan persediaan.',
-      `Periode laporan: ${fs.period.start_date ?? 'awal pembukuan'} s/d ${fs.period.end_date}.`,
-      `Pendapatan bersih ${formatRupiah(is.net_revenue)}; laba (rugi) bersih ${formatRupiah(is.net_income)}.`,
-      `Total aset ${formatRupiah(bs.total_assets)}; total liabilitas & ekuitas ${formatRupiah(bs.total_liabilities_and_equity)}${
-        bs.is_balanced ? ' (seimbang).' : ` (selisih ${formatRupiah(bs.difference)}).`
-      }`,
-    ].map((uraian) => ({ uraian })),
-  };
+const textSection = (title: string, lines: string[]): ExportSection => ({
+  title,
+  columns: [{ key: 'uraian', label: 'Uraian', type: 'text', width: 110 }],
+  rows: lines.map((uraian) => ({ uraian })),
+});
+
+/** CALK SAK EMKM dari server (GET /reports/calk): 9 catatan, sama dengan tab CALK di layar. */
+const calkSections = (c: CalkReport): ExportSection[] => {
+  const n = c.notes;
+  const fa = n.fixed_assets;
+  return [
+    textSection('CALK 1. INFORMASI UMUM', [
+      `Nama entitas: ${c.entity.name}, ${c.entity.address}.`,
+      `Kegiatan usaha: ${c.entity.activity}`,
+      `Bentuk usaha: ${c.entity.legal_form}`,
+      `Status pajak: ${c.entity.tax_status}`,
+      `Mata uang pelaporan: ${c.entity.currency}. Periode catatan: ${c.start_date} s/d ${c.end_date}.`,
+    ]),
+    textSection('CALK 2. PERNYATAAN KEPATUHAN', [c.compliance]),
+    textSection('CALK 3. IKHTISAR KEBIJAKAN AKUNTANSI', c.policies.map((p) => `${p.title}: ${p.body}`)),
+    lvSection('CALK 4. KAS DAN BANK', [
+      ...n.cash_and_bank.lines.map((l) => ({ label: `${l.code ?? ''} ${l.name}`.trim(), value: l.amount })),
+      { label: 'JUMLAH KAS DAN BANK', value: n.cash_and_bank.total },
+      ...(n.cash_and_bank.bank_statement_balance !== null
+        ? [{ label: `Saldo rekening koran bank (${n.cash_and_bank.bank_reconciled ? 'terekonsiliasi' : 'belum terekonsiliasi'})`, value: n.cash_and_bank.bank_statement_balance }]
+        : []),
+    ]),
+    lvSection('CALK 5. PERSEDIAAN (FIFO)', [
+      { label: 'Persediaan ban (1-2000) per akhir periode', value: n.inventory.ledger_balance },
+      ...n.inventory.breakdown.map((b) => ({ label: `Nilai FIFO ${b.category} (${b.quantity} unit, per ${n.inventory.breakdown_as_of})`, value: b.value })),
+    ]),
+    lvSection('CALK 6. BEBAN DIBAYAR DI MUKA DAN BEBAN YANG MASIH HARUS DIBAYAR', [
+      { label: 'Beban dibayar di muka (1-1100)', value: n.prepaid_expenses.balance },
+      { label: 'Beban yang masih harus dibayar (2-1100)', value: n.accrued_expenses.balance },
+    ]),
+    {
+      title: 'CALK 7. ASET TETAP (GARIS LURUS)',
+      columns: [
+        { key: 'kode', label: 'Kode', type: 'text', width: 16 },
+        { key: 'nama', label: 'Nama Aset', type: 'text', width: 28 },
+        { key: 'kategori', label: 'Kategori', type: 'text', width: 22 },
+        { key: 'tanggal', label: 'Perolehan', type: 'date', width: 12 },
+        { key: 'umur', label: 'Umur (bln)', type: 'number', width: 9 },
+        { key: 'perolehan', label: 'Harga Perolehan', type: 'currency' },
+        { key: 'akumulasi', label: 'Akumulasi Penyusutan', type: 'currency' },
+        { key: 'nilai_buku', label: 'Nilai Buku', type: 'currency' },
+      ],
+      rows: fa.assets.map((a) => ({
+        kode: a.code, nama: a.name, kategori: a.category, tanggal: a.acquisition_date, umur: a.useful_life_months,
+        perolehan: a.cost, akumulasi: a.accumulated, nilai_buku: a.book_value,
+      })),
+      totals: { perolehan: fa.total_cost, akumulasi: fa.total_accumulated, nilai_buku: fa.total_book_value },
+    },
+    lvSection('CALK 8. UTANG USAHA', [
+      ...n.payables.suppliers.map((s) => ({ label: s.supplier_name, value: s.amount })),
+      ...(n.payables.other_adjustments !== 0 ? [{ label: 'Penyesuaian lain (retur/koreksi)', value: n.payables.other_adjustments }] : []),
+      { label: 'JUMLAH UTANG USAHA (2-1000)', value: n.payables.ledger_balance },
+    ]),
+    lvSection('CALK 9. EKUITAS', [
+      ...n.equity.lines.map((l) => ({ label: `${l.code ?? ''} ${l.name}`.trim(), value: l.amount })),
+      { label: 'JUMLAH EKUITAS', value: n.equity.total },
+    ]),
+  ];
 };
 
 const mapIncome = (fs: FinancialStatements, ctx: ExportCtx): ExportDoc =>
@@ -466,12 +512,13 @@ const mapEquity = (fs: FinancialStatements, ctx: ExportCtx): ExportDoc =>
 const mapCashFlow = (cf: CashFlowReport, ctx: ExportCtx): ExportDoc =>
   makeDoc('fin_cash_flow', 'Laporan Arus Kas', 'portrait', ctx, [cashFlowSection(cf)]);
 
-const mapCalk = (fs: FinancialStatements, ctx: ExportCtx): ExportDoc =>
-  makeDoc('fin_calk', 'CALK', 'portrait', ctx, [calkSection(fs)]);
+const mapCalk = (c: CalkReport, ctx: ExportCtx): ExportDoc =>
+  makeDoc('fin_calk', 'Catatan atas Laporan Keuangan', 'portrait', ctx, calkSections(c));
 
 export interface SakEmkmPackageInput {
   financials: FinancialStatements;
   cashFlow: CashFlowReport;
+  calk: CalkReport;
 }
 
 const mapSakPackage = (d: SakEmkmPackageInput, ctx: ExportCtx): ExportDoc =>
@@ -480,7 +527,7 @@ const mapSakPackage = (d: SakEmkmPackageInput, ctx: ExportCtx): ExportDoc =>
     balanceSection(d.financials),
     equitySection(d.financials),
     cashFlowSection(d.cashFlow),
-    calkSection(d.financials),
+    ...calkSections(d.calk),
   ]);
 
 const mapPeriodClosing = (p: PeriodClosingRecord, ctx: ExportCtx): ExportDoc =>
