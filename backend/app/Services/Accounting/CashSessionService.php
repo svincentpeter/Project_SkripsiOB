@@ -36,7 +36,7 @@ class CashSessionService
 
     /**
      * Label baris ringkasan per jenis jurnal. Jenis lain tetap dihitung dan tampil dengan kodenya;
-     * sub-proyek berikutnya menambahkan labelnya di sini (mis. SALES_RETURN).
+     * sub-proyek berikutnya menambahkan labelnya di sini.
      */
     public const LINE_LABELS = [
         'POS_SALE' => 'Penjualan tunai',
@@ -51,6 +51,9 @@ class CashSessionService
         'MANUAL_ADJUSTMENT' => 'Jurnal penyesuaian',
         'MANUAL_REVERSAL' => 'Pembalik jurnal penyesuaian',
         'ACCOUNT_OPENING' => 'Saldo awal kas',
+        'SALES_RETURN' => 'Retur penjualan (refund tunai)',
+        'PURCHASE_RETURN' => 'Retur pembelian (refund tunai supplier)',
+        'GOODS_RECEIPT_CANCEL' => 'Batal penerimaan barang (refund tunai)',
     ];
 
     public function __construct(private readonly AccountingEngine $engine)

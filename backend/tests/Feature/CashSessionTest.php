@@ -150,23 +150,32 @@ class CashSessionTest extends TestCase
         $session = $this->openShift();
         $product = $this->makeProduct();
 
-        $this->checkout(['items' => [$this->productLine($product)], 'payments' => [['method' => 'TUNAI', 'amount' => 1000000, 'tendered' => 1200000]]])->assertCreated();
+        $sale = $this->checkout(['items' => [$this->productLine($product, 2)], 'payments' => [['method' => 'TUNAI', 'amount' => 2000000, 'tendered' => 2200000]]])->assertCreated();
         $this->checkout(['items' => [$this->productLine($product)], 'payments' => [['method' => 'TRANSFER', 'amount' => 1000000]]])->assertCreated();
         $this->expense(100000);
         $this->expense(50000, 'TRANSFER');
+        $refund = $this->postJson("/api/v1/pos/transactions/{$sale->json('data.id')}/returns", [
+            'reason' => 'Retur sebagian untuk uji kas',
+            'items' => [['sale_detail_id' => $sale->json('data.items.0.id'), 'quantity' => 1]],
+        ])->assertCreated()->json('data.sales_return.refund_amount');
 
         $current = $this->getJson('/api/v1/cash-sessions/current')->assertOk()->json('data.session');
         $lines = collect($current['lines'])->keyBy('reference_type');
 
-        $this->assertEquals(1000000, $lines['POS_SALE']['amount']);
+        $this->assertEquals(2000000, $lines['POS_SALE']['amount']);
         $this->assertSame(1, $lines['POS_SALE']['count']);
         $this->assertSame('Penjualan tunai', $lines['POS_SALE']['label']);
         $this->assertEquals(-100000, $lines['EXPENSE']['amount']);
         $this->assertSame(1, $lines['EXPENSE']['count']);
+        $this->assertEquals(-$refund, $lines['SALES_RETURN']['amount']);
+        $this->assertSame('Retur penjualan (refund tunai)', $lines['SALES_RETURN']['label']);
         $this->assertFalse($lines->has('TEST'));
-        $this->assertEquals(1000000, $current['cash_in']);
-        $this->assertEquals(100000, $current['cash_out']);
-        $this->assertEquals($session['opening_float'] + 900000, $current['expected_cash']);
+        $this->assertEquals(2000000, $current['cash_in']);
+        $this->assertEquals(100000 + $refund, $current['cash_out']);
+        $this->assertEquals($session['opening_float'] + 1900000 - $refund, $current['expected_cash']);
+
+        $closed = $this->closeShift($session['id'], $current['expected_cash'])->assertOk()->json('data');
+        $this->assertEquals($session['opening_float'] + 1900000 - $refund, $closed['expected_cash']);
     }
 
     public function test_close_requires_a_reason_for_a_variance_and_waits_for_approval(): void
