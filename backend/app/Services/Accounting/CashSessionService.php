@@ -51,11 +51,17 @@ class CashSessionService
     {
     }
 
-    /** Shift yang sedang dibuka; 422 bila belum ada. Dipakai checkout tunai (dan retur tunai). */
+    /**
+     * Shift yang sedang dibuka; 422 bila belum ada. Dipakai checkout tunai (dan retur tunai), di dalam transaksi.
+     * Kunci S per primary key membuat close() (kunci X baris yang sama) menunggu sampai transaksi ini commit,
+     * sehingga uang tunai selalu masuk jendela shift. Jangan mengunci lewat predikat status: next-key lock pada
+     * indeks status bentrok dengan approve() yang memegang kunci nomor JRN (deadlock).
+     */
     public static function requireOpen(): CashSession
     {
-        $session = self::current();
-        if ($session === null) {
+        $open = self::current();
+        $session = $open ? CashSession::whereKey($open->id)->sharedLock()->first() : null;
+        if ($session === null || $session->status !== CashSession::OPEN) {
             throw new PosRuleException('Shift kasir belum dibuka. Buka shift dan hitung kas awal laci sebelum menerima atau mengeluarkan uang tunai.');
         }
 
