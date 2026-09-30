@@ -160,6 +160,7 @@ Route::prefix('v1')->group(function () {
 
         // Laporan operasional harian (sub-proyek 5): baca saja, dihitung dari jurnal server
         Route::get('reports/daily-recap', [DailyReportController::class, 'recap'])->middleware('permission:dashboard,financial_reports');
+        Route::get('reports/daily-cash', [DailyReportController::class, 'cash'])->middleware('permission:daily_reports');
 
         // Expense Management (BKK) & Void Reversal
         Route::middleware('permission:expenses')->group(function () {

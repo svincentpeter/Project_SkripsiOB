@@ -2,15 +2,20 @@
 
 namespace Tests\Feature;
 
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
+use App\Models\JournalEntry;
 use App\Models\Sale;
 use App\Models\SaleDetail;
 use App\Models\SalePayment;
+use App\Models\User;
 use App\Services\Accounting\CashFlowReport;
 use App\Services\Accounting\FinancialReportService;
 use App\Services\AccountingEngine;
 use App\Services\JournalDraft;
 use App\Services\Reports\DailyReportService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -173,5 +178,147 @@ class DailyReportTest extends TestCase
         $this->getJson('/api/v1/reports/daily-recap?from=2020-02-10&to=2020-02-12')->assertForbidden();
         $this->actingAsRole('GUDANG');
         $this->getJson('/api/v1/reports/daily-recap?from=2020-02-10&to=2020-02-12')->assertForbidden();
+    }
+
+    /** Baris sesi kasir SP2 (kolom NOT NULL tanpa default: book_opening). */
+    private function insertCashSession(User $user, string $openedAt, array $overrides = []): int
+    {
+        return DB::table('cash_sessions')->insertGetId($overrides + [
+            'user_id' => $user->id,
+            'opened_at' => $openedAt,
+            'opening_float' => 200000,
+            'book_opening' => 200000,
+            'closed_at' => null,
+            'expected_cash' => 300000,
+            'counted_cash' => 295000,
+            'variance' => -5000,
+            'variance_reason' => 'Uang kembalian kurang',
+            'status' => 'PENDING_APPROVAL',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_daily_cash_accounts_reconcile_and_movements_are_grouped_by_type(): void
+    {
+        $date = '2020-04-07';
+        $this->postJournal($date, [['1-1000', 500000, 0], ['3-1000', 0, 500000]], 'ACCOUNT_OPENING');
+        $this->postJournal($date, [['1-1000', 100000, 0], ['4-1000', 0, 100000]], 'POS_SALE');
+        $this->postJournal($date, [['6-1003', 30000, 0], ['1-1000', 0, 30000]], 'EXPENSE');
+        $this->postJournal($date, [['1-1001', 40000, 0], ['1-1000', 0, 40000]], 'CASH_DEPOSIT');
+        $before = CashFlowReport::cashBalances('2020-04-06');
+
+        $report = app(DailyReportService::class)->dailyCash($date);
+
+        $this->assertSame('all', $report['scope']);
+        $accounts = collect($report['cash_accounts'])->keyBy('code');
+        // Saldo awal akun bertanggal hari itu masuk ke saldo awal, bukan ke kas masuk.
+        $this->assertEqualsWithDelta($before['1-1000'] + 500000, $accounts['1-1000']['opening'], 0.001);
+        $this->assertEquals(100000, $accounts['1-1000']['cash_in']);
+        $this->assertEquals(70000, $accounts['1-1000']['cash_out']);
+        $this->assertEquals(40000, $accounts['1-1001']['cash_in']);
+        foreach ($report['cash_accounts'] as $account) {
+            $this->assertEqualsWithDelta($account['opening'] + $account['cash_in'] - $account['cash_out'], $account['closing'], 0.001);
+        }
+
+        $moves = collect($report['cash_movements'])->keyBy('reference_type');
+        $this->assertFalse($moves->has('ACCOUNT_OPENING'));
+        $this->assertEquals(100000, $moves['POS_SALE']['cash_in']);
+        $this->assertEquals(30000, $moves['EXPENSE']['cash_out']);
+        $this->assertEquals(40000, $moves['CASH_DEPOSIT']['cash_in']);
+        $this->assertEquals(40000, $moves['CASH_DEPOSIT']['cash_out']);
+        $this->assertEquals(100000, $report['summary']['revenue']);
+    }
+
+    public function test_daily_cash_lists_notas_cashiers_expenses_and_shifts(): void
+    {
+        $date = '2020-05-02';
+        $a = 'Kasir A '.uniqid();
+        $b = 'Kasir B '.uniqid();
+        $this->makeSale($date, $a, [['TUNAI', 100000]]);
+        $this->makeSale($date, $a, [['TUNAI', 50000]], 'VOID');
+        $this->makeSale($date, $b, [['QRIS', 70000]]);
+        $category = ExpenseCategory::firstOrFail();
+        foreach ([['ACTIVE', 25000], ['VOID', 10000]] as [$status, $amount]) {
+            Expense::create([
+                'reference' => 'DR-BKK-'.uniqid(), 'expense_date' => $date, 'category_id' => $category->id,
+                'amount' => $amount, 'payment_method' => 'TUNAI', 'recipient_name' => 'PLN',
+                'description' => 'uji '.$status, 'approved_by' => 'Owner', 'status' => $status,
+            ]);
+        }
+        $owner = $this->actingAsRole('OWNER');
+        $sessionId = $this->insertCashSession($owner, $date.' 08:00:00');
+        $otherDay = $this->insertCashSession($owner, '2020-05-03 08:00:00');
+
+        $data = $this->getJson('/api/v1/reports/daily-cash?date='.$date)->assertOk()->json('data');
+
+        $this->assertSame('all', $data['scope']);
+        $cashierA = collect($data['cashiers'])->firstWhere('cashier_name', $a);
+        $this->assertSame(1, $cashierA['sales_count']);
+        $this->assertEquals(100000, $cashierA['sales_total']);
+        $this->assertSame(1, $cashierA['void_count']);
+        $this->assertEquals(50000, $cashierA['void_total']);
+        $this->assertEquals(100000, $cashierA['by_method']['TUNAI']);
+        $this->assertEquals(70000, collect($data['cashiers'])->firstWhere('cashier_name', $b)['by_method']['QRIS']);
+
+        $mine = collect($data['sales'])->whereIn('cashier_name', [$a, $b]);
+        $this->assertCount(3, $mine);
+        $this->assertContains('VOID', $mine->pluck('status')->all());
+
+        $expenses = collect($data['expenses'])->filter(fn ($e) => str_starts_with($e['description'], 'uji '));
+        $this->assertSame(['uji ACTIVE'], $expenses->pluck('description')->values()->all());
+
+        $session = collect($data['cash_sessions'])->firstWhere('id', $sessionId);
+        $this->assertSame($owner->name, $session['user_name']);
+        $this->assertSame($date.' 08:00:00', $session['opened_at']);
+        $this->assertEquals(300000, $session['expected_cash']);
+        $this->assertEquals(-5000, $session['variance']);
+        $this->assertSame('Uang kembalian kurang', $session['variance_reason']);
+        $this->assertSame('PENDING_APPROVAL', $session['status']);
+        $this->assertNull(collect($data['cash_sessions'])->firstWhere('id', $otherDay));
+    }
+
+    public function test_open_shift_shows_the_running_expected_cash(): void
+    {
+        $date = '2020-05-16';
+        $owner = $this->actingAsRole('OWNER');
+        $id = $this->insertCashSession($owner, $date.' 08:00:00', [
+            'from_entry_id' => (int) JournalEntry::max('id'), 'expected_cash' => null, 'counted_cash' => null,
+            'variance' => null, 'variance_reason' => null, 'status' => 'OPEN',
+        ]);
+        $this->postJournal($date, [['1-1000', 100000, 0], ['4-1000', 0, 100000]], 'POS_SALE');
+
+        $session = collect(app(DailyReportService::class)->dailyCash($date)['cash_sessions'])->firstWhere('id', $id);
+
+        // Shift berjalan: kas seharusnya = modal awal + mutasi laci sejak shift dibuka (rumus SP2).
+        $this->assertEquals(300000, $session['expected_cash']);
+        $this->assertNull($session['counted_cash']);
+        $this->assertNull($session['variance']);
+    }
+
+    public function test_kasir_sees_only_own_notas_and_shifts_and_gudang_is_denied(): void
+    {
+        $date = '2020-05-09';
+        $owner = $this->actingAsRole('OWNER');
+        $kasir = $this->actingAsRole('KASIR');
+        $this->makeSale($date, $kasir->name, [['TUNAI', 100000]]);
+        $this->makeSale($date, 'Kasir Lain '.uniqid(), [['TUNAI', 999000]]);
+        $mine = $this->insertCashSession($kasir, $date.' 08:00:00');
+        $this->insertCashSession($owner, $date.' 09:00:00');
+
+        $data = $this->getJson('/api/v1/reports/daily-cash?date='.$date)->assertOk()->json('data');
+
+        $this->assertSame('cashier', $data['scope']);
+        $this->assertSame($kasir->name, $data['cashier']);
+        $this->assertNull($data['summary']);
+        $this->assertNull($data['cash_accounts']);
+        $this->assertNull($data['cash_movements']);
+        $this->assertNull($data['expenses']);
+        $this->assertSame([$kasir->name], collect($data['sales'])->pluck('cashier_name')->unique()->values()->all());
+        $this->assertSame([$kasir->name], collect($data['cashiers'])->pluck('cashier_name')->all());
+        $this->assertSame([$mine], collect($data['cash_sessions'])->pluck('id')->all());
+
+        $this->actingAsRole('GUDANG');
+        $this->getJson('/api/v1/reports/daily-cash?date='.$date)->assertForbidden();
     }
 }

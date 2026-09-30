@@ -4,12 +4,19 @@ namespace App\Services\Reports;
 
 use App\Exceptions\PosRuleException;
 use App\Models\Account;
+use App\Models\CashSession;
+use App\Models\Expense;
+use App\Models\Sale;
+use App\Models\SalePayment;
+use App\Models\User;
 use App\Services\Accounting\CashFlowReport;
+use App\Services\Accounting\CashSessionService;
 use App\Services\Accounting\FinancialReportService;
 use App\Services\Accounting\LedgerBalances;
 use App\Services\Accounting\OpeningBalanceService;
 use App\Services\Pos\PosAccounts;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -50,6 +57,188 @@ final class DailyReportService
         $rows = array_values(array_map(fn (array $row) => self::finish($row), $rows));
 
         return ['from' => $from, 'to' => $to, 'rows' => $rows, 'totals' => self::total($rows)];
+    }
+
+    /**
+     * Laporan kas harian. $only = null untuk seluruh toko; bila diisi, hanya nota, sesi dan rekap milik kasir itu
+     * (bagian buku besar dan biaya bernilai null).
+     */
+    public function dailyCash(string $date, ?User $only = null): array
+    {
+        $full = $only === null;
+        $sales = Sale::with('payments')
+            ->where('date', $date)
+            ->when(! $full, fn ($q) => $q->where('cashier_name', $only->name))
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get();
+
+        return [
+            'date' => $date,
+            'scope' => $full ? 'all' : 'cashier',
+            'cashier' => $only?->name,
+            'summary' => $full ? $this->recap($date, $date)['rows'][0] : null,
+            'cash_accounts' => $full ? self::cashAccounts($date) : null,
+            'cash_movements' => $full ? self::cashMovements($date) : null,
+            'sales' => $sales->map(fn (Sale $sale) => self::saleRow($sale))->values()->all(),
+            'cashiers' => self::cashiers($sales),
+            'expenses' => $full ? self::expenses($date) : null,
+            'cash_sessions' => self::cashSessions($date, $only),
+        ];
+    }
+
+    /** Debit/kredit akun kas & bank pada satu tanggal, per akun dan jenis jurnal. */
+    private static function cashLines(string $date): Collection
+    {
+        return DB::table('journal_items as i')
+            ->join('journal_entries as e', 'e.id', '=', 'i.journal_entry_id')
+            ->join('accounts as a', 'a.id', '=', 'i.account_id')
+            ->where('e.status', 'POSTED')
+            ->where('e.entry_date', $date)
+            ->whereIn('a.account_code', CashFlowReport::CASH_ACCOUNTS)
+            ->groupBy('a.account_code', 'e.reference_type')
+            ->selectRaw('a.account_code as code, e.reference_type as reference_type, SUM(i.debit) as debit, SUM(i.credit) as credit')
+            ->get();
+    }
+
+    /** Saldo awal + masuk − keluar = saldo akhir per akun kas; saldo awal akun bertanggal hari itu masuk ke saldo awal. */
+    private static function cashAccounts(string $date): array
+    {
+        $before = CashFlowReport::cashBalances(Carbon::parse($date)->subDay()->toDateString());
+        $after = CashFlowReport::cashBalances($date);
+        $names = Account::whereIn('account_code', CashFlowReport::CASH_ACCOUNTS)->pluck('account_name', 'account_code');
+        $lines = self::cashLines($date);
+
+        return array_map(function (string $code) use ($before, $after, $names, $lines) {
+            $mine = $lines->where('code', $code);
+            $opening = $mine->where('reference_type', OpeningBalanceService::REFERENCE_TYPE);
+            $moves = $mine->where('reference_type', '!=', OpeningBalanceService::REFERENCE_TYPE);
+
+            return [
+                'code' => $code,
+                'name' => $names[$code] ?? $code,
+                'opening' => round($before[$code] + $opening->sum(fn ($l) => (float) $l->debit - (float) $l->credit), 2),
+                'cash_in' => round($moves->sum(fn ($l) => (float) $l->debit), 2),
+                'cash_out' => round($moves->sum(fn ($l) => (float) $l->credit), 2),
+                'closing' => $after[$code],
+            ];
+        }, CashFlowReport::CASH_ACCOUNTS);
+    }
+
+    /** Mutasi kas laci + bank per jenis jurnal (tanpa saldo awal akun). */
+    private static function cashMovements(string $date): array
+    {
+        return self::cashLines($date)
+            ->where('reference_type', '!=', OpeningBalanceService::REFERENCE_TYPE)
+            ->groupBy('reference_type')
+            ->map(fn (Collection $group, string $type) => [
+                'reference_type' => $type,
+                'cash_in' => round($group->sum(fn ($l) => (float) $l->debit), 2),
+                'cash_out' => round($group->sum(fn ($l) => (float) $l->credit), 2),
+            ])
+            ->sortKeys()
+            ->values()
+            ->all();
+    }
+
+    private static function saleRow(Sale $sale): array
+    {
+        return [
+            'id' => $sale->id,
+            'reference' => $sale->reference,
+            'time' => $sale->created_at?->format('H:i'),
+            'cashier_name' => $sale->cashier_name,
+            'customer_name' => $sale->customer_name,
+            'vehicle_plate' => $sale->vehicle_plate,
+            'total_amount' => (float) $sale->total_amount,
+            'total_hpp' => (float) $sale->total_hpp,
+            'status' => $sale->status,
+            'payments' => $sale->payments->map(fn (SalePayment $p) => [
+                'method' => $p->method,
+                'amount' => (float) $p->amount,
+                'fee_amount' => (float) $p->fee_amount,
+                'net_received' => (float) $p->net_received,
+            ])->values()->all(),
+        ];
+    }
+
+    /**
+     * Rekap per kasir dari nota hari itu; penerimaan per metode hanya dari nota yang tidak di-VOID.
+     * Retur penjualan (refund dari laci) tidak tercatat per kasir; terlihat di mutasi kas SALES_RETURN dan di shift.
+     */
+    private static function cashiers(Collection $sales): array
+    {
+        return $sales->groupBy('cashier_name')->map(function (Collection $group, string $name) {
+            $live = $group->where('status', '!=', 'VOID');
+            $void = $group->where('status', 'VOID');
+            $byMethod = ['TUNAI' => 0.0, 'TRANSFER' => 0.0, 'QRIS' => 0.0];
+            foreach ($live as $sale) {
+                foreach ($sale->payments as $payment) {
+                    $bucket = self::PAYMENT_GROUPS[$payment->method] ?? null;
+                    if ($bucket !== null) {
+                        $byMethod[$bucket] += (float) $payment->amount;
+                    }
+                }
+            }
+
+            return [
+                'cashier_name' => $name,
+                'sales_count' => $live->count(),
+                'sales_total' => round((float) $live->sum('total_amount'), 2),
+                'void_count' => $void->count(),
+                'void_total' => round((float) $void->sum('total_amount'), 2),
+                'by_method' => self::rounded($byMethod),
+            ];
+        })->sortKeys()->values()->all();
+    }
+
+    /** Biaya bertanggal hari itu yang tidak di-VOID (pembatalan tampil sebagai mutasi VOID_EXPENSE di tanggalnya). */
+    private static function expenses(string $date): array
+    {
+        return Expense::with('category')
+            ->where('expense_date', $date)
+            ->where('status', '!=', 'VOID')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (Expense $e) => [
+                'reference' => $e->reference,
+                'category' => $e->category?->category_name,
+                'description' => $e->description,
+                'amount' => (float) $e->amount,
+                'payment_method' => $e->payment_method,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Shift kasir (sub-proyek 2) yang dibuka hari itu. Kas seharusnya shift yang masih berjalan dihitung dengan
+     * rumus SP2 (CashSessionService::summary), sama seperti layar shift.
+     */
+    private static function cashSessions(string $date, ?User $only): array
+    {
+        $money = fn ($value) => $value === null ? null : (float) $value;
+
+        return CashSession::with('user')
+            ->whereDate('opened_at', $date)
+            ->when($only !== null, fn ($q) => $q->where('user_id', $only->id))
+            ->orderBy('opened_at')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (CashSession $s) => [
+                'id' => $s->id,
+                'user_name' => $s->user?->name,
+                'opened_at' => $s->opened_at?->format('Y-m-d H:i:s'),
+                'closed_at' => $s->closed_at?->format('Y-m-d H:i:s'),
+                'opening_float' => (float) $s->opening_float,
+                'expected_cash' => $s->expected_cash !== null ? (float) $s->expected_cash : CashSessionService::summary($s)['expected_cash'],
+                'counted_cash' => $money($s->counted_cash),
+                'variance' => $money($s->variance),
+                'variance_reason' => $s->variance_reason,
+                'status' => $s->status,
+            ])
+            ->values()
+            ->all();
     }
 
     /** Pendapatan, kontra, HPP, beban dan kas masuk/keluar per hari dari jurnal (tanpa jurnal tutup buku). */
