@@ -9,6 +9,7 @@ use App\Models\PurchasePayment;
 use App\Models\User;
 use App\Services\AccountingEngine;
 use App\Services\JournalDraft;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -37,7 +38,11 @@ class PayableService
                 throw new PosRuleException('Pembayaran melebihi sisa hutang (Rp '.number_format($remaining, 0, ',', '.').').');
             }
 
-            $date = $data['payment_date'] ?? now()->toDateString();
+            $date = Carbon::parse($data['payment_date'] ?? now())->toDateString();
+            $invoiceDate = $purchase->purchase_date->toDateString();
+            if ($date < $invoiceDate) {
+                throw new PosRuleException("Tanggal pembayaran {$date} sebelum tanggal faktur {$invoiceDate}.");
+            }
             $journal = (new JournalDraft())
                 ->debit('2-1000', $amount, "Pelunasan hutang {$purchase->supplier_name} ({$purchase->purchase_number})")
                 ->credit($data['account_code'], $amount, "Pembayaran hutang {$purchase->purchase_number}")

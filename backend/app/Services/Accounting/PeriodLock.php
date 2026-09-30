@@ -20,6 +20,8 @@ final class PeriodLock
 
     public static function assertOpen(string $date): void
     {
+        // Bandingkan sebagai Y-m-d: string tanggal-waktu atau format lain membuat perbandingan teks salah.
+        $date = Carbon::parse($date)->toDateString();
         $lock = self::lockDate();
         if ($lock !== null && $date <= $lock) {
             throw new PosRuleException("Periode sampai {$lock} sudah ditutup; transaksi bertanggal {$date} tidak dapat dibukukan.");

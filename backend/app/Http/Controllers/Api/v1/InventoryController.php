@@ -24,11 +24,11 @@ class InventoryController extends Controller
             'supplier_id' => 'nullable|integer|exists:suppliers,id',
             'source_name' => 'required_without:supplier_id|nullable|string|max:150',
             'supplier_invoice' => 'nullable|string|max:100',
-            'purchase_date' => 'nullable|date',
+            'purchase_date' => 'nullable|date|before_or_equal:today',
             'payment_method' => 'required|string|in:TUNAI,TRANSFER_BCA,TEMPO',
             'due_date' => 'nullable|date',
             'notes' => 'nullable|string|max:255',
-        ]);
+        ], ['purchase_date.before_or_equal' => 'Tanggal penerimaan barang tidak boleh melebihi hari ini.']);
 
         $out = $receipts->receive($validated, $request->user());
 
