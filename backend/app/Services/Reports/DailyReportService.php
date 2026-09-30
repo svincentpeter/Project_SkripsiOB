@@ -66,9 +66,12 @@ final class DailyReportService
     public function dailyCash(string $date, ?User $only = null): array
     {
         $full = $only === null;
-        $sales = Sale::with('payments')
+        $sales = Sale::with(['payments', 'user'])
             ->where('date', $date)
-            ->when(! $full, fn ($q) => $q->where('cashier_name', $only->name))
+            // Nota milik kasir = user_id-nya; nama hanya untuk nota lama tanpa user_id (nama tidak unik).
+            ->when(! $full, fn ($q) => $q->where(fn ($w) => $w
+                ->where('user_id', $only->id)
+                ->orWhere(fn ($legacy) => $legacy->whereNull('user_id')->where('cashier_name', $only->name))))
             ->orderBy('created_at')
             ->orderBy('id')
             ->get();
@@ -80,8 +83,8 @@ final class DailyReportService
             'summary' => $full ? $this->recap($date, $date)['rows'][0] : null,
             'cash_accounts' => $full ? self::cashAccounts($date) : null,
             'cash_movements' => $full ? self::cashMovements($date) : null,
-            'sales' => $sales->map(fn (Sale $sale) => self::saleRow($sale))->values()->all(),
-            'cashiers' => self::cashiers($sales),
+            'sales' => $sales->map(fn (Sale $sale) => self::saleRow($sale, $full))->values()->all(),
+            'cashiers' => self::cashiers($sales, $only),
             'expenses' => $full ? self::expenses($date) : null,
             'cash_sessions' => self::cashSessions($date, $only),
         ];
@@ -120,7 +123,7 @@ final class DailyReportService
                 'opening' => round($before[$code] + $opening->sum(fn ($l) => (float) $l->debit - (float) $l->credit), 2),
                 'cash_in' => round($moves->sum(fn ($l) => (float) $l->debit), 2),
                 'cash_out' => round($moves->sum(fn ($l) => (float) $l->credit), 2),
-                'closing' => $after[$code],
+                'closing' => round($after[$code], 2),
             ];
         }, CashFlowReport::CASH_ACCOUNTS);
     }
@@ -141,7 +144,8 @@ final class DailyReportService
             ->all();
     }
 
-    private static function saleRow(Sale $sale): array
+    /** HPP nota hanya untuk pengguna dengan laporan keuangan; kasir tidak melihat harga pokok. */
+    private static function saleRow(Sale $sale, bool $full): array
     {
         return [
             'id' => $sale->id,
@@ -151,7 +155,7 @@ final class DailyReportService
             'customer_name' => $sale->customer_name,
             'vehicle_plate' => $sale->vehicle_plate,
             'total_amount' => (float) $sale->total_amount,
-            'total_hpp' => (float) $sale->total_hpp,
+            'total_hpp' => $full ? (float) $sale->total_hpp : null,
             'status' => $sale->status,
             'payments' => $sale->payments->map(fn (SalePayment $p) => [
                 'method' => $p->method,
@@ -165,10 +169,17 @@ final class DailyReportService
     /**
      * Rekap per kasir dari nota hari itu; penerimaan per metode hanya dari nota yang tidak di-VOID.
      * Retur penjualan (refund dari laci) tidak tercatat per kasir; terlihat di mutasi kas SALES_RETURN dan di shift.
+     * Dikelompokkan per user_id (label = nama pengguna saat ini); nota lama tanpa user_id per cashier_name.
+     * Pada lingkup satu kasir seluruh notanya satu baris.
      */
-    private static function cashiers(Collection $sales): array
+    private static function cashiers(Collection $sales, ?User $only): array
     {
-        return $sales->groupBy('cashier_name')->map(function (Collection $group, string $name) {
+        $key = fn (Sale $sale) => $only !== null ? 'u'.$only->id
+            : ($sale->user_id !== null ? 'u'.$sale->user_id : 'n'.$sale->cashier_name);
+
+        return $sales->groupBy($key)->map(function (Collection $group) use ($only) {
+            $first = $group->first();
+            $name = $only?->name ?? $first->user?->name ?? $first->cashier_name;
             $live = $group->where('status', '!=', 'VOID');
             $void = $group->where('status', 'VOID');
             $byMethod = ['TUNAI' => 0.0, 'TRANSFER' => 0.0, 'QRIS' => 0.0];
@@ -189,7 +200,7 @@ final class DailyReportService
                 'void_total' => round((float) $void->sum('total_amount'), 2),
                 'by_method' => self::rounded($byMethod),
             ];
-        })->sortKeys()->values()->all();
+        })->sortBy('cashier_name')->values()->all();
     }
 
     /** Biaya bertanggal hari itu yang tidak di-VOID (pembatalan tampil sebagai mutasi VOID_EXPENSE di tanggalnya). */

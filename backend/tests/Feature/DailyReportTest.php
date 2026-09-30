@@ -16,6 +16,7 @@ use App\Services\JournalDraft;
 use App\Services\Reports\DailyReportService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 /**
@@ -41,13 +42,15 @@ class DailyReportTest extends TestCase
      *
      * @param  list<array{0: string, 1: float}>  $payments  [[metode, jumlah], ...]
      */
-    private function makeSale(string $date, string $cashier, array $payments, string $status = 'LUNAS', int $tyres = 1, int $services = 0): Sale
+    private function makeSale(string $date, string $cashier, array $payments, string $status = 'LUNAS', int $tyres = 1, int $services = 0, ?User $user = null): Sale
     {
         $total = array_sum(array_column($payments, 1));
         $sale = Sale::create([
             'reference' => 'DR-INV-'.uniqid(),
             'date' => $date,
             'cashier_name' => $cashier,
+            'user_id' => $user?->id,
+            'total_hpp' => 40000,
             'gross_sales_amount' => $total,
             'total_amount' => $total,
             'paid_amount' => $total,
@@ -314,11 +317,81 @@ class DailyReportTest extends TestCase
         $this->assertNull($data['cash_accounts']);
         $this->assertNull($data['cash_movements']);
         $this->assertNull($data['expenses']);
+        // Nota lama tanpa user_id dicocokkan lewat nama kasir; HPP tidak terlihat oleh kasir.
         $this->assertSame([$kasir->name], collect($data['sales'])->pluck('cashier_name')->unique()->values()->all());
+        $this->assertSame([null], collect($data['sales'])->pluck('total_hpp')->unique()->values()->all());
         $this->assertSame([$kasir->name], collect($data['cashiers'])->pluck('cashier_name')->all());
         $this->assertSame([$mine], collect($data['cash_sessions'])->pluck('id')->all());
 
         $this->actingAsRole('GUDANG');
         $this->getJson('/api/v1/reports/daily-cash?date='.$date)->assertForbidden();
+    }
+
+    private function makeUser(string $role, string $name): User
+    {
+        $tag = uniqid();
+
+        return User::create([
+            'name' => $name, 'username' => 'dr-'.$tag, 'email' => 'dr-'.$tag.'@omahban.test',
+            'role' => $role, 'password' => 'secret-test', 'is_active' => true,
+        ]);
+    }
+
+    public function test_kasir_scope_matches_the_user_not_the_display_name(): void
+    {
+        $date = '2020-05-23';
+        $name = 'Kasir Kembar '.uniqid();
+        $one = $this->makeUser('KASIR', $name);
+        $two = $this->makeUser('KASIR', $name);
+        $mine = $this->makeSale($date, $name, [['TUNAI', 100000]], user: $one);
+        $this->makeSale($date, $name, [['QRIS', 70000]], user: $two);
+
+        Sanctum::actingAs($one);
+        $data = $this->getJson('/api/v1/reports/daily-cash?date='.$date)->assertOk()->json('data');
+
+        $this->assertSame([$mine->id], collect($data['sales'])->pluck('id')->all());
+        $this->assertCount(1, $data['cashiers']);
+        $this->assertSame(1, $data['cashiers'][0]['sales_count']);
+        $this->assertEquals(100000, $data['cashiers'][0]['sales_total']);
+
+        // Seluruh toko: dua pengguna bernama sama tetap dua baris rekap.
+        $all = app(DailyReportService::class)->dailyCash($date);
+        $rows = collect($all['cashiers'])->where('cashier_name', $name);
+        $this->assertCount(2, $rows);
+        $this->assertEqualsCanonicalizing([100000, 70000], $rows->pluck('sales_total')->all());
+        $this->assertEquals(40000, collect($all['sales'])->firstWhere('id', $mine->id)['total_hpp']);
+    }
+
+    public function test_renamed_kasir_still_sees_own_notas_under_the_current_name(): void
+    {
+        $date = '2020-05-30';
+        $kasir = $this->makeUser('KASIR', 'Nama Lama '.uniqid());
+        $sale = $this->makeSale($date, $kasir->name, [['TUNAI', 100000]], user: $kasir);
+        $kasir->update(['name' => 'Nama Baru '.uniqid()]);
+
+        Sanctum::actingAs($kasir);
+        $data = $this->getJson('/api/v1/reports/daily-cash?date='.$date)->assertOk()->json('data');
+
+        $this->assertSame([$sale->id], collect($data['sales'])->pluck('id')->all());
+        $this->assertSame([$kasir->name], collect($data['cashiers'])->pluck('cashier_name')->all());
+        $this->assertSame($kasir->name, collect(app(DailyReportService::class)->dailyCash($date)['cashiers'])
+            ->firstWhere('sales_total', 100000)['cashier_name']);
+    }
+
+    public function test_daily_cash_date_rules_and_financial_reports_scope(): void
+    {
+        $this->getJson('/api/v1/reports/daily-cash')->assertOk()->assertJsonPath('data.date', now()->toDateString());
+        $this->getJson('/api/v1/reports/daily-cash?date=2020-13-45')->assertStatus(422)->assertJsonValidationErrors('date');
+
+        // Peran selain Owner yang diberi laporan keuangan melihat seluruh toko.
+        DB::table('role_permissions')->updateOrInsert(
+            ['role' => 'KASIR', 'permission_key' => 'financial_reports'],
+            ['allowed' => true, 'created_at' => now(), 'updated_at' => now()]
+        );
+        $this->actingAsRole('KASIR');
+        $data = $this->getJson('/api/v1/reports/daily-cash?date=2020-05-02')->assertOk()->json('data');
+        $this->assertSame('all', $data['scope']);
+        $this->assertNull($data['cashier']);
+        $this->assertIsArray($data['cash_accounts']);
     }
 }

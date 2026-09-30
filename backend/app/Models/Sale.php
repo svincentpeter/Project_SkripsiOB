@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
@@ -25,6 +26,7 @@ class Sale extends Model
         'vehicle_plate',
         'vehicle_model',
         'cashier_name',
+        'user_id',
         'gross_sales_amount',
         'discount_amount',
         'total_amount',
@@ -72,6 +74,12 @@ class Sale extends Model
     public function journalEntry(): HasOne
     {
         return $this->hasOne(JournalEntry::class, 'reference_id', 'reference')->where('reference_type', 'POS_SALE');
+    }
+
+    /** Kasir pembuat nota; null untuk nota lama (sebelum kolom user_id ada). */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function payments(): HasMany

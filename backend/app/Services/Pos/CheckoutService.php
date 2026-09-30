@@ -60,6 +60,7 @@ class CheckoutService
                 'vehicle_plate' => $data['vehicle_plate'] ?? 'Umum',
                 'vehicle_model' => $data['vehicle_model'] ?? null,
                 'cashier_name' => $user?->name ?? 'Kasir POS',
+                'user_id' => $user?->id,
                 'gross_sales_amount' => round(array_sum(array_column($lines, 'gross')), 2),
                 'discount_amount' => round(array_sum(array_column($lines, 'discount')) + $notaDiscount, 2),
                 'total_amount' => $grandTotal,

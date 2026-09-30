@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\JournalEntry;
 use App\Models\QrisTransaction;
+use App\Models\Sale;
 use App\Models\SalePayment;
 use App\Models\ServiceMaster;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
@@ -36,6 +38,11 @@ class PosCheckoutTest extends TestCase
             ->assertJsonMissingPath('data.due_date')
             ->assertJsonMissingPath('data.receivable_paid')
             ->assertJsonMissingPath('data.surcharge_amount');
+        // Nota menyimpan kasir sebagai user_id (nama tampilan tidak unik).
+        $this->assertEquals(
+            User::where('email', 'test-owner@omahban.test')->value('id'),
+            Sale::where('reference', $res->json('data.reference'))->value('user_id')
+        );
 
         $this->assertSame(4, $product->fresh()->product_quantity);
         $this->assertSame(0, $product->batches()->orderBy('purchase_date')->first()->remaining_qty);
