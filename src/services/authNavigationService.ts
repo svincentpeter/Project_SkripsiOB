@@ -27,7 +27,12 @@ export function isScreenPermittedForRole(
     case 'expenses':
       return !!roleConfig.expenses;
     case 'ledger':
-      return !!roleConfig.accounting_hub || !!roleConfig.accounts_payable;
+      return (
+        !!roleConfig.accounting_hub ||
+        !!roleConfig.accounts_payable ||
+        !!roleConfig.cash_session_approve ||
+        !!roleConfig.cash_movement
+      );
     case 'financials':
       return !!roleConfig.financial_reports;
     case 'settings':

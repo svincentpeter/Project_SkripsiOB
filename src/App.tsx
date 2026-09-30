@@ -1021,6 +1021,7 @@ function MainAppContent() {
                 onLedgerChanged={notifyLedgerChanged}
                 canReopenPeriod={currentUser?.role === 'OWNER'}
                 canUseHub={can('accounting_hub')}
+                canUsePayables={can('accounts_payable')}
                 onAddManualJournal={handleAddManualJournal}
                 onReverseJournal={handleReverseJournal}
                 onClosePeriod={handleClosePeriod}

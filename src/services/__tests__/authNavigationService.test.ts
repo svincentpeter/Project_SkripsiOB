@@ -70,6 +70,14 @@ describe('authNavigationService', () => {
       expect(isScreenPermittedForRole('settings', 'KASIR', DEFAULT_ROLE_PERMISSIONS)).toBe(false);
     });
 
+    it('a cash approver or cash-movement role reaches the ledger screen (Kas & Bank tab)', () => {
+      for (const key of ['cash_session_approve', 'cash_movement'] as const) {
+        const perms = { ...DEFAULT_ROLE_PERMISSIONS, KASIR: { ...DEFAULT_ROLE_PERMISSIONS.KASIR, [key]: true } };
+        expect(isScreenPermittedForRole('ledger', 'KASIR', perms)).toBe(true);
+        expect(canUserAccessBackoffice('KASIR', perms)).toBe(true);
+      }
+    });
+
     it('GUDANG should only have access to inventory, but NOT POS or dashboard', () => {
       expect(isScreenPermittedForRole('inventory', 'GUDANG', DEFAULT_ROLE_PERMISSIONS)).toBe(true);
       expect(isScreenPermittedForRole('pos', 'GUDANG', DEFAULT_ROLE_PERMISSIONS)).toBe(false);

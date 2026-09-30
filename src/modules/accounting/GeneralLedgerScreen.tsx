@@ -36,8 +36,10 @@ interface GeneralLedgerScreenProps {
   payableInvoices: PayableInvoice[];
   cashInDrawer: number;
   canReopenPeriod: boolean;
-  /** Akses `accounting_hub`. Tanpa itu (mis. hanya `accounts_payable`) hanya buku pembantu yang tampil. */
+  /** Akses `accounting_hub`. Tanpa itu hanya tab buku pembantu / kas yang diizinkan yang tampil. */
   canUseHub: boolean;
+  /** Izin `accounts_payable`: tab Pembantu Hutang (juga tampil dengan `accounting_hub`). */
+  canUsePayables?: boolean;
   onAddManualJournal: (payload: ManualJournalPayload) => Promise<boolean>;
   onReverseJournal: (journal: JournalEntry, reason: string) => Promise<boolean>;
   onClosePeriod: (period: string, notes: string) => Promise<boolean>;
@@ -63,9 +65,6 @@ const TABS: { id: AccountingTabKey; label: string; icon: React.ComponentType<{ c
   { id: 'cash', label: '6. Kas & Bank', icon: Wallet },
 ];
 
-/** Tab yang tidak memanggil endpoint khusus accounting_hub. */
-const SUBLEDGER_TABS: AccountingTabKey[] = ['payables'];
-
 export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   ledgerVersion,
   accounts,
@@ -73,6 +72,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   cashInDrawer,
   canReopenPeriod,
   canUseHub,
+  canUsePayables = false,
   onAddManualJournal,
   onReverseJournal,
   onClosePeriod,
@@ -86,11 +86,12 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   onLedgerChanged = () => {},
 }) => {
   const canManageCash = canApproveCash || canMoveCash;
-  const visibleTabs = TABS.filter((t) => (t.id === 'cash' ? canManageCash : canUseHub || SUBLEDGER_TABS.includes(t.id)));
-  const [selectedTab, setSelectedTab] = useState<AccountingTabKey>(
-    canUseHub || SUBLEDGER_TABS.includes(initialTab) ? initialTab : 'payables',
+  // Peran tanpa accounting_hub hanya melihat tab yang endpoint-nya boleh ia panggil (tanpa 403).
+  const visibleTabs = TABS.filter((t) =>
+    t.id === 'cash' ? canManageCash : t.id === 'payables' ? canUseHub || canUsePayables : canUseHub,
   );
-  const activeTab = visibleTabs.some((t) => t.id === selectedTab) ? selectedTab : visibleTabs[0].id;
+  const [selectedTab, setSelectedTab] = useState<AccountingTabKey>(initialTab);
+  const activeTab = visibleTabs.some((t) => t.id === selectedTab) ? selectedTab : visibleTabs[0]?.id;
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isClosingOpen, setIsClosingOpen] = useState(false);
   const [isOpeningOpen, setIsOpeningOpen] = useState(false);
