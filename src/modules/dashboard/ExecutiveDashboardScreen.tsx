@@ -187,12 +187,11 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
     TUNAI: { count: 0, total: 0 },
     TRANSFER_BCA: { count: 0, total: 0 },
     QRIS: { count: 0, total: 0 },
-    BON: { count: 0, total: 0 },
   };
 
   transactions.forEach((tx) => {
     if (tx.status === 'VOID') return;
-    const method = tx.payment_method === 'HUTANG_BON' ? 'BON' : tx.payment_method || 'TUNAI';
+    const method = tx.payment_method || 'TUNAI';
     if (!paymentBreakdown[method]) {
       paymentBreakdown[method] = { count: 0, total: 0 };
     }
@@ -805,7 +804,6 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                     TUNAI: 'Uang Tunai (Cash)',
                     TRANSFER_BCA: 'Transfer Bank BCA',
                     QRIS: 'QRIS Dinamis',
-                    BON: 'Piutang Bon Belum Lunas',
                   };
                   return (
                     <div key={method} className="space-y-1">

@@ -1,18 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import {
-  ApiSale,
-  buildPayments,
-  cartLineToPayload,
-  mapBooking,
-  mapSaleToTransaction,
-  serviceCartProduct,
-} from '../api/posMappers';
+import { ApiSale, buildPayments, cartLineToPayload, mapSaleToTransaction, serviceCartProduct } from '../api/posMappers';
 import { CartItem, ProductItem, ServiceMasterItem } from '../../shared/types';
 
 const product = { id: '42', product_name: 'Bridgestone Ecopia', name: 'Bridgestone Ecopia', product_price: 900000, stock: 5 } as ProductItem;
 const service: ServiceMasterItem = {
   id: '7', service_code: 'JS', service_name: 'Spooring', category: 'SPOORING', standard_price: 150000, cost_price: 0, is_active: true,
 };
+
+/** Field DP booking, BON dan EDC yang sudah dihapus: tidak boleh dikirim ke server atau dipetakan dari server. */
+const REMOVED_PAYMENT_KEYS = ['charge_to_customer', 'edc_bank', 'edc_type', 'surcharge_amount'];
+const REMOVED_SALE_KEYS = ['dp_applied', 'due_date', 'is_bon', 'edc_bank', 'edc_type', 'surcharge_amount'];
+const removedKeys = (row: object, removed: string[]) => Object.keys(row).filter((k) => removed.includes(k));
 
 describe('cartLineToPayload', () => {
   it('sends catalog product id, price override and per-item discount', () => {
@@ -52,22 +50,30 @@ describe('buildPayments', () => {
       .toMatchObject({ fee_percentage: 0.7, reference: 'POS-1' });
   });
 
-  it('EDC credit surcharge is charged to the customer', () => {
-    expect(buildPayments('EDC_CREDIT', 1000000, 0, { edc_type: 'Credit', fee_percentage: 2, surcharge_amount: 20000 })[0])
-      .toMatchObject({ method: 'EDC_CREDIT', fee_percentage: 2, charge_to_customer: true });
-  });
-
   it('split overpay becomes change taken from the cash row', () => {
-    const rows = buildPayments('SPLIT' as any, 1000000, 0, {
+    const rows = buildPayments('SPLIT', 1000000, 0, {
       split_payments: [
         { id: 'a', method: 'TUNAI', amount: 500000 },
-        { id: 'b', method: 'EDC', edc_type: 'Debit', amount: 600000, fee_percentage: 0.5, fee_amount: 3000 },
+        { id: 'b', method: 'QRIS', provider_name: 'BCA', amount: 600000, fee_percentage: 0.3, fee_amount: 1800 },
       ],
     });
     expect(rows).toEqual([
       expect.objectContaining({ method: 'TUNAI', amount: 400000, tendered: 500000 }),
-      expect.objectContaining({ method: 'EDC_DEBIT', amount: 600000, fee_percentage: 0.5 }),
+      expect.objectContaining({ method: 'QRIS', amount: 600000, fee_percentage: 0.3, provider_name: 'BCA' }),
     ]);
+  });
+
+  it('never sends BON, DP or EDC fields', () => {
+    const rows = [
+      ...buildPayments('TRANSFER_BCA', 500000, 0, { provider_name: 'BCA' }),
+      ...buildPayments('SPLIT', 1000000, 0, {
+        split_payments: [
+          { id: 'a', method: 'TUNAI', amount: 400000 },
+          { id: 'b', method: 'QRIS', amount: 600000, fee_percentage: 0.3, fee_amount: 1800 },
+        ],
+      }),
+    ];
+    rows.forEach((row) => expect(removedKeys(row, REMOVED_PAYMENT_KEYS)).toEqual([]));
   });
 });
 
@@ -76,15 +82,15 @@ describe('mapSaleToTransaction', () => {
     id: 9, reference: 'OB3-INV-202609-0009', date: '2026-09-24', created_at: '2026-09-24T03:15:00Z',
     customer_name: 'Budi', vehicle_plate: 'AA 1 BB', cashier_name: 'Kasir OB3',
     gross_sales_amount: 2000000, discount_amount: 150000,
-    total_amount: 1850000, paid_amount: 1850000, change_amount: 150000, dp_applied: 0,
-    payment_method: 'TUNAI', fee_amount: 0, surcharge_amount: 0, net_received: 1850000,
+    total_amount: 1850000, paid_amount: 1850000, change_amount: 150000,
+    payment_method: 'TUNAI', fee_amount: 0, net_received: 1850000,
     total_hpp: 1100000, total_profit: 750000, status: 'LUNAS',
     items: [{
       id: 1, item_type: 'PRODUCT', item_name: 'Ban A', product_id: 42, service_id: null, is_manual: false,
       quantity: 2, unit_price: 1000000, discount_per_item: 25000, sub_total: 1950000, unit_cost_hpp: 550000, total_cost_hpp: 1100000,
       product: { id: 42, product_name: 'Ban A', brand: 'Bridgestone' },
     }],
-    payments: [{ method: 'TUNAI', account_code: '1-1000', amount: 1850000, tendered_amount: 2000000, change_amount: 150000, fee_percentage: 0, fee_amount: 0, surcharge_amount: 0, net_received: 1850000 }],
+    payments: [{ method: 'TUNAI', account_code: '1-1000', amount: 1850000, tendered_amount: 2000000, change_amount: 150000, fee_percentage: 0, fee_amount: 0, net_received: 1850000 }],
     journals: [],
   };
 
@@ -98,28 +104,22 @@ describe('mapSaleToTransaction', () => {
     expect(tx.split_payments).toBeUndefined();
   });
 
-  it('maps BON and VOID states', () => {
-    expect(mapSaleToTransaction({ ...sale, payment_method: 'BON', status: 'PENDING' }).payment_method).toBe('HUTANG_BON');
+  it('maps the VOID state', () => {
     expect(mapSaleToTransaction({ ...sale, status: 'VOID', voided_by: 'Owner' }).is_voided).toBe(true);
   });
-});
 
-describe('mapBooking', () => {
-  it('links booked lines back to the live catalog product and service', () => {
-    const rec = mapBooking(
-      {
-        id: 3, booking_number: 'BK-202609-0001', date: '2026-09-24', created_at: '', customer_name: 'Sari', customer_phone: '08',
-        vehicle_plate: 'AA', items: [
-          { type: 'PRODUCT', product_id: 42, service_id: null, name: 'x', quantity: 1, unit_price: 900000, discount_per_item: 0, is_manual: false, cost_price: 0 },
-          { type: 'SERVICE', product_id: null, service_id: 7, name: 'y', quantity: 1, unit_price: 150000, discount_per_item: 0, is_manual: false, cost_price: 0 },
-        ],
-        estimated_total: 1050000, dp_amount: 300000, remaining_amount: 750000, payment_method: 'TUNAI', status: 'ACTIVE', journals: [],
-      },
-      [product],
-      [service]
-    );
-    expect(rec.items[0].product).toBe(product);
-    expect(rec.items[1].service).toBe(service);
-    expect(cartLineToPayload(rec.items[1]).product_id).toBeUndefined();
+  it('maps no BON, DP or EDC fields, also for split payments', () => {
+    const split = mapSaleToTransaction({
+      ...sale,
+      payment_method: 'SPLIT',
+      payments: [
+        sale.payments[0],
+        { method: 'QRIS', account_code: '1-1001', amount: 600000, tendered_amount: 600000, change_amount: 0, fee_percentage: 0.3, fee_amount: 1800, net_received: 598200, provider_name: 'BCA' },
+      ],
+    });
+    expect(removedKeys(mapSaleToTransaction(sale), REMOVED_SALE_KEYS)).toEqual([]);
+    expect(removedKeys(split, REMOVED_SALE_KEYS)).toEqual([]);
+    expect(split.split_payments).toHaveLength(2);
+    split.split_payments?.forEach((p) => expect(removedKeys(p, REMOVED_PAYMENT_KEYS)).toEqual([]));
   });
 });

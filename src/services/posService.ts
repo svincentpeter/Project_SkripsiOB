@@ -1,4 +1,5 @@
-import { CartItem, PaymentMethod, PosTransaction, ProductItem, SalesBookingRecord } from '../shared/types';
+import { CartItem, PaymentMethod, PosTransaction } from '../shared/types';
+import { localDate } from './accountingPeriod';
 import { allocateFifoBatches } from './fifoCostingService';
 
 export const generateInvoiceNumber = (): string => {
@@ -6,13 +7,6 @@ export const generateInvoiceNumber = (): string => {
   const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}`;
   const randomSuffix = Math.floor(1000 + Math.random() * 9000);
   return `OB3-INV-${yearMonth}-${randomSuffix}`;
-};
-
-export const generateBookingNumber = (): string => {
-  const date = new Date();
-  const yearMonth = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}`;
-  const randomSuffix = Math.floor(100 + Math.random() * 900);
-  return `BK-${yearMonth}-${randomSuffix}`;
 };
 
 export const calculateCartTotals = (
@@ -46,6 +40,7 @@ export const calculateCartTotals = (
   };
 };
 
+/** Nota sementara untuk pratinjau/cetak sebelum checkout (tidak disimpan). Setiap nota lunas saat checkout. */
 export const createPosTransactionRecord = (
   invoiceNo: string,
   cart: CartItem[],
@@ -55,13 +50,12 @@ export const createPosTransactionRecord = (
   paymentMethod: PaymentMethod,
   cashTendered: number,
   cashierName: string,
-  manualDiscount: number = 0,
-  isBon: boolean = false
+  manualDiscount: number = 0
 ): PosTransaction => {
   const totals = calculateCartTotals(cart, manualDiscount);
   const change = Math.max(0, cashTendered - totals.grandTotal);
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
+  const dateStr = localDate(now);
   const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
 
   return {
@@ -97,44 +91,10 @@ export const createPosTransactionRecord = (
     gross_profit: totals.grandTotal - totals.totalHpp,
     total_profit: totals.grandTotal - totals.totalHpp,
     payment_method: paymentMethod,
-    amount_paid: isBon ? 0 : cashTendered,
-    paid_amount: isBon ? 0 : cashTendered,
-    change_amount: isBon ? 0 : change,
-    status: isBon ? 'PENDING' : 'LUNAS',
+    amount_paid: cashTendered,
+    paid_amount: cashTendered,
+    change_amount: change,
+    status: 'LUNAS',
     stock_deducted: true,
-  };
-};
-
-export const createSalesBookingRecord = (
-  cart: CartItem[],
-  customerName: string,
-  customerPhone: string,
-  vehiclePlate: string,
-  vehicleModel: string,
-  dpAmount: number,
-  paymentMethod: PaymentMethod,
-  notes?: string
-): SalesBookingRecord => {
-  const totals = calculateCartTotals(cart);
-  const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
-  const fullTime = `${dateStr} ${now.toTimeString().split(' ')[0].substring(0, 5)}`;
-
-  return {
-    id: `bk-${Date.now()}`,
-    booking_number: generateBookingNumber(),
-    date: dateStr,
-    customer_name: customerName,
-    customer_phone: customerPhone,
-    vehicle_plate: vehiclePlate,
-    vehicle_model: vehicleModel,
-    items: [...cart],
-    estimated_total: totals.grandTotal,
-    dp_amount: dpAmount,
-    remaining_amount: Math.max(0, totals.grandTotal - dpAmount),
-    payment_method: paymentMethod,
-    notes: notes,
-    status: 'ACTIVE',
-    created_at: fullTime,
   };
 };

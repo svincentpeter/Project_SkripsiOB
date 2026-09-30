@@ -7,7 +7,6 @@ import {
   ProductCategory,
   ProductItem,
   RolePermissionsConfig,
-  SalesBookingRecord, 
   ServiceCategoryItem,
   ServiceMasterItem, 
   StockMutation, 
@@ -1056,40 +1055,6 @@ export const INITIAL_STORE_SETTINGS: StoreSettings = {
   active_fiscal_year: 2026,
 };
 
-export const INITIAL_BOOKINGS: SalesBookingRecord[] = [
-  {
-    id: 'bk-01',
-    booking_number: 'BK-20260901-001',
-    date: '2026-09-01',
-    customer_name: 'Pak Denny Sumargo',
-    customer_phone: '081299887766',
-    vehicle_plate: 'B 1544 CRV (Honda CR-V)',
-    vehicle_model: 'Honda CR-V Turbo',
-    items: [
-      {
-        item_type: 'PRODUCT',
-        product: INITIAL_PRODUCTS[0],
-        qty: 4,
-        discount_per_item: 0,
-      },
-      {
-        item_type: 'SERVICE',
-        product: INITIAL_PRODUCTS[0],
-        service: INITIAL_SERVICES[0],
-        qty: 1,
-        discount_per_item: 0,
-      },
-    ],
-    estimated_total: 4350000,
-    dp_amount: 1000000,
-    remaining_amount: 3350000,
-    payment_method: 'TRANSFER_BCA',
-    notes: 'DP booking 4 ban Turanza + Spooring 3D, pasang besok sore',
-    status: 'ACTIVE',
-    created_at: '2026-09-01 16:30:00',
-  },
-];
-
 export const INITIAL_TRANSACTIONS: PosTransaction[] = [
   {
     id: 'tx-101',
@@ -1187,11 +1152,11 @@ export const INITIAL_TRANSACTIONS: PosTransaction[] = [
     total_hpp: 6880000,
     gross_profit: 1320000,
     total_profit: 1320000,
-    payment_method: 'EDC_DEBIT',
+    payment_method: 'TRANSFER_BCA',
     amount_paid: 8200000,
     paid_amount: 8200000,
     change_amount: 0,
-    payment_reference: 'EDC-BCA-77610',
+    payment_reference: 'TRF-BCA-77610',
     notes: 'Promo paket 4 ban free spooring 3D',
     status: 'LUNAS',
     stock_deducted: true,

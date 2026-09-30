@@ -31,7 +31,6 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
 
   if (!isOpen || !transaction) return null;
 
-  const isBon = (transaction.notes && transaction.notes.toUpperCase().includes('BON')) || transaction.payment_method === ('BON' as any);
   const isCash = transaction.payment_method === 'TUNAI';
 
   const handleCopyNota = () => {
@@ -60,12 +59,10 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
           </div>
 
           <h3 className="text-xl font-black text-slate-900 tracking-tight">
-            {isBon ? 'Faktur BON Tersimpan!' : 'Pembayaran Berhasil!'}
+            Pembayaran Berhasil!
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
-            {isBon
-              ? 'Faktur BON piutang telah dicatat ke buku besar'
-              : 'Transaksi lunas dan pergerakan stok telah dibukukan'}
+            Transaksi lunas dan pergerakan stok telah dibukukan
           </p>
         </div>
 
@@ -75,21 +72,15 @@ export const PosSuccessModal: React.FC<PosSuccessModalProps> = ({
           {/* Main Amount Card */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-center space-y-1">
             <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-              Total {isBon ? 'Tagihan BON' : 'Diterima'}
+              Total Diterima
             </span>
             <div className="text-3xl font-black text-slate-900 tracking-tight font-sans">
               {formatRupiah(transaction.grand_total)}
             </div>
 
             <div className="flex items-center justify-center gap-2 pt-1">
-              <span
-                className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                  isBon
-                    ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                }`}
-              >
-                {isBon ? 'FAKTUR BON' : 'LUNAS'}
+              <span className="px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-200">
+                LUNAS
               </span>
               <span className="px-2.5 py-0.5 rounded-full font-semibold text-[10px] bg-blue-100 text-blue-800 border border-blue-200">
                 {transaction.payment_method} {transaction.payment_provider ? `(${transaction.payment_provider})` : ''}

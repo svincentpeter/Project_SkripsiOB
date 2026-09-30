@@ -41,7 +41,7 @@ interface ThermalReceiptScreenProps {
 }
 
 type PreviewMode = 'THERMAL_80MM' | 'FAKTUR_A4';
-type StatusFilter = 'ALL' | 'LUNAS' | 'BON' | 'DP' | 'VOID';
+type StatusFilter = 'ALL' | 'LUNAS' | 'VOID';
 type DateFilter = 'ALL' | 'TODAY' | '7_DAYS' | 'THIS_MONTH';
 
 export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
@@ -110,16 +110,6 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
       if (statusFilter === 'LUNAS') {
         if (isVoid) return false;
         if (tx.status !== 'LUNAS' && tx.status !== 'Completed') return false;
-      }
-      if (statusFilter === 'BON') {
-        if (isVoid) return false;
-        const isBon = (tx.notes && tx.notes.toUpperCase().includes('BON')) || tx.payment_method === ('BON' as any);
-        if (!isBon) return false;
-      }
-      if (statusFilter === 'DP') {
-        if (isVoid) return false;
-        const isDp = (tx.notes && tx.notes.toUpperCase().includes('DP')) || tx.payment_method === ('DP' as any);
-        if (!isDp) return false;
       }
 
       // 3. Date Filter
@@ -191,22 +181,6 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-100 text-red-700 border border-red-200">
           <Ban className="w-3 h-3 text-red-600" />
           VOID
-        </span>
-      );
-    }
-    if ((tx.notes && tx.notes.toUpperCase().includes('BON')) || tx.payment_method === ('BON' as any)) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-          <Tag className="w-3 h-3 text-amber-600" />
-          BON
-        </span>
-      );
-    }
-    if ((tx.notes && tx.notes.toUpperCase().includes('DP')) || tx.payment_method === ('DP' as any)) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
-          <CreditCard className="w-3 h-3 text-purple-600" />
-          DP
         </span>
       );
     }
@@ -364,7 +338,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
             <div className="flex items-center justify-between gap-1.5 pt-0.5">
               {/* Status Chips */}
               <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
-                {(['ALL', 'LUNAS', 'BON', 'DP', 'VOID'] as StatusFilter[]).map((st) => (
+                {(['ALL', 'LUNAS', 'VOID'] as StatusFilter[]).map((st) => (
                   <button
                     key={st}
                     onClick={() => setStatusFilter(st)}
@@ -728,13 +702,6 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                       </div>
                     )}
 
-                    {activeTx.surcharge_amount !== undefined && activeTx.surcharge_amount > 0 && (
-                      <div className="flex justify-between text-amber-800 text-[10px]">
-                        <span>Surcharge Kartu Kredit ({activeTx.fee_percentage}%):</span>
-                        <span>+{formatRupiah(activeTx.surcharge_amount)}</span>
-                      </div>
-                    )}
-
                     <div className="flex justify-between font-black text-xs pt-1 border-t border-slate-300 text-black">
                       <span>GRAND TOTAL:</span>
                       <span className={isCurrentVoid ? 'line-through text-red-600' : ''}>
@@ -751,7 +718,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                         <div className="space-y-0.5 pl-1.5 pt-0.5 text-[9.5px]">
                           {activeTx.split_payments.map((sp, idx) => (
                             <div key={idx} className="flex justify-between text-slate-700">
-                              <span>• {sp.method.replace('_', ' ')}{sp.provider_name ? ` (${sp.provider_name})` : ''}{sp.edc_bank ? ` (${sp.edc_bank} - ${sp.edc_type || 'Debit'})` : ''}:</span>
+                              <span>• {sp.method.replace('_', ' ')}{sp.provider_name ? ` (${sp.provider_name})` : ''}:</span>
                               <span className="font-mono font-bold text-black">{formatRupiah(sp.amount)}</span>
                             </div>
                           ))}
@@ -763,7 +730,6 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                         <span className="font-bold uppercase">
                           {activeTx.payment_method.replace('_', ' ')}
                           {activeTx.payment_provider && ` (${activeTx.payment_provider})`}
-                          {activeTx.edc_bank && ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})`}
                         </span>
                       </div>
                     )}
@@ -920,7 +886,6 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                             <>
                               {activeTx.payment_method.replace('_', ' ')}
                               {activeTx.payment_provider && ` (${activeTx.payment_provider})`}
-                              {activeTx.edc_bank && ` (${activeTx.edc_bank} - ${activeTx.edc_type || 'Debit'})`}
                               {activeTx.payment_reference && ` (Ref: ${activeTx.payment_reference})`}
                             </>
                           )}

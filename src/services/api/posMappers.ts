@@ -5,7 +5,6 @@ import {
   PosTransaction,
   ProductItem,
   ReceivableInvoice,
-  SalesBookingRecord,
   ServiceMasterItem,
   SplitPaymentLine,
 } from '../../shared/types';
@@ -54,14 +53,12 @@ export interface ApiSalePayment {
   change_amount: number;
   fee_percentage: number;
   fee_amount: number;
-  surcharge_amount: number;
   net_received: number;
   provider_name?: string | null;
-  edc_bank?: string | null;
-  edc_type?: 'Debit' | 'Credit' | null;
   reference?: string | null;
 }
 
+/** Setiap nota lunas saat checkout (LUNAS) atau dibatalkan (VOID). */
 export interface ApiSale {
   id: number;
   reference: string;
@@ -77,19 +74,14 @@ export interface ApiSale {
   total_amount: number;
   paid_amount: number;
   change_amount: number;
-  dp_applied: number;
   payment_method: string;
   payment_provider?: string | null;
-  edc_bank?: string | null;
-  edc_type?: 'Debit' | 'Credit' | null;
   fee_amount: number;
-  surcharge_amount: number;
   net_received: number;
   total_hpp: number;
   total_profit: number;
   notes?: string | null;
-  status: 'LUNAS' | 'PENDING' | 'VOID';
-  due_date?: string | null;
+  status: 'LUNAS' | 'VOID';
   voided_at?: string | null;
   voided_by?: string | null;
   void_reason?: string | null;
@@ -113,37 +105,6 @@ export interface ApiReceivable {
   notes?: string | null;
 }
 
-export interface ApiBookingItem {
-  type: 'PRODUCT' | 'SERVICE';
-  product_id: number | null;
-  service_id: number | null;
-  name: string;
-  quantity: number;
-  unit_price: number;
-  discount_per_item: number;
-  is_manual: boolean;
-  cost_price: number;
-}
-
-export interface ApiBooking {
-  id: number;
-  booking_number: string;
-  date: string;
-  created_at: string;
-  customer_name: string;
-  customer_phone: string;
-  vehicle_plate: string;
-  vehicle_model?: string | null;
-  items: ApiBookingItem[];
-  estimated_total: number;
-  dp_amount: number;
-  remaining_amount: number;
-  payment_method: string;
-  notes?: string | null;
-  status: SalesBookingRecord['status'];
-  journals: ApiJournal[];
-}
-
 // ---------------------------------------------------------------------------
 // Payload ke server
 // ---------------------------------------------------------------------------
@@ -161,14 +122,11 @@ export interface CartLinePayload {
 }
 
 export interface PaymentPayload {
-  method: 'TUNAI' | 'TRANSFER' | 'TRANSFER_BCA' | 'QRIS' | 'EDC_DEBIT' | 'EDC_CREDIT';
+  method: 'TUNAI' | 'TRANSFER' | 'TRANSFER_BCA' | 'QRIS';
   amount: number;
   tendered?: number;
   fee_percentage?: number;
-  charge_to_customer?: boolean;
   provider_name?: string;
-  edc_bank?: string;
-  edc_type?: 'Debit' | 'Credit';
   reference?: string;
 }
 
@@ -179,8 +137,6 @@ export interface CheckoutPayload {
   vehicle_model?: string;
   notes?: string;
   discount_amount: number;
-  booking_id?: number;
-  bon?: { term_days: 7 | 14 | 30 };
   items: CartLinePayload[];
   payments: PaymentPayload[];
 }
@@ -188,13 +144,9 @@ export interface CheckoutPayload {
 /** Data pembayaran yang dikumpulkan CheckoutModal. */
 export interface CheckoutPaymentMeta {
   provider_name?: string;
-  edc_bank?: string;
-  edc_type?: 'Debit' | 'Credit';
   fee_percentage?: number;
   fee_amount?: number;
-  surcharge_amount?: number;
   split_payments?: SplitPaymentLine[];
-  term_days?: number;
   reference?: string;
 }
 
@@ -246,14 +198,9 @@ export const cartLineToPayload = (item: CartItem): CartLinePayload => {
   };
 };
 
-const normalizeMethod = (method: PaymentMethod | string, edcType?: 'Debit' | 'Credit'): PaymentPayload['method'] => {
-  if (method === 'EDC') return edcType === 'Credit' ? 'EDC_CREDIT' : 'EDC_DEBIT';
-  return method as PaymentPayload['method'];
-};
-
 /**
  * Susun baris pembayaran dari hasil CheckoutModal. Persentase fee hanya dikirim bila
- * modal memang membebankan fee (mis. QRIS di atas ambang), sehingga server menghitung nominal yang sama.
+ * modal memang membebankan fee (MDR QRIS di atas ambang), sehingga server menghitung nominal yang sama.
  */
 export const buildPayments = (
   method: PaymentMethod,
@@ -262,19 +209,15 @@ export const buildPayments = (
   meta: CheckoutPaymentMeta = {}
 ): PaymentPayload[] => {
   if (meta.split_payments && meta.split_payments.length > 0) {
-    const rows = meta.split_payments.map((row) => {
-      const m = normalizeMethod(row.method, row.edc_type);
-      const hasFee = num(row.fee_amount) > 0 || num(row.surcharge_amount) > 0;
+    const rows = meta.split_payments.map((row): PaymentPayload => {
+      const m = row.method as PaymentPayload['method'];
       return {
         method: m,
         amount: num(row.amount),
         tendered: m === 'TUNAI' ? num(row.amount) : undefined,
-        fee_percentage: hasFee ? num(row.fee_percentage) : 0,
-        charge_to_customer: m === 'EDC_CREDIT' && num(row.surcharge_amount) > 0,
+        fee_percentage: num(row.fee_amount) > 0 ? num(row.fee_percentage) : 0,
         provider_name: row.provider_name,
-        edc_bank: row.edc_bank,
-        edc_type: row.edc_type,
-      } as PaymentPayload;
+      };
     });
 
     // Kelebihan bayar menjadi kembalian dari baris tunai pertama.
@@ -290,18 +233,14 @@ export const buildPayments = (
     return rows.filter((r) => r.amount > 0);
   }
 
-  const m = normalizeMethod(method, meta.edc_type);
-  const hasFee = num(meta.fee_amount) > 0 || num(meta.surcharge_amount) > 0;
+  const m = method as PaymentPayload['method'];
   return [
     {
       method: m,
       amount: amountDue,
       tendered: m === 'TUNAI' ? cashTendered : undefined,
-      fee_percentage: hasFee ? num(meta.fee_percentage) : 0,
-      charge_to_customer: m === 'EDC_CREDIT' && num(meta.surcharge_amount) > 0,
+      fee_percentage: num(meta.fee_amount) > 0 ? num(meta.fee_percentage) : 0,
       provider_name: meta.provider_name,
-      edc_bank: meta.edc_bank,
-      edc_type: meta.edc_type,
       reference: meta.reference,
     },
   ];
@@ -373,7 +312,6 @@ const saleItemToCart = (it: ApiSaleItem): CartItem => {
 };
 
 export const mapSaleToTransaction = (s: ApiSale): PosTransaction => {
-  const isBon = s.payment_method === 'BON';
   const isSplit = s.payments.length > 1;
   const lineDiscounts = s.items.reduce((sum, it) => sum + num(it.discount_per_item) * it.quantity, 0);
   const subtotal = num(s.gross_sales_amount) - lineDiscounts;
@@ -402,18 +340,15 @@ export const mapSaleToTransaction = (s: ApiSale): PosTransaction => {
     total_hpp: num(s.total_hpp),
     gross_profit: num(s.total_profit),
     total_profit: num(s.total_profit),
-    payment_method: (isBon ? 'HUTANG_BON' : s.payment_method) as PaymentMethod,
+    payment_method: s.payment_method as PaymentMethod,
     split_payments: isSplit
       ? s.payments.map((p, i) => ({
           id: `${s.id}-${i}`,
           method: p.method as PaymentMethod,
           amount: num(p.amount),
           provider_name: p.provider_name ?? undefined,
-          edc_bank: p.edc_bank ?? undefined,
-          edc_type: p.edc_type ?? undefined,
           fee_percentage: num(p.fee_percentage),
           fee_amount: num(p.fee_amount),
-          surcharge_amount: num(p.surcharge_amount),
           net_received: num(p.net_received),
         }))
       : undefined,
@@ -421,17 +356,11 @@ export const mapSaleToTransaction = (s: ApiSale): PosTransaction => {
     paid_amount: num(s.paid_amount) + num(s.change_amount),
     change_amount: num(s.change_amount),
     payment_provider: s.payment_provider ?? undefined,
-    edc_bank: s.edc_bank ?? undefined,
-    edc_type: s.edc_type ?? undefined,
     fee_amount: num(s.fee_amount),
-    surcharge_amount: num(s.surcharge_amount),
     net_received: num(s.net_received),
     notes: s.notes ?? undefined,
     status: s.status,
     stock_deducted: true,
-    is_bon: isBon,
-    dp_applied: num(s.dp_applied),
-    due_date: s.due_date ?? undefined,
     is_voided: s.status === 'VOID',
     void_reason: s.void_reason ?? undefined,
     voided_at: s.voided_at ?? undefined,
@@ -452,70 +381,4 @@ export const mapReceivable = (r: ApiReceivable): ReceivableInvoice => ({
   remaining_amount: num(r.remaining_amount),
   status: r.status,
   notes: r.notes ?? undefined,
-});
-
-/**
- * Booking → record UI. Baris produk katalog memakai ProductItem terkini agar batas stok & HPP di keranjang benar.
- */
-export const mapBooking = (
-  b: ApiBooking,
-  products: ProductItem[],
-  services: ServiceMasterItem[]
-): SalesBookingRecord => ({
-  id: String(b.id),
-  booking_number: b.booking_number,
-  date: b.date,
-  customer_name: b.customer_name,
-  customer_phone: b.customer_phone,
-  vehicle_plate: b.vehicle_plate,
-  vehicle_model: b.vehicle_model ?? '',
-  items: b.items.map((it): CartItem => {
-    const catalogProduct = it.product_id ? products.find((p) => String(p.id) === String(it.product_id)) : undefined;
-    const catalogService = it.service_id ? services.find((s) => String(s.id) === String(it.service_id)) : undefined;
-    const service =
-      it.type === 'SERVICE'
-        ? catalogService ??
-          ({
-            id: `manual-bk-${b.id}-${it.name}`,
-            service_code: '',
-            service_name: it.name,
-            category: 'JASA_MANUAL',
-            standard_price: num(it.unit_price),
-            cost_price: num(it.cost_price),
-            is_active: true,
-          } as ServiceMasterItem)
-        : undefined;
-    const product =
-      catalogProduct ??
-      (service
-        ? serviceCartProduct(service)
-        : ({
-            id: `manual-bk-${b.id}-${it.name}`,
-            name: it.name,
-            product_name: it.name,
-            price: num(it.unit_price),
-            product_price: num(it.unit_price),
-            stock: 999,
-            product_quantity: 999,
-          } as ProductItem));
-
-    return {
-      item_type: it.type,
-      product,
-      service,
-      qty: it.quantity,
-      discount_per_item: num(it.discount_per_item),
-      custom_price: num(it.unit_price),
-      custom_hpp: it.is_manual ? num(it.cost_price) : undefined,
-      custom_name_override: it.is_manual ? it.name : undefined,
-      is_manual: it.is_manual,
-    };
-  }),
-  estimated_total: num(b.estimated_total),
-  dp_amount: num(b.dp_amount),
-  remaining_amount: num(b.remaining_amount),
-  payment_method: b.payment_method as PaymentMethod,
-  notes: b.notes ?? undefined,
-  status: b.status,
-  created_at: b.created_at,
 });

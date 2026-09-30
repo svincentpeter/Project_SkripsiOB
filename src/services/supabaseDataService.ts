@@ -8,7 +8,6 @@ import {
   ExpenseRecord,
   StockMutation,
   JournalEntry,
-  SalesBookingRecord,
   PayableInvoice,
   ReceivableInvoice,
   StoreSettings,
@@ -365,29 +364,8 @@ export const insertJournalToSupabase = async (journal: JournalEntry): Promise<bo
 };
 
 // ============================================================================
-// 9. BOOKINGS, PAYABLES, RECEIVABLES
+// 9. PAYABLES, RECEIVABLES
 // ============================================================================
-export const fetchBookingsFromSupabase = async (): Promise<SalesBookingRecord[] | null> => {
-  if (!isSupabaseConfigured() || !supabase) return null;
-  try {
-    const { data, error } = await supabase.from('sales_bookings').select('*').order('created_at', { ascending: false });
-    if (error) return null;
-    return data as SalesBookingRecord[];
-  } catch {
-    return null;
-  }
-};
-
-export const upsertBookingToSupabase = async (booking: SalesBookingRecord): Promise<boolean> => {
-  if (!isSupabaseConfigured() || !supabase) return false;
-  try {
-    const { error } = await supabase.from('sales_bookings').upsert(booking);
-    return !error;
-  } catch {
-    return false;
-  }
-};
-
 export const fetchPayablesFromSupabase = async (): Promise<PayableInvoice[] | null> => {
   if (!isSupabaseConfigured() || !supabase) return null;
   try {

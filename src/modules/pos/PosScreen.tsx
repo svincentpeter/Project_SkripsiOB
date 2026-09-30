@@ -40,7 +40,6 @@ import {
   PosTransaction, 
   ProductCategory,
   ProductItem, 
-  SalesBookingRecord, 
   ServiceMasterItem,
   StoreSettings,
   SplitPaymentLine,
@@ -49,7 +48,6 @@ import {
 import { formatRupiah, parseRupiahInput } from '../../shared/utils/formatters';
 import { MoneyInput } from '../../shared/components/MoneyInput';
 import {
-  BookingPayload,
   CheckoutPayload,
   CheckoutPaymentMeta,
   buildPayments,
@@ -62,8 +60,6 @@ import {
   generateInvoiceNumber 
 } from '../../services/posService';
 import { 
-  BookingDpModal, 
-  BookingListDrawer, 
   CartLineEditModal,
   ParkedOrdersDrawer,
   CheckoutModal,
@@ -76,14 +72,11 @@ import { useToast } from '../../shared/components';
 interface PosScreenProps {
   products: ProductItem[];
   services?: ServiceMasterItem[];
-  bookings?: SalesBookingRecord[];
   parkedOrders?: ParkedTransaction[];
   cart: CartItem[];
   setCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
   /** Checkout dibukukan server; mengembalikan nota resmi atau melempar error. */
   onCheckout: (payload: CheckoutPayload) => Promise<PosTransaction>;
-  onSaveBooking?: (payload: BookingPayload) => Promise<void>;
-  onCancelBooking?: (booking: SalesBookingRecord) => void;
   onSaveParkedOrder?: (order: ParkedTransaction) => void;
   onDeleteParkedOrder?: (orderId: string) => void;
   cashierName: string;
@@ -97,8 +90,6 @@ interface PosScreenProps {
   currentUser?: UserSession | null;
   canAccessBackoffice?: boolean;
   canAccessReceipts?: boolean;
-  /** Izin detail peran: Booking DP & faktur BON. */
-  permissions?: { bookingDp: boolean; bon: boolean };
   onNavigateToReceipts?: () => void;
   onLogout?: () => void;
 }
@@ -144,13 +135,10 @@ export const getShortCategoryName = (code: string, fullName: string): string => 
 export const PosScreen: React.FC<PosScreenProps> = ({
   products,
   services = [],
-  bookings = [],
   parkedOrders = [],
   cart,
   setCart,
   onCheckout,
-  onSaveBooking,
-  onCancelBooking,
   onSaveParkedOrder,
   onDeleteParkedOrder,
   cashierName,
@@ -164,7 +152,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   currentUser,
   canAccessBackoffice = true,
   canAccessReceipts = false,
-  permissions = { bookingDp: true, bon: true },
   onNavigateToReceipts,
   onLogout,
 }) => {
@@ -239,33 +226,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [manualDiscount, setManualDiscount] = useState<number>(0);
 
   const [editLineIndex, setEditLineIndex] = useState<number | null>(null);
-  const [showBookingDpModal, setShowBookingDpModal] = useState<boolean>(false);
-  const [showBookingListDrawer, setShowBookingListDrawer] = useState<boolean>(false);
   const [showParkedDrawer, setShowParkedDrawer] = useState<boolean>(false);
   const [printTransaction, setPrintTransaction] = useState<PosTransaction | null>(null);
   const [completedSaleTx, setCompletedSaleTx] = useState<PosTransaction | null>(null);
   const [showReceiptPreviewModal, setShowReceiptPreviewModal] = useState<boolean>(false);
   const [previewReceiptTx, setPreviewReceiptTx] = useState<PosTransaction | null>(null);
 
-  const [cartMode, setCartMode] = useState<'REGULAR' | 'BON' | 'DP'>('REGULAR');
-
-  // Mode yang tidak diizinkan untuk peran ini kembali ke transaksi reguler
-  useEffect(() => {
-    if ((cartMode === 'BON' && !permissions.bon) || (cartMode === 'DP' && !permissions.bookingDp)) {
-      setCartMode('REGULAR');
-    }
-  }, [cartMode, permissions.bon, permissions.bookingDp]);
   const [showCheckoutModal, setShowCheckoutModal] = useState<boolean>(false);
-  const [checkoutInitialTag, setCheckoutInitialTag] = useState<'REGULAR' | 'BON'>('REGULAR');
-
-  const [activeBookingSourceId, setActiveBookingSourceId] = useState<string | null>(null);
-  const [appliedDpAmount, setAppliedDpAmount] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const clearBookingSource = () => {
-    setAppliedDpAmount(0);
-    setActiveBookingSourceId(null);
-  };
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -415,13 +383,12 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   };
 
   const totals = calculateCartTotals(cart, manualDiscount);
-  const netPayable = Math.max(0, totals.grandTotal - appliedDpAmount);
+  const netPayable = totals.grandTotal;
 
   const cashTenderedVal = parseRupiahInput(cashTenderedInput);
   const changeAmount = paymentMethod === 'TUNAI' ? Math.max(0, cashTenderedVal - netPayable) : 0;
 
   const handleCheckoutSale = async (
-    isBon: boolean,
     method: PaymentMethod,
     cashTendered: number,
     notes?: string,
@@ -429,17 +396,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   ): Promise<boolean> => {
     if (cart.length === 0 || isSubmitting) return false;
 
-    const termDays = paymentMeta.term_days === 7 || paymentMeta.term_days === 30 ? paymentMeta.term_days : 14;
     const payload: CheckoutPayload = {
       customer_name: customerName.trim() || undefined,
       vehicle_plate: vehiclePlate.trim() || undefined,
       vehicle_model: vehicleModel.trim() || undefined,
       notes,
       discount_amount: manualDiscount,
-      booking_id: activeBookingSourceId ? Number(activeBookingSourceId) : undefined,
-      bon: isBon ? { term_days: termDays } : undefined,
       items: cart.map(cartLineToPayload),
-      payments: isBon ? [] : buildPayments(method, netPayable, cashTendered, paymentMeta),
+      payments: buildPayments(method, netPayable, cashTendered, paymentMeta),
     };
 
     setIsSubmitting(true);
@@ -449,7 +413,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       setCart([]);
       setCashTenderedInput('');
       setManualDiscount(0);
-      clearBookingSource();
       setCustomerName('');
       setVehiclePlate('');
       setVehicleModel('');
@@ -462,69 +425,23 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     }
   };
 
-  const handleOpenCheckout = (initialTag: 'REGULAR' | 'BON' = 'REGULAR') => {
+  const handleOpenCheckout = () => {
     if (cart.length === 0) {
       toast.warning('Keranjang Kosong', 'Tambahkan produk atau jasa ke keranjang terlebih dahulu.');
       return;
     }
-    setCheckoutInitialTag(initialTag);
     setShowCheckoutModal(true);
   };
 
   const handleConfirmCheckoutFromModal = async (
-    isBon: boolean,
     pm: PaymentMethod,
     cashTendered: number,
     notes?: string,
     paymentMeta?: CheckoutPaymentMeta
   ) => {
-    if (await handleCheckoutSale(isBon, pm, cashTendered, notes, paymentMeta)) {
+    if (await handleCheckoutSale(pm, cashTendered, notes, paymentMeta)) {
       setShowCheckoutModal(false);
     }
-  };
-
-  const handleSaveBookingFromModal = async (
-    cName: string,
-    cPhone: string,
-    vPlate: string,
-    vModel: string,
-    dp: number,
-    pm: PaymentMethod,
-    nts?: string
-  ) => {
-    if (!onSaveBooking || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await onSaveBooking({
-        customer_name: cName,
-        customer_phone: cPhone,
-        vehicle_plate: vPlate || undefined,
-        vehicle_model: vModel || undefined,
-        notes: nts,
-        items: cart.map(cartLineToPayload),
-        dp_amount: dp,
-        payment_method: pm as BookingPayload['payment_method'],
-      });
-      setShowBookingDpModal(false);
-      setCart([]);
-      clearBookingSource();
-      setCustomerName('');
-      setVehiclePlate('');
-      setVehicleModel('');
-    } catch (err) {
-      toast.error('Booking Gagal Disimpan', err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleConvertBookingToCart = (booking: SalesBookingRecord) => {
-    setCart(booking.items);
-    setCustomerName(booking.customer_name);
-    setVehiclePlate(booking.vehicle_plate);
-    setVehicleModel(booking.vehicle_model);
-    setAppliedDpAmount(booking.dp_amount);
-    setActiveBookingSourceId(booking.id);
   };
 
   const handleParkCurrentCart = () => {
@@ -548,7 +465,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
     onSaveParkedOrder?.(newParked);
     setCart([]);
-    clearBookingSource();
     toast.info(
       'Nota Berhasil Ditahan',
       `Nota mobil ${newParked.vehicle_plate} (${newParked.customer_name}) telah disimpan di antrian tahan.`
@@ -588,11 +504,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       customerName,
       vehiclePlate,
       vehicleModel,
-      cartMode === 'BON' ? 'HUTANG_BON' : paymentMethod,
+      paymentMethod,
       netPayable,
       cashierName,
-      manualDiscount,
-      cartMode === 'BON'
+      manualDiscount
     );
     setPreviewReceiptTx(tempTx);
     setShowReceiptPreviewModal(true);
@@ -621,8 +536,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       'TUNAI',
       order.grand_total,
       cashierName,
-      order.total_discount,
-      false
+      order.total_discount
     );
     handleOpenReceiptPreview(tempTx);
   };
@@ -630,8 +544,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const handlePrintReceiptFromSuccessModal = (tx: PosTransaction) => {
     handleOpenReceiptPreview(tx);
   };
-
-  const activeBookingsCount = bookings.filter((b) => b.status === 'ACTIVE').length;
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-slate-50 text-slate-800 overflow-hidden select-none font-['Plus_Jakarta_Sans',sans-serif]">
@@ -695,23 +607,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               </span>
             )}
           </button>
-
-          {permissions.bookingDp && (
-          <button
-            type="button"
-            onClick={() => setShowBookingListDrawer(true)}
-            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 border border-purple-300 text-purple-800 hover:bg-purple-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-            title="Daftar Booking Inden & DP"
-          >
-            <Bookmark className="w-3.5 h-3.5 text-purple-700" />
-            <span className="hidden sm:inline">Booking DP</span>
-            {activeBookingsCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-purple-700 text-white text-[9px] font-black flex items-center justify-center">
-                {activeBookingsCount}
-              </span>
-            )}
-          </button>
-          )}
 
           <div 
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-800 font-semibold shadow-2xs"
@@ -1230,8 +1125,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               onClick={() => {
                 if (confirm('Kosongkan semua item di keranjang kasir?')) {
                   setCart([]);
-                  setAppliedDpAmount(0);
-                  setActiveBookingSourceId(null);
                 }
               }}
               disabled={cart.length === 0}
@@ -1247,11 +1140,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         <div className="p-3 border-b border-slate-200 bg-slate-50 space-y-2 shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Informasi Kendaraan & Pelanggan</span>
-            {appliedDpAmount > 0 && (
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300 font-mono">
-                DP Terpasang: {formatRupiah(appliedDpAmount)}
-              </span>
-            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1403,57 +1291,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 <span className="font-bold font-mono">-{formatRupiah(totals.discount)}</span>
               </div>
             )}
-            {appliedDpAmount > 0 && (
-              <div className="flex justify-between text-purple-800 font-bold">
-                <span>DP Booking Terpasang:</span>
-                <span className="font-mono">-{formatRupiah(appliedDpAmount)}</span>
-              </div>
-            )}
             <div className="flex justify-between items-center text-sm font-extrabold pt-2 border-t border-slate-200">
               <span className="text-slate-900">Total Tagihan Bersih:</span>
               <span className="text-emerald-700 text-lg font-mono font-black">{formatRupiah(netPayable)}</span>
             </div>
-          </div>
-
-          {/* Mode Switcher Tabs (Reguler / BON / DP) persis Cabang 2 */}
-          <div className="flex gap-1.5 rounded-xl bg-slate-100 p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setCartMode('REGULAR')}
-              className={`flex-1 rounded-lg py-1.5 font-bold transition-all cursor-pointer ${
-                cartMode === 'REGULAR'
-                  ? 'bg-white shadow-xs text-emerald-800'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Reguler (Lunas)
-            </button>
-            {permissions.bon && (
-            <button
-              type="button"
-              onClick={() => setCartMode('BON')}
-              className={`flex-1 rounded-lg py-1.5 font-bold transition-all cursor-pointer ${
-                cartMode === 'BON'
-                  ? 'bg-white shadow-xs text-amber-800'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              BON (Piutang)
-            </button>
-            )}
-            {permissions.bookingDp && (
-            <button
-              type="button"
-              onClick={() => setCartMode('DP')}
-              className={`flex-1 rounded-lg py-1.5 font-bold transition-all cursor-pointer ${
-                cartMode === 'DP'
-                  ? 'bg-white shadow-xs text-purple-800'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Booking DP
-            </button>
-            )}
           </div>
 
           {/* Tombol Aksi 1: Cetak & Pratinjau Nota Fisik Langsung */}
@@ -1468,48 +1309,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <span>Pratinjau &amp; Cetak Struk (80mm)</span>
           </button>
 
-          {/* Tombol Aksi 2: Proses Utama Sesuai Mode Terpilih */}
-          {cartMode === 'REGULAR' && (
-            <button
-              type="button"
-              onClick={() => handleOpenCheckout('REGULAR')}
-              disabled={cart.length === 0}
-              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 transition-all cursor-pointer"
-            >
-              <CreditCard className="w-4 h-4" />
-              <span>Proses Pesanan (Bayar) ➔</span>
-            </button>
-          )}
-
-          {cartMode === 'BON' && (
-            <button
-              type="button"
-              onClick={() => handleOpenCheckout('BON')}
-              disabled={cart.length === 0}
-              className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-sm shadow-md shadow-amber-600/20 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 transition-all cursor-pointer"
-            >
-              <CreditCard className="w-4 h-4" />
-              <span>Buat Faktur BON (Piutang) ➔</span>
-            </button>
-          )}
-
-          {cartMode === 'DP' && (
-            <button
-              type="button"
-              onClick={() => {
-                if (cart.length === 0) {
-                  toast.warning('Keranjang Kosong', 'Tambahkan barang terlebih dahulu.');
-                  return;
-                }
-                setShowBookingDpModal(true);
-              }}
-              disabled={cart.length === 0}
-              className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm shadow-md shadow-purple-600/20 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 transition-all cursor-pointer"
-            >
-              <Bookmark className="w-4 h-4" />
-              <span>Simpan Booking DP ➔</span>
-            </button>
-          )}
+          {/* Tombol Aksi 2: Bayar (setiap nota lunas saat checkout) */}
+          <button
+            type="button"
+            onClick={handleOpenCheckout}
+            disabled={cart.length === 0}
+            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 transition-all cursor-pointer"
+          >
+            <CreditCard className="w-4 h-4" />
+            <span>Proses Pesanan (Bayar) ➔</span>
+          </button>
         </div>
       </div>
     </div>
@@ -1521,25 +1330,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         onClose={() => setEditLineIndex(null)}
         onSave={handleSaveLineItem}
         onRemoveItem={handleRemoveFromCart}
-      />
-
-      <BookingDpModal
-        isOpen={showBookingDpModal}
-        cart={cart}
-        defaultCustomerName={customerName}
-        defaultVehiclePlate={vehiclePlate}
-        defaultVehicleModel={vehicleModel}
-        onClose={() => setShowBookingDpModal(false)}
-        onSaveBooking={handleSaveBookingFromModal}
-        storeSettings={storeSettings}
-      />
-
-      <BookingListDrawer
-        isOpen={showBookingListDrawer}
-        bookings={bookings}
-        onClose={() => setShowBookingListDrawer(false)}
-        onConvertBooking={handleConvertBookingToCart}
-        onCancelBooking={permissions.bookingDp ? onCancelBooking : undefined}
       />
 
       <ParkedOrdersDrawer
@@ -1554,14 +1344,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       <CheckoutModal
         isOpen={showCheckoutModal}
         onClose={() => setShowCheckoutModal(false)}
-        initialTag={checkoutInitialTag}
-        canCreateBon={permissions.bon}
         cart={cart}
         customerName={customerName}
         vehiclePlate={vehiclePlate}
         vehicleModel={vehicleModel}
         totals={totals}
-        appliedDpAmount={appliedDpAmount}
         netPayable={netPayable}
         storeSettings={storeSettings}
         onPrintPhysicalNota={handlePrintCurrentCartNota}

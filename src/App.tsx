@@ -19,7 +19,6 @@ import {
   ReceivableInvoice,
   ReceivablePaymentInput,
   RolePermissionsConfig,
-  SalesBookingRecord, 
   ServiceCategoryItem,
   ServiceMasterItem, 
   StockMutation, 
@@ -85,7 +84,6 @@ import {
   authApi,
   authToken,
   setUnauthorizedHandler,
-  mapBooking,
   mapReceivable,
   mapSaleToTransaction,
   inventoryApi,
@@ -101,7 +99,7 @@ import {
   mapExpense,
   expenseFormData,
 } from './services/api';
-import type { ApiJournal, ApiSale, BookingPayload, CheckoutPayload, InventoryValuation, ApiExpenseCategory, CashBalances } from './services/api';
+import type { ApiJournal, ApiSale, CheckoutPayload, InventoryValuation, ApiExpenseCategory, CashBalances } from './services/api';
 import {
   upsertParkedOrderToSupabase,
   deleteParkedOrderFromSupabase,
@@ -219,7 +217,6 @@ function MainAppContent() {
   const [services, setServices] = useState<ServiceMasterItem[]>([]);
   const [serviceCategories, setServiceCategories] = useState<ServiceCategoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierItem[]>([]);
-  const [bookings, setBookings] = useState<SalesBookingRecord[]>([]);
   const [transactions, setTransactions] = useState<PosTransaction[]>([]);
 
   const [parkedOrders, setParkedOrders] = useState<ParkedTransaction[]>(() => {
@@ -332,24 +329,7 @@ function MainAppContent() {
         });
       });
 
-    // 2. Booking DP Aktif
-    bookings
-      .filter((b) => b.status === 'ACTIVE')
-      .slice(0, 3)
-      .forEach((b) => {
-        const id = `notif-book-${b.id}`;
-        if (dismissedNotifIds.includes(id)) return;
-        list.push({
-          id,
-          type: 'BOOKING_NEW',
-          title: `Booking DP: ${b.customer_name}`,
-          description: `${b.customer_name} (${b.vehicle_plate}) DP ${formatRupiah(b.dp_amount)} untuk ${b.items?.length || 0} item pesanan.`,
-          timestamp: b.date || 'Hari ini',
-          isRead: readNotifIds.includes(id),
-        });
-      });
-
-    // 3. Jatuh Tempo Hutang Distributor
+    // 2. Jatuh Tempo Hutang Distributor
     payableInvoices
       .filter((p) => p.status !== 'LUNAS')
       .slice(0, 3)
@@ -384,18 +364,17 @@ function MainAppContent() {
       });
 
     return list;
-  }, [products, bookings, payableInvoices, receivableInvoices, readNotifIds, dismissedNotifIds]);
+  }, [products, payableInvoices, receivableInvoices, readNotifIds, dismissedNotifIds]);
 
-  // Data POS (katalog, nota, piutang, booking) selalu dari server Laravel sesuai izin peran.
+  // Data POS (katalog, nota, piutang) selalu dari server Laravel sesuai izin peran.
   const loadPosData = async (user: UserSession, permissions: RolePermissionsConfig) => {
     const allowed = (...keys: PermissionKey[]) => keys.some((k) => hasPermission(user, permissions, k));
     const catalog = allowed('pos', 'inventory_view');
-    const [apiProducts, apiServices, apiSales, apiReceivables, apiBookings, apiProductCats, apiServiceCats, apiSuppliers] = await Promise.all([
+    const [apiProducts, apiServices, apiSales, apiReceivables, apiProductCats, apiServiceCats, apiSuppliers] = await Promise.all([
       catalog ? productApi.list().catch(() => null) : null,
       catalog ? posApi.listServices().catch(() => null) : null,
       allowed('pos', 'receipt') ? posApi.listTransactions().catch(() => null) : null,
       allowed('bon_receivable', 'accounting_hub') ? posApi.listReceivables('all').catch(() => null) : null,
-      allowed('booking_dp', 'pos') ? posApi.listBookings('ALL').catch(() => null) : null,
       catalog ? inventoryApi.listProductCategories().catch(() => null) : null,
       catalog ? inventoryApi.listServiceCategories().catch(() => null) : null,
       catalog ? inventoryApi.listSuppliers().catch(() => null) : null,
@@ -421,7 +400,6 @@ function MainAppContent() {
       setCurrentReceiptTx((prev) => prev ?? txs[0] ?? null);
     }
     if (apiReceivables) setReceivableInvoices(apiReceivables.map(mapReceivable));
-    if (apiBookings) setBookings(apiBookings.map((b) => mapBooking(b, apiProducts ?? [], apiServices ?? [])));
   };
 
   const refreshPayables = () => {
@@ -509,10 +487,6 @@ function MainAppContent() {
     setCurrentReceiptTx(tx);
     notifyLedgerChanged(sale.journals);
     setCashInDrawer((prev) => prev + cashPortion(sale));
-    if (payload.booking_id) {
-      setBookings((prev) => prev.map((b) => (b.id === String(payload.booking_id) ? { ...b, status: 'CONVERTED' } : b)));
-    }
-    if (sale.payment_method === 'BON') refreshReceivables();
     handleRefreshProducts();
 
     toast.success('Transaksi Kasir Berhasil!', `Nota ${tx.invoice_number} dibukukan di server.`);
@@ -565,10 +539,6 @@ function MainAppContent() {
       if (currentReceiptTx?.id === txId) setCurrentReceiptTx(tx);
       notifyLedgerChanged(sale.journals);
       setCashInDrawer((prev) => Math.max(0, prev - cashPortion(sale)));
-      if (Number(sale.dp_applied) > 0) {
-        posApi.listBookings('ALL').then((rows) => setBookings(rows.map((b) => mapBooking(b, products, services)))).catch(() => {});
-      }
-      if (sale.payment_method === 'BON') refreshReceivables();
       handleRefreshProducts();
 
       toast.warning(
@@ -934,38 +904,6 @@ function MainAppContent() {
     }
   };
 
-  // Booking DP di server: DP dicatat sebagai Uang Muka Pelanggan (2-1004)
-  const handleSaveBooking = async (payload: BookingPayload) => {
-    const booking = await posApi.createBooking(payload);
-    setBookings((prev) => [mapBooking(booking, products, services), ...prev]);
-    notifyLedgerChanged(booking.journals);
-    if (booking.payment_method === 'TUNAI') {
-      setCashInDrawer((prev) => prev + Number(booking.dp_amount));
-    }
-    toast.info(
-      'Booking DP Tersimpan',
-      `${booking.booking_number}: DP ${formatRupiah(Number(booking.dp_amount))} dibukukan ke Uang Muka Pelanggan.`
-    );
-  };
-
-  const handleCancelBooking = async (booking: SalesBookingRecord) => {
-    const refundAccount = booking.payment_method === 'TUNAI' ? '1-1000' : '1-1001';
-    try {
-      const res = await posApi.cancelBooking(booking.id, {
-        refund_account_code: refundAccount,
-        reason: 'Dibatalkan dari terminal kasir',
-      });
-      setBookings((prev) => prev.map((b) => (b.id === booking.id ? mapBooking(res, products, services) : b)));
-      notifyLedgerChanged(res.journals);
-      if (refundAccount === '1-1000') {
-        setCashInDrawer((prev) => Math.max(0, prev - booking.dp_amount));
-      }
-      toast.warning('Booking Dibatalkan', `${booking.booking_number}: DP ${formatRupiah(booking.dp_amount)} dikembalikan ke pelanggan.`);
-    } catch (err) {
-      toast.error('Gagal Membatalkan Booking', err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
-    }
-  };
-
   const handleResetData = () => {
     if (window.confirm('Tarik ulang seluruh data dari database Supabase?')) {
       localStorage.clear();
@@ -1020,22 +958,18 @@ function MainAppContent() {
         <PosScreen
           products={products}
           services={services}
-          bookings={bookings}
           parkedOrders={parkedOrders}
           onSaveParkedOrder={handleSaveParkedOrder}
           onDeleteParkedOrder={handleDeleteParkedOrder}
           cart={cart}
           setCart={setCart}
           onCheckout={handleCheckout}
-          onSaveBooking={handleSaveBooking}
-          onCancelBooking={handleCancelBooking}
           cashierName={currentUser.name}
           cashInDrawer={cashInDrawer}
           timeString={timeString}
           currentUser={currentUser}
           canAccessBackoffice={isScreenPermitted('dashboard')}
           canAccessReceipts={isScreenPermitted('receipt')}
-          permissions={{ bookingDp: can('booking_dp'), bon: can('bon_receivable') }}
           onNavigateToReceipts={() => setActiveScreen('receipt')}
           onExitToBackoffice={() => {
             if (isScreenPermitted('dashboard')) {

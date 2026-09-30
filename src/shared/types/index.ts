@@ -120,24 +120,6 @@ export interface CartItem {
   is_manual?: boolean;
 }
 
-export interface SalesBookingRecord {
-  id: string;
-  booking_number: string;
-  date: string;
-  customer_name: string;
-  customer_phone: string;
-  vehicle_plate: string;
-  vehicle_model: string;
-  items: CartItem[];
-  estimated_total: number;
-  dp_amount: number;
-  remaining_amount: number;
-  payment_method: PaymentMethod;
-  notes?: string;
-  status: 'ACTIVE' | 'CONVERTED' | 'EXPIRED' | 'CANCELLED';
-  created_at: string;
-}
-
 export interface ParkedTransaction {
   id: string;
   reference: string;
@@ -172,28 +154,16 @@ export interface EdcSetting {
   notes?: string;
 }
 
-export type PaymentMethod =
-  | 'TUNAI'
-  | 'TRANSFER'
-  | 'TRANSFER_BCA'
-  | 'QRIS'
-  | 'EDC'
-  | 'EDC_DEBIT'
-  | 'EDC_CREDIT'
-  | 'SPLIT'
-  /** Nota BON (piutang pelanggan), tanpa pembayaran saat checkout. */
-  | 'HUTANG_BON';
+/** Setiap nota lunas saat checkout: Tunai, Transfer, QRIS, atau kombinasinya (SPLIT). */
+export type PaymentMethod = 'TUNAI' | 'TRANSFER' | 'TRANSFER_BCA' | 'QRIS' | 'SPLIT';
 
 export interface SplitPaymentLine {
   id: string;
   method: PaymentMethod;
   amount: number;
   provider_name?: string;
-  edc_bank?: string;
-  edc_type?: 'Debit' | 'Credit';
   fee_percentage?: number;
   fee_amount?: number;
-  surcharge_amount?: number;
   net_received?: number;
   note?: string;
 }
@@ -226,14 +196,11 @@ export interface PosTransaction {
   change_amount: number;
   payment_reference?: string;
   payment_provider?: string;
-  edc_bank?: string;
-  edc_type?: 'Debit' | 'Credit';
   fee_percentage?: number;
   fee_amount?: number;
-  surcharge_amount?: number;
   net_received?: number;
   notes?: string;
-  status: 'LUNAS' | 'VOID' | 'PENDING' | 'Completed';
+  status: 'LUNAS' | 'VOID' | 'Completed';
   stock_deducted: boolean;
   is_voided?: boolean;
   void_reason?: string;
@@ -241,11 +208,6 @@ export interface PosTransaction {
   voided_by?: string;
   customer_phone?: string;
   mechanic_name?: string;
-  is_bon?: boolean;
-  /** DP booking yang dipakai melunasi nota ini. */
-  dp_applied?: number;
-  /** Jatuh tempo nota BON. */
-  due_date?: string;
 }
 
 export interface StockMutation {

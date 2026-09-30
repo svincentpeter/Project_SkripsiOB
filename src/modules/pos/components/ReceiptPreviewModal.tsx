@@ -20,7 +20,6 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
 }) => {
   if (!isOpen || !transaction) return null;
 
-  const isBon = transaction.is_bon || transaction.payment_method === 'HUTANG_BON';
   const receiptNo = transaction.invoice_number || transaction.reference || 'OB3-INV-PREVIEW';
   const transactionTime = transaction.timestamp || new Date().toLocaleString('id-ID');
 
@@ -62,7 +61,7 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
               Telp: {storeSettings?.phone || '(0293) 314-889'} / WA: 0812-9988-7722
             </div>
             <div className="font-black text-xs pt-1 text-black tracking-widest border-t border-slate-300 mt-1 uppercase">
-              {isBon ? '*** FAKTUR BON / TEMPO ***' : '*** NOTA PENJUALAN RESMI ***'}
+              *** NOTA PENJUALAN RESMI ***
             </div>
           </div>
 
@@ -167,12 +166,6 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
                 </>
               )}
 
-              {isBon && (
-                <div className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[9.5px] space-y-0.5 mt-1">
-                  <div className="font-bold uppercase">Status: Belum Lunas (Piutang)</div>
-                  <div>Tercatat di Buku Pembantu Piutang Usaha.</div>
-                </div>
-              )}
             </div>
           </div>
 
