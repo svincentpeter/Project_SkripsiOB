@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\v1\AccountController;
 use App\Http\Controllers\Api\v1\AccountingPeriodController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
+use App\Http\Controllers\Api\v1\FixedAssetController;
 use App\Http\Controllers\Api\v1\CashMovementController;
 use App\Http\Controllers\Api\v1\CashSessionController;
 use App\Http\Controllers\Api\v1\ExpenseController;
@@ -160,6 +161,13 @@ Route::prefix('v1')->group(function () {
             Route::post('expenses', [ExpenseController::class, 'store']);
             Route::get('expenses/{id}', [ExpenseController::class, 'show']);
             Route::post('expenses/{id}/void', [ExpenseController::class, 'void']);
+        });
+
+        // SAK EMKM (SP4): aset tetap & penyusutan, jurnal penyesuaian, rekonsiliasi bank, CALK
+        Route::prefix('accounting/fixed-assets')->middleware('permission:fixed_assets')->group(function () {
+            Route::get('/', [FixedAssetController::class, 'index']);
+            Route::post('/', [FixedAssetController::class, 'store']);
+            Route::post('{id}/void', [FixedAssetController::class, 'void'])->whereNumber('id');
         });
 
         // SAK EMKM Accounting Hub & Reports
