@@ -85,7 +85,7 @@ class SalesReturnTest extends TestCase
             ->assertJsonPath('data.sales_return.cost_amount', 1100000)
             ->assertJsonPath('data.sale.returned_amount', 2700000);
         $this->assertEquals([1, 5], $product->batches()->orderBy('purchase_date')->pluck('remaining_qty')->all());
-        $this->assertEquals(2700000, SalesReturn::cashRefundedInSession($session), 'refund tercatat pada shift');
+        $this->assertEquals(2700000, SalesReturn::where('cash_session_id', $session)->sum('refund_amount'), 'refund tercatat pada shift');
         $this->assertEquals(0.0, InventoryValueJournal::summary()['difference']);
 
         $this->returnLines($saleId, [['sale_detail_id' => $lineId, 'quantity' => 1]])

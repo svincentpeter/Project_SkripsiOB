@@ -32,12 +32,6 @@ class SalesReturn extends Model
         return $this->hasMany(SalesReturnItem::class);
     }
 
-    /** Refund tunai yang keluar dari laci selama satu shift kasir (dipakai kas seharusnya shift). */
-    public static function cashRefundedInSession(int $cashSessionId): float
-    {
-        return round((float) self::where('cash_session_id', $cashSessionId)->sum('refund_amount'), 2);
-    }
-
     public function toApiArray(): array
     {
         $this->loadMissing('items');
