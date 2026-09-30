@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\v1\AccountingPeriodController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
 use App\Http\Controllers\Api\v1\BankReconciliationController;
+use App\Http\Controllers\Api\v1\CalkController;
 use App\Http\Controllers\Api\v1\FixedAssetController;
 use App\Http\Controllers\Api\v1\CashMovementController;
 use App\Http\Controllers\Api\v1\CashSessionController;
@@ -185,6 +186,7 @@ Route::prefix('v1')->group(function () {
             Route::post('lines/{id}/unmatch', [BankReconciliationController::class, 'unmatch'])->whereNumber('id');
             Route::post('lines/{id}/post-adjustment', [BankReconciliationController::class, 'postAdjustment'])->whereNumber('id');
         });
+        Route::get('reports/calk', [CalkController::class, 'show'])->middleware('permission:financial_reports,accounting_hub');
 
         // SAK EMKM Accounting Hub & Reports
         Route::prefix('accounting')->group(function () {
