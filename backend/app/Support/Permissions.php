@@ -14,6 +14,7 @@ final class Permissions
         'cash_session', 'cash_session_approve', 'cash_movement',
         'sales_return', 'purchase_return',
         'fixed_assets', 'bank_reconciliation',
+        'daily_reports',
     ];
 
     public const ROLES = ['OWNER', 'KASIR', 'GUDANG'];
@@ -21,7 +22,7 @@ final class Permissions
     public const CONFIGURABLE_ROLES = ['KASIR', 'GUDANG'];
 
     public const DEFAULTS = [
-        'KASIR' => ['pos', 'receipt', 'cash_session', 'sales_return'],
+        'KASIR' => ['pos', 'receipt', 'cash_session', 'sales_return', 'daily_reports'],
         'GUDANG' => ['inventory_view', 'inventory_manage', 'goods_receipt', 'stock_opname', 'purchase_return'],
     ];
 }

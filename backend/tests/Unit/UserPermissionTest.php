@@ -52,6 +52,7 @@ class UserPermissionTest extends TestCase
         $this->assertTrue($data['permissions']['stock_opname']);
         $this->assertFalse($data['permissions']['pos']);
         $this->assertCount(count(\App\Support\Permissions::KEYS), $data['permissions']);
+        $this->assertFalse($data['permissions']['daily_reports']);
         $this->assertFalse($data['permissions']['fixed_assets']);
         $this->assertFalse($data['permissions']['bank_reconciliation']);
         $this->assertFalse($data['permissions']['cash_session']);
@@ -62,5 +63,23 @@ class UserPermissionTest extends TestCase
         $this->assertFalse($data['permissions']['sales_return']);
         $this->assertTrue($data['permissions']['purchase_return']);
         $this->assertArrayNotHasKey('password', $data);
+    }
+
+    public function test_kasir_may_read_own_daily_reports_by_default(): void
+    {
+        $this->assertTrue($this->makeUser('KASIR')->hasPermission('daily_reports'));
+        $this->assertFalse($this->makeUser('GUDANG')->hasPermission('daily_reports'));
+    }
+
+    public function test_daily_reports_migration_inserts_missing_rows_only(): void
+    {
+        RolePermission::where('permission_key', 'daily_reports')->delete();
+        RolePermission::create(['role' => 'GUDANG', 'permission_key' => 'daily_reports', 'allowed' => true]);
+
+        (require database_path('migrations/2026_10_05_000001_add_daily_reports_permission.php'))->up();
+
+        $this->assertTrue((bool) RolePermission::where(['role' => 'KASIR', 'permission_key' => 'daily_reports'])->value('allowed'));
+        // Pilihan Owner yang sudah ada tidak ditimpa.
+        $this->assertTrue((bool) RolePermission::where(['role' => 'GUDANG', 'permission_key' => 'daily_reports'])->value('allowed'));
     }
 }
