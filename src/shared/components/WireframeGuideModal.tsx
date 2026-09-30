@@ -205,7 +205,7 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                     <ol className="space-y-2 text-xs text-slate-600 list-decimal list-inside">
                       <li>Nyalakan komputer dan pastikan printer struk kasir 80mm menyala serta terisi kertas.</li>
                       <li>Login ke akun kasir Anda.</li>
-                      <li>Periksa modal uang receh di laci kasir (standar toko: Rp 500.000 untuk uang kembalian).</li>
+                      <li>Di layar Kasir (POS), klik <strong>"Buka Shift"</strong>, hitung uang di laci, lalu masukkan hasil hitungnya sebagai kas awal. Penjualan tunai baru bisa diproses setelah shift dibuka.</li>
                       <li>Klik ikon lonceng notifikasi di pojok kanan atas untuk melihat hutang supplier yang sudah jatuh tempo atau ban yang habis.</li>
                     </ol>
                   </div>
@@ -244,10 +244,10 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                     <h4 className="font-bold text-slate-900 text-sm mb-3">Tutup Kasir & Setoran</h4>
                     <ol className="space-y-2 text-xs text-slate-600 list-decimal list-inside">
                       <li>Pastikan seluruh pengeluaran kas kecil (beli makan montir, air galon, bensin pick-up) sudah dicatat di menu <strong>Biaya Toko</strong>.</li>
-                      <li>Hitung seluruh uang fisik di laci kasir.</li>
-                      <li>Buka menu <strong>Riwayat Struk</strong>, bandingkan total uang fisik dengan total penerimaan tunai hari ini.</li>
-                      <li>Sisihkan kembali uang modal awal (Rp 500.000) di laci untuk besok pagi.</li>
-                      <li>Serahkan uang hasil omzet penjualan bersih hari ini kepada Owner toko atau transfer ke rekening toko.</li>
+                      <li>Klik <strong>"Tutup Shift"</strong> di layar Kasir (POS), hitung seluruh uang fisik di laci, lalu masukkan hasilnya.</li>
+                      <li>Sistem membandingkan dengan kas seharusnya (kas awal + penjualan tunai − biaya dan pengeluaran tunai). Jika berbeda, tulis alasan selisihnya; pemilik menyetujui di <strong>Buku Besar → Kas & Bank</strong>.</li>
+                      <li>Setoran omzet ke rekening toko dicatat pemilik di <strong>Buku Besar → Kas & Bank</strong> (Setor kas laci ke bank).</li>
+                      <li>Uang yang tetap di laci menjadi kas awal shift berikutnya.</li>
                     </ol>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-200 text-[11px] text-emerald-800 bg-emerald-50 rounded-lg p-2 font-medium">
@@ -749,7 +749,7 @@ export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({
                     <span>Bagaimana jika uang di laci kasir selisih saat toko tutup?</span>
                   </h4>
                   <p className="text-slate-600">
-                    <strong>Solusi:</strong> Pertama, cek menu <strong>Biaya Toko</strong>, biasanya ada staf yang mengambil uang untuk bensin atau makan yang belum dicatat di sistem. Kedua, cek menu <strong>Riwayat Struk</strong> untuk memastikan tidak ada nota kasir yang dobel atau nota yang belum diselesaikan pembayarannya.
+                    <strong>Solusi:</strong> Pertama, cek menu <strong>Biaya Toko</strong>, biasanya ada staf yang mengambil uang untuk bensin atau makan yang belum dicatat di sistem. Kedua, cek menu <strong>Riwayat Struk</strong> untuk memastikan tidak ada nota kasir yang dobel atau nota yang belum diselesaikan pembayarannya. Jika tetap selisih, tulis alasannya saat <strong>Tutup Shift</strong>; setelah pemilik menyetujui, selisih dijurnal ke akun 6-1010 Selisih Kas Kasir.
                   </p>
                 </div>
 

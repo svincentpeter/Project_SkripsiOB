@@ -5,3 +5,4 @@ export * from './ManualItemForm';
 export * from './QrisDynamicModal';
 export * from './PosSuccessModal';
 export * from './ReceiptPreviewModal';
+export * from './CashShiftControl';

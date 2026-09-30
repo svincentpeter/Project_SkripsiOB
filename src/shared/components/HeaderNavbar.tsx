@@ -31,7 +31,8 @@ import { isScreenPermittedForRole } from '../../services/authNavigationService';
 interface HeaderNavbarProps {
   activeScreen: ActiveScreen;
   setActiveScreen: (screen: ActiveScreen) => void;
-  cashInDrawer: number;
+  /** Saldo buku kas laci (akun 1-1000); null = peran tanpa akses saldo kas, chip disembunyikan. */
+  cashInDrawer: number | null;
   lowStockCount: number;
   cartCount: number;
   notifications?: any[];
@@ -200,15 +201,17 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
             onNavigateTo={(screen) => setActiveScreen(screen as ActiveScreen)}
           />
 
-          {/* Saldo Kas Laci Kasir (Visible on mobile & desktop) */}
-          <div 
-            className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono shadow-2xs shrink-0"
-            title={`Kas Laci: ${formatRupiah(cashInDrawer)}`}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse shrink-0" />
-            <span className="hidden md:inline text-emerald-800 text-[11px] font-semibold">Kas Laci:</span>
-            <span className="font-extrabold text-[10px] sm:text-xs text-emerald-950 truncate max-w-[70px] sm:max-w-none">{formatRupiah(cashInDrawer)}</span>
-          </div>
+          {/* Saldo buku kas laci (akun 1-1000), hanya untuk peran yang boleh membaca saldo kas */}
+          {cashInDrawer !== null && (
+            <div
+              className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono shadow-2xs shrink-0"
+              title={`Kas Laci (buku 1-1000): ${formatRupiah(cashInDrawer)}`}
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse shrink-0" />
+              <span className="hidden md:inline text-emerald-800 text-[11px] font-semibold">Kas Laci:</span>
+              <span className="font-extrabold text-[10px] sm:text-xs text-emerald-950 truncate max-w-[70px] sm:max-w-none">{formatRupiah(cashInDrawer)}</span>
+            </div>
+          )}
 
           <div className="h-6 w-px bg-slate-200 hidden sm:block" />
 

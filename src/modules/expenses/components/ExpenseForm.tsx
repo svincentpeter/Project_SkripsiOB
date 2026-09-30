@@ -137,7 +137,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       return;
     }
 
-    if (isCash && numericAmount > cashInDrawer) {
+    // Saldo buku laci ≤ 0 (belum ada saldo awal/shift tercatat) tidak memblokir, sama seperti aturan bank di bawah.
+    if (isCash && cashInDrawer > 0 && numericAmount > cashInDrawer) {
       setFormError(`Saldo Kas Laci tidak mencukupi (${formatRupiah(cashInDrawer)}). Silakan pilih rekening Bank BCA atau sesuaikan nominal.`);
       return;
     }
@@ -313,7 +314,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                 <span className="text-[10px] text-slate-500 mt-1 block">
                   Sisa saldo tersedia: <strong className="text-slate-700 font-mono">{formatRupiah(currentSourceBalance)}</strong>
                 </span>
-                {isCash && numericAmount > cashInDrawer && (
+                {isCash && cashInDrawer > 0 && numericAmount > cashInDrawer && (
                   <div className="mt-2 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-700 flex items-center gap-1.5 font-bold animate-in fade-in">
                     <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                     <span>Perhatian: Nominal pengeluaran melebihi uang fisik di laci kasir!</span>

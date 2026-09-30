@@ -12,7 +12,6 @@ import {
   ShieldCheck, 
   Check, 
   AlertCircle,
-  Banknote,
   QrCode,
   Building2,
   Store,
@@ -66,6 +65,7 @@ import {
   ManualItemForm,
   PosSuccessModal,
   ReceiptPreviewModal,
+  CashShiftControl,
 } from './components';
 import { useToast } from '../../shared/components';
 
@@ -80,7 +80,10 @@ interface PosScreenProps {
   onSaveParkedOrder?: (order: ParkedTransaction) => void;
   onDeleteParkedOrder?: (orderId: string) => void;
   cashierName: string;
-  cashInDrawer: number;
+  /** Saldo buku kas laci (akun 1-1000); null bila peran tidak boleh membaca saldo kas. */
+  cashInDrawer: number | null;
+  /** Izin `cash_session`: tombol buka/tutup shift kasir. */
+  canUseCashSession?: boolean;
   timeString: string;
   onExitToBackoffice?: () => void;
   onOpenWireframeModal?: () => void;
@@ -143,6 +146,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   onDeleteParkedOrder,
   cashierName,
   cashInDrawer,
+  canUseCashSession = false,
   timeString,
   onExitToBackoffice,
   onOpenWireframeModal,
@@ -608,14 +612,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             )}
           </button>
 
-          <div 
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-800 font-semibold shadow-2xs"
-            title={`Kas Laci: ${formatRupiah(cashInDrawer)}`}
-          >
-            <Banknote className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-            <span className="hidden md:inline text-[11px] text-emerald-700">Kas Laci:</span>
-            <b className="text-emerald-950 font-mono font-extrabold text-xs">{formatRupiah(cashInDrawer)}</b>
-          </div>
+          <CashShiftControl cashInDrawer={cashInDrawer} enabled={canUseCashSession} />
 
           {canAccessReceipts && onNavigateToReceipts && (
             <button

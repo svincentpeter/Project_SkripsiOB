@@ -136,6 +136,8 @@ function MainAppContent() {
     return isScreenPermittedForRole(screen, currentUser?.role, rolePermissions);
   };
   const can = (key: PermissionKey): boolean => hasPermission(currentUser, rolePermissions, key);
+  /** Peran yang boleh membaca saldo buku kas/bank (GET /accounting/cash-balances); laci kasir = akun 1-1000. */
+  const canReadCash = can('expenses') || can('accounting_hub') || can('financial_reports') || can('cash_session');
 
   // Auto-redirect if activeScreen is not permitted for current user
   useEffect(() => {
@@ -256,14 +258,6 @@ function MainAppContent() {
   const [accounts, setAccounts] = useState<ChartOfAccount[]>([]);
   /** Naik setiap kali server membukukan jurnal; komponen laporan memuat ulang saat nilainya berubah. */
   const [ledgerVersion, setLedgerVersion] = useState(0);
-  const [cashInDrawer, setCashInDrawer] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('ob3_cash_drawer');
-      return saved ? Number(saved) : 2450000;
-    } catch {
-      return 2450000;
-    }
-  });
   const [payableInvoices, setPayableInvoices] = useState<PayableInvoice[]>([]);
 
   // Active Cart in POS
@@ -379,7 +373,7 @@ function MainAppContent() {
       expenseApi.list().then((rows) => setExpenses(rows.map(mapExpense))).catch(() => {});
       expenseApi.categories().then(setExpenseCategories).catch(() => {});
     }
-    if (allowed('expenses', 'accounting_hub', 'financial_reports')) refreshCashBalances();
+    if (allowed('expenses', 'accounting_hub', 'financial_reports', 'cash_session')) refreshCashBalances();
     if (apiProducts) setProducts(apiProducts);
     if (apiServices) setServices(apiServices);
     if (apiSales) {
@@ -440,26 +434,18 @@ function MainAppContent() {
     localStorage.setItem('ob3_cart', JSON.stringify(cart));
   }, [cart]);
 
+  // Salinan akuntansi lokal lama (Tahap 4) dan penghitung laci per-browser (kini saldo buku 1-1000) tidak dipakai lagi.
   useEffect(() => {
-    localStorage.setItem('ob3_cash_drawer', String(cashInDrawer));
-  }, [cashInDrawer]);
-
-  // Tahap 4: salinan akuntansi lokal lama (mock + jurnal sesi) tidak dipakai lagi.
-  useEffect(() => {
-    ['ob3_journals', 'ob3_expenses', 'ob3_account_balances', 'ob3_period_info'].forEach((key) => localStorage.removeItem(key));
+    ['ob3_journals', 'ob3_expenses', 'ob3_account_balances', 'ob3_period_info', 'ob3_cash_drawer'].forEach((key) => localStorage.removeItem(key));
   }, []);
 
   /** Server membukukan jurnal: muat ulang laporan akuntansi dan saldo kas/bank. */
   const notifyLedgerChanged = (apiJournals: ApiJournal[]) => {
     if (apiJournals.length === 0) return;
     setLedgerVersion((v) => v + 1);
-    // Saldo kas/bank hanya boleh dibaca peran dengan akses akuntansi (sama seperti loadPosData).
-    if (can('expenses') || can('accounting_hub') || can('financial_reports')) refreshCashBalances();
+    // Saldo kas/bank hanya dibaca peran yang diizinkan (sama seperti loadPosData).
+    if (canReadCash) refreshCashBalances();
   };
-
-  /** Porsi tunai yang benar-benar masuk/keluar laci (tanpa kembalian). */
-  const cashPortion = (sale: ApiSale) =>
-    sale.payments.filter((p) => p.method === 'TUNAI').reduce((sum, p) => sum + Number(p.amount), 0);
 
   const handleCheckout = async (payload: CheckoutPayload): Promise<PosTransaction> => {
     const sale = await posApi.checkout(payload);
@@ -468,7 +454,6 @@ function MainAppContent() {
     setTransactions((prev) => [tx, ...prev]);
     setCurrentReceiptTx(tx);
     notifyLedgerChanged(sale.journals);
-    setCashInDrawer((prev) => prev + cashPortion(sale));
     handleRefreshProducts();
 
     toast.success('Transaksi Kasir Berhasil!', `Nota ${tx.invoice_number} dibukukan di server.`);
@@ -486,7 +471,6 @@ function MainAppContent() {
       const res = await expenseApi.create(expenseFormData(record, category.id));
       setExpenses((prev) => [mapExpense(res.expense), ...prev]);
       notifyLedgerChanged(res.journals);
-      if (record.cash_source.includes('Laci')) setCashInDrawer((prev) => Math.max(0, prev - record.amount));
       toast.success('Beban Toko Dibukukan', `${res.expense.reference} (${record.category}) sebesar ${formatRupiah(record.amount)} tersimpan di server.`);
       return true;
     } catch (err) {
@@ -502,7 +486,6 @@ function MainAppContent() {
       const updated = mapExpense(res.expense);
       setExpenses((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
       notifyLedgerChanged(res.journals);
-      if (target.cash_source.includes('Laci')) setCashInDrawer((prev) => prev + target.amount);
       toast.warning('Pengeluaran Dibatalkan (VOID)', `${updated.reference} dibatalkan; jurnal pembalik dibukukan.`);
       return true;
     } catch (err) {
@@ -520,7 +503,6 @@ function MainAppContent() {
       setTransactions((prev) => prev.map((t) => (t.id === txId ? tx : t)));
       if (currentReceiptTx?.id === txId) setCurrentReceiptTx(tx);
       notifyLedgerChanged(sale.journals);
-      setCashInDrawer((prev) => Math.max(0, prev - cashPortion(sale)));
       handleRefreshProducts();
 
       toast.warning(
@@ -624,9 +606,6 @@ function MainAppContent() {
       const res = await inventoryApi.restock(payload);
       // Barang bonus (harga pokok Rp 0) tidak dijurnal server.
       if (res.journal) notifyLedgerChanged([res.journal]);
-      if (payload.payment_method === 'TUNAI') {
-        setCashInDrawer((prev) => Math.max(0, prev - Number(res.purchase.total_amount)));
-      }
       if (payload.payment_method === 'TEMPO') refreshPayables();
       handleRefreshProducts();
       toast.success('Penerimaan Barang Dibukukan', `${res.purchase.purchase_number}: ${formatRupiah(res.purchase.total_amount)} (${payload.payment_method}).`);
@@ -643,9 +622,6 @@ function MainAppContent() {
       const res = await inventoryApi.payPurchase(paymentInput.payable_invoice_id, debtPaymentPayload(paymentInput));
       notifyLedgerChanged([res.journal]);
       setPayableInvoices((prev) => prev.map((inv) => (inv.id === String(res.purchase.id) ? mapPurchaseToPayable(res.purchase) : inv)));
-      if (paymentInput.source_account_code === '1-1000') {
-        setCashInDrawer((prev) => Math.max(0, prev - paymentInput.amount));
-      }
       toast.success('Hutang Dibayar', `${formatRupiah(paymentInput.amount)} ke ${res.purchase.supplier_name} dibukukan.`);
     } catch (err) {
       toast.error('Pelunasan Hutang Gagal', errorMessage(err));
@@ -657,9 +633,6 @@ function MainAppContent() {
     try {
       const journal = await accountingApi.createManualJournal(payload);
       notifyLedgerChanged([journal]);
-      payload.items
-        .filter((l) => l.account_code === '1-1000')
-        .forEach((l) => setCashInDrawer((prev) => Math.max(0, prev + l.debit - l.credit)));
       toast.success('Jurnal Penyesuaian Dibukukan', `${journal.entry_number} tersimpan di server.`);
       return true;
     } catch (err) {
@@ -918,7 +891,8 @@ function MainAppContent() {
           setCart={setCart}
           onCheckout={handleCheckout}
           cashierName={currentUser.name}
-          cashInDrawer={cashInDrawer}
+          cashInDrawer={canReadCash ? cashBalances['1-1000'] : null}
+          canUseCashSession={can('cash_session')}
           timeString={timeString}
           currentUser={currentUser}
           canAccessBackoffice={isScreenPermitted('dashboard')}
@@ -944,7 +918,7 @@ function MainAppContent() {
           <HeaderNavbar
             activeScreen={activeScreen}
             setActiveScreen={setActiveScreen}
-            cashInDrawer={cashInDrawer}
+            cashInDrawer={canReadCash ? cashBalances['1-1000'] : null}
             lowStockCount={lowStockCount}
             cartCount={cartTotalQty}
             notifications={notifications}
@@ -1029,7 +1003,7 @@ function MainAppContent() {
               <ExpensesScreen
                 expenses={expenses}
                 onAddExpense={handleAddExpense}
-                cashInDrawer={cashInDrawer}
+                cashInDrawer={cashBalances['1-1000']}
                 bankBalance={cashBalances['1-1001']}
                 onVoidExpense={handleVoidExpense}
                 storeSettings={storeSettings}
@@ -1041,7 +1015,7 @@ function MainAppContent() {
                 ledgerVersion={ledgerVersion}
                 accounts={accounts}
                 payableInvoices={payableInvoices}
-                cashInDrawer={cashInDrawer}
+                cashInDrawer={cashBalances['1-1000']}
                 canReopenPeriod={currentUser?.role === 'OWNER'}
                 canUseHub={can('accounting_hub')}
                 onAddManualJournal={handleAddManualJournal}
