@@ -8,16 +8,16 @@ use App\Models\ServiceMaster;
 
 /**
  * Menormalkan baris keranjang dari klien menjadi baris yang dihitung server:
- * nama & referensi katalog divalidasi, nilai kotor/diskon/bersih dihitung ulang.
+ * nama & referensi katalog divalidasi, nilai kotor/diskon/bersih dihitung ulang,
+ * produk katalog dikunci dan qty-nya dicek terhadap stok.
  */
 class CartLines
 {
     /**
      * @param  array<int, array<string, mixed>>  $items
-     * @param  bool  $reserveStock  kunci produk & tolak bila qty melebihi stok (checkout)
      * @return array<int, array<string, mixed>>
      */
-    public static function build(array $items, bool $reserveStock): array
+    public static function build(array $items): array
     {
         $requested = [];
         $lines = [];
@@ -36,21 +36,15 @@ class CartLines
                 if (empty($item['product_id'])) {
                     throw new PosRuleException("Produk \"{$name}\" tidak terdaftar di katalog.");
                 }
-                $query = Product::query();
-                if ($reserveStock) {
-                    $query->lockForUpdate();
-                }
-                $product = $query->find($item['product_id']);
+                $product = Product::lockForUpdate()->find($item['product_id']);
                 if (! $product || ! $product->is_active) {
                     throw new PosRuleException("Produk \"{$name}\" tidak ditemukan atau sudah nonaktif.");
                 }
                 $name = $product->product_name;
 
-                if ($reserveStock) {
-                    $requested[$product->id] = ($requested[$product->id] ?? 0) + $qty;
-                    if ($requested[$product->id] > $product->product_quantity) {
-                        throw new PosRuleException("Stok {$product->product_name} tidak cukup (sisa {$product->product_quantity}).");
-                    }
+                $requested[$product->id] = ($requested[$product->id] ?? 0) + $qty;
+                if ($requested[$product->id] > $product->product_quantity) {
+                    throw new PosRuleException("Stok {$product->product_name} tidak cukup (sisa {$product->product_quantity}).");
                 }
             }
 

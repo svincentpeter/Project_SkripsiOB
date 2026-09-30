@@ -24,8 +24,8 @@ class CashFlowReportTest extends TestCase
 
     private function postAprilActivity(): void
     {
-        // Penjualan BON sebagian: kas 50rb + piutang 50rb, HPP 60rb.
-        $this->postJournal('2021-04-10', [['1-1000', 50000, 0], ['1-1002', 50000, 0], ['4-1000', 0, 100000]]);
+        // Penjualan lunas split: tunai 50rb + transfer 50rb, HPP 60rb.
+        $this->postJournal('2021-04-10', [['1-1000', 50000, 0], ['1-1001', 50000, 0], ['4-1000', 0, 100000]]);
         $this->postJournal('2021-04-10', [['5-1000', 60000, 0], ['1-2000', 0, 60000]]);
         // Setor kas laci ke bank: tidak mengubah total kas.
         $this->postJournal('2021-04-11', [['1-1001', 30000, 0], ['1-1000', 0, 30000]]);
@@ -40,13 +40,13 @@ class CashFlowReportTest extends TestCase
 
         $cf = app(CashFlowReport::class)->build('2021-04-01', '2021-04-30');
 
-        $this->assertEquals(50000, $cf['operating']['customers']);
+        $this->assertEquals(100000, $cf['operating']['customers']);
         $this->assertEquals(-40000, $cf['operating']['suppliers']);
         $this->assertEquals(-20000, $cf['operating']['expenses']);
-        $this->assertEquals(-10000, $cf['operating']['net']);
+        $this->assertEquals(40000, $cf['operating']['net']);
         $this->assertEquals(0, $cf['investing']['net']);
         $this->assertEquals(500000, $cf['financing']['equity']);
-        $this->assertEquals(490000, $cf['net_change']);
+        $this->assertEquals(540000, $cf['net_change']);
         $this->assertTrue($cf['is_reconciled']);
         $this->assertEquals($cf['ending_cash'], $cf['ending_cash_drawer'] + $cf['ending_bank']);
     }
@@ -57,7 +57,7 @@ class CashFlowReportTest extends TestCase
 
         $this->getJson('/api/v1/accounting/cash-flow?start_date=2021-04-01&end_date=2021-04-30')
             ->assertOk()
-            ->assertJsonPath('data.net_change', 490000)
+            ->assertJsonPath('data.net_change', 540000)
             ->assertJsonPath('data.is_reconciled', true);
 
         $this->getJson('/api/v1/accounting/cash-balances')

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\ReceivablePayment;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
@@ -47,13 +46,27 @@ class PosVoidTest extends TestCase
         $this->postJson("/api/v1/pos/transactions/{$id}/void", ['reason' => 'Batal beli'])->assertStatus(422);
     }
 
-    public function test_bon_with_settlement_cannot_be_voided(): void
+    public function test_void_of_split_cash_and_qris_sale_reverses_mdr(): void
     {
         $product = $this->makeProduct();
-        $id = $this->checkout(['items' => [$this->productLine($product)], 'bon' => ['term_days' => 7]])->json('data.id');
-        ReceivablePayment::create(['sale_id' => $id, 'payment_date' => now(), 'amount' => 100000, 'account_code' => '1-1000']);
+        $sale = $this->checkout([
+            'items' => [$this->productLine($product)],
+            'payments' => [
+                ['method' => 'TUNAI', 'amount' => 400000, 'tendered' => 500000],
+                ['method' => 'QRIS', 'amount' => 600000, 'fee_percentage' => 0.5],
+            ],
+        ])->assertCreated();
 
-        $this->postJson("/api/v1/pos/transactions/{$id}/void", ['reason' => 'Batal beli'])->assertStatus(422);
+        $res = $this->postJson("/api/v1/pos/transactions/{$sale->json('data.id')}/void", ['reason' => 'Pelanggan batal'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'VOID');
+
+        $reversal = $this->journalByAccount($res->json('data.reference'), 'POS_SALE_VOID');
+        $this->assertEquals(400000, $reversal['1-1000']['credit']);
+        $this->assertEquals(597000, $reversal['1-1001']['credit']);
+        $this->assertEquals(3000, $reversal['6-1009']['credit']);
+        $this->assertEquals(1000000, $reversal['4-1000']['debit']);
+        $this->assertSame(10, $product->fresh()->product_quantity);
     }
 
     public function test_reason_is_required_and_kasir_cannot_void_by_default(): void

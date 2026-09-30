@@ -29,7 +29,12 @@ class PosCheckoutTest extends TestCase
             ->assertJsonPath('data.change_amount', 200000)
             ->assertJsonPath('data.total_hpp', 1100000)
             ->assertJsonPath('data.cashier_name', 'Test OWNER')
-            ->assertJsonPath('data.status', 'LUNAS');
+            ->assertJsonPath('data.status', 'LUNAS')
+            ->assertJsonMissingPath('data.dp_applied')
+            ->assertJsonMissingPath('data.booking_id')
+            ->assertJsonMissingPath('data.due_date')
+            ->assertJsonMissingPath('data.receivable_paid')
+            ->assertJsonMissingPath('data.surcharge_amount');
 
         $this->assertSame(4, $product->fresh()->product_quantity);
         $this->assertSame(0, $product->batches()->orderBy('purchase_date')->first()->remaining_qty);
@@ -74,62 +79,79 @@ class PosCheckoutTest extends TestCase
         $this->checkout($payload)->assertCreated();
     }
 
-    public function test_edc_credit_surcharge_is_revenue_and_mdr_is_expense(): void
+    public function test_edc_methods_are_rejected(): void
     {
         $product = $this->makeProduct();
-        $res = $this->checkout([
-            'items' => [$this->productLine($product)],
-            'payments' => [['method' => 'EDC_CREDIT', 'amount' => 1000000, 'fee_percentage' => 2, 'charge_to_customer' => true, 'edc_bank' => 'BCA', 'edc_type' => 'Credit']],
-        ])->assertCreated();
 
-        $res->assertJsonPath('data.total_amount', 1020000)->assertJsonPath('data.paid_amount', 1020000);
-        $j = $this->journalByAccount($res->json('data.reference'));
-        $this->assertEquals(1000000, $j['1-1001']['debit']);
-        $this->assertEquals(20000, $j['6-1009']['debit']);
-        $this->assertEquals(20000, $j['4-2000']['credit']);
+        foreach (['EDC_DEBIT', 'EDC_CREDIT'] as $method) {
+            $this->checkout([
+                'items' => [$this->productLine($product)],
+                'payments' => [['method' => $method, 'amount' => 1000000, 'fee_percentage' => 2]],
+            ])->assertStatus(422)->assertJsonValidationErrors('payments.0.method');
+        }
+
+        $this->assertSame(10, $product->fresh()->product_quantity);
     }
 
-    public function test_split_cash_and_edc_debit(): void
+    public function test_split_cash_and_qris_books_mdr_to_expense_without_surcharge(): void
     {
         $product = $this->makeProduct();
         $res = $this->checkout([
             'items' => [$this->productLine($product)],
             'payments' => [
                 ['method' => 'TUNAI', 'amount' => 400000, 'tendered' => 400000],
-                ['method' => 'EDC_DEBIT', 'amount' => 600000, 'fee_percentage' => 0.5, 'edc_bank' => 'BCA', 'edc_type' => 'Debit'],
+                ['method' => 'QRIS', 'amount' => 600000, 'fee_percentage' => 0.5, 'provider_name' => 'QRIS BCA'],
             ],
         ])->assertCreated();
 
-        $res->assertJsonPath('data.payment_method', 'SPLIT')->assertJsonCount(2, 'data.payments');
+        $res->assertJsonPath('data.payment_method', 'SPLIT')
+            ->assertJsonPath('data.status', 'LUNAS')
+            ->assertJsonPath('data.total_amount', 1000000)
+            ->assertJsonPath('data.paid_amount', 1000000)
+            ->assertJsonPath('data.fee_amount', 3000)
+            ->assertJsonCount(2, 'data.payments')
+            ->assertJsonMissingPath('data.payments.1.edc_bank')
+            ->assertJsonMissingPath('data.payments.1.surcharge_amount');
+
         $j = $this->journalByAccount($res->json('data.reference'));
         $this->assertEquals(400000, $j['1-1000']['debit']);
         $this->assertEquals(597000, $j['1-1001']['debit']);
         $this->assertEquals(3000, $j['6-1009']['debit']);
+        $this->assertEquals(1000000, $j['4-1000']['credit']);
+        $this->assertArrayNotHasKey('4-2000', $j);
+        $this->assertArrayNotHasKey('1-1002', $j);
+        $this->assertArrayNotHasKey('2-1004', $j);
     }
 
-    public function test_bon_creates_receivable_with_due_date(): void
+    public function test_bon_checkout_is_rejected(): void
     {
         $product = $this->makeProduct();
-        $res = $this->checkout([
+
+        $this->checkout([
             'items' => [$this->productLine($product)],
             'bon' => ['term_days' => 14],
-        ])->assertCreated();
+        ])->assertStatus(422)->assertJsonValidationErrors('bon');
 
-        $res->assertJsonPath('data.status', 'PENDING')
-            ->assertJsonPath('data.payment_method', 'BON')
-            ->assertJsonPath('data.due_date', now()->addDays(14)->toDateString());
-        $j = $this->journalByAccount($res->json('data.reference'));
-        $this->assertEquals(1000000, $j['1-1002']['debit']);
-    }
-
-    public function test_bon_with_payments_is_rejected(): void
-    {
-        $product = $this->makeProduct();
         $this->checkout([
             'items' => [$this->productLine($product)],
             'bon' => ['term_days' => 7],
             'payments' => [['method' => 'TUNAI', 'amount' => 1000000]],
-        ])->assertStatus(422);
+        ])->assertStatus(422)->assertJsonValidationErrors('bon');
+
+        $this->assertSame(10, $product->fresh()->product_quantity);
+    }
+
+    public function test_booking_id_is_rejected(): void
+    {
+        $product = $this->makeProduct();
+
+        $this->checkout([
+            'items' => [$this->productLine($product)],
+            'booking_id' => 1,
+            'payments' => [['method' => 'TUNAI', 'amount' => 1000000]],
+        ])->assertStatus(422)->assertJsonValidationErrors('booking_id');
+
+        $this->assertSame(10, $product->fresh()->product_quantity);
     }
 
     public function test_service_and_manual_lines(): void

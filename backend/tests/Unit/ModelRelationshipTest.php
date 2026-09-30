@@ -12,7 +12,6 @@ use App\Models\ProductBatch;
 use App\Models\Sale;
 use App\Models\SaleBatchAllocation;
 use App\Models\SaleDetail;
-use App\Models\SalesBooking;
 use App\Models\ServiceMaster;
 use App\Models\StockMovement;
 use App\Models\Supplier;
@@ -20,7 +19,7 @@ use Tests\TestCase;
 
 class ModelRelationshipTest extends TestCase
 {
-    public function test_all_fourteen_models_can_be_instantiated(): void
+    public function test_core_models_can_be_instantiated(): void
     {
         $this->assertInstanceOf(Product::class, new Product());
         $this->assertInstanceOf(ProductBatch::class, new ProductBatch());
@@ -29,7 +28,6 @@ class ModelRelationshipTest extends TestCase
         $this->assertInstanceOf(Sale::class, new Sale());
         $this->assertInstanceOf(SaleDetail::class, new SaleDetail());
         $this->assertInstanceOf(SaleBatchAllocation::class, new SaleBatchAllocation());
-        $this->assertInstanceOf(SalesBooking::class, new SalesBooking());
         $this->assertInstanceOf(StockMovement::class, new StockMovement());
         $this->assertInstanceOf(ExpenseCategory::class, new ExpenseCategory());
         $this->assertInstanceOf(Expense::class, new Expense());

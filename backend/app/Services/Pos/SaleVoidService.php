@@ -14,8 +14,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Void nota: membalik jurnal penjualan, mengembalikan stok ke batch FIFO asalnya,
- * dan mengaktifkan kembali booking DP yang terpakai.
+ * Void nota: membalik jurnal penjualan dan mengembalikan stok ke batch FIFO asalnya.
  */
 class SaleVoidService
 {
@@ -31,16 +30,9 @@ class SaleVoidService
             if ($sale->status === 'VOID') {
                 throw new PosRuleException("Nota {$sale->reference} sudah pernah dibatalkan.");
             }
-            if ($sale->receivablePayments()->exists()) {
-                throw new PosRuleException("Nota BON {$sale->reference} sudah menerima pelunasan dan tidak dapat dibatalkan.");
-            }
 
             $this->restoreStock($sale, $user);
             $this->postReversal($sale, $reason);
-
-            if ($sale->booking_id) {
-                $sale->booking()->update(['status' => 'ACTIVE', 'converted_sale_id' => null]);
-            }
 
             $sale->update([
                 'status' => 'VOID',

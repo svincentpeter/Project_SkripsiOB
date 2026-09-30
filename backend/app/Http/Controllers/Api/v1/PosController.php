@@ -14,7 +14,7 @@ class PosController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Sale::with(['details.product', 'payments', 'receivablePayments'])
+        $query = Sale::with(['details.product', 'payments'])
             ->orderBy('date', 'desc')
             ->orderBy('id', 'desc');
 

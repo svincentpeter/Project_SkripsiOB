@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * Kolom lama booking_id, dp_applied, due_date, edc_bank, edc_type dan surcharge_amount tetap ada di tabel
+ * (riwayat), tetapi tidak lagi dibaca atau ditulis: DP booking, BON dan EDC sudah dihapus dari POS.
+ */
 class Sale extends Model
 {
     use HasFactory;
@@ -27,22 +30,16 @@ class Sale extends Model
         'total_amount',
         'paid_amount',
         'change_amount',
-        'dp_applied',
-        'booking_id',
         'payment_method',
         'payment_reference',
         'payment_provider',
-        'edc_bank',
-        'edc_type',
         'fee_percentage',
         'fee_amount',
-        'surcharge_amount',
         'net_received',
         'total_hpp',
         'total_profit',
         'notes',
         'status',
-        'due_date',
         'voided_at',
         'voided_by',
         'void_reason',
@@ -57,12 +54,9 @@ class Sale extends Model
         'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'change_amount' => 'decimal:2',
-        'dp_applied' => 'decimal:2',
-        'due_date' => 'date',
         'voided_at' => 'datetime',
         'fee_percentage' => 'decimal:2',
         'fee_amount' => 'decimal:2',
-        'surcharge_amount' => 'decimal:2',
         'net_received' => 'decimal:2',
         'total_hpp' => 'decimal:2',
         'total_profit' => 'decimal:2',
@@ -85,22 +79,12 @@ class Sale extends Model
         return $this->hasMany(SalePayment::class);
     }
 
-    public function receivablePayments(): HasMany
-    {
-        return $this->hasMany(ReceivablePayment::class);
-    }
-
-    public function booking(): BelongsTo
-    {
-        return $this->belongsTo(SalesBooking::class, 'booking_id');
-    }
-
     /**
-     * Satu bentuk nota untuk seluruh respons POS (checkout, riwayat, void, piutang).
+     * Satu bentuk nota untuk seluruh respons POS (checkout, riwayat, void).
      */
     public function toReceiptArray(): array
     {
-        $this->loadMissing(['details.product', 'payments', 'receivablePayments']);
+        $this->loadMissing(['details.product', 'payments']);
         $journal = JournalEntry::with('items.account')
             ->where('reference_id', $this->reference)
             ->whereIn('reference_type', ['POS_SALE', 'POS_SALE_VOID'])
@@ -122,21 +106,14 @@ class Sale extends Model
             'total_amount' => (float) $this->total_amount,
             'paid_amount' => (float) $this->paid_amount,
             'change_amount' => (float) $this->change_amount,
-            'dp_applied' => (float) $this->dp_applied,
-            'booking_id' => $this->booking_id,
             'payment_method' => $this->payment_method,
             'payment_provider' => $this->payment_provider,
-            'edc_bank' => $this->edc_bank,
-            'edc_type' => $this->edc_type,
             'fee_amount' => (float) $this->fee_amount,
-            'surcharge_amount' => (float) $this->surcharge_amount,
             'net_received' => (float) $this->net_received,
             'total_hpp' => (float) $this->total_hpp,
             'total_profit' => (float) $this->total_profit,
             'notes' => $this->notes,
             'status' => $this->status,
-            'due_date' => $this->due_date?->toDateString(),
-            'receivable_paid' => (float) $this->receivablePayments->sum('amount'),
             'voided_at' => $this->voided_at?->toIso8601String(),
             'voided_by' => $this->voided_by,
             'void_reason' => $this->void_reason,
@@ -169,11 +146,8 @@ class Sale extends Model
                 'change_amount' => (float) $p->change_amount,
                 'fee_percentage' => (float) $p->fee_percentage,
                 'fee_amount' => (float) $p->fee_amount,
-                'surcharge_amount' => (float) $p->surcharge_amount,
                 'net_received' => (float) $p->net_received,
                 'provider_name' => $p->provider_name,
-                'edc_bank' => $p->edc_bank,
-                'edc_type' => $p->edc_type,
                 'reference' => $p->reference,
             ])->values()->all(),
             'journals' => $journal->map(fn (JournalEntry $j) => $j->toApiArray())->values()->all(),
