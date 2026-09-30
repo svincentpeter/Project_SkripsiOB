@@ -35,7 +35,7 @@ describe('deny by default', () => {
     expect(DEFAULT_ROLE_PERMISSIONS.KASIR.cash_movement).toBe(false);
     for (const role of ['KASIR', 'GUDANG'] as const) {
       const keys = Object.keys(DEFAULT_ROLE_PERMISSIONS[role]);
-      expect(keys).toHaveLength(20);
+      expect(keys).toHaveLength(21);
       expect(keys).toContain('sales_return');
       expect(keys).toContain('purchase_return');
       expect(keys).not.toContain('booking_dp');
@@ -45,6 +45,12 @@ describe('deny by default', () => {
     }
     expect(DEFAULT_ROLE_PERMISSIONS.KASIR.sales_return).toBe(true);
     expect(DEFAULT_ROLE_PERMISSIONS.GUDANG.purchase_return).toBe(true);
+  });
+
+  it('daily reports screen: kasir sees own recap by default, gudang does not', () => {
+    expect(isScreenPermittedForRole('daily_reports', 'KASIR', DEFAULT_ROLE_PERMISSIONS)).toBe(true);
+    expect(isScreenPermittedForRole('daily_reports', 'GUDANG', DEFAULT_ROLE_PERMISSIONS)).toBe(false);
+    expect(isScreenPermittedForRole('daily_reports', 'OWNER', DEFAULT_ROLE_PERMISSIONS)).toBe(true);
   });
 
   it('ledger screen opens for fixed asset or bank reconciliation access alone', () => {

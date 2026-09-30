@@ -34,6 +34,7 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     cash_movement: false,
     sales_return: true,
     purchase_return: false,
+    daily_reports: true,
   },
   GUDANG: {
     dashboard: false,
@@ -56,6 +57,7 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     cash_movement: false,
     sales_return: false,
     purchase_return: true,
+    daily_reports: false,
   },
 };
 

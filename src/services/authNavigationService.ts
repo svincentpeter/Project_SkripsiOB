@@ -39,6 +39,8 @@ export function isScreenPermittedForRole(
       return !!roleConfig.financial_reports;
     case 'settings':
       return !!roleConfig.role_settings;
+    case 'daily_reports':
+      return !!roleConfig.daily_reports;
     default:
       return true;
   }

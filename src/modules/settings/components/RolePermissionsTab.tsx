@@ -70,6 +70,13 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     icon: <Ban className="w-4 h-4 text-rose-600" />,
   },
   {
+    key: 'daily_reports',
+    label: 'Laporan Harian Kas & Rekap Kasir',
+    category: 'KASIR_POS',
+    description: 'Laporan kas harian, rekap per kasir dan sesi kasir. Tanpa izin Laporan Keuangan, pengguna hanya melihat nota & sesi miliknya sendiri.',
+    icon: <CalendarCheck className="w-4 h-4 text-blue-600" />,
+  },
+  {
     key: 'sales_return',
     label: 'Retur Penjualan (Refund Tunai)',
     category: 'KASIR_POS',

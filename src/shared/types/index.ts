@@ -326,7 +326,8 @@ export type ActiveScreen =
   | 'expenses'
   | 'ledger'
   | 'financials'
-  | 'settings';
+  | 'settings'
+  | 'daily_reports';
 
 export interface StoreSettings {
   store_name: string;
@@ -537,7 +538,8 @@ export type PermissionKey =
   | 'cash_session_approve'
   | 'cash_movement'
   | 'sales_return'
-  | 'purchase_return';
+  | 'purchase_return'
+  | 'daily_reports';
 
 export interface UserSession {
   id: string | number;
@@ -654,5 +656,120 @@ export interface ManualJournalPayload {
   date: string;
   description: string;
   items: { account_code: string; debit: number; credit: number; note?: string }[];
+}
+
+// ==============================================================================
+// Laporan operasional harian (sub-proyek 5): rekap harian, kas harian, dashboard
+// ==============================================================================
+export type PaymentGroup = 'TUNAI' | 'TRANSFER' | 'QRIS';
+
+/** Satu hari rekap. Uang dari jurnal server (sama dengan Laba Rugi); jumlah nota & bauran bayar dari nota non-VOID. */
+export interface DailyRecapRow {
+  date: string;
+  sales_count: number;
+  product_qty: number;
+  revenue: number;
+  goods_revenue: number;
+  service_revenue: number;
+  contra_revenue: number;
+  returns: number;
+  net_revenue: number;
+  cost_of_sales: number;
+  gross_profit: number;
+  operating_expenses: number;
+  net_income: number;
+  payment_mix: Record<PaymentGroup, number>;
+  cash_in: number;
+  cash_out: number;
+  net_cash: number;
+}
+
+export type DailyRecapTotals = Omit<DailyRecapRow, 'date'>;
+
+export interface DailyRecap {
+  from: string;
+  to: string;
+  rows: DailyRecapRow[];
+  totals: DailyRecapTotals;
+}
+
+export interface DailyCashAccount {
+  code: string;
+  name: string;
+  opening: number;
+  cash_in: number;
+  cash_out: number;
+  closing: number;
+}
+
+export interface DailyCashMovement {
+  reference_type: string;
+  cash_in: number;
+  cash_out: number;
+}
+
+export interface DailyCashSale {
+  id: number;
+  reference: string;
+  time: string | null;
+  cashier_name: string;
+  customer_name: string | null;
+  vehicle_plate: string | null;
+  total_amount: number;
+  total_hpp: number;
+  status: string;
+  payments: { method: string; amount: number; fee_amount: number; net_received: number }[];
+}
+
+export interface DailyCashierRecap {
+  cashier_name: string;
+  sales_count: number;
+  sales_total: number;
+  void_count: number;
+  void_total: number;
+  by_method: Record<PaymentGroup, number>;
+}
+
+export interface DailyCashExpense {
+  reference: string;
+  category: string | null;
+  description: string;
+  amount: number;
+  payment_method: string;
+}
+
+/** Sesi kasir (sub-proyek 2) apa adanya dari server. */
+export interface DailyCashSession {
+  id: number;
+  user_name: string | null;
+  opened_at: string | null;
+  closed_at: string | null;
+  opening_float: number;
+  expected_cash: number | null;
+  counted_cash: number | null;
+  variance: number | null;
+  variance_reason: string | null;
+  status: string;
+}
+
+/** Laporan kas harian; bagian buku besar bernilai null untuk lingkup kasir sendiri. */
+export interface DailyCashReport {
+  date: string;
+  scope: 'all' | 'cashier';
+  cashier: string | null;
+  summary: DailyRecapRow | null;
+  cash_accounts: DailyCashAccount[] | null;
+  cash_movements: DailyCashMovement[] | null;
+  sales: DailyCashSale[];
+  cashiers: DailyCashierRecap[];
+  expenses: DailyCashExpense[] | null;
+  cash_sessions: DailyCashSession[];
+}
+
+/** Angka dashboard dari rekap server: hari ini, 7 hari terakhir, dan jumlah bulan berjalan. */
+export interface DashboardSummary {
+  today: DailyRecapRow;
+  week: DailyRecapRow[];
+  month: DailyRecapTotals;
 }
 

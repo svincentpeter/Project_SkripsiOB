@@ -5,6 +5,7 @@ export * from './posApi';
 export * from './inventoryApi';
 export * from './expenseApi';
 export * from './accountingApi';
+export * from './reportsApi';
 export * from './sakEmkmApi';
 export * from './paymentApi';
 export * from './cashApi';
