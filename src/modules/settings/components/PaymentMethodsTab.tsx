@@ -9,7 +9,7 @@ import {
   Info, 
   AlertCircle
 } from 'lucide-react';
-import { EdcSetting, PaymentProviderSetting, StoreSettings } from '../../../shared/types';
+import { PaymentProviderSetting, StoreSettings } from '../../../shared/types';
 import { useToast } from '../../../shared/components';
 
 interface PaymentMethodsTabProps {
@@ -22,7 +22,7 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
   onUpdateSettings,
 }) => {
   const toast = useToast();
-  const [activeSubTab, setActiveSubTab] = useState<'bank' | 'qris' | 'edc' | 'account'>('bank');
+  const [activeSubTab, setActiveSubTab] = useState<'bank' | 'qris' | 'account'>('bank');
 
   // Local state for adding Bank
   const [newBankName, setNewBankName] = useState('');
@@ -36,14 +36,8 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
   const [newQrisThreshold, setNewQrisThreshold] = useState<number>(500000);
   const [newQrisActive, setNewQrisActive] = useState(true);
 
-  // Local state for adding new EDC Bank
-  const [newEdcBankName, setNewEdcBankName] = useState('');
-  const [newEdcDebitFee, setNewEdcDebitFee] = useState<number>(0.15);
-  const [newEdcCreditFee, setNewEdcCreditFee] = useState<number>(2.00);
-
   const bankProviders = settings.bank_providers || [];
   const qrisProviders = settings.qris_providers || [];
-  const edcSettings = settings.edc_settings || [];
 
   // ==================== BANK HANDLERS ====================
   const handleAddBank = (e: React.FormEvent) => {
@@ -177,76 +171,6 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
     toast.info('Provider QRIS Dihapus', `Provider ${name} telah dihapus.`);
   };
 
-  // ==================== EDC HANDLERS ====================
-  const handleUpdateEdcField = (
-    id: string | number,
-    field: 'fee_percentage' | 'is_active',
-    val: any
-  ) => {
-    onUpdateSettings((prev) => ({
-      ...prev,
-      edc_settings: (prev.edc_settings || []).map((e) =>
-        e.id === id ? { ...e, [field]: val } : e
-      ),
-    }));
-  };
-
-  const handleAddNewEdcBank = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEdcBankName.trim()) {
-      toast.warning('Nama Bank EDC Wajib', 'Masukkan nama bank untuk mesin EDC.');
-      return;
-    }
-
-    const bName = newEdcBankName.trim();
-    const existing = edcSettings.some(
-      (e) => e.bank_name.toLowerCase() === bName.toLowerCase()
-    );
-    if (existing) {
-      toast.warning('Bank Sudah Ada', `Pengaturan EDC untuk bank "${bName}" sudah ada.`);
-      return;
-    }
-
-    const newDebit: EdcSetting = {
-      id: `edc-${Date.now()}-debit`,
-      bank_name: bName,
-      payment_type: 'Debit',
-      fee_percentage: Number(newEdcDebitFee) || 0,
-      charge_to_customer: false,
-      is_active: true,
-      notes: 'Fee dipotong dari profit toko',
-    };
-
-    const newCredit: EdcSetting = {
-      id: `edc-${Date.now()}-credit`,
-      bank_name: bName,
-      payment_type: 'Credit',
-      fee_percentage: Number(newEdcCreditFee) || 0,
-      charge_to_customer: true,
-      is_active: true,
-      notes: 'Fee dibebankan ke customer sebagai surcharge',
-    };
-
-    onUpdateSettings((prev) => ({
-      ...prev,
-      edc_settings: [...(prev.edc_settings || []), newDebit, newCredit],
-    }));
-
-    setNewEdcBankName('');
-    setNewEdcDebitFee(0.15);
-    setNewEdcCreditFee(2.00);
-    toast.success('Mesin EDC Ditambahkan', `Pengaturan EDC untuk ${bName} (Debit & Kredit) berhasil ditambahkan.`);
-  };
-
-  const handleDeleteEdcBank = (bankName: string) => {
-    if (!window.confirm(`Hapus seluruh konfigurasi EDC untuk bank "${bankName}"?`)) return;
-    onUpdateSettings((prev) => ({
-      ...prev,
-      edc_settings: (prev.edc_settings || []).filter((e) => e.bank_name !== bankName),
-    }));
-    toast.info('EDC Dihapus', `Konfigurasi EDC bank ${bankName} telah dihapus.`);
-  };
-
   return (
     <div className="space-y-6">
       {/* Sub-Tabs Navigasi */}
@@ -288,26 +212,6 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
             }`}
           >
             {qrisProviders.length}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('edc')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-            activeSubTab === 'edc'
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-          }`}
-        >
-          <CreditCard className="w-4 h-4" />
-          <span>Pengaturan Fee EDC</span>
-          <span
-            className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${
-              activeSubTab === 'edc' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            {edcSettings.length}
           </span>
         </button>
 
@@ -672,196 +576,6 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
                             onClick={() => handleDeleteQris(q.id, q.provider_name)}
                             className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Hapus provider"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* SUBTAB 3: PENGATURAN FEE MESIN EDC                                        */}
-      {/* ========================================================================= */}
-      {activeSubTab === 'edc' && (
-        <div className="space-y-5">
-          {/* Banner Informasi Debit vs Credit */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex items-start gap-3 shadow-2xs">
-              <div className="p-2 bg-blue-100 rounded-xl text-blue-700 shrink-0">
-                <Info className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-black text-blue-900 text-xs sm:text-sm">Tipe Kartu Debit (Beban Toko)</h4>
-                <p className="text-blue-800 text-xs mt-0.5 leading-relaxed">
-                  Fee dipotong dari profit/penerimaan toko. Customer membayar harga normal barang/jasa tanpa biaya tambahan.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 shadow-2xs">
-              <div className="p-2 bg-amber-100 rounded-xl text-amber-700 shrink-0">
-                <AlertCircle className="w-5 h-5" />
-              </div>
-              <div>
-                <h4 className="font-black text-amber-950 text-xs sm:text-sm">Tipe Kartu Kredit (Surcharge Pelanggan)</h4>
-                <p className="text-amber-800 text-xs mt-0.5 leading-relaxed">
-                  Fee ditambahkan ke total tagihan customer sebagai <b>Surcharge</b>. Customer menanggung biaya gesek kartu kredit.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Form Tambah Bank EDC Baru */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
-              Tambah Mesin / Bank EDC Baru
-            </h4>
-            <form onSubmit={handleAddNewEdcBank} className="flex flex-wrap items-end gap-3">
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-[11px] font-bold text-slate-600 mb-1">Nama Bank EDC</label>
-                <input
-                  type="text"
-                  value={newEdcBankName}
-                  onChange={(e) => setNewEdcBankName(e.target.value)}
-                  placeholder="Contoh: CIMB Niaga, Danamon, BTN"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
-                  required
-                />
-              </div>
-
-              <div className="w-32">
-                <label className="block text-[11px] font-bold text-blue-700 mb-1">Fee Debit (%)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="99.99"
-                  value={newEdcDebitFee}
-                  onChange={(e) => setNewEdcDebitFee(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
-                />
-              </div>
-
-              <div className="w-32">
-                <label className="block text-[11px] font-bold text-amber-700 mb-1">Fee Kredit (%)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="99.99"
-                  value={newEdcCreditFee}
-                  onChange={(e) => setNewEdcCreditFee(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="py-2 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Tambah Bank EDC</span>
-              </button>
-            </form>
-          </div>
-
-          {/* Tabel Master Pengaturan Fee EDC */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Tabel Konfigurasi Fee Mesin EDC</h3>
-                <p className="text-xs text-slate-500">
-                  Sesuaikan persentase fee debit &amp; surcharge kredit per mesin bank EDC.
-                </p>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-100/70 text-slate-600 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left">Bank EDC</th>
-                    <th className="px-4 py-3 text-left">Tipe Kartu</th>
-                    <th className="px-4 py-3 text-left">Beban Biaya</th>
-                    <th className="px-4 py-3 text-left">Fee Persentase (%)</th>
-                    <th className="px-4 py-3 text-center">Status</th>
-                    <th className="px-4 py-3 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {edcSettings.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 italic">
-                        Belum ada konfigurasi mesin EDC.
-                      </td>
-                    </tr>
-                  ) : (
-                    edcSettings.map((e) => (
-                      <tr
-                        key={e.id}
-                        className={e.payment_type === 'Credit' ? 'bg-amber-50/30' : 'hover:bg-slate-50/80 transition-colors'}
-                      >
-                        <td className="px-4 py-3 font-bold text-slate-900">
-                          {e.bank_name}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black ${
-                              e.payment_type === 'Credit'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {e.payment_type === 'Credit' ? 'Credit / Kredit' : 'Debit'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-[11px] text-slate-600">
-                          {e.payment_type === 'Credit' ? (
-                            <span className="text-amber-700 font-semibold">+ Ditanggung Customer</span>
-                          ) : (
-                            <span className="text-blue-700 font-semibold">- Dipotong Toko</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="relative w-28">
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max="99.99"
-                              value={e.fee_percentage}
-                              onChange={(ev) => handleUpdateEdcField(e.id, 'fee_percentage', parseFloat(ev.target.value) || 0)}
-                              className="bg-white border border-slate-200 focus:border-blue-600 rounded-xl pl-3 pr-7 py-1 text-xs font-mono font-bold text-slate-900 w-full"
-                            />
-                            <span className="absolute right-2.5 top-1 text-xs text-slate-400 font-bold">%</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={e.is_active}
-                              onChange={(ev) => handleUpdateEdcField(e.id, 'is_active', ev.target.checked)}
-                              className="w-4 h-4 rounded-sm text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-[11px] font-semibold text-slate-700">
-                              {e.is_active ? 'Aktif' : 'Nonaktif'}
-                            </span>
-                          </label>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteEdcBank(e.bank_name)}
-                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                            title={`Hapus bank ${e.bank_name}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

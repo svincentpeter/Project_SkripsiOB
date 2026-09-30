@@ -5,7 +5,6 @@ import type {
   LedgerAccountSummary,
   PayableInvoice,
   PeriodClosingRecord,
-  ReceivableInvoice,
   StatementSection,
   TrialBalanceResult,
 } from '../types';
@@ -87,23 +86,6 @@ const mapTrialBalance = (tb: TrialBalanceResult, ctx: ExportCtx): ExportDoc =>
     ],
     rows: tb.rows.map((r) => ({ kode: r.account_code, nama: r.account_name, klas: r.account_type, debit: r.debit_balance, kredit: r.credit_balance })),
     totals: { debit: tb.total_debit, kredit: tb.total_credit },
-  }]);
-
-const mapReceivable = (invoices: ReceivableInvoice[], ctx: ExportCtx): ExportDoc =>
-  makeDoc('accounts_receivable', 'Buku Pembantu Piutang', 'landscape', ctx, [{
-    columns: [
-      { key: 'faktur', label: 'No. Faktur', type: 'text', width: 18 },
-      { key: 'tgl', label: 'Tanggal', type: 'date', width: 12 },
-      { key: 'jt', label: 'Jatuh Tempo', type: 'date', width: 12 },
-      { key: 'cust', label: 'Nama Pelanggan', type: 'text', width: 26 },
-      { key: 'plat', label: 'No. Polisi', type: 'text', width: 12 },
-      { key: 'total', label: 'Total Faktur', type: 'currency' },
-      { key: 'bayar', label: 'Terbayar', type: 'currency' },
-      { key: 'sisa', label: 'Sisa Piutang', type: 'currency' },
-      { key: 'status', label: 'Status', type: 'text', width: 14 },
-    ],
-    rows: invoices.map((i) => ({ faktur: i.invoice_number, tgl: i.date, jt: i.due_date, cust: i.customer_name, plat: i.vehicle_plate || '-', total: i.total_amount, bayar: i.paid_amount, sisa: i.remaining_amount, status: i.status })),
-    totals: { total: sum(invoices, (i) => i.total_amount), bayar: sum(invoices, (i) => i.paid_amount), sisa: sum(invoices, (i) => i.remaining_amount) },
   }]);
 
 const mapPayable = (invoices: PayableInvoice[], ctx: ExportCtx): ExportDoc =>
@@ -521,7 +503,6 @@ export const REPORT_MAPPERS = {
   journal: mapJournal,
   general_ledger: mapGeneralLedger,
   trial_balance: mapTrialBalance,
-  accounts_receivable: mapReceivable,
   accounts_payable: mapPayable,
   expenses: mapExpenses,
   inventory_products: mapProducts,
@@ -557,7 +538,6 @@ export const REPORT_FORMATS: Record<ReportId, ExportFormat[]> = {
   journal: ['xlsx', 'pdf', 'csv'],
   general_ledger: ['xlsx', 'pdf', 'csv'],
   trial_balance: ['xlsx', 'pdf', 'docx', 'csv'],
-  accounts_receivable: ['xlsx', 'pdf', 'csv'],
   accounts_payable: ['xlsx', 'pdf', 'csv'],
   fin_income_statement: ['xlsx', 'pdf', 'docx', 'csv'],
   fin_equity_statement: ['xlsx', 'pdf', 'docx', 'csv'],

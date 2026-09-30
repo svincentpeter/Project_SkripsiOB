@@ -67,20 +67,6 @@ const PERMISSION_DEFINITIONS: PermissionDefinition[] = [
     description: 'Membatalkan nota: jurnal pembalik dibukukan dan stok dikembalikan ke batch FIFO asal. Titik kontrol internal — sebaiknya hanya Owner.',
     icon: <Ban className="w-4 h-4 text-rose-600" />,
   },
-  {
-    key: 'booking_dp',
-    label: 'Booking Inden & Penerimaan DP',
-    category: 'KASIR_POS',
-    description: 'Mencatat pemesanan ban/velg inden dan penerimaan uang muka konsumen.',
-    icon: <CalendarCheck className="w-4 h-4 text-blue-600" />,
-  },
-  {
-    key: 'bon_receivable',
-    label: 'Buku Pembantu Piutang / BON Konsumen',
-    category: 'KASIR_POS',
-    description: 'Mencatat tagihan tempo konsumen walk-in dan memproses pelunasan BON.',
-    icon: <CreditCard className="w-4 h-4 text-blue-600" />,
-  },
 
   // 2. INVENTORI & GUDANG
   {

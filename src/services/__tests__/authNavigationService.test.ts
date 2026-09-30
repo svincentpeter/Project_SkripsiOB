@@ -24,10 +24,19 @@ describe('deny by default', () => {
 
   it('hasPermission: owner gets all, other roles follow config, no user gets none', () => {
     expect(hasPermission(makeUser('OWNER'), DEFAULT_ROLE_PERMISSIONS, 'accounting_hub')).toBe(true);
-    expect(hasPermission(makeUser('KASIR'), DEFAULT_ROLE_PERMISSIONS, 'booking_dp')).toBe(true);
+    expect(hasPermission(makeUser('KASIR'), DEFAULT_ROLE_PERMISSIONS, 'receipt')).toBe(true);
     expect(hasPermission(makeUser('KASIR'), DEFAULT_ROLE_PERMISSIONS, 'goods_receipt')).toBe(false);
     expect(hasPermission(makeUser('GUDANG'), DEFAULT_ROLE_PERMISSIONS, 'stock_opname')).toBe(true);
     expect(hasPermission(null, DEFAULT_ROLE_PERMISSIONS, 'pos')).toBe(false);
+  });
+
+  it('default role permissions list exactly the 13 server keys (no booking DP or BON)', () => {
+    for (const role of ['KASIR', 'GUDANG'] as const) {
+      const keys = Object.keys(DEFAULT_ROLE_PERMISSIONS[role]);
+      expect(keys).toHaveLength(13);
+      expect(keys).not.toContain('booking_dp');
+      expect(keys).not.toContain('bon_receivable');
+    }
   });
 
   it('default screen follows the configured permissions, not the role name', () => {

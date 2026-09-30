@@ -9,7 +9,6 @@ import {
   StockMutation,
   JournalEntry,
   PayableInvoice,
-  ReceivableInvoice,
   StoreSettings,
 } from '../shared/types';
 
@@ -364,7 +363,7 @@ export const insertJournalToSupabase = async (journal: JournalEntry): Promise<bo
 };
 
 // ============================================================================
-// 9. PAYABLES, RECEIVABLES
+// 9. PAYABLES
 // ============================================================================
 export const fetchPayablesFromSupabase = async (): Promise<PayableInvoice[] | null> => {
   if (!isSupabaseConfigured() || !supabase) return null;
@@ -381,27 +380,6 @@ export const upsertPayableToSupabase = async (payable: PayableInvoice): Promise<
   if (!isSupabaseConfigured() || !supabase) return false;
   try {
     const { error } = await supabase.from('payable_invoices').upsert(payable);
-    return !error;
-  } catch {
-    return false;
-  }
-};
-
-export const fetchReceivablesFromSupabase = async (): Promise<ReceivableInvoice[] | null> => {
-  if (!isSupabaseConfigured() || !supabase) return null;
-  try {
-    const { data, error } = await supabase.from('receivable_invoices').select('*').order('date', { ascending: false });
-    if (error) return null;
-    return data as ReceivableInvoice[];
-  } catch {
-    return null;
-  }
-};
-
-export const upsertReceivableToSupabase = async (receivable: ReceivableInvoice): Promise<boolean> => {
-  if (!isSupabaseConfigured() || !supabase) return false;
-  try {
-    const { error } = await supabase.from('receivable_invoices').upsert(receivable);
     return !error;
   } catch {
     return false;

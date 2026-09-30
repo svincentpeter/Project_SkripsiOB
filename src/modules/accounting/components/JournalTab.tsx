@@ -17,11 +17,10 @@ interface JournalTabProps {
 
 const TYPE_GROUPS: { id: string; label: string; types: string[] }[] = [
   { id: 'ALL', label: 'Semua', types: [] },
-  { id: 'SALE', label: 'Penjualan & DP', types: ['POS_SALE', 'POS_SALE_VOID', 'BOOKING_DP', 'BOOKING_DP_REFUND'] },
+  { id: 'SALE', label: 'Penjualan', types: ['POS_SALE', 'POS_SALE_VOID'] },
   { id: 'PURCHASE', label: 'Pembelian', types: ['PURCHASE'] },
   { id: 'EXPENSE', label: 'Biaya', types: ['EXPENSE', 'VOID_EXPENSE'] },
   { id: 'DEBT', label: 'Bayar Hutang', types: ['DEBT_PAYMENT'] },
-  { id: 'RECEIVABLE', label: 'Piutang', types: ['RECEIVABLE_PAYMENT'] },
   { id: 'INVENTORY', label: 'Persediaan', types: ['STOCK_OPNAME', 'STOCK_IMPORT', 'STOCK_RECONCILIATION', 'STOCK_COST_CORRECTION', 'OPENING_BALANCE'] },
   { id: 'ADJUSTMENT', label: 'Penyesuaian', types: ['MANUAL_ADJUSTMENT', 'MANUAL_REVERSAL', 'ACCOUNT_OPENING'] },
   { id: 'CLOSING', label: 'Tutup Buku', types: ['PERIOD_CLOSING', 'PERIOD_REOPEN'] },

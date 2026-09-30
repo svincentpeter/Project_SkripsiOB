@@ -5,7 +5,6 @@ describe('Financials, Receipt & Settings SAK EMKM Audit', () => {
   it('should have complete SAK EMKM COA mapping and initial balances in INITIAL_STORE_SETTINGS', () => {
     expect(INITIAL_STORE_SETTINGS.coa_cash_account).toBe('1-1000');
     expect(INITIAL_STORE_SETTINGS.coa_bank_account).toBe('1-1001');
-    expect(INITIAL_STORE_SETTINGS.coa_receivable_account).toBe('1-1002');
     expect(INITIAL_STORE_SETTINGS.coa_inventory_account).toBe('1-2000');
     expect(INITIAL_STORE_SETTINGS.coa_payable_account).toBe('2-1000');
     expect(INITIAL_STORE_SETTINGS.coa_equity_account).toBe('3-1000');
@@ -15,6 +14,11 @@ describe('Financials, Receipt & Settings SAK EMKM Audit', () => {
     expect(INITIAL_STORE_SETTINGS.initial_bank_balance).toBeGreaterThan(0);
     expect(INITIAL_STORE_SETTINGS.active_fiscal_month).toBe('September');
     expect(INITIAL_STORE_SETTINGS.active_fiscal_year).toBe(2026);
+  });
+
+  it('keeps no EDC settings or BON receivable account in the store settings', () => {
+    expect(Object.keys(INITIAL_STORE_SETTINGS)).not.toContain('edc_settings');
+    expect(Object.keys(INITIAL_STORE_SETTINGS)).not.toContain('coa_receivable_account');
   });
 
   it('should have non-empty INITIAL_TRANSACTIONS with valid invoice structure and zero banned terms', () => {

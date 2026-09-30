@@ -546,17 +546,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 </div>
 
                 <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Piutang Pelanggan (BON)</span>
-                  <input
-                    type="text"
-                    value={formData.coa_receivable_account || '1-1002'}
-                    onChange={(e) => handleChange('coa_receivable_account', e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-900"
-                  />
-                  <span className="text-[10px] text-slate-400 block">Akun piutang tempo langganan</span>
-                </div>
-
-                <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-xl space-y-1.5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Persediaan Ban Baru (FIFO)</span>
                   <input
                     type="text"

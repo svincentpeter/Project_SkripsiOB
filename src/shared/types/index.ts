@@ -144,16 +144,6 @@ export interface PaymentProviderSetting {
   is_active: boolean;
 }
 
-export interface EdcSetting {
-  id: string | number;
-  bank_name: string;
-  payment_type: 'Debit' | 'Credit';
-  fee_percentage: number;
-  charge_to_customer: boolean;
-  is_active: boolean;
-  notes?: string;
-}
-
 /** Setiap nota lunas saat checkout: Tunai, Transfer, QRIS, atau kombinasinya (SPLIT). */
 export type PaymentMethod = 'TUNAI' | 'TRANSFER' | 'TRANSFER_BCA' | 'QRIS' | 'SPLIT';
 
@@ -354,12 +344,10 @@ export interface StoreSettings {
 
   bank_providers?: PaymentProviderSetting[];
   qris_providers?: PaymentProviderSetting[];
-  edc_settings?: EdcSetting[];
 
   // SAK EMKM Accounting Preferences
   coa_cash_account?: string;
   coa_bank_account?: string;
-  coa_receivable_account?: string;
   coa_inventory_account?: string;
   coa_payable_account?: string;
   coa_equity_account?: string;
@@ -517,30 +505,6 @@ export interface TrialBalanceResult {
   difference: number;
 }
 
-export interface ReceivableInvoice {
-  id: string;
-  invoice_number: string;
-  customer_name: string;
-  customer_phone?: string;
-  vehicle_plate?: string;
-  date: string;
-  due_date: string;
-  total_amount: number;
-  paid_amount: number;
-  remaining_amount: number;
-  status: 'BELUM_LUNAS' | 'SEBAGIAN' | 'LUNAS';
-  notes?: string;
-}
-
-export interface ReceivablePaymentInput {
-  receivable_invoice_id: string;
-  payment_date: string;
-  amount: number;
-  destination_account_code: '1-1000' | '1-1001';
-  notes?: string;
-  operator?: string;
-}
-
 export type UserRole = 'OWNER' | 'KASIR' | 'GUDANG';
 
 export type PermissionKey = 
@@ -548,8 +512,6 @@ export type PermissionKey =
   | 'pos'
   | 'receipt'
   | 'sale_void'
-  | 'booking_dp'
-  | 'bon_receivable'
   | 'inventory_view'
   | 'inventory_manage'
   | 'goods_receipt'

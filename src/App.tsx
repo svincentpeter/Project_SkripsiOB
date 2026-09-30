@@ -16,8 +16,6 @@ import {
   ProductCategory,
   ProductItem, 
   ParkedTransaction,
-  ReceivableInvoice,
-  ReceivablePaymentInput,
   RolePermissionsConfig,
   ServiceCategoryItem,
   ServiceMasterItem, 
@@ -84,7 +82,6 @@ import {
   authApi,
   authToken,
   setUnauthorizedHandler,
-  mapReceivable,
   mapSaleToTransaction,
   inventoryApi,
   mapMovement,
@@ -206,7 +203,10 @@ function MainAppContent() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(() => {
     try {
       const saved = localStorage.getItem('ob3_store_settings');
-      return saved ? JSON.parse(saved) : INITIAL_STORE_SETTINGS;
+      if (!saved) return INITIAL_STORE_SETTINGS;
+      // Properti lama dari fitur yang sudah dihapus (spec 2026-09-30) dibuang dari pengaturan tersimpan.
+      const { edc_settings: _edc, coa_receivable_account: _receivable, ...settings } = JSON.parse(saved);
+      return settings;
     } catch {
       return INITIAL_STORE_SETTINGS;
     }
@@ -258,7 +258,6 @@ function MainAppContent() {
     }
   });
   const [payableInvoices, setPayableInvoices] = useState<PayableInvoice[]>([]);
-  const [receivableInvoices, setReceivableInvoices] = useState<ReceivableInvoice[]>([]);
 
   // Active Cart in POS
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -346,35 +345,17 @@ function MainAppContent() {
         });
       });
 
-    // 4. Piutang Pelanggan (Faktur BON)
-    receivableInvoices
-      .filter((r) => r.status !== 'LUNAS')
-      .slice(0, 3)
-      .forEach((r) => {
-        const id = `notif-rec-${r.id}`;
-        if (dismissedNotifIds.includes(id)) return;
-        list.push({
-          id,
-          type: 'BON_OVERDUE',
-          title: `Piutang BON: ${r.customer_name}`,
-          description: `Faktur BON ${r.invoice_number} sisa tagihan ${formatRupiah(r.remaining_amount)} belum lunas.`,
-          timestamp: r.due_date || 'Tempo',
-          isRead: readNotifIds.includes(id),
-        });
-      });
-
     return list;
-  }, [products, payableInvoices, receivableInvoices, readNotifIds, dismissedNotifIds]);
+  }, [products, payableInvoices, readNotifIds, dismissedNotifIds]);
 
-  // Data POS (katalog, nota, piutang) selalu dari server Laravel sesuai izin peran.
+  // Data POS (katalog & nota) selalu dari server Laravel sesuai izin peran.
   const loadPosData = async (user: UserSession, permissions: RolePermissionsConfig) => {
     const allowed = (...keys: PermissionKey[]) => keys.some((k) => hasPermission(user, permissions, k));
     const catalog = allowed('pos', 'inventory_view');
-    const [apiProducts, apiServices, apiSales, apiReceivables, apiProductCats, apiServiceCats, apiSuppliers] = await Promise.all([
+    const [apiProducts, apiServices, apiSales, apiProductCats, apiServiceCats, apiSuppliers] = await Promise.all([
       catalog ? productApi.list().catch(() => null) : null,
       catalog ? posApi.listServices().catch(() => null) : null,
       allowed('pos', 'receipt') ? posApi.listTransactions().catch(() => null) : null,
-      allowed('bon_receivable', 'accounting_hub') ? posApi.listReceivables('all').catch(() => null) : null,
       catalog ? inventoryApi.listProductCategories().catch(() => null) : null,
       catalog ? inventoryApi.listServiceCategories().catch(() => null) : null,
       catalog ? inventoryApi.listSuppliers().catch(() => null) : null,
@@ -399,7 +380,6 @@ function MainAppContent() {
       setTransactions(txs);
       setCurrentReceiptTx((prev) => prev ?? txs[0] ?? null);
     }
-    if (apiReceivables) setReceivableInvoices(apiReceivables.map(mapReceivable));
   };
 
   const refreshPayables = () => {
@@ -413,11 +393,6 @@ function MainAppContent() {
   const refreshStockLedger = () => {
     inventoryApi.listMovements().then((rows) => setMutations(rows.map(mapMovement))).catch(() => {});
     inventoryApi.valuation().then(setInventoryValuation).catch(() => {});
-  };
-
-  const refreshReceivables = () => {
-    if (!can('bon_receivable') && !can('accounting_hub')) return;
-    posApi.listReceivables('all').then((rows) => setReceivableInvoices(rows.map(mapReceivable))).catch(() => {});
   };
 
   /** Saldo buku kas laci & bank hari ini (server). */
@@ -683,35 +658,6 @@ function MainAppContent() {
     } catch (err) {
       toast.error('Jurnal Ditolak Server', errorMessage(err));
       return false;
-    }
-  };
-
-  // Pelunasan piutang BON di server (Dr Kas/Bank, Cr Piutang Dagang)
-  const handlePayReceivable = async (paymentInput: ReceivablePaymentInput) => {
-    try {
-      const res = await posApi.payReceivable(paymentInput.receivable_invoice_id, {
-        amount: paymentInput.amount,
-        account_code: paymentInput.destination_account_code,
-        payment_date: paymentInput.payment_date,
-        notes: paymentInput.notes,
-      });
-      const updated = mapReceivable(res.receivable);
-
-      setReceivableInvoices((prev) => prev.map((inv) => (inv.id === updated.id ? updated : inv)));
-      if (res.journal) notifyLedgerChanged([res.journal]);
-      if (paymentInput.destination_account_code === '1-1000') {
-        setCashInDrawer((prev) => prev + paymentInput.amount);
-      }
-      if (updated.status === 'LUNAS') {
-        setTransactions((prev) => prev.map((t) => (t.id === updated.id ? { ...t, status: 'LUNAS' } : t)));
-      }
-
-      toast.success(
-        'Pembayaran Piutang Diterima',
-        `${formatRupiah(paymentInput.amount)} dari ${updated.customer_name} telah masuk ke pembukuan.`
-      );
-    } catch (err) {
-      toast.error('Pelunasan Piutang Gagal', err instanceof Error ? err.message : 'Terjadi kesalahan pada server.');
     }
   };
 
@@ -1088,7 +1034,6 @@ function MainAppContent() {
                 ledgerVersion={ledgerVersion}
                 accounts={accounts}
                 payableInvoices={payableInvoices}
-                receivableInvoices={receivableInvoices}
                 cashInDrawer={cashInDrawer}
                 canReopenPeriod={currentUser?.role === 'OWNER'}
                 canUseHub={can('accounting_hub')}
@@ -1098,7 +1043,6 @@ function MainAppContent() {
                 onReopenPeriod={handleReopenPeriod}
                 onPostOpeningBalance={handlePostAccountOpening}
                 onPayDebt={handlePayDebt}
-                onPayReceivable={handlePayReceivable}
                 onNavigateToFinancials={can('financial_reports') ? () => setActiveScreen('financials') : undefined}
               />
             )}

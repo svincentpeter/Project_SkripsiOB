@@ -4,7 +4,6 @@ export * from './GeneralLedgerTab';
 export * from './TrialBalanceTab';
 export * from './PayDebtModal';
 export * from './AccountsPayableTab';
-export * from './AccountsReceivableTab';
 export * from './PeriodClosingModal';
 export * from './OpeningBalanceModal';
 export * from './LedgerPrintModal';

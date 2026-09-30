@@ -9,8 +9,6 @@ import {
   ManualJournalPayload,
   OpeningBalanceInput,
   PayableInvoice,
-  ReceivableInvoice,
-  ReceivablePaymentInput,
 } from '../../shared/types';
 import { accountingApi } from '../../services/api';
 import { previousMonth } from '../../services/accountingPeriod';
@@ -19,7 +17,6 @@ import { ExportMenu } from '../../shared/export/ExportMenu';
 import { useServerData } from './hooks/useServerData';
 import {
   AccountsPayableTab,
-  AccountsReceivableTab,
   GeneralLedgerTab,
   JournalTab,
   ManualJournalModal,
@@ -29,13 +26,12 @@ import {
   TrialBalanceTab,
 } from './components';
 
-export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'payables' | 'receivables' | 'reports';
+export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'payables' | 'reports';
 
 interface GeneralLedgerScreenProps {
   ledgerVersion: number;
   accounts: ChartOfAccount[];
   payableInvoices: PayableInvoice[];
-  receivableInvoices: ReceivableInvoice[];
   cashInDrawer: number;
   canReopenPeriod: boolean;
   /** Akses `accounting_hub`. Tanpa itu (mis. hanya `accounts_payable`) hanya buku pembantu yang tampil. */
@@ -46,7 +42,6 @@ interface GeneralLedgerScreenProps {
   onReopenPeriod: (period: string, reason: string) => Promise<boolean>;
   onPostOpeningBalance: (input: OpeningBalanceInput) => Promise<boolean>;
   onPayDebt: (input: DebtPaymentInput) => void;
-  onPayReceivable: (input: ReceivablePaymentInput) => void;
   onNavigateToFinancials?: () => void;
   initialTab?: AccountingTabKey;
 }
@@ -56,18 +51,16 @@ const TABS: { id: AccountingTabKey; label: string; icon: React.ComponentType<{ c
   { id: 'ledger', label: '2. Buku Besar', icon: BookMarked },
   { id: 'trial-balance', label: '3. Neraca Saldo', icon: Scale },
   { id: 'payables', label: '4. Pembantu Hutang', icon: CreditCard },
-  { id: 'receivables', label: '5. Pembantu Piutang', icon: Users },
-  { id: 'reports', label: '6. Laporan Keuangan', icon: FileText },
+  { id: 'reports', label: '5. Laporan Keuangan', icon: FileText },
 ];
 
 /** Tab yang tidak memanggil endpoint khusus accounting_hub. */
-const SUBLEDGER_TABS: AccountingTabKey[] = ['payables', 'receivables'];
+const SUBLEDGER_TABS: AccountingTabKey[] = ['payables'];
 
 export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   ledgerVersion,
   accounts,
   payableInvoices,
-  receivableInvoices,
   cashInDrawer,
   canReopenPeriod,
   canUseHub,
@@ -77,7 +70,6 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   onReopenPeriod,
   onPostOpeningBalance,
   onPayDebt,
-  onPayReceivable,
   onNavigateToFinancials,
   initialTab = 'journals',
 }) => {
@@ -98,7 +90,6 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   const latestClosing = periods.data?.closings.find((c) => !c.reopened_at) ?? null;
   const badges: Partial<Record<AccountingTabKey, number>> = {
     payables: payableInvoices.filter((i) => i.status !== 'LUNAS').length,
-    receivables: receivableInvoices.filter((i) => i.status !== 'LUNAS').length,
   };
 
   const handleReopen = async () => {
@@ -190,7 +181,6 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
         {activeTab === 'ledger' && <GeneralLedgerTab accounts={accounts} refreshKey={ledgerVersion} />}
         {activeTab === 'trial-balance' && <TrialBalanceTab refreshKey={ledgerVersion} onNavigateToReports={() => setSelectedTab('reports')} />}
         {activeTab === 'payables' && <AccountsPayableTab invoices={payableInvoices} cashInDrawer={cashInDrawer} onPayDebt={onPayDebt} />}
-        {activeTab === 'receivables' && <AccountsReceivableTab invoices={receivableInvoices} onPayReceivable={onPayReceivable} />}
         {activeTab === 'reports' && <SakEmkmReportTab refreshKey={ledgerVersion} />}
       </div>
 

@@ -4,7 +4,6 @@ import {
   PaymentMethod,
   PosTransaction,
   ProductItem,
-  ReceivableInvoice,
   ServiceMasterItem,
   SplitPaymentLine,
 } from '../../shared/types';
@@ -88,21 +87,6 @@ export interface ApiSale {
   items: ApiSaleItem[];
   payments: ApiSalePayment[];
   journals: ApiJournal[];
-}
-
-export interface ApiReceivable {
-  sale_id: number;
-  invoice_number: string;
-  customer_name: string;
-  customer_phone?: string | null;
-  vehicle_plate?: string | null;
-  date: string;
-  due_date: string;
-  total_amount: number;
-  paid_amount: number;
-  remaining_amount: number;
-  status: 'BELUM_LUNAS' | 'SEBAGIAN' | 'LUNAS';
-  notes?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -368,17 +352,3 @@ export const mapSaleToTransaction = (s: ApiSale): PosTransaction => {
   };
 };
 
-export const mapReceivable = (r: ApiReceivable): ReceivableInvoice => ({
-  id: String(r.sale_id),
-  invoice_number: r.invoice_number,
-  customer_name: r.customer_name,
-  customer_phone: r.customer_phone ?? undefined,
-  vehicle_plate: r.vehicle_plate ?? undefined,
-  date: r.date,
-  due_date: r.due_date,
-  total_amount: num(r.total_amount),
-  paid_amount: num(r.paid_amount),
-  remaining_amount: num(r.remaining_amount),
-  status: r.status,
-  notes: r.notes ?? undefined,
-});

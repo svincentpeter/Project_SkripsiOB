@@ -1,7 +1,6 @@
 import {
   ItemCategory,
   PaymentProviderSetting,
-  EdcSetting,
   PermissionKey,
   PosTransaction,
   ProductCategory,
@@ -20,8 +19,6 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     pos: true,
     receipt: true,
     sale_void: false,
-    booking_dp: true,
-    bon_receivable: true,
     inventory_view: false,
     inventory_manage: false,
     goods_receipt: false,
@@ -37,8 +34,6 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     pos: false,
     receipt: false,
     sale_void: false,
-    booking_dp: false,
-    bon_receivable: false,
     inventory_view: true,
     inventory_manage: true,
     goods_receipt: true,
@@ -1000,15 +995,6 @@ export const INITIAL_QRIS_PROVIDERS: PaymentProviderSetting[] = [
   { id: 'qris-5', method_type: 'qris', provider_name: 'DANA', provider_code: 'DANA', fee_percentage: 0.30, fee_threshold_amount: 500000, is_active: true },
 ];
 
-export const INITIAL_EDC_SETTINGS: EdcSetting[] = [
-  { id: 'edc-1', bank_name: 'BCA', payment_type: 'Debit', fee_percentage: 0.15, charge_to_customer: false, is_active: true, notes: 'Fee dipotong dari profit toko' },
-  { id: 'edc-2', bank_name: 'BCA', payment_type: 'Credit', fee_percentage: 2.00, charge_to_customer: true, is_active: true, notes: 'Fee dibebankan ke customer sebagai surcharge' },
-  { id: 'edc-3', bank_name: 'Mandiri', payment_type: 'Debit', fee_percentage: 0.15, charge_to_customer: false, is_active: true, notes: 'Fee dipotong dari profit toko' },
-  { id: 'edc-4', bank_name: 'Mandiri', payment_type: 'Credit', fee_percentage: 1.80, charge_to_customer: true, is_active: true, notes: 'Fee dibebankan ke customer sebagai surcharge' },
-  { id: 'edc-5', bank_name: 'BRI', payment_type: 'Debit', fee_percentage: 0.15, charge_to_customer: false, is_active: true, notes: 'Fee dipotong dari profit toko' },
-  { id: 'edc-6', bank_name: 'BRI', payment_type: 'Credit', fee_percentage: 1.80, charge_to_customer: true, is_active: true, notes: 'Fee dibebankan ke customer sebagai surcharge' },
-];
-
 export const INITIAL_STORE_SETTINGS: StoreSettings = {
   store_name: 'Toko Ban dan Velg Omah Ban',
   branch_name: 'Cabang 3 Magelang',
@@ -1038,12 +1024,10 @@ export const INITIAL_STORE_SETTINGS: StoreSettings = {
 
   bank_providers: INITIAL_BANK_PROVIDERS,
   qris_providers: INITIAL_QRIS_PROVIDERS,
-  edc_settings: INITIAL_EDC_SETTINGS,
 
   // SAK EMKM Defaults
   coa_cash_account: '1-1000',
   coa_bank_account: '1-1001',
-  coa_receivable_account: '1-1002',
   coa_inventory_account: '1-2000',
   coa_payable_account: '2-1000',
   coa_equity_account: '3-1000',

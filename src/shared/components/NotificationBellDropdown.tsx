@@ -14,7 +14,7 @@ import { formatDateIndo, formatRupiah } from '../utils/formatters';
 
 export interface AppNotification {
   id: string;
-  type: 'STOCK_LOW' | 'DEBT_DUE' | 'BOOKING_NEW' | 'TRANSACTION' | 'BON_OVERDUE';
+  type: 'STOCK_LOW' | 'DEBT_DUE' | 'TRANSACTION';
   title: string;
   description: string;
   timestamp: string;
@@ -97,8 +97,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                   onClick={() => {
                     onMarkAsRead(n.id);
                     if (n.type === 'STOCK_LOW') onNavigateTo('inventory');
-                    if (n.type === 'DEBT_DUE' || n.type === 'BON_OVERDUE') onNavigateTo('ledger');
-                    if (n.type === 'BOOKING_NEW') onNavigateTo('pos');
+                    if (n.type === 'DEBT_DUE') onNavigateTo('ledger');
                     if (n.type === 'TRANSACTION') onNavigateTo('receipt');
                     setIsOpen(false);
                   }}
@@ -109,15 +108,12 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                   <div className={`p-2 rounded-xl shrink-0 ${
                     n.type === 'STOCK_LOW'
                       ? 'bg-amber-50 text-amber-600'
-                      : n.type === 'DEBT_DUE' || n.type === 'BON_OVERDUE'
+                      : n.type === 'DEBT_DUE'
                       ? 'bg-rose-50 text-rose-600'
-                      : n.type === 'BOOKING_NEW'
-                      ? 'bg-purple-50 text-purple-600'
                       : 'bg-emerald-50 text-emerald-600'
                   }`}>
                     {n.type === 'STOCK_LOW' && <Package className="w-4 h-4" />}
-                    {(n.type === 'DEBT_DUE' || n.type === 'BON_OVERDUE') && <Clock className="w-4 h-4" />}
-                    {n.type === 'BOOKING_NEW' && <CheckCircle2 className="w-4 h-4" />}
+                    {n.type === 'DEBT_DUE' && <Clock className="w-4 h-4" />}
                     {n.type === 'TRANSACTION' && <DollarSign className="w-4 h-4" />}
                   </div>
 

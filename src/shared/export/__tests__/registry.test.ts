@@ -28,7 +28,8 @@ describe('registry journal', () => {
     expect(REPORT_FORMATS.journal).toEqual(['xlsx', 'pdf', 'csv']);
     expect(REPORT_FORMATS.trial_balance).toEqual(['xlsx', 'pdf', 'docx', 'csv']);
   });
-  it('semua 21 reportId terdaftar', () => expect(Object.keys(REPORT_MAPPERS).length).toBe(21));
+  it('semua 20 reportId terdaftar', () => expect(Object.keys(REPORT_MAPPERS).length).toBe(20));
+  it('ekspor accounts_receivable sudah dihapus', () => expect(Object.keys(REPORT_MAPPERS)).not.toContain('accounts_receivable'));
 });
 
 describe('registry expenses', () => {
