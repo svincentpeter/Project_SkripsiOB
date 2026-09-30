@@ -2,11 +2,17 @@
 
 namespace App\Services\Payment;
 
-use Illuminate\Support\Facades\Cache;
+use App\Exceptions\PosRuleException;
+use App\Models\QrisTransaction;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
+/**
+ * QRIS dinamis Midtrans. Setiap order yang dibuat dan setiap pelunasan (webhook bertanda tangan, cek status ke
+ * Midtrans, simulasi demo) dicatat di qris_transactions beserta nominalnya; checkout hanya menerima order yang
+ * lunas di tabel itu.
+ */
 class MidtransQrisService
 {
     protected string $serverKey;
@@ -20,13 +26,101 @@ class MidtransQrisService
     }
 
     /**
-     * Membuat transaksi QRIS Dinamis melalui Midtrans Core API.
+     * Membuat QRIS Dinamis dan mencatat order-nya (pending, nominal tagihan).
      *
      * @param  string  $orderId  Nomor unik order QRIS (misal POS-1727650000000)
      * @param  int  $grossAmount  Nominal tagihan dalam Rupiah
      * @param  array  $customerDetails  Data opsional pelanggan
      */
     public function createCharge(string $orderId, int $grossAmount, array $customerDetails = []): array
+    {
+        $charge = $this->requestCharge($orderId, $grossAmount, $customerDetails);
+
+        QrisTransaction::firstOrCreate(
+            ['order_id' => $orderId],
+            ['gross_amount' => $grossAmount, 'transaction_status' => 'pending']
+        );
+
+        return $charge;
+    }
+
+    /**
+     * Status pelunasan: order yang sudah lunas dibaca dari tabel; selain itu ditanyakan ke Midtrans dan,
+     * bila lunas, dicatat dengan nominal dari Midtrans.
+     */
+    public function checkStatus(string $orderId): array
+    {
+        $recorded = QrisTransaction::where('order_id', $orderId)->first();
+        if ($recorded?->isSettled()) {
+            return $recorded->toStatusArray();
+        }
+
+        $pending = ['order_id' => $orderId, 'transaction_status' => 'pending', 'payment_type' => 'qris', 'is_simulated' => false];
+        if ($this->serverKey === '') {
+            return $pending;
+        }
+
+        try {
+            $response = Http::withBasicAuth($this->serverKey, '')
+                ->withHeaders(['Accept' => 'application/json'])
+                ->get("{$this->apiUrl}/v2/{$orderId}/status");
+        } catch (\Throwable $e) {
+            Log::error('Gagal periksa status Midtrans', ['order_id' => $orderId, 'exception' => $e]);
+
+            return $pending;
+        }
+
+        if (! $response->successful()) {
+            return $pending;
+        }
+
+        $data = $response->json();
+        $status = $data['transaction_status'] ?? 'pending';
+        if (in_array($status, ['settlement', 'capture'], true)) {
+            return $this->markSettled($orderId, (float) ($data['gross_amount'] ?? 0), QrisTransaction::SOURCE_STATUS_API)->toStatusArray();
+        }
+
+        return ['order_id' => $orderId, 'transaction_status' => $status, 'payment_type' => 'qris', 'is_simulated' => false];
+    }
+
+    /**
+     * Demo sandbox: melunasi order yang sudah dibuat lewat charge, sebesar nominal tagihannya.
+     * Controller memastikan midtrans.allow_simulation aktif.
+     */
+    public function simulateSettlement(string $orderId): QrisTransaction
+    {
+        $charged = QrisTransaction::where('order_id', $orderId)->first();
+        if (! $charged) {
+            throw new PosRuleException("Order QRIS {$orderId} tidak ditemukan. Buat QRIS terlebih dahulu.");
+        }
+
+        return $this->markSettled($orderId, (float) $charged->gross_amount, QrisTransaction::SOURCE_SIMULATION);
+    }
+
+    /**
+     * Catat pelunasan dari sumber tepercaya. Idempoten: pelunasan pertama yang menang (webhook yang dikirim
+     * ulang atau polling bersamaan tidak mengubah nominal atau baris yang sudah dipakai nota).
+     */
+    public function markSettled(string $orderId, float $grossAmount, string $source): QrisTransaction
+    {
+        $tx = QrisTransaction::firstOrCreate(
+            ['order_id' => $orderId],
+            ['gross_amount' => $grossAmount, 'transaction_status' => 'pending']
+        );
+
+        if (! $tx->isSettled()) {
+            $tx->update([
+                'gross_amount' => $grossAmount,
+                'transaction_status' => 'settlement',
+                'settlement_source' => $source,
+                'settled_at' => now(),
+            ]);
+        }
+
+        return $tx;
+    }
+
+    protected function requestCharge(string $orderId, int $grossAmount, array $customerDetails): array
     {
         if ($grossAmount <= 0) {
             throw new RuntimeException('Nominal transaksi harus lebih besar dari Rp 0.');
@@ -87,85 +181,6 @@ class MidtransQrisService
         Log::warning('Midtrans API charge tidak mengembalikan QR string', ['response' => $data]);
 
         return $this->fallbackOrFail($orderId, $grossAmount, $data['status_message'] ?? 'respons Midtrans tidak berisi kode QR.');
-    }
-
-    /**
-     * Memeriksa status pelunasan transaksi dari Midtrans Core API atau status simulasi sandbox.
-     *
-     * @param  string  $orderId
-     * @return array
-     */
-    public function checkStatus(string $orderId): array
-    {
-        // 1. Prioritaskan status simulasi lokal jika ada
-        $simulatedStatus = Cache::get("midtrans_sim_{$orderId}");
-        if ($simulatedStatus) {
-            return [
-                'order_id' => $orderId,
-                'transaction_status' => $simulatedStatus,
-                'payment_type' => 'qris',
-                'settlement_time' => now()->toIso8601String(),
-                'is_simulated' => true,
-            ];
-        }
-
-        if ($this->serverKey === '') {
-            return ['order_id' => $orderId, 'transaction_status' => 'pending', 'payment_type' => 'qris', 'is_simulated' => false];
-        }
-
-        try {
-            $response = Http::withBasicAuth($this->serverKey, '')
-                ->withHeaders([
-                    'Accept' => 'application/json',
-                ])
-                ->get("{$this->apiUrl}/v2/{$orderId}/status");
-
-            if ($response->successful()) {
-                $data = $response->json();
-                return [
-                    'order_id' => $data['order_id'] ?? $orderId,
-                    'transaction_status' => $data['transaction_status'] ?? 'pending',
-                    'payment_type' => $data['payment_type'] ?? 'qris',
-                    'gross_amount' => (int) ($data['gross_amount'] ?? 0),
-                    'settlement_time' => $data['settlement_time'] ?? null,
-                    'is_simulated' => false,
-                ];
-            }
-
-            return [
-                'order_id' => $orderId,
-                'transaction_status' => 'pending',
-                'payment_type' => 'qris',
-                'is_simulated' => false,
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Gagal periksa status Midtrans', ['order_id' => $orderId, 'exception' => $e]);
-            return [
-                'order_id' => $orderId,
-                'transaction_status' => 'pending',
-                'payment_type' => 'qris',
-                'is_simulated' => false,
-            ];
-        }
-    }
-
-    /**
-     * Memicu pelunasan instan untuk pengujian Sandbox atau Demo Sidang Skripsi.
-     *
-     * @param  string  $orderId
-     * @return array
-     */
-    public function simulateSettlement(string $orderId): array
-    {
-        Cache::put("midtrans_sim_{$orderId}", 'settlement', now()->addHours(2));
-
-        return [
-            'order_id' => $orderId,
-            'transaction_status' => 'settlement',
-            'payment_type' => 'qris',
-            'settlement_time' => now()->toIso8601String(),
-            'message' => 'Status pembayaran berhasil disimulasikan LUNAS (Settlement).',
-        ];
     }
 
     /**

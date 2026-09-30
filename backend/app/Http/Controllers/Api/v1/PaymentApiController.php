@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
+use App\Models\QrisTransaction;
 use App\Services\Payment\MidtransQrisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,11 +11,8 @@ use Illuminate\Support\Facades\Log;
 
 class PaymentApiController extends Controller
 {
-    protected MidtransQrisService $qrisService;
-
-    public function __construct(MidtransQrisService $qrisService)
+    public function __construct(private readonly MidtransQrisService $qrisService)
     {
-        $this->qrisService = $qrisService;
     }
 
     /**
@@ -36,47 +34,38 @@ class PaymentApiController extends Controller
                 (int) $request->input('gross_amount'),
                 ['customer_name' => $request->input('customer_name')]
             );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'QRIS Dinamis berhasil dibuat.',
-                // Kasir hanya menampilkan tombol simulasi bila server mengizinkannya.
-                'data' => $data + ['simulation_enabled' => (bool) config('midtrans.allow_simulation')],
-            ]);
         } catch (\Throwable $e) {
             Log::error('Gagal membuat QRIS charge', ['exception' => $e]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal membuat QRIS: ' . $e->getMessage(),
+                'message' => 'Gagal membuat QRIS: '.$e->getMessage(),
             ], 422);
         }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'QRIS Dinamis berhasil dibuat.',
+            // Kasir hanya menampilkan tombol simulasi bila server mengizinkannya.
+            'data' => $data + ['simulation_enabled' => (bool) config('midtrans.allow_simulation')],
+        ]);
     }
 
     /**
-     * Memeriksa status transaksi QRIS secara berkala (Polling).
+     * Status pelunasan QRIS untuk polling kasir.
      *
      * GET /api/v1/payment/qris/status/{orderId}
      */
     public function checkQrisStatus(string $orderId): JsonResponse
     {
-        try {
-            $status = $this->qrisService->checkStatus($orderId);
-
-            return response()->json([
-                'success' => true,
-                'data' => $status,
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal memeriksa status pembayaran: ' . $e->getMessage(),
-            ], 422);
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $this->qrisService->checkStatus($orderId),
+        ]);
     }
 
     /**
-     * Memicu status lunas seketika untuk kemudahan demo Sandbox / Sidang Skripsi.
+     * Demo sandbox: melunasi order yang sudah dibuat, sebesar nominal tagihannya.
      *
      * POST /api/v1/payment/qris/simulate/{orderId}
      */
@@ -89,24 +78,15 @@ class PaymentApiController extends Controller
             ], 403);
         }
 
-        try {
-            $result = $this->qrisService->simulateSettlement($orderId);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Simulasi lunas berhasil diterapkan.',
-                'data' => $result,
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal memproses simulasi: ' . $e->getMessage(),
-            ], 422);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Simulasi lunas berhasil diterapkan.',
+            'data' => $this->qrisService->simulateSettlement($orderId)->toStatusArray(),
+        ]);
     }
 
     /**
-     * Menerima notifikasi webhook asynchronous resmi dari Midtrans HTTP Notification.
+     * Notifikasi HTTP resmi Midtrans. Pelunasan dicatat dengan gross_amount yang ikut ditandatangani.
      *
      * POST /api/v1/payment/midtrans/webhook
      */
@@ -116,8 +96,8 @@ class PaymentApiController extends Controller
         $orderId = $payload['order_id'] ?? null;
         $transactionStatus = $payload['transaction_status'] ?? null;
 
-        // Notifikasi Midtrans sah hanya bila signature_key = sha512(order_id + status_code + gross_amount + server_key).
-        // Tanpa server key, sha512 atas string publik bisa dihitung siapa saja: tolak semua notifikasi.
+        // Sah hanya bila signature_key = sha512(order_id + status_code + gross_amount + server_key). Tanpa server key,
+        // sha512 atas string publik bisa dihitung siapa saja: tolak semua notifikasi.
         $serverKey = (string) config('midtrans.server_key');
         $expected = hash('sha512', ($payload['order_id'] ?? '').($payload['status_code'] ?? '').($payload['gross_amount'] ?? '').$serverKey);
         if ($serverKey === '' || ! is_string($payload['signature_key'] ?? null) || ! hash_equals($expected, $payload['signature_key'])) {
@@ -128,8 +108,8 @@ class PaymentApiController extends Controller
 
         Log::info('Midtrans webhook diterima', ['order_id' => $orderId, 'status' => $transactionStatus]);
 
-        if ($orderId && in_array($transactionStatus, ['settlement', 'capture'])) {
-            $this->qrisService->simulateSettlement($orderId);
+        if (is_string($orderId) && $orderId !== '' && in_array($transactionStatus, ['settlement', 'capture'], true)) {
+            $this->qrisService->markSettled($orderId, (float) ($payload['gross_amount'] ?? 0), QrisTransaction::SOURCE_WEBHOOK);
         }
 
         return response()->json([

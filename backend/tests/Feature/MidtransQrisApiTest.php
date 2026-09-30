@@ -43,23 +43,26 @@ class MidtransQrisApiTest extends TestCase
         return $payload;
     }
 
-    public function test_can_charge_qris_and_receive_qr_string(): void
+    public function test_charge_returns_qr_string_and_records_a_pending_order(): void
     {
-        $this->fakeCharge('POS-20260910-001', 350000);
+        $orderId = 'POS-CHG-'.uniqid();
+        $this->fakeCharge($orderId, 350000);
 
-        $this->postJson('/api/v1/payment/qris/charge', [
-            'order_id' => 'POS-20260910-001',
-            'gross_amount' => 350000,
-            'customer_name' => 'Budi Santoso',
-        ])->assertOk()->assertJson([
-            'success' => true,
-            'data' => [
-                'order_id' => 'POS-20260910-001',
-                'gross_amount' => 350000,
-                'qr_string' => '00020101021226590014ID.LINKAJA.WWW0118936009110022094894...',
-                'transaction_status' => 'pending',
-                'simulation_enabled' => false,
-            ],
+        $this->postJson('/api/v1/payment/qris/charge', ['order_id' => $orderId, 'gross_amount' => 350000, 'customer_name' => 'Budi Santoso'])
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'order_id' => $orderId,
+                    'gross_amount' => 350000,
+                    'qr_string' => '00020101021226590014ID.LINKAJA.WWW0118936009110022094894...',
+                    'transaction_status' => 'pending',
+                    'simulation_enabled' => false,
+                ],
+            ]);
+
+        $this->assertDatabaseHas('qris_transactions', [
+            'order_id' => $orderId, 'gross_amount' => 350000, 'transaction_status' => 'pending', 'sale_payment_id' => null,
         ]);
     }
 
@@ -70,6 +73,7 @@ class MidtransQrisApiTest extends TestCase
         $body = ['order_id' => 'POS-NOKEY-'.uniqid(), 'gross_amount' => 100000];
 
         $this->postJson('/api/v1/payment/qris/charge', $body)->assertStatus(422)->assertJsonPath('success', false);
+        $this->assertDatabaseMissing('qris_transactions', ['order_id' => $body['order_id']]);
 
         config(['midtrans.allow_simulation' => true]);
         $this->postJson('/api/v1/payment/qris/charge', $body)->assertOk()
@@ -81,21 +85,24 @@ class MidtransQrisApiTest extends TestCase
 
     public function test_midtrans_error_is_not_hidden_behind_a_fake_qr(): void
     {
+        $orderId = 'POS-ERR-'.uniqid();
         Http::fake([
             'https://api.sandbox.midtrans.com/v2/charge' => Http::response(['status_code' => '401', 'status_message' => 'Unknown Merchant server_key/id'], 401),
         ]);
 
-        $this->postJson('/api/v1/payment/qris/charge', ['order_id' => 'POS-ERR-'.uniqid(), 'gross_amount' => 100000])
+        $this->postJson('/api/v1/payment/qris/charge', ['order_id' => $orderId, 'gross_amount' => 100000])
             ->assertStatus(422)
             ->assertJsonMissingPath('data.qr_string');
+        $this->assertDatabaseMissing('qris_transactions', ['order_id' => $orderId]);
     }
 
-    public function test_can_check_qris_status(): void
+    public function test_status_check_records_the_settlement_reported_by_midtrans_once(): void
     {
+        $orderId = 'POS-ST-'.uniqid();
         Http::fake([
-            'https://api.sandbox.midtrans.com/v2/POS-20260910-001/status' => Http::response([
+            "https://api.sandbox.midtrans.com/v2/{$orderId}/status" => Http::response([
                 'status_code' => '200',
-                'order_id' => 'POS-20260910-001',
+                'order_id' => $orderId,
                 'gross_amount' => '350000.00',
                 'payment_type' => 'qris',
                 'transaction_status' => 'settlement',
@@ -103,9 +110,15 @@ class MidtransQrisApiTest extends TestCase
             ], 200),
         ]);
 
-        $this->getJson('/api/v1/payment/qris/status/POS-20260910-001')
+        $this->getJson("/api/v1/payment/qris/status/{$orderId}")
             ->assertOk()
-            ->assertJson(['success' => true, 'data' => ['order_id' => 'POS-20260910-001', 'transaction_status' => 'settlement']]);
+            ->assertJson(['success' => true, 'data' => ['order_id' => $orderId, 'transaction_status' => 'settlement', 'gross_amount' => 350000, 'is_simulated' => false]]);
+        $this->getJson("/api/v1/payment/qris/status/{$orderId}")->assertJsonPath('data.transaction_status', 'settlement');
+
+        Http::assertSentCount(1);
+        $this->assertDatabaseHas('qris_transactions', [
+            'order_id' => $orderId, 'gross_amount' => 350000, 'transaction_status' => 'settlement', 'settlement_source' => 'STATUS_API',
+        ]);
     }
 
     public function test_simulation_is_forbidden_unless_enabled(): void
@@ -115,21 +128,45 @@ class MidtransQrisApiTest extends TestCase
             ->assertJsonPath('success', false);
     }
 
-    public function test_can_simulate_qris_payment_when_enabled(): void
+    public function test_simulation_settles_a_charged_order_at_its_charged_amount(): void
+    {
+        config(['midtrans.allow_simulation' => true]);
+        $orderId = 'POS-SIM-'.uniqid();
+        $this->fakeCharge($orderId, 275000);
+        $this->postJson('/api/v1/payment/qris/charge', ['order_id' => $orderId, 'gross_amount' => 275000])->assertOk();
+
+        $this->postJson("/api/v1/payment/qris/simulate/{$orderId}")
+            ->assertOk()
+            ->assertJson(['success' => true, 'data' => ['order_id' => $orderId, 'transaction_status' => 'settlement', 'gross_amount' => 275000, 'is_simulated' => true]]);
+
+        $this->assertDatabaseHas('qris_transactions', [
+            'order_id' => $orderId, 'gross_amount' => 275000, 'transaction_status' => 'settlement', 'settlement_source' => 'SIMULATION',
+        ]);
+    }
+
+    public function test_simulation_of_an_order_that_was_never_charged_is_rejected(): void
     {
         config(['midtrans.allow_simulation' => true]);
 
-        $this->postJson('/api/v1/payment/qris/simulate/POS-20260910-999')
-            ->assertOk()
-            ->assertJson(['success' => true, 'data' => ['order_id' => 'POS-20260910-999', 'transaction_status' => 'settlement']]);
+        $this->postJson('/api/v1/payment/qris/simulate/POS-UNKNOWN-'.uniqid())->assertStatus(422);
     }
 
-    public function test_webhook_with_valid_signature_marks_order_settled(): void
+    public function test_webhook_records_the_signed_settled_amount(): void
     {
         $payload = $this->signed(['order_id' => 'POS-WH-'.uniqid(), 'status_code' => '200', 'gross_amount' => '150000.00', 'transaction_status' => 'settlement']);
 
         $this->postJson('/api/v1/payment/midtrans/webhook', $payload)->assertOk();
-        $this->getJson("/api/v1/payment/qris/status/{$payload['order_id']}")->assertJsonPath('data.transaction_status', 'settlement');
+        $this->postJson('/api/v1/payment/midtrans/webhook', $payload)->assertOk(); // Midtrans mengirim ulang: tetap satu baris
+
+        $this->assertDatabaseHas('qris_transactions', [
+            'order_id' => $payload['order_id'], 'gross_amount' => 150000, 'transaction_status' => 'settlement', 'settlement_source' => 'WEBHOOK',
+        ]);
+
+        Http::fake();
+        $this->getJson("/api/v1/payment/qris/status/{$payload['order_id']}")
+            ->assertJsonPath('data.transaction_status', 'settlement')
+            ->assertJsonPath('data.gross_amount', 150000);
+        Http::assertNothingSent();
     }
 
     public function test_webhook_with_forged_signature_is_rejected(): void
@@ -140,6 +177,7 @@ class MidtransQrisApiTest extends TestCase
         $this->postJson('/api/v1/payment/midtrans/webhook', $payload)->assertForbidden();
         $this->postJson('/api/v1/payment/midtrans/webhook', ['order_id' => $payload['order_id'], 'transaction_status' => 'settlement'])->assertForbidden();
         $this->getJson("/api/v1/payment/qris/status/{$payload['order_id']}")->assertJsonPath('data.transaction_status', 'pending');
+        $this->assertDatabaseMissing('qris_transactions', ['order_id' => $payload['order_id']]);
     }
 
     public function test_webhook_is_rejected_when_no_server_key_is_configured(): void
@@ -148,5 +186,6 @@ class MidtransQrisApiTest extends TestCase
         $payload = $this->signed(['order_id' => 'POS-WH-'.uniqid(), 'status_code' => '200', 'gross_amount' => '150000.00', 'transaction_status' => 'settlement'], '');
 
         $this->postJson('/api/v1/payment/midtrans/webhook', $payload)->assertForbidden();
+        $this->assertDatabaseMissing('qris_transactions', ['order_id' => $payload['order_id']]);
     }
 }
