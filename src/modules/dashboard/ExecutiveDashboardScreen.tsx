@@ -27,14 +27,22 @@ import {
   Tag,
   Package
 } from 'lucide-react';
-import { ExpenseRecord, PosTransaction, ProductItem } from '../../shared/types';
+import { PosTransaction } from '../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
+import { reportsApi } from '../../services/api';
+import type { InventoryValuation } from '../../services/api';
+import { localDate, monthLabel } from '../../services/accountingPeriod';
+import { dashboardRange, PAYMENT_GROUP_LABELS, PAYMENT_GROUPS, summarizeDashboard } from '../../services/dailyReports';
+import { useServerData } from '../accounting/hooks/useServerData';
 
 interface ExecutiveDashboardScreenProps {
   transactions: PosTransaction[];
   products: any[];
-  expenses: ExpenseRecord[];
+  /** Nilai persediaan FIFO server (GET /inventory/valuation); null bila peran tidak boleh membacanya. */
+  inventoryValuation: InventoryValuation | null;
+  /** Naik setiap kali server membukukan jurnal; rekap dimuat ulang. */
+  ledgerVersion: number;
   onNavigateToInventory: () => void;
   onNavigateToPos: () => void;
 }
@@ -42,27 +50,34 @@ interface ExecutiveDashboardScreenProps {
 export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> = ({
   transactions,
   products,
-  expenses,
+  inventoryValuation,
+  ledgerVersion,
   onNavigateToInventory,
   onNavigateToPos,
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'sales' | 'inventory'>('overview');
   const [hoveredDayIdx, setHoveredDayIdx] = useState<number | null>(null);
 
-  // 1. KPI Today's Sales
-  const todayDateStr = new Date().toISOString().split('T')[0];
-  const exactTodayTx = transactions.filter((t) => t.date === todayDateStr && t.status === 'LUNAS');
-  const todayTx = exactTodayTx.length > 0 ? exactTodayTx : transactions.slice(0, 3);
-  
-  const todayOmzet = todayTx.reduce((acc, t) => acc + (t.total_amount ?? t.grand_total), 0);
-  const todayQty = todayTx.reduce((acc, t) => acc + t.items.reduce((sum, i) => sum + i.qty, 0), 0);
-  const todayHpp = todayTx.reduce((acc, t) => acc + (t.total_hpp ?? t.total_cost_hpp ?? 0), 0);
-  const todayGrossProfit = todayOmzet - todayHpp;
-  const grossProfitMargin = todayOmzet > 0 ? ((todayGrossProfit / todayOmzet) * 100).toFixed(1) : '0.0';
-  const averageOrderValue = todayTx.length > 0 ? Math.round(todayOmzet / todayTx.length) : 0;
+  // Angka uang dari rekap harian server (jurnal POSTED, tanggal lokal WIB):
+  // nota VOID, retur dan biaya VOID sudah dibalik di tanggal pembatalannya.
+  const today = localDate();
+  const monthPrefix = today.slice(0, 7);
+  const range = dashboardRange(today);
+  const recap = useServerData(() => reportsApi.dailyRecap(range.from, range.to), [range.from, range.to, ledgerVersion]);
+  const summary = summarizeDashboard(recap.data, today);
+  const todayRow = summary.today;
+  const month = summary.month;
 
-  // 2. Monthly Expenses
-  const totalExpensesMonth = expenses.reduce((acc, e) => acc + e.amount, 0);
+  // 1. KPI hari ini
+  const todayOmzet = todayRow.net_revenue;
+  const todayQty = todayRow.product_qty;
+  const todayHpp = todayRow.cost_of_sales;
+  const todayGrossProfit = todayRow.gross_profit;
+  const grossProfitMargin = todayOmzet > 0 ? ((todayGrossProfit / todayOmzet) * 100).toFixed(1) : '0.0';
+  const averageOrderValue = todayRow.sales_count > 0 ? Math.round(todayOmzet / todayRow.sales_count) : 0;
+
+  // 2. Beban operasional bulan berjalan (akun beban 6-xxxx)
+  const totalExpensesMonth = month.operating_expenses;
 
   // 3. Low stock warning count (< 5 pcs or below alert)
   const lowStockProducts = products.filter((p) => {
@@ -73,18 +88,18 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
   const outOfStockProducts = products.filter((p) => (p.product_quantity ?? p.stock ?? 0) <= 0);
 
-  // 4. Total Inventory Value (FIFO Valuation)
-  const totalInventoryValue = products.reduce(
-    (acc, p) => acc + (p.product_quantity ?? p.stock ?? 0) * (p.product_cost ?? p.cost_price ?? 0),
-    0
-  );
+  // 4. Nilai persediaan FIFO dari server (Σ sisa batch × harga batch), bukan stok × harga beli terakhir
+  const totalInventoryValue = inventoryValuation?.fifo_value ?? null;
   const totalInventoryQty = products.reduce((acc, p) => acc + (p.product_quantity ?? p.stock ?? 0), 0);
 
-  // 5. Fast-moving tires (Aggregate across transactions)
+  // Nota bulan berjalan yang tidak di-VOID, untuk produk terlaris & pangsa merek.
+  // ponytail: hanya 200 nota terbaru yang dimuat App.tsx; pindahkan ke rekap server bila sebulan melebihi itu.
+  const monthTransactions = transactions.filter((tx) => tx.status !== 'VOID' && (tx.date || '').startsWith(monthPrefix));
+
+  // 5. Fast-moving tires (bulan berjalan)
   const productSalesMap: Record<string, { product: any; totalQty: number; totalOmzet: number }> = {};
 
-  transactions.forEach((tx) => {
-    if (tx.status === 'VOID') return;
+  monthTransactions.forEach((tx) => {
     tx.items.forEach((item) => {
       if (item.item_type === 'SERVICE') return;
       const prodId = item.product?.id || 'unknown';
@@ -115,7 +130,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
     Hankook: 0,
   };
 
-  transactions.forEach((tx) => {
+  monthTransactions.forEach((tx) => {
     tx.items.forEach((item) => {
       const brand = item.product?.brand || 'Lainnya';
       if (brandCountMap[brand] !== undefined) {
@@ -135,28 +150,17 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
   const totalBrandTires = Object.values(brandCountMap).reduce((a, b) => a + b, 0) || 1;
 
-  // 7. 7-Day Trend Chart
+  // 7. Tren 7 hari dari rekap server (tanggal lokal WIB)
   const daysOrder = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-  const now = new Date();
-  
-  const last7DaysData = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date(now);
-    d.setDate(d.getDate() - (6 - i));
-    const dateStr = d.toISOString().split('T')[0];
+  const last7DaysData = summary.week.map((row, i) => {
+    const d = new Date(`${row.date}T00:00:00`);
     const dayLabel = daysOrder[d.getDay()];
-    const dateLabel = `${d.getDate()}/${d.getMonth() + 1}`;
-    
-    const dayTransactions = transactions.filter((t) => t.date === dateStr && t.status !== 'VOID');
-    const omzet = dayTransactions.reduce((acc, t) => acc + (t.total_amount ?? t.grand_total), 0);
-    const hpp = dayTransactions.reduce((acc, t) => acc + (t.total_hpp ?? t.total_cost_hpp ?? 0), 0);
-    const qty = dayTransactions.reduce((acc, t) => acc + t.items.reduce((s, item) => s + item.qty, 0), 0);
-
     return {
-      date: dateLabel,
+      date: `${d.getDate()}/${d.getMonth() + 1}`,
       day: i === 6 ? `${dayLabel} (Hari Ini)` : dayLabel,
-      omzet,
-      hpp,
-      qty,
+      omzet: row.net_revenue,
+      hpp: row.cost_of_sales,
+      qty: row.product_qty,
     };
   });
 
@@ -182,39 +186,14 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
   const areaOmzet = `${pointsOmzet} ${paddingX + usableWidth},${chartHeight - paddingY} ${paddingX},${chartHeight - paddingY}`;
 
-  // 8. Payment Method Distribution Calculation for Sales Tab
-  const paymentBreakdown: Record<string, { count: number; total: number }> = {
-    TUNAI: { count: 0, total: 0 },
-    TRANSFER_BCA: { count: 0, total: 0 },
-    QRIS: { count: 0, total: 0 },
-  };
+  // 8. Bauran metode bayar bulan berjalan (nota VOID tidak ikut; TRANSFER_BCA digabung ke Transfer)
+  const paymentBreakdown = month.payment_mix;
+  const allTxTotal = PAYMENT_GROUPS.reduce((acc, g) => acc + paymentBreakdown[g], 0) || 1;
 
-  transactions.forEach((tx) => {
-    if (tx.status === 'VOID') return;
-    const method = tx.payment_method || 'TUNAI';
-    if (!paymentBreakdown[method]) {
-      paymentBreakdown[method] = { count: 0, total: 0 };
-    }
-    paymentBreakdown[method].count += 1;
-    paymentBreakdown[method].total += (tx.total_amount ?? tx.grand_total);
-  });
-
-  const allTxTotal = transactions.reduce((acc, t) => acc + (t.total_amount ?? t.grand_total), 0) || 1;
-
-  // 9. Service vs Products Breakdown
-  let productRevenue = 0;
-  let serviceRevenue = 0;
-  transactions.forEach((tx) => {
-    tx.items.forEach((item) => {
-      const lineTotal = (item.custom_price ?? item.product?.product_price ?? item.product?.price ?? 0) * item.qty;
-      if (item.item_type === 'SERVICE') {
-        serviceRevenue += lineTotal;
-      } else {
-        productRevenue += lineTotal;
-      }
-    });
-  });
-
+  // 9. Komposisi pendapatan bulan berjalan dari jurnal: 4-1000 ban vs 4-1001 jasa
+  const productRevenue = month.goods_revenue;
+  const serviceRevenue = month.service_revenue;
+  const monthGrossMargin = month.net_revenue > 0 ? ((month.gross_profit / month.net_revenue) * 100).toFixed(1) : '0.0';
 
   return (
     <div className="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar bg-[#F8FAFC] text-slate-900 space-y-5">
@@ -237,8 +216,8 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
           <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
             <ExportMenu
               reportId="dashboard_summary"
-              data={{ transactions, products, expenses }}
-              ctx={{ periodLabel: `Sampai ${formatDateIndo(new Date().toISOString())}` }}
+              data={{ summary, products, fifoValue: totalInventoryValue }}
+              ctx={{ periodLabel: `Sampai ${formatDateIndo(today)}` }}
             />
             <button
               type="button"
@@ -317,6 +296,21 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         </div>
       </div>
 
+      {recap.loading && !recap.data && (
+        <div role="status" className="p-3 rounded-xl border border-slate-200 bg-white text-xs text-slate-600">
+          Memuat rekap harian dari server…
+        </div>
+      )}
+
+      {recap.error && (
+        <div role="alert" className="flex items-center justify-between gap-3 p-3 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-800">
+          <span>Gagal memuat rekap harian dari server: {recap.error}</span>
+          <button type="button" onClick={recap.reload} className="px-3 py-1.5 rounded-lg bg-white border border-rose-300 font-bold cursor-pointer">
+            Coba lagi
+          </button>
+        </div>
+      )}
+
       {/* =======================================================================
           5 REAL KPI METRIC CARDS (Responsive 2x2 Grid + 1 Banner on Mobile)
           ======================================================================= */}
@@ -335,7 +329,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
               {formatRupiah(todayOmzet)}
             </div>
             <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
-              {todayQty} ban • {todayTx.length} nota
+              {todayQty} ban • {todayRow.sales_count} nota
             </div>
           </div>
           <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
@@ -375,8 +369,8 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
             </span>
           </div>
           <div>
-            <div className="text-sm sm:text-lg md:text-xl font-black text-indigo-900 font-mono tracking-tight truncate" title={formatRupiah(totalInventoryValue)}>
-              {formatRupiah(totalInventoryValue)}
+            <div className="text-sm sm:text-lg md:text-xl font-black text-indigo-900 font-mono tracking-tight truncate" title={totalInventoryValue === null ? 'Butuh izin lihat inventori' : formatRupiah(totalInventoryValue)}>
+              {totalInventoryValue === null ? '—' : formatRupiah(totalInventoryValue)}
             </div>
             <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
               {totalInventoryQty} Unit Fisik
@@ -391,9 +385,9 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         {/* Card 4: Beban Toko Bulan Berjalan */}
         <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Beban Toko</span>
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Beban Operasional</span>
             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-200/80 font-mono">
-              {expenses.length} BKK
+              {monthLabel(monthPrefix)}
             </span>
           </div>
           <div>
@@ -401,7 +395,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
               {formatRupiah(totalExpensesMonth)}
             </div>
             <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
-              {expenses.length} Pos Biaya
+              Jurnal akun beban 6-xxxx
             </div>
           </div>
           <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
@@ -612,7 +606,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                   <span>Pangsa Penjualan per Merek</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Distribusi unit terjual berdasarkan pabrikan ban.
+                  Distribusi unit terjual bulan berjalan (nota VOID tidak ikut).
                 </p>
               </div>
 
@@ -793,31 +787,27 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                   <span>Distribusi Metode Pembayaran Pelanggan</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Volume transaksi berdasarkan metode pelunasan kasir.
+                  Penerimaan nota lunas {monthLabel(monthPrefix)} per metode pelunasan (nota VOID tidak ikut).
                 </p>
               </div>
 
               <div className="space-y-3">
-                {Object.entries(paymentBreakdown).map(([method, data]) => {
-                  const pct = Math.round((data.total / allTxTotal) * 100) || 0;
-                  const labelMap: Record<string, string> = {
-                    TUNAI: 'Uang Tunai (Cash)',
-                    TRANSFER_BCA: 'Transfer Bank BCA',
-                    QRIS: 'QRIS Dinamis',
-                  };
+                {PAYMENT_GROUPS.map((method) => {
+                  const total = paymentBreakdown[method];
+                  const pct = Math.round((total / allTxTotal) * 100) || 0;
                   return (
                     <div key={method} className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-800">{labelMap[method] || method}</span>
+                        <span className="font-bold text-slate-800">{PAYMENT_GROUP_LABELS[method]}</span>
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-500">{data.count} nota ({pct}%)</span>
-                          <span className="font-mono font-bold text-slate-900">{formatRupiah(data.total)}</span>
+                          <span className="text-slate-500">{pct}%</span>
+                          <span className="font-mono font-bold text-slate-900">{formatRupiah(total)}</span>
                         </div>
                       </div>
                       <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                         <div
                           className={`h-full rounded-full ${
-                            method === 'TUNAI' ? 'bg-emerald-500' : method === 'TRANSFER_BCA' ? 'bg-blue-600' : method === 'QRIS' ? 'bg-cyan-500' : 'bg-amber-500'
+                            method === 'TUNAI' ? 'bg-emerald-500' : method === 'TRANSFER' ? 'bg-blue-600' : 'bg-cyan-500'
                           }`}
                           style={{ width: `${Math.min(100, pct)}%` }}
                         />
@@ -863,7 +853,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
               </div>
 
               <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-600 border border-slate-200">
-                <span className="font-bold text-slate-800">Catatan Bisnis:</span> Layanan spooring 3D & balancing memiliki margin laba kotor 95%+ karena tanpa HPP fisik ban.
+                <span className="font-bold text-slate-800">Margin laba kotor {monthLabel(monthPrefix)}:</span> {monthGrossMargin}% (pendapatan bersih dikurangi HPP, dari jurnal server).
               </div>
             </div>
           </div>

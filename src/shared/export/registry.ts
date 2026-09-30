@@ -9,6 +9,7 @@ import type {
   TrialBalanceResult,
 } from '../types';
 import type { ExpenseRecord, PosTransaction, ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
+import type { DashboardSummary } from '../types';
 import type { BankReconciliationReport, CalkReport } from '../types/sakEmkm';
 import { EXPENSE_CATEGORY_CONFIG, formatRupiah } from '../utils/formatters';
 import { buildKop } from './kop';
@@ -296,63 +297,43 @@ const mapPosHistory = (txs: PosTransaction[], ctx: ExportCtx): ExportDoc => {
 };
 
 export interface DashboardInput {
-  transactions: PosTransaction[];
+  summary: DashboardSummary;
   products: ProductItem[];
-  expenses: ExpenseRecord[];
+  /** Nilai persediaan FIFO dari server; null bila peran tidak boleh membacanya. */
+  fifoValue: number | null;
 }
 
 const mapDashboard = (d: DashboardInput, ctx: ExportCtx): ExportDoc => {
-  const lunas = d.transactions.filter((t) => t.status !== 'VOID');
-  const omzet = (t: PosTransaction) => t.total_amount ?? t.grand_total;
-  const hppOf = (t: PosTransaction) => t.total_hpp ?? t.total_cost_hpp ?? 0;
-  const totalOmzet = sum(lunas, omzet);
-  const totalHpp = sum(lunas, hppOf);
-  const banTerjual = sum(lunas, (t) => sum(t.items, (i) => i.qty));
-  const ymd = (dt: Date) => dt.toISOString().split('T')[0];
-  const tren = Array.from({ length: 7 }).map((_, i) => {
-    const day = new Date();
-    day.setDate(day.getDate() - (6 - i));
-    const key = ymd(day);
-    const dayTx = lunas.filter((t) => t.date === key);
-    return { tgl: key, omzet: sum(dayTx, omzet), hpp: sum(dayTx, hppOf), qty: sum(dayTx, (t) => sum(t.items, (item) => item.qty)) };
-  });
-  const brandMap = new Map<string, number>();
-  lunas.forEach((t) => t.items.forEach((i) => {
-    const b = i.product?.brand || 'Lainnya';
-    brandMap.set(b, (brandMap.get(b) ?? 0) + i.qty);
-  }));
-  const topProduk = [...brandMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const { today, week, month } = d.summary;
+  const tren = week.map((r) => ({ tgl: r.date, omzet: r.net_revenue, hpp: r.cost_of_sales, qty: r.product_qty }));
   const kritis = d.products
     .filter((p) => stockOf(p) <= (p.product_stock_alert ?? p.min_stock ?? 5))
     .slice(0, 20);
   return makeDoc('dashboard_summary', 'Ringkasan Dashboard', 'portrait', ctx, [
     {
-      title: 'KPI Utama',
-      columns: [{ key: 'm', label: 'Metrik', type: 'text', width: 34 }, { key: 'v', label: 'Nilai', type: 'text', width: 22 }],
+      title: 'KPI Utama (jurnal server)',
+      columns: [{ key: 'm', label: 'Metrik', type: 'text', width: 40 }, { key: 'v', label: 'Nilai (Rp)', type: 'currency' }],
       rows: [
-        { m: 'Total Penjualan (non-VOID)', v: String(totalOmzet) },
-        { m: 'Total HPP FIFO', v: String(totalHpp) },
-        { m: 'Laba Kotor', v: String(totalOmzet - totalHpp) },
-        { m: 'Total Pengeluaran Kas', v: String(sum(d.expenses.filter((e) => e.status !== 'VOID'), (e) => e.amount)) },
-        { m: 'Unit Terjual', v: String(banTerjual) },
-        { m: 'Nilai Persediaan (HPP)', v: String(sum(d.products, (p) => stockOf(p) * costOf(p))) },
+        { m: 'Pendapatan Bersih Hari Ini', v: today.net_revenue },
+        { m: 'Laba Kotor Hari Ini', v: today.gross_profit },
+        { m: 'Pendapatan Bersih Bulan Berjalan', v: month.net_revenue },
+        { m: 'HPP Bulan Berjalan', v: month.cost_of_sales },
+        { m: 'Laba Kotor Bulan Berjalan', v: month.gross_profit },
+        { m: 'Beban Operasional Bulan Berjalan', v: month.operating_expenses },
+        { m: 'Laba Bersih Bulan Berjalan', v: month.net_income },
+        { m: 'Nilai Persediaan FIFO', v: d.fifoValue },
       ],
     },
     {
       title: 'Tren 7 Hari',
       columns: [
         { key: 'tgl', label: 'Tanggal', type: 'date', width: 12 },
-        { key: 'omzet', label: 'Omzet (Rp)', type: 'currency' },
+        { key: 'omzet', label: 'Pendapatan Bersih (Rp)', type: 'currency' },
         { key: 'hpp', label: 'HPP (Rp)', type: 'currency' },
-        { key: 'qty', label: 'Unit', type: 'number' },
+        { key: 'qty', label: 'Unit Ban', type: 'number' },
       ],
       rows: tren,
       totals: { omzet: sum(tren, (t) => t.omzet), hpp: sum(tren, (t) => t.hpp), qty: sum(tren, (t) => t.qty) },
-    },
-    {
-      title: 'Pangsa Merek (unit)',
-      columns: [{ key: 'b', label: 'Merek', type: 'text', width: 22 }, { key: 'q', label: 'Unit', type: 'number' }],
-      rows: topProduk.map(([b, q]) => ({ b, q })),
     },
     {
       title: 'Peringatan Stok Kritis',

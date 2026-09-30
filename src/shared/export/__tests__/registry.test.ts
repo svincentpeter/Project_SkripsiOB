@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { ExpenseRecord, JournalEntry, PosTransaction, ProductItem } from '../../types';
 import { setExportConfig } from '../exportConfig';
 import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
-import type { CashFlowReport, FinancialStatements, StatementLine } from '../../types';
+import type { CashFlowReport, DashboardSummary, FinancialStatements, StatementLine } from '../../types';
+import { emptyRecapRow, sumRecapRows } from '../../../services/dailyReports';
 import type { BankReconciliationReport, CalkReport } from '../../types/sakEmkm';
 
 setExportConfig(null, null);
@@ -220,4 +221,19 @@ describe('registry bank_reconciliation', () => {
   });
 
   it('diekspor ke xlsx dan pdf', () => expect(REPORT_FORMATS.bank_reconciliation).toEqual(['xlsx', 'pdf']));
+});
+
+describe('registry dashboard_summary', () => {
+  const today = { ...emptyRecapRow('2026-10-03'), net_revenue: 200, gross_profit: 80 };
+  const summary: DashboardSummary = { today, week: [today], month: { ...sumRecapRows([today]), operating_expenses: 30 } };
+  const doc = buildExportDoc('dashboard_summary', { summary, products: [], fifoValue: null }, ctx);
+
+  it('KPI dibaca dari ringkasan server', () => {
+    const kpi = doc.sections[0].rows;
+    expect(kpi.find((r) => r.m === 'Pendapatan Bersih Hari Ini')?.v).toBe(200);
+    expect(kpi.find((r) => r.m === 'Beban Operasional Bulan Berjalan')?.v).toBe(30);
+    expect(kpi.find((r) => r.m === 'Nilai Persediaan FIFO')?.v).toBeNull();
+  });
+
+  it('tren memakai tanggal rekap server', () => expect(doc.sections[1].rows[0].tgl).toBe('2026-10-03'));
 });

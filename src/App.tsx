@@ -1040,7 +1040,8 @@ function MainAppContent() {
               <ExecutiveDashboardScreen
                 transactions={transactions}
                 products={products}
-                expenses={expenses}
+                inventoryValuation={inventoryValuation}
+                ledgerVersion={ledgerVersion}
                 onNavigateToInventory={() => setActiveScreen('inventory')}
                 onNavigateToPos={() => setActiveScreen('pos')}
               />
