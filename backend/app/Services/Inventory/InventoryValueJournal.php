@@ -55,19 +55,26 @@ class InventoryValueJournal
      * Jalankan $operation lalu jurnal perubahan nilai persediaannya.
      * Produk yang belum ada sebelum operasi dianggap saldo awal (Cr Modal 3-1000); produk lama → selisih opname (5-2000).
      *
+     * Dengan $lockedProductIds (produk yang sudah dikunci pemanggil, mis. opname) hanya produk itu yang diukur, dengan
+     * baca terkini (lockForUpdate): snapshot transaksi bisa lebih tua dari kunci produk, sehingga penjualan/penerimaan
+     * yang commit di antaranya akan terjurnal dua kali ke 5-2000.
+     *
      * @template T
      * @param  callable(): T  $operation
+     * @param  array<int, int>|null  $lockedProductIds
      * @return array{result: T, journal: ?JournalEntry}
      */
-    public function record(callable $operation, string $referenceType, string $referenceId, string $description): array
+    public function record(callable $operation, string $referenceType, string $referenceId, string $description, ?array $lockedProductIds = null): array
     {
-        return DB::transaction(function () use ($operation, $referenceType, $referenceId, $description) {
-            $existing = Product::withTrashed()->pluck('id')->flip();
-            $before = self::valuesByProduct();
+        return DB::transaction(function () use ($operation, $referenceType, $referenceId, $description, $lockedProductIds) {
+            $existing = $lockedProductIds === null
+                ? Product::withTrashed()->pluck('id')->flip()
+                : collect($lockedProductIds)->flip();
+            $before = self::valuesByProduct($lockedProductIds);
 
             $result = $operation();
 
-            $after = self::valuesByProduct();
+            $after = self::valuesByProduct($lockedProductIds);
             $delta = [self::OPNAME_VARIANCE => 0.0, self::OPENING_EQUITY => 0.0];
             foreach ($before + $after as $productId => $_) {
                 $diff = ($after[$productId] ?? 0.0) - ($before[$productId] ?? 0.0);
@@ -129,11 +136,13 @@ class InventoryValueJournal
     }
 
     /**
+     * @param  array<int, int>|null  $productIds  null = seluruh tabel (baca konsisten); daftar = baca terkini produk itu
      * @return array<int, float> nilai FIFO per product_id
      */
-    private static function valuesByProduct(): array
+    private static function valuesByProduct(?array $productIds = null): array
     {
-        return ProductBatch::groupBy('product_id')
+        return ProductBatch::when($productIds !== null, fn ($q) => $q->whereIn('product_id', $productIds)->lockForUpdate())
+            ->groupBy('product_id')
             ->selectRaw('product_id, SUM(remaining_qty * batch_cost) as v')
             ->pluck('v', 'product_id')
             ->map(fn ($v) => round((float) $v, 2))

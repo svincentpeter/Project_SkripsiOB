@@ -7,6 +7,9 @@ use App\Models\ProductBatch;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\DocumentNumber;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Stock opname fisik: kekurangan dipotong dari batch FIFO tertua, kelebihan menjadi batch baru
@@ -24,58 +27,79 @@ class StockOpnameService
      */
     public function adjust(array $items, ?string $notes, ?User $user): array
     {
-        $reference = DocumentNumber::next(StockMovement::class, 'reference_id', 'OPN');
+        return DB::transaction(function () use ($items, $notes, $user) {
+            // Urutan kunci sama dengan checkout, retur dan void: semua produk urut id dulu, baru nomor dokumen dan batch.
+            $ids = collect($items)->map(fn ($item) => (int) $item['product_id'])->unique()->sort()->values();
+            $products = Product::whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $missing = $ids->diff($products->keys());
+            if ($missing->isNotEmpty()) {
+                throw (new ModelNotFoundException())->setModel(Product::class, $missing->all());
+            }
+            $reference = DocumentNumber::next(StockMovement::class, 'reference_id', 'OPN');
 
-        $out = $this->valueJournal->record(function () use ($items, $notes, $user, $reference) {
-            $adjustments = [];
-            foreach ($items as $item) {
-                $product = Product::lockForUpdate()->findOrFail($item['product_id']);
-                $system = (int) $product->product_quantity;
-                $physical = (int) $item['physical_qty'];
-                $diff = $physical - $system;
-                // Lapisan FIFO dicocokkan ke hitungan fisik juga, sehingga stok tanpa batch (drift lama) ikut terkoreksi.
-                // lockForUpdate = current read: snapshot transaksi (diambil InventoryValueJournal sebelum produk dikunci)
-                // bisa belum melihat penjualan/penerimaan yang commit di antaranya.
-                $layerDiff = $physical - (int) ProductBatch::where('product_id', $product->id)->lockForUpdate()->sum('remaining_qty');
-                if ($diff === 0 && $layerDiff === 0) {
-                    continue;
-                }
+            $out = $this->valueJournal->record(
+                fn () => $this->applyCounts($items, $products, $notes, $user, $reference),
+                'STOCK_OPNAME',
+                $reference,
+                'Selisih stock opname '.$reference.($notes ? ": {$notes}" : ''),
+                $ids->all()
+            );
 
-                if ($layerDiff < 0) {
-                    $this->consumeOldest($product, -$layerDiff);
-                } elseif ($layerDiff > 0) {
-                    $this->addSurplusBatch($product, $layerDiff, $reference);
-                }
+            return ['reference' => $reference, 'adjustments' => $out['result'], 'journal' => $out['journal']];
+        });
+    }
 
-                $product->update(['product_quantity' => $physical]);
-
-                if ($diff !== 0) {
-                    StockMovement::create([
-                        'product_id' => $product->id,
-                        'movement_type' => $diff > 0 ? 'MASUK' : 'KELUAR',
-                        'quantity' => abs($diff),
-                        'balance_after' => $physical,
-                        'reference_type' => 'STOCK_OPNAME',
-                        'reference_id' => $reference,
-                        'description' => 'Stock opname: sistem '.$system.', fisik '.$physical.($notes ? " ({$notes})" : ''),
-                        'operator_name' => $user?->name ?? 'Admin Opname',
-                        'branch_id' => $product->branch_id ?? 3,
-                    ]);
-                }
-
-                $adjustments[] = [
-                    'product_id' => $product->id,
-                    'product_name' => $product->product_name,
-                    'system_qty' => $system,
-                    'physical_qty' => $physical,
-                    'difference' => $diff,
-                ];
+    /**
+     * @param  Collection<int, Product>  $products  produk opname yang sudah dikunci, per id
+     * @return array<int, array<string, mixed>>
+     */
+    private function applyCounts(array $items, Collection $products, ?string $notes, ?User $user, string $reference): array
+    {
+        $adjustments = [];
+        foreach ($items as $item) {
+            $product = $products->get((int) $item['product_id']);
+            $system = (int) $product->product_quantity;
+            $physical = (int) $item['physical_qty'];
+            $diff = $physical - $system;
+            // Lapisan FIFO dicocokkan ke hitungan fisik juga, sehingga stok tanpa batch (drift lama) ikut terkoreksi.
+            // lockForUpdate = current read: snapshot transaksi bisa lebih tua dari kunci produk.
+            $layerDiff = $physical - (int) ProductBatch::where('product_id', $product->id)->lockForUpdate()->sum('remaining_qty');
+            if ($diff === 0 && $layerDiff === 0) {
+                continue;
             }
 
-            return $adjustments;
-        }, 'STOCK_OPNAME', $reference, 'Selisih stock opname '.$reference.($notes ? ": {$notes}" : ''));
+            if ($layerDiff < 0) {
+                $this->consumeOldest($product, -$layerDiff);
+            } elseif ($layerDiff > 0) {
+                $this->addSurplusBatch($product, $layerDiff, $reference);
+            }
 
-        return ['reference' => $reference, 'adjustments' => $out['result'], 'journal' => $out['journal']];
+            $product->update(['product_quantity' => $physical]);
+
+            if ($diff !== 0) {
+                StockMovement::create([
+                    'product_id' => $product->id,
+                    'movement_type' => $diff > 0 ? 'MASUK' : 'KELUAR',
+                    'quantity' => abs($diff),
+                    'balance_after' => $physical,
+                    'reference_type' => 'STOCK_OPNAME',
+                    'reference_id' => $reference,
+                    'description' => 'Stock opname: sistem '.$system.', fisik '.$physical.($notes ? " ({$notes})" : ''),
+                    'operator_name' => $user?->name ?? 'Admin Opname',
+                    'branch_id' => $product->branch_id ?? 3,
+                ]);
+            }
+
+            $adjustments[] = [
+                'product_id' => $product->id,
+                'product_name' => $product->product_name,
+                'system_qty' => $system,
+                'physical_qty' => $physical,
+                'difference' => $diff,
+            ];
+        }
+
+        return $adjustments;
     }
 
     private function consumeOldest(Product $product, int $qty): void

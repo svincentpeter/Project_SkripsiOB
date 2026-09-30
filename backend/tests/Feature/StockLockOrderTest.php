@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Services\AccountingEngine;
 use App\Services\Inventory\PurchaseReturnService;
+use App\Services\Inventory\StockOpnameService;
 use App\Services\JournalDraft;
 use Illuminate\Support\Facades\DB;
 use Tests\Concerns\CreatesPosFixtures;
@@ -112,5 +113,37 @@ class StockLockOrderTest extends TestCase
         $user = auth()->user();
         $this->assertSame(1, $service->returnGoods($returned, 1, 'Ban cacat produksi', null, $user)['return']->quantity);
         $this->assertSame('BATAL', $service->cancel($cancelled, 'Salah input faktur', $user)['purchase']->status);
+    }
+
+    /**
+     * Opname mengunci produk lebih dulu lalu membaca nilai "sebelum" secara terkini. Penjualan yang commit setelah
+     * read view transaksi opname terbentuk tidak boleh dijurnal lagi ke 5-2000.
+     */
+    public function test_opname_does_not_journal_a_sale_committed_after_its_snapshot_again(): void
+    {
+        $product = $this->onSide(function () {
+            $product = $this->sideProduct([[2, 100000, '2026-07-01'], [2, 120000, '2026-08-01']]);
+            $this->sideJournal('1-2000', '3-1000', 440000);
+
+            return $product;
+        });
+
+        DB::beginTransaction();
+        DB::select('select count(*) from product_batches'); // read view transaksi opname terbentuk di sini
+
+        // Penjualan 1 unit di kasir lain: lapisan tertua 100rb, HPP dijurnal oleh penjualan itu sendiri.
+        $this->onSide(function () use ($product) {
+            ProductBatch::where('product_id', $product->id)->orderBy('purchase_date')->first()->decrement('remaining_qty');
+            Product::whereKey($product->id)->decrement('product_quantity');
+            $this->sideJournal('5-1000', '1-2000', 100000);
+        });
+
+        // Fisik 2: satu unit hilang lagi (lapisan 100rb yang tersisa), selisih nilai opname tepat 100rb.
+        $out = app(StockOpnameService::class)->adjust([['product_id' => $product->id, 'physical_qty' => 2]], null, null);
+
+        $this->assertSame(-1, $out['adjustments'][0]['difference']);
+        $journal = $this->journalByAccount($out['reference'], 'STOCK_OPNAME');
+        $this->assertEquals(100000, $journal['5-2000']['debit']);
+        $this->assertEquals(100000, $journal['1-2000']['credit']);
     }
 }
