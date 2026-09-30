@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\v1\AccountController;
 use App\Http\Controllers\Api\v1\AccountingPeriodController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
+use App\Http\Controllers\Api\v1\CashSessionController;
 use App\Http\Controllers\Api\v1\ExpenseController;
 use App\Http\Controllers\Api\v1\InventoryController;
 use App\Http\Controllers\Api\v1\OpeningBalanceController;
@@ -92,6 +93,17 @@ Route::prefix('v1')->group(function () {
         });
         Route::post('pos/transactions/{id}/void', [PosController::class, 'void'])->middleware('permission:sale_void');
 
+        // Shift kasir (satu laci = akun 1-1000); selisih kas dijurnal saat pemilik menyetujui
+        Route::get('cash-sessions/current', [CashSessionController::class, 'current'])->middleware('permission:cash_session,cash_session_approve');
+        Route::middleware('permission:cash_session')->group(function () {
+            Route::post('cash-sessions/open', [CashSessionController::class, 'open']);
+            Route::post('cash-sessions/{id}/close', [CashSessionController::class, 'close'])->whereNumber('id');
+        });
+        Route::middleware('permission:cash_session_approve')->group(function () {
+            Route::get('cash-sessions', [CashSessionController::class, 'index']);
+            Route::post('cash-sessions/{id}/approve', [CashSessionController::class, 'approve'])->whereNumber('id');
+        });
+
         // Pengaturan rekening transfer & provider QRIS (EDC tidak lagi didukung)
         Route::get('settings/payment-providers', [PaymentMethodSettingController::class, 'indexProviders'])->middleware('permission:role_settings,pos');
         Route::middleware('permission:role_settings')->group(function () {
@@ -154,7 +166,7 @@ Route::prefix('v1')->group(function () {
             });
             Route::get('financial-statements', [AccountingReportController::class, 'financialStatements'])->middleware('permission:financial_reports,accounting_hub');
             Route::get('cash-flow', [AccountingReportController::class, 'cashFlow'])->middleware('permission:financial_reports,accounting_hub');
-            Route::get('cash-balances', [AccountingReportController::class, 'cashBalances'])->middleware('permission:expenses,accounting_hub,financial_reports');
+            Route::get('cash-balances', [AccountingReportController::class, 'cashBalances'])->middleware('permission:expenses,accounting_hub,financial_reports,cash_session');
             Route::middleware('permission:accounts_payable')->group(function () {
                 Route::get('accounts-payable', [AccountingReportController::class, 'accountsPayable']);
                 Route::post('accounts-payable/pay', [AccountingReportController::class, 'payDebt']);

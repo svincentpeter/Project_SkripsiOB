@@ -9,6 +9,7 @@ use App\Models\Sale;
 use App\Models\SaleDetail;
 use App\Models\SalePayment;
 use App\Models\User;
+use App\Services\Accounting\CashSessionService;
 use App\Services\AccountingEngine;
 use App\Services\DocumentNumber;
 use App\Services\FifoCostingService;
@@ -32,6 +33,10 @@ class CheckoutService
     public function checkout(array $data, ?User $user): Sale
     {
         return DB::transaction(function () use ($data, $user) {
+            // Uang tunai hanya boleh masuk laci (akun 1-1000) selama shift kasir dibuka.
+            if (collect($data['payments'] ?? [])->contains('method', 'TUNAI')) {
+                CashSessionService::requireOpen();
+            }
             $lines = CartLines::build($data['items']);
 
             $subtotal = round(array_sum(array_column($lines, 'net')), 2);

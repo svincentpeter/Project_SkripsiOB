@@ -131,6 +131,9 @@ class CashFlowReportTest extends TestCase
     {
         $this->actingAsRole('KASIR');
         $this->getJson('/api/v1/accounting/cash-flow')->assertForbidden();
+
+        // Saldo kas boleh dibaca kasir (izin cash_session, untuk saldo laci di POS); gudang tidak.
+        $this->actingAsRole('GUDANG');
         $this->getJson('/api/v1/accounting/cash-balances')->assertForbidden();
     }
 }

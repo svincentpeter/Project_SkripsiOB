@@ -2,6 +2,7 @@
 
 namespace Tests\Concerns;
 
+use App\Models\CashSession;
 use App\Models\JournalEntry;
 use App\Models\PaymentProviderSetting;
 use App\Models\Product;
@@ -107,7 +108,24 @@ trait CreatesPosFixtures
 
     protected function checkout(array $payload)
     {
+        if (collect($payload['payments'] ?? [])->contains('method', 'TUNAI')) {
+            $this->ensureCashSession();
+        }
+
         return $this->postJson('/api/v1/pos/checkout', $payload + ['customer_name' => 'Budi', 'vehicle_plate' => 'AA 1 BB']);
+    }
+
+    /** Checkout tunai butuh shift kasir terbuka; test yang tidak menguji shift memakai shift ini. */
+    protected function ensureCashSession(): CashSession
+    {
+        return CashSession::where('status', CashSession::OPEN)->first() ?? CashSession::create([
+            'user_id' => auth()->id(),
+            'opened_at' => now(),
+            'opening_float' => 0,
+            'book_opening' => 0,
+            'from_entry_id' => (int) JournalEntry::max('id'),
+            'status' => CashSession::OPEN,
+        ]);
     }
 
     protected function saleOf($response): Sale
