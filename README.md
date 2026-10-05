@@ -2,224 +2,292 @@
 
 <div align="center">
 
-![Project Banner](https://img.shields.io/badge/Standar-SAK_EMKM-blue.svg?style=for-the-badge)
+![SAK EMKM](https://img.shields.io/badge/Standar-SAK_EMKM-blue.svg?style=for-the-badge)
 ![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel_13-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL_8-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
 
-**Sistem Point of Sale (POS) & Sistem Informasi Akuntansi (SIA) Terintegrasi Berstandar SAK EMKM**  
-*Studi Kasus: Toko Ban & Bengkel Spooring Omah Ban Cabang 3 (OB3)*
+**Sistem Point of Sale (POS) & Sistem Informasi Akuntansi (SIA) Terintegrasi Berstandar SAK EMKM**
+*Studi Kasus: Toko Ban & Bengkel Spooring Omah Ban Cabang 3 (OB3), Magelang*
 
 </div>
 
 ---
 
-## 📌 1. Latar Belakang & Konteks Skripsi
+## 1. Ringkasan
 
-Proyek **`Project_SkripsiOB`** ini dikembangkan sebagai karya Tugas Akhir / Skripsi untuk **Program Ganda (Double Degree): Akuntansi & Sistem Informasi**.
+`Project_SkripsiOB` adalah karya Tugas Akhir / Skripsi Program Ganda (Double Degree) **Akuntansi & Sistem Informasi**.
+Sistem ini menggabungkan kasir (POS) toko ban dengan Sistem Informasi Akuntansi. Setiap kejadian bisnis (penjualan,
+retur, penerimaan barang, pembayaran hutang, beban, setoran kas, penyusutan, penyesuaian akhir bulan) otomatis
+menghasilkan **jurnal berpasangan (double-entry) yang seimbang**, dan laporan keuangan **SAK EMKM** disusun langsung dari
+jurnal tersebut. Persediaan dinilai dengan metode **FIFO**.
 
-Sistem ini memadukan kecepatan operasional kasir toko ban (*Point of Sale*) dengan keandalan **Sistem Informasi Akuntansi (SIA)**. Seluruh kejadian transaksi bisnis (penjualan kasir, penerimaan stok ban masuk, pengeluaran kas operasional bengkel, pelunasan hutang supplier, dan penyesuaian akhir periode) mengalir secara otomatis (*seamless data flow*) ke dalam siklus akuntansi (*accounting cycle*) berbasis pencatatan berpasangan (*double-entry bookkeeping*) sesuai standar **SAK EMKM** (Standar Akuntansi Keuangan Entitas Mikro, Kecil, dan Menengah).
+Prinsip penting:
 
----
-
-## ✨ 2. Fitur-Fitur Utama
-
-### 🛒 A. Modul Operasional Kasir (Point of Sale)
-- **Kiosk POS Touchscreen Meja Kasir:** Antarmuka layar sentuh responsif dengan pemfilteran ukuran ban, ring (R13 - R18+), dan merek ternama (Bridgestone, Dunlop, Accelera, Forceum, Hankook).
-- **Kalkulasi Otomatis Diskon:** Penghitungan subtotal kotor, potongan harga promosi, dan grand total (toko non-PKP, penjualan tanpa PPN).
-- **Dukungan Multi-Metode Pembayaran:** Tunai (dengan kalkulasi uang diterima dan kembalian), Transfer Bank BCA, QRIS, serta Kartu Debit/Kredit EDC.
-- **Pencatatan Identitas Pelanggan & Kendaraan:** Input nama konsumen walk-in dan nomor plat kendaraan untuk pencetakan nota dinas bengkel.
-- **Cetak Struk Thermal 80mm:** Pratinjau struk thermal realistis dengan gerigi kertas potong dan tombol cetak struk kasir (*Print to POS printer*).
-
-### 📦 B. Manajemen Inventori & Metode Biaya FIFO (*First-In, First-Out*)
-- **Lapisan Batch Pembelian (*FIFO Cost Layering*):** Menjamin setiap ban yang terjual memotong HPP dari batch kedatangan tertua terlebih dahulu.
-- **Penerimaan Barang (*Goods Receipt / Restock*):** Form penerimaan stok ban baru dari distributor resmi lengkap dengan pilihan syarat bayar:
-  - **Tempo / Kredit:** Otomatis mencatat hutang dagang supplier dan tanggal jatuh tempo.
-  - **Tunai Kas Laci:** Otomatis memotong saldo kas fisik laci kasir.
-  - **Transfer Bank BCA:** Otomatis memotong saldo rekening operasional toko.
-- **Kartu Stok Mutasi (*Stock Movement Card*):** Riwayat mutasi masuk, keluar, dan penyesuaian stok dengan saldo berjalan (*running balance*).
-- **Stock Opname Fisik vs Sistem:** Rekonsiliasi fisik gudang dan pembentukan mutasi koreksi penyesuaian stok.
-
-### 💰 C. Beban Operasional & Kas Kecil (*Expenses*)
-- Pencatatan biaya operasional toko ban (Gaji montir, Listrik & Air PLN/PDAM, Sewa Ruko, Ongkos Angkut Ban, ATK/Perlengkapan Bengkel, Kalibrasi Mesin Spooring 3D, Konsumsi Lembur, dan Retribusi Daerah).
-- Pemilihan sumber pengeluaran: **Kas Tunai Laci Kasir** atau **Rekening Bank BCA**.
-- Otomatis membentuk ayat jurnal beban berpasangan (*Auto-Journaling*).
+- **Server adalah sumber kebenaran.** Uang, stok, akuntansi, dan nomor dokumen dihitung dan disimpan oleh backend
+  Laravel (MySQL). Frontend hanya mengirim maksud transaksi dan menampilkan hasil dari server.
+- **localStorage hanya untuk kenyamanan kasir:** keranjang, pesanan yang diparkir (parked orders), dan teks
+  pengaturan struk/toko (plus token login).
+- **Jurnal selalu seimbang.** Semua posting melalui satu mesin akuntansi yang menolak jurnal dengan Σ Debit ≠ Σ Kredit
+  (tanpa toleransi), baris negatif, dan tanggal pada periode yang sudah dikunci.
+- **Toko non-PKP: tidak ada PPN pada penjualan.** PPN hanya muncul di faktur supplier dan dikapitalisasi ke harga pokok
+  persediaan (tidak ada akun PPN Masukan/Keluaran).
+- **Supabase adalah warisan (legacy) dan tidak dipakai.** File `supabase_schema.sql`, `SUPABASE_VERCEL_SETUP.md`,
+  `database/schema_project_skripsi_ob.sql`, dan service Supabase di `src/services/` tidak menjadi acuan.
 
 ---
 
-### 📊 D. Modul Akuntansi SAK EMKM Lengkap (Accounting Hub)
+## 2. Fitur
 
-Modul akuntansi tersaji dalam **6 Tab Terpadu**:
+### A. Kasir (Point of Sale)
+- Kiosk POS layar sentuh dengan filter ukuran, ring, dan merek ban; item jasa (spooring, balancing) dan input jasa manual.
+- Diskon per item dan diskon nota; tanpa PPN.
+- Pembayaran **Tunai, Transfer, dan QRIS**, termasuk pembayaran terpisah (split). Setiap penjualan dibayar lunas.
+- **QRIS dinamis Midtrans** (sandbox secara bawaan) dengan biaya MDR dihitung server; mode simulasi untuk demo.
+- Cetak struk thermal 80 mm dan nota A4; riwayat penjualan.
+- **Void** penjualan (bawaan hanya OWNER) dengan jurnal pembalik yang tertaut ke jurnal penjualan.
+- **Retur penjualan sebagian** dengan pengembalian uang tunai (akun 4-9100 Retur Penjualan).
+- **Shift kasir:** buka shift (hitung modal awal), tutup shift (hitung laci), persetujuan OWNER dan jurnal selisih kas.
+  Penjualan tunai wajib dalam shift yang terbuka. Saldo "Kas Laci" = saldo buku besar akun 1-1000.
+- Setoran kas ke bank, Prive pemilik, dan setoran modal.
 
-1. **Jurnal Umum & Penyesuaian (*General Journal*):**
-   - Riwayat seluruh jurnal transaksi secara kronologis (`SALE`, `PURCHASE`, `EXPENSE`, `DEBT_PAYMENT`, `ADJUSTMENT`).
-   - Modal **Input Jurnal Penyesuaian / Memorial Manual** (misal: Beban penyusutan mesin spooring bulanan) dengan validasi ketat $\sum \text{Debit} = \sum \text{Kredit}$.
-2. **Buku Besar (*General Ledger* per Akun COA):**
-   - Pemilih 21 akun COA SAK EMKM.
-   - Kartu metrik: Saldo Awal, Total Mutasi Debit, Total Mutasi Kredit, dan **Saldo Akhir Berjalan**.
-   - Tabel mutasi detail lengkap dengan kolom **Saldo Berjalan (*Running Balance*)**.
-3. **Neraca Saldo (*Trial Balance*):**
-   - Tabel kompilasi saldo akhir seluruh akun COA.
-   - Banner status keseimbangan otomatis (*Balanced Indicator*) yang membuktikan tidak ada selisih sebelum penyusunan laporan keuangan.
-4. **Buku Pembantu Hutang (*Accounts Payable Sub-Ledger*):**
-   - Daftar tagihan faktur tempo dari distributor ban (PT Bridgestone Tire Indonesia, PT Elangperdana Tyre Industry, PT Sumi Rubber Indonesia).
-   - Fitur **"Bayar Hutang Supplier"**: Modal pelunasan via Kas atau Bank BCA yang langsung memotong hutang dan mencatat jurnal pelunasan secara otomatis.
-5. **Buku Pembantu Piutang (*Accounts Receivable Sub-Ledger*):**
-   - Daftar faktur penjualan tempo pelanggan beserta nomor plat kendaraan.
-   - Fitur pencatatan **penerimaan pelunasan piutang** yang otomatis membentuk jurnal dan menambah kas laci atau rekening bank.
-6. **Ikhtisar Eksekutif (*Executive Handoff*):**
-   - Tiga kartu metrik cepat: Omzet Bersih Berjalan, Laba Bersih Berjalan beserta margin, dan Uang Kas & Bank Siap Pakai.
-   - Pintu menuju modul **Laporan Keuangan** tersendiri, dengan opsi pratinjau laporan lengkap di tempat.
+### B. Persediaan (FIFO)
+- Master produk, kategori, merek, jasa, dan supplier.
+- Lapisan batch FIFO: HPP setiap penjualan diambil dari batch tertua; nilai akun 1-2000 selalu sama dengan
+  Σ(sisa qty × harga batch).
+- **Penerimaan barang (GR)** secara Tunai, Transfer BCA, atau Tempo (hutang), dengan **PPN faktur dikapitalisasi** ke
+  harga pokok batch.
+- **Retur pembelian** ke supplier dan **pembatalan penerimaan** yang belum tersentuh.
+- **Hutang dagang:** daftar faktur tempo, jatuh tempo, pembayaran sebagian/lunas via kas atau bank.
+- **Stok opname** fisik vs sistem dengan jurnal selisih persediaan (5-2000).
+- **Import stok dari Excel** (pratinjau, resolusi merek/nama, commit) dan kartu stok FIFO bulanan.
+- Saldo awal persediaan dibukukan satu kali (`inventory:opening-balance`) dan menandai go-live; setelah itu rebuild
+  stok dari Excel ditolak.
 
-Laporan Keuangan Standar SAK EMKM (100% Dinamis) disajikan pada menu tersendiri dengan **3 sub-tab**:
-
-   - **Laporan Laba Rugi:** Omzet Kotor $\rightarrow$ Diskon $\rightarrow$ Penjualan Bersih $\rightarrow$ HPP FIFO $\rightarrow$ Laba Bruto $\rightarrow$ Rincian Beban Operasional Usaha $\rightarrow$ Laba Neto Periode Berjalan.
-   - **Laporan Posisi Keuangan (Neraca):** 100% dinamis terhitung dari Buku Besar: Total Aset Lancar + Nilai Buku Aset Tetap = Total Liabilitas + Total Ekuitas (Seimbang $\Delta = 0$).
-   - **Laporan Arus Kas:** Rekonsiliasi arus kas operasi, investasi, dan pendanaan sepanjang periode berjalan.
-   - Fitur Cetak Dokumen Standar A4 dan Ekspor Spreadsheet CSV/Excel.
-
-### 📈 E. Dashboard Eksekutif Pemilik (*Owner Analytics*)
-- 5 Kartu KPI utama: Total Penjualan Kotor, Laba Bersih, HPP FIFO, Kas Laci Aktif, dan Ban Terjual.
-- Grafik tren 7 hari (Omzet Penjualan vs HPP).
-- Donut chart pangsa penjualan merek ban.
-- Tabel produk terlaris (*fast-moving*) dan peringatan stok kritis (*low stock alert*).
-
----
-
-## 🗂️ 3. Bagan Akun Standar (*Chart of Accounts* - COA)
-
-| Kode Akun | Nama Rekening Akuntansi | Klasifikasi | Saldo Normal |
-| :--- | :--- | :--- | :--- |
-| **1-1000** | Kas Toko Laci Kasir | Aset Lancar | DEBIT |
-| **1-1001** | Bank BCA Cabang 3 | Aset Lancar | DEBIT |
-| **1-1002** | Piutang Dagang (AR) | Aset Lancar | DEBIT |
-| **1-2000** | Persediaan Ban Baru Cabang 3 | Aset Lancar | DEBIT |
-| **1-3000** | Peralatan Bengkel & Mesin Spooring 3D | Aset Tetap | DEBIT |
-| **1-3999** | Akumulasi Penyusutan Mesin Bengkel | Kontra Aset Tetap | KREDIT |
-| **2-1000** | Hutang Dagang Supplier (AP) | Liabilitas Lancar | KREDIT |
-| **3-1000** | Modal Disetor Pemilik | Ekuitas | KREDIT |
-| **3-2000** | Laba Ditahan Cabang 3 | Ekuitas | KREDIT |
-| **4-1000** | Pendapatan Penjualan Ban Baru | Pendapatan Usaha | KREDIT |
-| **4-9000** | Potongan Diskon Penjualan | Kontra Pendapatan | DEBIT |
-| **5-1000** | Harga Pokok Penjualan (HPP) Ban Baru | Beban Pokok | DEBIT |
-| **6-1000** | Beban Gaji & Uang Makan Karyawan | Beban Operasional | DEBIT |
-| **6-1001** | Beban Listrik, Air & Internet | Beban Operasional | DEBIT |
-| **6-1003** | Beban Sewa Bangunan Toko | Beban Operasional | DEBIT |
-| **6-1004** | Beban Transportasi & Pengiriman Ban | Beban Operasional | DEBIT |
-| **6-1005** | Beban Perlengkapan & ATK Toko | Beban Operasional | DEBIT |
-| **6-1006** | Beban Perawatan Mesin Spooring & Balancing | Beban Operasional | DEBIT |
-| **6-1007** | Beban Konsumsi & Lembur Karyawan | Beban Operasional | DEBIT |
-| **6-1008** | Beban Pajak & Retribusi Daerah | Beban Operasional | DEBIT |
+### C. Akuntansi (SAK EMKM)
+- **Beban operasional (BKK / Bukti Kas Keluar)** dari kas laci atau bank, otomatis berjurnal.
+- **Jurnal umum manual** dengan validasi Σ Debit = Σ Kredit, dan **jurnal pembalik (storno)**.
+- **Saldo awal akun**.
+- **Aset tetap & penyusutan** (register aset, penyusutan garis lurus bulanan).
+- **Jurnal penyesuaian (AJP):** beban dibayar di muka dan beban yang masih harus dibayar.
+- **Rekonsiliasi bank** bulanan terhadap rekening koran.
+- **Tutup buku & kunci periode** (hanya OWNER yang dapat membuka kembali periode terakhir); jurnal pada periode terkunci ditolak.
+- **Laporan per periode, dihitung dari jurnal:** Jurnal Umum, Buku Besar, Neraca Saldo, Laporan Laba Rugi,
+  Laporan Posisi Keuangan (Neraca), Laporan Perubahan Ekuitas, Laporan Arus Kas (metode langsung), dan
+  **CALK** (Catatan atas Laporan Keuangan).
+- **Laporan harian:** Laporan Kas Harian, Rekap Harian, dan Rekap per Kasir.
+- **Dashboard OWNER** dengan angka uang dari server.
+- **Ekspor** laporan ke PDF, Excel (xlsx), Word (docx), dan CSV, dengan kop toko.
 
 ---
 
-## 🏗️ 4. Struktur Direktori Proyek
+## 3. Peran Pengguna
+
+Hak akses bersifat deny-by-default dan diperiksa di server untuk setiap endpoint. OWNER dapat mengubah hak akses
+KASIR dan GUDANG di menu Pengaturan.
+
+| Peran | Akses bawaan |
+|---|---|
+| **OWNER** | Semua fitur, termasuk void, persetujuan shift, akuntansi, laporan, dan pengaturan hak akses |
+| **KASIR** | POS, riwayat nota, shift kasir, retur penjualan, laporan harian |
+| **GUDANG** | Lihat & kelola persediaan, penerimaan barang, stok opname, retur pembelian |
+
+Akun hasil seeder (login dengan email atau username `owner` / `kasir` / `gudang`):
+
+| Email | Peran |
+|---|---|
+| `owner@omahban.com` | OWNER (Agus Subagyo) |
+| `kasir@omahban.com` | KASIR |
+| `gudang@omahban.com` | GUDANG |
+
+Password ketiga akun adalah nilai `SEED_DEFAULT_PASSWORD` di `backend/.env` saat seeding. Ganti setelah login pertama.
+
+---
+
+## 4. Teknologi
+
+| Bagian | Lokasi | Teknologi |
+|---|---|---|
+| Frontend (SPA) | root repo: `src/`, `index.html`, `vite.config.ts` | React 19, TypeScript 5.8, Vite 6, Tailwind CSS v4, lucide-react, Vitest |
+| Backend (REST API) | `backend/` | Laravel 13, PHP 8.3, Sanctum (bearer token), MySQL 8, PHPUnit 12 |
+| Ekspor | `src/shared/export/` | pdfmake, exceljs, docx, CSV |
+| Pembayaran | `backend/app/Services/Payment/` | Midtrans QRIS (sandbox) |
+
+Struktur singkat:
 
 ```
 Project_SkripsiOB/
-├── database/
-│   └── schema_project_skripsi_ob.sql      # Skema DDL & DML MySQL Resmi
-├── docs/
-│   ├── SPESIFIKASI_DAN_JUSTIFIKASI_SISTEM.md # Dokumen Spesifikasi Arsitektur & Landasan Akademik
-│   └── superpowers/
-│       ├── specs/                         # Dokumen Spesifikasi Desain Sistem
-│       │   └── 2026-09-03-sistem-informasi-akuntansi-sak-emkm-design.md
-│       └── plans/                         # Dokumen Rencana Implementasi Bertahap
-│           └── 2026-09-03-sistem-informasi-akuntansi-sak-emkm-plan.md
-├── src/
-│   ├── modules/
-│   │   ├── accounting/                    # Modul Pusat Akuntansi & SAK EMKM
-│   │   │   ├── components/
-│   │   │   │   ├── JournalTab.tsx         # Tab 1: Jurnal Umum & Filter Transaksi
-│   │   │   │   ├── ManualJournalModal.tsx # Modal Input Jurnal Penyesuaian
-│   │   │   │   ├── GeneralLedgerTab.tsx   # Tab 2: Buku Besar per Akun COA
-│   │   │   │   ├── TrialBalanceTab.tsx    # Tab 3: Neraca Saldo (Debit = Kredit)
-│   │   │   │   ├── AccountsPayableTab.tsx # Tab 4: Buku Pembantu Hutang Supplier
-│   │   │   │   ├── AccountsReceivableTab.tsx # Tab 5: Buku Pembantu Piutang Pelanggan
-│   │   │   │   ├── PayDebtModal.tsx       # Modal Pelunasan Hutang Distributor
-│   │   │   │   ├── SakEmkmReportTab.tsx   # Laporan Laba Rugi, Neraca & Arus Kas
-│   │   │   │   └── index.ts
-│   │   │   ├── GeneralLedgerScreen.tsx    # Layar Utama Pusat Akuntansi (6 Tab)
-│   │   │   ├── FinancialStatementsScreen.tsx
-│   │   │   └── index.ts
-│   │   ├── dashboard/                     # Modul Dashboard Eksekutif Owner
-│   │   ├── expenses/                      # Modul Biaya Operasional Toko
-│   │   ├── inventory/                     # Modul Inventori, Batch FIFO & Opname
-│   │   ├── pos/                           # Modul Kiosk Kasir Point of Sale
-│   │   └── receipt/                       # Modul Riwayat & Cetak Struk Thermal
-│   ├── services/
-│   │   ├── accountingService.ts           # Logika Ledger, Trial Balance & SAK EMKM
-│   │   ├── supabaseDataService.ts         # Sumber kebenaran data: fetch & tulis Supabase
-│   │   ├── fifoCostingService.ts          # Algoritma Alokasi Batch FIFO & HPP
-│   │   ├── inventoryService.ts            # Mutasi Stok & Goods Receipt
-│   │   └── posService.ts                  # Checkout Kasir & Format Nota
-│   ├── shared/
-│   │   ├── components/                    # HeaderNavbar, Modals, Shared UI
-│   │   ├── data/mockData.ts               # COA SAK EMKM, user bawaan & konfigurasi awal
-│   │   ├── types/index.ts                 # Definisi Tipe TypeScript
-│   │   └── utils/formatters.ts            # formatRupiah, formatDateIndo, dsb.
-│   ├── App.tsx                            # Root Component & Central State Store
-│   ├── main.tsx                           # React Entrypoint
-│   └── index.css                          # Tailwind CSS Directives
-├── package.json
-├── tsconfig.json
-├── vite.config.ts
-└── README.md
+├── src/                     Frontend React
+│   ├── App.tsx              shell aplikasi: state global, handler, perpindahan layar
+│   ├── modules/             pos, receipt, inventory, expenses, accounting, dashboard, settings, auth
+│   ├── services/api/        klien API Laravel bertipe + mapper
+│   └── shared/              tipe, komponen bersama, formatter, sistem ekspor
+├── backend/                 Laravel REST API (/api/v1)
+│   ├── app/Services/        logika bisnis: AccountingEngine, JournalDraft, FifoCostingService,
+│   │                        Pos/*, Inventory/*, Accounting/*, Reports/*, Payment/*
+│   ├── database/            migrasi & seeder (COA, pengguna, hak akses, data ban)
+│   ├── routes/api.php       semua endpoint
+│   └── tests/               PHPUnit (Feature & Unit)
+├── docs/ai/                 dokumentasi teknis terkini (mulai dari sini)
+├── docs/superpowers/        spesifikasi desain & rencana implementasi per tahap
+└── tests/e2e/               skrip audit Playwright (manual)
 ```
 
 ---
 
-## 🚀 5. Cara Menjalankan Proyek Secara Lokal (Full-Stack)
+## 5. Menjalankan Secara Lokal (Windows / Laragon)
 
-### Prasyarat:
-- **Laragon** (PHP 8.2/8.3, MySQL 8.0, Apache/Nginx)
-- **Composer** (v2.4+)
-- **Node.js** (Versi 18 atau yang lebih baru) & **NPM**
+### Prasyarat
+- **Laragon** dengan PHP 8.3 dan MySQL 8 (service MySQL aktif).
+- **Composer 2.** Laragon menyertakan Composer di `C:\laragon\bin\composer`. Jika perintah `composer` tidak dikenal di
+  terminal Anda (di luar terminal Laragon), jalankan lewat PHP: `php C:\laragon\bin\composer\composer.phar install`.
+- **Node.js 22.12 atau lebih baru** (dibutuhkan oleh Vitest 5 dan concurrently 10) dan npm.
+
+### Langkah
+
+**1. Buat database MySQL** (HeidiSQL/phpMyAdmin dari Laragon, atau klien `mysql`). Nama memakai tanda hubung, jadi
+gunakan backtick:
+
+```sql
+CREATE DATABASE `project-skripsi_ob`;
+CREATE DATABASE `project-skripsi_ob_testing`;
+```
+
+**2. Pasang dependensi frontend** (di root repo):
+
+```bash
+npm install
+```
+
+**3. Siapkan backend:**
+
+```bash
+cd backend
+composer install
+copy .env.example .env      # Git Bash: cp .env.example .env
+php artisan key:generate
+```
+
+Lalu ubah `backend/.env`. `.env.example` masih memakai `DB_CONNECTION=sqlite`, jadi ganti bagian database:
+
+```dotenv
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=project-skripsi_ob
+DB_USERNAME=root
+DB_PASSWORD=
+
+# wajib: password awal akun owner/kasir/gudang (seeder gagal bila kosong)
+SEED_DEFAULT_PASSWORD=<isi sendiri>
+
+# demo sandbox: tombol "Simulasi Bayar Lunas" dan QR cadangan QRIS
+MIDTRANS_ALLOW_SIMULATION=true
+```
+
+Opsional untuk QRIS dinamis sungguhan (sandbox): `MIDTRANS_SERVER_KEY`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_MERCHANT_ID`.
+Tidak ada kunci bawaan; tanpa `MIDTRANS_SERVER_KEY` QRIS dinamis tidak dapat dibuat. `MIDTRANS_ALLOW_SIMULATION`
+selalu mati bila `MIDTRANS_IS_PRODUCTION=true`.
+
+**4. Migrasi, seeder, dan saldo awal persediaan:**
+
+```bash
+php artisan migrate --seed
+php artisan inventory:opening-balance
+```
+
+`inventory:opening-balance` membukukan nilai FIFO stok hasil seeder ke akun 1-2000 dan menandai go-live. Jalankan
+**satu kali per database**; percobaan kedua akan ditolak.
+
+**5. Siapkan database pengujian** (sekali, dan setiap ada migrasi baru). PowerShell:
+
+```powershell
+$env:DB_DATABASE='project-skripsi_ob_testing'; php artisan migrate --force
+```
+
+Git Bash: `DB_DATABASE=project-skripsi_ob_testing php artisan migrate --force`.
+
+**6. Login cepat (opsional, hanya mode dev).** Buat `.env.local` di root repo:
+
+```dotenv
+VITE_DEV_LOGIN_PASSWORD=<sama dengan SEED_DEFAULT_PASSWORD>
+```
+
+Layar login `npm run dev` lalu menampilkan kartu login cepat OWNER/KASIR/GUDANG. Jangan commit `.env.local`.
+
+**7. Jalankan frontend + backend bersamaan** (dari root repo):
+
+```bash
+npm run dev:all
+```
+
+- Frontend: `http://localhost:3000`
+- Backend API: `http://127.0.0.1:8000/api/v1` (frontend memakai alamat ini secara bawaan; ubah lewat `VITE_API_URL`)
+
+Untuk transaksi tunai, buka shift kasir terlebih dahulu di POS.
 
 ---
 
-### Langkah Menjalankan:
+## 6. Perintah
 
-#### A. Konfigurasi Database MySQL Laragon
-1. Pastikan service **MySQL** di Laragon sudah aktif.
-2. Basis data proyek ini menggunakan database **`project-skripsi_ob`**.
+| Perintah | Lokasi | Fungsi |
+|---|---|---|
+| `npm run dev` | root | Frontend Vite di port 3000 |
+| `npm run dev:backend` | root | `php artisan serve` di `backend/` |
+| `npm run dev:all` | root | Frontend + backend bersamaan |
+| `npm run lint` | root | Pemeriksaan tipe TypeScript (`tsc --noEmit`) |
+| `npm test` | root | Unit test frontend (Vitest) |
+| `npm run build` | root | Build produksi frontend |
+| `composer test` | `backend/` | Unit & feature test backend (`config:clear` lalu `php artisan test`) |
+| `php artisan test` | `backend/` | Sama, tanpa `config:clear`; filter: `--filter=PosCheckoutTest` |
+| `php artisan inventory:opening-balance` | `backend/` | Saldo awal persediaan (sekali per database) |
 
-#### B. Menjalankan Backend Laravel REST API
-1. Masuk ke direktori `backend`:
-   ```bash
-   cd backend
-   ```
-2. Jalankan migrasi dan seeder COA SAK EMKM:
-   ```bash
-   php artisan migrate
-   php artisan db:seed --class=AccountCoaSeeder
-   ```
-3. Jalankan server backend:
-   ```bash
-   php artisan serve --port=8000
-   ```
-   Backend API akan melayani request di `http://127.0.0.1:8000/api/v1`.
-4. Untuk menjalankan pengujian otomatis (*Unit & Feature Tests*):
-   ```bash
-   php artisan test
-   ```
-
-#### C. Menjalankan Frontend React 19 SPA
-1. Buka terminal baru di root folder `Project_SkripsiOB`:
-   ```bash
-   npm install
-   npm run dev
-   ```
-2. Buka peramban di `http://localhost:3000`. Indikator status **MySQL Live** akan menyala hijau di navbar atas saat backend Laravel aktif.
-3. Pemeriksaan Linter & TypeScript:
-   ```bash
-   npm run lint
-   ```
+Test backend selalu memakai database MySQL `project-skripsi_ob_testing` (diatur di `backend/phpunit.xml`), bukan
+database utama.
 
 ---
 
-## 👨‍💻 Peneliti & Pemilik Usaha
+## 7. Bagan Akun (COA)
+
+COA berisi **33 akun** sesuai SAK EMKM, di-seed oleh `backend/database/seeders/AccountCoaSeeder.php` (ditambah migrasi
+untuk database lama). Frontend tidak menyimpan salinan COA; daftar akun diambil dari `GET /api/v1/accounts`.
+
+| Kelompok | Contoh akun |
+|---|---|
+| 1 Aset | 1-1000 Kas Laci Kasir, 1-1001 Bank BCA, 1-1100 Beban Dibayar di Muka, 1-2000 Persediaan, 1-3000 Peralatan & Mesin, 1-3999 Akumulasi Penyusutan |
+| 2 Liabilitas | 2-1000 Hutang Dagang, 2-1100 Beban Yang Masih Harus Dibayar |
+| 3 Ekuitas | 3-1000 Modal Disetor, 3-2000 Laba Ditahan, 3-3000 Prive |
+| 4 Pendapatan | 4-1000 Penjualan Ban, 4-1001 Jasa Servis & Spooring, 4-3000 Bunga Bank, 4-9000 Diskon, 4-9100 Retur Penjualan |
+| 5 HPP | 5-1000 HPP Ban, 5-2000 Selisih Persediaan |
+| 6 Beban | 6-1000 s.d. 6-1012 (gaji, listrik, sewa, transportasi, ATK, perawatan mesin, MDR QRIS, selisih kas, penyusutan, administrasi bank, dll.) |
+
+Akun 1-1002 (Piutang), 2-1004 (Uang Muka Pelanggan), dan 4-2000 (Surcharge EDC) tidak aktif sejak penjualan kredit,
+DP booking, dan EDC dihapus dari POS; akun tetap ada untuk riwayat. Daftar lengkap dan aturan posting:
+[docs/ai/domain-accounting.md](docs/ai/domain-accounting.md).
+
+---
+
+## 8. Dokumentasi
+
+| Dokumen | Isi |
+|---|---|
+| [AGENTS.md](AGENTS.md) | Ringkasan proyek, aturan yang tidak boleh dilanggar, status sumber data per fitur |
+| [docs/ai/architecture.md](docs/ai/architecture.md) | Arsitektur frontend, klien API, alur login, sistem ekspor |
+| [docs/ai/api-reference.md](docs/ai/api-reference.md) | Daftar endpoint dan izin |
+| [docs/ai/data-model.md](docs/ai/data-model.md) | Tabel, migrasi, model |
+| [docs/ai/domain-accounting.md](docs/ai/domain-accounting.md) | COA, jurnal, laporan, beban, tutup buku, aset tetap, AJP, rekonsiliasi bank |
+| [docs/ai/domain-pos.md](docs/ai/domain-pos.md) | Checkout, pembayaran, biaya, void, retur, QRIS |
+| [docs/ai/domain-inventory.md](docs/ai/domain-inventory.md) | FIFO, penerimaan barang, hutang, retur pembelian, opname, import Excel |
+| [docs/ai/workflow-and-gotchas.md](docs/ai/workflow-and-gotchas.md) | Pengujian, alur kerja, glosarium, catatan penting |
+| [backend/AGENTS.md](backend/AGENTS.md) | Konvensi backend Laravel |
+| [docs/SPESIFIKASI_DAN_JUSTIFIKASI_SISTEM.md](docs/SPESIFIKASI_DAN_JUSTIFIKASI_SISTEM.md) | Spesifikasi sistem & landasan akademik (diselaraskan dengan kode per 2026-10-05) |
+| `docs/superpowers/specs/`, `docs/superpowers/plans/` | Spesifikasi desain dan rencana implementasi per tahap |
+
+---
+
+## Peneliti & Pemilik Usaha
 
 - **Nama Peneliti / Pengembang:** Catherine Wong
 - **NIM:** 23.G4.0007
@@ -227,7 +295,3 @@ Project_SkripsiOB/
 - **Pemilik Usaha (Owner):** Agus Subagyo
 - **Objek Penelitian:** Toko Ban dan Velg Omah Ban Cabang 3 (OB3) — Kabupaten Magelang, Jawa Tengah
 - **Fokus Riset:** *Perancangan Sistem Point of Sale (POS) dan Sistem Informasi Akuntansi Berbasis Website dengan Metode Rapid Application Development pada Toko Ban dan Velg Omah Ban Cabang 3*
-
----
-
-*Dikembangkan dengan dedikasi untuk keunggulan operasional Omah Ban dan integritas akademik akuntansi.*

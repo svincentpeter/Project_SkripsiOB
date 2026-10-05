@@ -163,9 +163,8 @@ and sorted newest-first in PHP (a descending scan would lock the neighbouring pr
 ## Frontend notes
 - The catalog cards' value is stock × `product_cost` (`calculateInventoryValuation`), **not** FIFO. The server
   valuation banner is the FIFO figure.
-- `stockReconciliationApi` falls back to client-side parsing and local writes when the server is unreachable. Commit
-  and bulk update rethrow once the server answered (an `ApiError` with a status, e.g. the go-live 422); the other
-  calls still fall back on any error. Treat the fallback as legacy, and surface server errors instead of extending it.
+- `stockReconciliationApi` has no client-side parsing or local writes (removed 2026-10-05); an unreachable server or a
+  422 is shown as an error.
 - `StockMonthlyLedgerView` shows the restock column as "Masuk (neto)" with its sign (`formatSignedQty`: +N, −N or 0),
   so a month with more purchase returns than receipts shows the negative net.
 - The template download (`/stock/template`) is a plain link with no bearer token, so it probably returns 401.

@@ -83,8 +83,8 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
   numeric strings become `Number`, ids become `String`, and alias fields are filled in. Both sides use snake_case.
   Wire types (`ApiSale`, `ApiJournal`, …) live next to the mappers. Payload builders (`cartLineToPayload`,
   `buildPayments`, `productPayload`, `restockPayload`) also live there.
-- `stockReconciliationApi.ts` falls back to client-side Excel parsing and local writes on **any** error, including
-  a server 422. That fallback is legacy and can hide real server rejections.
+- `stockReconciliationApi.ts` has no offline fallback (removed 2026-10-05): every call goes to the server and its
+  error reaches the screen.
 
 ### Auth flow
 1. `LoginScreen` → `authApi.login(login, password)` → `POST /auth/login`, which returns `{token, expires_at, user}`.
