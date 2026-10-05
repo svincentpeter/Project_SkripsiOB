@@ -1,7 +1,7 @@
 // Tipe SP4 (SAK EMKM): aset tetap, penyusutan, AJP, rekonsiliasi bank, CALK. Bentuk kabel = bentuk UI.
 
 export type FixedAssetCategory = 'PERALATAN_BENGKEL' | 'INVENTARIS_TOKO' | 'KENDARAAN';
-export type FixedAssetFunding = 'TUNAI' | 'TRANSFER' | 'OPENING';
+export type FixedAssetFunding = 'TUNAI' | 'TRANSFER' | 'OPENING' | 'MODAL';
 
 export interface FixedAsset {
   id: number;
@@ -84,6 +84,10 @@ export interface BankStatementLine {
   amount: number;
   source: 'MANUAL' | 'CSV';
   journal_item_id: number | null;
+  /** Terisi bila baris ini bagian dari mutasi gabungan yang dicocokkan ke beberapa jurnal. */
+  parent_id: number | null;
+  /** Nominal mutasi gabungan (induk) bila parent_id terisi. */
+  parent_amount: number | null;
   matched_entry_number: string | null;
   matched_reference_type: string | null;
   matched_entry_date: string | null;

@@ -15,6 +15,7 @@ const FUNDING_LABEL: Record<FixedAssetFunding, string> = {
   TUNAI: 'Dibeli tunai dari kas laci (Cr 1-1000)',
   TRANSFER: 'Dibeli via transfer Bank BCA (Cr 1-1001)',
   OPENING: 'Sudah tercatat di Saldo Awal 1-3000/1-3999 (tanpa jurnal baru)',
+  MODAL: 'Setoran aset pemilik / terlewat dari Saldo Awal (Cr 3-1000 Modal)',
 };
 
 interface FixedAssetModalProps {
@@ -50,7 +51,8 @@ export const FixedAssetModal: React.FC<FixedAssetModalProps> = ({ isOpen, onClos
 
   if (!isOpen) return null;
 
-  const opening = form.funding === 'OPENING';
+  // Aset yang tidak dibeli sekarang membawa bulan mulai penyusutan & akumulasi sebelumnya sendiri.
+  const opening = form.funding === 'OPENING' || form.funding === 'MODAL';
   const set = (patch: Partial<FixedAssetInput>) => setForm((f) => ({ ...f, ...patch }));
   const base = form.acquisition_cost - form.residual_value - (opening ? form.opening_accumulated_depreciation ?? 0 : 0);
   const monthly = form.useful_life_months > 0 ? Math.floor((base * 100) / form.useful_life_months) / 100 : 0;
@@ -155,9 +157,11 @@ export const FixedAssetModal: React.FC<FixedAssetModalProps> = ({ isOpen, onClos
 
           <p className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 leading-relaxed">
             Perkiraan penyusutan per bulan <strong className="font-mono">{formatRupiah(Math.max(0, monthly))}</strong>
-            {opening
+            {form.funding === 'OPENING'
               ? ' atas sisa nilai buku dikurangi residu. Tidak ada jurnal perolehan: nilainya sudah masuk Saldo Awal.'
-              : `. Jurnal perolehan: Dr 1-3000 / Cr ${form.funding === 'TUNAI' ? '1-1000 Kas Laci' : '1-1001 Bank BCA'}.`}
+              : form.funding === 'MODAL'
+                ? ' atas sisa nilai buku dikurangi residu. Jurnal: Dr 1-3000 harga perolehan / Cr 1-3999 akumulasi sebelumnya / Cr 3-1000 Modal sebesar nilai bukunya (tanpa uang keluar).'
+                : `. Jurnal perolehan: Dr 1-3000 / Cr ${form.funding === 'TUNAI' ? '1-1000 Kas Laci' : '1-1001 Bank BCA'}.`}
           </p>
 
           {formError && <p role="alert" className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 font-bold">{formError}</p>}

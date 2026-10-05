@@ -18,7 +18,10 @@ class FixedAsset extends Model
         'KENDARAAN' => 'Kendaraan',
     ];
 
-    public const FUNDING = ['TUNAI', 'TRANSFER', 'OPENING'];
+    public const FUNDING = ['TUNAI', 'TRANSFER', 'OPENING', 'MODAL'];
+
+    /** Sumber dana yang membawa bulan mulai penyusutan & akumulasi awal sendiri (aset tidak dibeli sekarang). */
+    public const CARRIED_OVER = ['OPENING', 'MODAL'];
 
     protected $fillable = [
         'code', 'name', 'category', 'acquisition_date', 'acquisition_cost', 'residual_value', 'useful_life_months',

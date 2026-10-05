@@ -40,7 +40,7 @@ class OpeningBalanceService
             Account::where('account_code', self::CAPITAL)->lockForUpdate()->first();
 
             if (JournalEntry::where('reference_type', self::REFERENCE_TYPE)->lockForUpdate()->exists()) {
-                throw new PosRuleException('Saldo awal akun sudah pernah dibukukan. Koreksi lewat jurnal penyesuaian.');
+                throw new PosRuleException('Saldo awal akun sudah pernah dibukukan. Koreksi kas, bank dan laba ditahan lewat jurnal manual; aset tetap lewat register aset (sumber Setoran modal, atau batalkan aset saldo awal dengan koreksi buku besar).');
             }
 
             $normal = Account::whereIn('account_code', self::ACCOUNTS)->pluck('normal_balance', 'account_code');

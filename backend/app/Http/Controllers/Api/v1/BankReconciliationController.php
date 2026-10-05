@@ -80,9 +80,15 @@ class BankReconciliationController extends Controller
 
     public function match(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate(['journal_item_id' => 'required|integer']);
+        // journal_item_ids: satu mutasi gabungan (mis. setoran QRIS harian) untuk beberapa baris jurnal.
+        $data = $request->validate([
+            'journal_item_id' => 'required_without:journal_item_ids|integer',
+            'journal_item_ids' => 'required_without:journal_item_id|array|min:1|max:200',
+            'journal_item_ids.*' => 'integer|distinct',
+        ]);
+        $ids = $data['journal_item_ids'] ?? [(int) $data['journal_item_id']];
 
-        return response()->json(['success' => true, 'data' => $this->bank->match($id, (int) $data['journal_item_id'])->toApiArray()]);
+        return response()->json(['success' => true, 'data' => $this->bank->match($id, $ids)->toApiArray()]);
     }
 
     public function unmatch(int $id): JsonResponse

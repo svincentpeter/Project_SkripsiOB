@@ -219,7 +219,7 @@ describe('registry bank_reconciliation', () => {
     statement_ending_balance: 1193500, book_balance: 1500000,
     lines: [],
     outstanding_ledger: [{ journal_item_id: 9, entry_number: 'JRN-202609-0009', entry_date: '2026-09-30', reference_type: 'POS_SALE', description: 'Transfer pelanggan', debit: 300000, credit: 0 }],
-    unrecorded_bank: [{ id: 3, statement_date: '2026-09-30', description: 'BIAYA ADM', amount: -6500, source: 'CSV', journal_item_id: null, matched_entry_number: null, matched_reference_type: null, matched_entry_date: null }],
+    unrecorded_bank: [{ id: 3, statement_date: '2026-09-30', description: 'BIAYA ADM', amount: -6500, source: 'CSV', journal_item_id: null, parent_id: null, parent_amount: null, matched_entry_number: null, matched_reference_type: null, matched_entry_date: null }],
     deposits_in_transit: 300000, outstanding_payments: 0, unrecorded_credits: 0, unrecorded_debits: 6500,
     adjusted_bank_balance: 1493500, adjusted_book_balance: 1493500, difference: 0, is_reconciled: true,
   };

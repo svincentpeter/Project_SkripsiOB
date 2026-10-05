@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Banknote, Link2, Plus, Trash2, Unlink, Upload, Wand2 } from 'lucide-react';
+import { Banknote, Layers, Link2, Plus, Trash2, Unlink, Upload, Wand2 } from 'lucide-react';
 import type { ApiJournal } from '../../../services/api';
 import { sakEmkmApi } from '../../../services/api/sakEmkmApi';
 import { currentMonth, localDate, monthLabel } from '../../../services/accountingPeriod';
@@ -7,6 +7,7 @@ import type { BankStatementLine, OutstandingLedgerItem } from '../../../shared/t
 import { useToast } from '../../../shared/components';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
 import { formatDateIndo, formatRupiah, parseDecimalRupiah } from '../../../shared/utils/formatters';
+import { groupCandidates, groupGapCents } from '../bankGroupMatch';
 import { useServerData } from '../hooks/useServerData';
 import { ServerStatus } from './ServerStatus';
 
@@ -30,6 +31,8 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
   const [balanceText, setBalanceText] = useState('');
   const [draft, setDraft] = useState({ statement_date: localDate(), description: '', amount: '', direction: 'OUT' as 'IN' | 'OUT' });
   const [busy, setBusy] = useState(false);
+  // Pencocokan gabungan: satu mutasi (mis. setoran QRIS harian) ke beberapa jurnal bank.
+  const [group, setGroup] = useState<{ lineId: number; picked: number[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const isCurrent = period === currentMonth();
   const report = useServerData(() => sakEmkmApi.bankReconciliation(period), [period, refreshKey]);
@@ -101,22 +104,38 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
 
   const autoMatch = () => act('Cocokkan Otomatis', () => sakEmkmApi.autoMatch(period), (res) => `${res.matched} mutasi dicocokkan.`);
 
-  const match = (line: BankStatementLine, journalItemId: number) => act('Cocokkan Mutasi',
-    () => sakEmkmApi.matchStatementLine(line.id, journalItemId), () => `${line.description} dicocokkan dengan jurnal.`);
+  const match = (line: BankStatementLine, journalItemIds: number[]) => act('Cocokkan Mutasi',
+    () => sakEmkmApi.matchStatementLine(line.id, journalItemIds), () => {
+      setGroup(null);
+      return `${line.description} dicocokkan dengan ${journalItemIds.length} jurnal.`;
+    });
 
   const unmatch = (line: BankStatementLine) => act('Lepas Pencocokan',
-    () => sakEmkmApi.unmatchStatementLine(line.id), () => `${line.description} kembali belum dicocokkan.`);
+    () => sakEmkmApi.unmatchStatementLine(line.id),
+    () => `${line.description} kembali belum dicocokkan${line.parent_id !== null ? ' (seluruh gabungan dilepas)' : ''}.`);
+
+  const toggleGroupItem = (id: number) =>
+    setGroup((g) => g && { ...g, picked: g.picked.includes(id) ? g.picked.filter((p) => p !== id) : [...g.picked, id] });
 
   const remove = (line: BankStatementLine) => {
     if (!window.confirm(`Hapus mutasi "${line.description}"?`)) return;
     void act('Hapus Mutasi', () => sakEmkmApi.deleteStatementLine(line.id), () => 'Baris rekening koran dihapus.');
   };
 
-  const postAdjustment = (line: BankStatementLine) => act(line.amount < 0 ? 'Biaya Admin Bank' : 'Bunga Bank',
+  const postAdjustment = (line: BankStatementLine) => {
+    // Setoran QRIS/transfer yang belum dicocokkan akan terbukukan dua kali bila dicatat sebagai bunga.
+    const what = line.amount < 0 ? 'biaya administrasi bank (6-1012)' : 'bunga bank (4-3000)';
+    if (!window.confirm(
+      `Bukukan ${formatRupiah(Math.abs(line.amount))} "${line.description}" sebagai ${what}?\n\n` +
+        'Hanya untuk mutasi yang belum ada di buku. Setoran QRIS/transfer penjualan atau pembayaran yang sudah dijurnal ' +
+        'harus dicocokkan (gunakan "Beberapa jurnal" untuk setoran gabungan), bukan dibukukan lagi.',
+    )) return;
+    void act(line.amount < 0 ? 'Biaya Admin Bank' : 'Bunga Bank',
     () => sakEmkmApi.postBankAdjustment(line.id), (res) => {
       onJournalsPosted(res.journals);
       return `${res.journals[0]?.entry_number ?? 'Jurnal'} dibukukan.`;
     });
+  };
 
   // Hanya jurnal yang belum dicocokkan di mana pun; yang sudah dipakai mutasi lain akan ditolak server.
   const candidates = (line: BankStatementLine): OutstandingLedgerItem[] =>
@@ -226,10 +245,20 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                   {r.lines.map((line) => {
                     const options = candidates(line);
                     const locked = lockDate !== null && line.statement_date <= lockDate;
+                    const grouping = group?.lineId === line.id ? group : null;
+                    const groupOptions = grouping ? groupCandidates(line, unmatched) : [];
+                    const gap = grouping ? groupGapCents(line, groupOptions.filter((i) => grouping.picked.includes(i.journal_item_id))) : 0;
                     return (
-                      <tr key={line.id}>
+                      <React.Fragment key={line.id}>
+                      <tr>
                         <td className="py-2 px-2">{formatDateIndo(line.statement_date)}</td>
-                        <td className="py-2 px-2">{line.description}<span className="block text-[10px] text-slate-400">{line.source}</span></td>
+                        <td className="py-2 px-2">
+                          {line.description}
+                          <span className="block text-[10px] text-slate-400">
+                            {line.source}
+                            {line.parent_id !== null && line.parent_amount !== null && ` · bagian dari mutasi gabungan ${formatRupiah(line.parent_amount)}`}
+                          </span>
+                        </td>
                         <td className={`py-2 px-2 text-right font-mono ${line.amount < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{formatRupiah(line.amount)}</td>
                         <td className="py-2 px-2">
                           {line.journal_item_id !== null ? (
@@ -241,6 +270,7 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                               )}
                               {line.matched_reference_type !== 'BANK_RECON_ADJUSTMENT' && (
                                 <button type="button" disabled={busy} onClick={() => unmatch(line)} aria-label={`Lepas ${line.description}`}
+                                  title={line.parent_id !== null ? 'Lepas seluruh mutasi gabungan' : 'Lepas pencocokan'}
                                   className="p-1 text-slate-400 hover:text-amber-600 cursor-pointer"><Unlink className="w-3.5 h-3.5" /></button>
                               )}
                             </span>
@@ -248,12 +278,19 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                             <span className="flex flex-wrap items-center gap-2">
                               {options.length > 0 && (
                                 <select value="" disabled={busy} aria-label={`Cocokkan ${line.description}`}
-                                  onChange={(e) => e.target.value && match(line, Number(e.target.value))} className={field}>
+                                  onChange={(e) => e.target.value && match(line, [Number(e.target.value)])} className={field}>
                                   <option value="">Cocokkan dengan jurnal…</option>
                                   {options.map((i) => (
                                     <option key={i.journal_item_id} value={i.journal_item_id}>{i.entry_date} {i.entry_number} — {i.description}</option>
                                   ))}
                                 </select>
+                              )}
+                              {groupCandidates(line, unmatched).length > 1 && (
+                                <button type="button" disabled={busy} onClick={() => setGroup(grouping ? null : { lineId: line.id, picked: [] })}
+                                  aria-expanded={grouping !== null}
+                                  className="px-2 py-1 font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-40">
+                                  <Layers className="w-3.5 h-3.5" />Beberapa jurnal
+                                </button>
                               )}
                               {locked ? (
                                 <span className="text-slate-500">Periode ditutup: catat lewat jurnal manual.</span>
@@ -269,6 +306,32 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                           )}
                         </td>
                       </tr>
+                      {grouping && (
+                        <tr className="bg-blue-50/50">
+                          <td colSpan={4} className="py-2 px-3 space-y-2">
+                            <p className="font-bold text-slate-700">Pilih jurnal yang dibayar lewat mutasi ini (mis. semua penjualan QRIS yang disetor Midtrans hari itu):</p>
+                            <div className="max-h-56 overflow-y-auto space-y-1">
+                              {groupOptions.map((i) => (
+                                <label key={i.journal_item_id} className="flex items-center gap-2 cursor-pointer">
+                                  <input type="checkbox" checked={grouping.picked.includes(i.journal_item_id)} onChange={() => toggleGroupItem(i.journal_item_id)} />
+                                  <span className="font-mono">{formatDateIndo(i.entry_date)} {i.entry_number}</span>
+                                  <span className="flex-1 truncate">{i.description}</span>
+                                  <span className="font-mono">{formatRupiah(Math.abs(ledgerAmount(i)))}</span>
+                                </label>
+                              ))}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <span className={gap === 0 ? 'text-emerald-700 font-bold' : 'text-amber-800'}>
+                                {gap === 0 ? 'Total jurnal sama dengan mutasi.' : `Sisa ${formatRupiah(Math.abs(gap) / 100)} ${gap * line.amount > 0 ? 'belum terpilih' : 'kelebihan'}.`}
+                              </span>
+                              <button type="button" disabled={busy || gap !== 0 || grouping.picked.length < 1} onClick={() => match(line, grouping.picked)}
+                                className={`${button} text-white bg-blue-600 hover:bg-blue-700`}><Link2 className="w-4 h-4" />Cocokkan {grouping.picked.length} jurnal</button>
+                              <button type="button" onClick={() => setGroup(null)} className="text-slate-500 hover:text-slate-700 cursor-pointer">Batal</button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>

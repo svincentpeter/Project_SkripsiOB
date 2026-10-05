@@ -147,6 +147,56 @@ class FixedAssetApiTest extends TestCase
             ->assertOk()->assertJsonPath('data.asset.status', 'VOID')->assertJsonPath('data.journals', []);
     }
 
+    public function test_capital_asset_books_its_net_value_to_capital_and_its_void_mirrors_it(): void
+    {
+        $before = $this->ledger();
+        $diff = $this->getJson(self::URL)->json('data.summary');
+        $created = $this->postJson(self::URL, $this->openingPayload(['funding' => 'MODAL']))
+            ->assertCreated()
+            ->assertJsonPath('data.asset.depreciation_start', '2019-02')
+            ->assertJsonPath('data.journals.0.reference_type', 'FIXED_ASSET_ACQUISITION')
+            ->json('data');
+
+        $journal = $created['journals'][0];
+        $this->assertSame($journal['entry_number'], $created['asset']['journal_entry_number']);
+        $this->assertEquals(10000000, $this->line($journal, '1-3000')['debit']);
+        $this->assertEquals(3000000, $this->line($journal, '1-3999')['credit']);
+        $this->assertEquals(7000000, $this->line($journal, '3-1000')['credit']);
+        $this->assertNull(collect($journal['lines'])->first(fn ($l) => in_array($l['account_code'], ['1-1000', '1-1001'], true)));
+        $this->assertEquals([10000000, -3000000], [
+            round($this->ledger()['1-3000'] - $before['1-3000'], 2),
+            round($this->ledger()['1-3999'] - $before['1-3999'], 2),
+        ]);
+        $summary = $this->getJson(self::URL)->json('data.summary');
+        $this->assertEquals([$diff['difference_cost'], $diff['difference_accumulated']], [$summary['difference_cost'], $summary['difference_accumulated']]);
+
+        $this->postJson(self::URL."/{$created['asset']['id']}/void", ['reason' => 'Salah input', 'correct_ledger' => true])->assertStatus(422);
+        $this->postJson(self::URL."/{$created['asset']['id']}/void", ['reason' => 'Salah input'])
+            ->assertOk()->assertJsonPath('data.journals.0.reversal_of', $journal['entry_number']);
+        $this->assertEquals([$before['1-3000'], $before['1-3999']], [$this->ledger()['1-3000'], $this->ledger()['1-3999']]);
+    }
+
+    public function test_voiding_an_opening_asset_can_correct_the_ledger(): void
+    {
+        $before = $this->ledger();
+        $id = $this->postJson(self::URL, $this->openingPayload())->json('data.asset.id');
+        $diff = $this->getJson(self::URL)->json('data.summary');
+
+        $journal = $this->postJson(self::URL."/{$id}/void", ['reason' => 'Saldo awal terlalu besar', 'correct_ledger' => true])
+            ->assertOk()
+            ->assertJsonPath('data.journals.0.reference_type', 'FIXED_ASSET_VOID')
+            ->assertJsonPath('data.journals.0.entry_date', now()->toDateString())
+            ->json('data.journals.0');
+        $this->assertEquals(7000000, $this->line($journal, '3-1000')['debit']);
+        $this->assertEquals(3000000, $this->line($journal, '1-3999')['debit']);
+        $this->assertEquals(10000000, $this->line($journal, '1-3000')['credit']);
+
+        // Register dan buku besar turun bersama, jadi selisih register − buku besar tidak berubah.
+        $summary = $this->getJson(self::URL)->json('data.summary');
+        $this->assertEquals([$diff['difference_cost'], $diff['difference_accumulated']], [$summary['difference_cost'], $summary['difference_accumulated']]);
+        $this->assertEquals([round($before['1-3000'] - 10000000, 2), round($before['1-3999'] + 3000000, 2)], [$this->ledger()['1-3000'], $this->ledger()['1-3999']]);
+    }
+
     /** Saldo 1-3000, 1-3999 dan 6-1011 dari sisi debit, seluruh waktu atau dalam satu bulan. */
     private function ledger(?string $period = null): array
     {

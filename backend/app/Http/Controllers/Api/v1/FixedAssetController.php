@@ -48,12 +48,12 @@ class FixedAssetController extends Controller
 
     public function void(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate(['reason' => 'required|string|max:255'], [
+        $data = $request->validate(['reason' => 'required|string|max:255', 'correct_ledger' => 'sometimes|boolean'], [
             'reason.required' => 'Alasan pembatalan wajib diisi.',
             'reason.string' => 'Alasan pembatalan harus berupa teks.',
             'reason.max' => 'Alasan pembatalan maksimal :max karakter.',
         ]);
-        $result = $this->assets->void($id, $data['reason'], $request->user());
+        $result = $this->assets->void($id, $data['reason'], $request->user(), (bool) ($data['correct_ledger'] ?? false));
 
         return response()->json([
             'success' => true,

@@ -193,6 +193,71 @@ class BankReconciliationApiTest extends TestCase
             ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'mutasi lain'));
     }
 
+    public function test_one_settlement_credit_matches_several_qris_sales_across_month_end(): void
+    {
+        $a = $this->bankEntry('2019-05-30', 100000.50, '4-1000');
+        $b = $this->bankEntry('2019-05-31', 200000, '4-1000');
+        $c = $this->bankEntry('2019-06-01', 50000, '4-1000');
+        $refund = $this->bankEntry('2019-06-01', -50000, '6-1003');
+        // Mutasi Mei yang sudah cocok menjadikan Mei awal rekonsiliasi.
+        $this->postJson(self::URL.'/lines/'.$this->line('2019-05-04', 'TRSF CUST', 500000).'/match', [
+            'journal_item_id' => $this->bankEntry('2019-05-03', 500000, '4-1000'),
+        ])->assertOk();
+        $content = "tanggal;keterangan;jumlah\n2019-06-02;MIDTRANS SETTLEMENT;350000.50\n";
+        $this->post(self::URL.'/import', ['file' => $this->csv($content)], ['Accept' => 'application/json'])->assertCreated();
+        $settlement = BankStatementLine::where('description', 'MIDTRANS SETTLEMENT')->value('id');
+        $match = fn (array $ids) => $this->postJson(self::URL."/lines/{$settlement}/match", ['journal_item_ids' => $ids]);
+
+        $match([$a, $b])->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'totalnya sama'));
+        $match([$a, $b, $c, $refund])->assertStatus(422);
+        $match([$a, $b, $c])->assertOk()->assertJsonPath('data.journal_item_id', null);
+
+        $children = BankStatementLine::where('parent_id', $settlement)->orderBy('journal_item_id')->get();
+        $this->assertSame([$a, $b, $c], $children->pluck('journal_item_id')->all());
+        $this->assertEquals(350000.50, $children->sum(fn ($l) => (float) $l->amount));
+
+        // Mei: dua penjualan QRIS masih setoran dalam perjalanan; Juni: semuanya cocok.
+        $may = $this->getJson(self::URL.'?period=2019-05')->assertOk()->json('data');
+        $this->assertSame([$a, $b], array_column($may['outstanding_ledger'], 'journal_item_id'));
+        $this->putJson(self::URL.'/2019-05', ['statement_ending_balance' => round($may['book_balance'] - 300000.50, 2)])
+            ->assertOk()->assertJsonPath('data.is_reconciled', true);
+        $june = $this->getJson(self::URL.'?period=2019-06')->assertOk()->json('data');
+        $this->assertSame([$refund], array_column($june['outstanding_ledger'], 'journal_item_id'));
+        $this->assertSame([], $june['unrecorded_bank']);
+        $this->assertSame([$settlement], array_values(array_unique(array_column($june['lines'], 'parent_id'))));
+        $this->putJson(self::URL.'/2019-06', ['statement_ending_balance' => round($june['book_balance'] + 50000, 2)])
+            ->assertOk()->assertJsonPath('data.is_reconciled', true);
+
+        // Induk gabungan tidak bisa dicocokkan, dihapus atau dibukukan lagi; impor ulang berkas yang sama dilewati.
+        $match([$refund])->assertStatus(422);
+        $this->deleteJson(self::URL."/lines/{$settlement}")->assertStatus(422);
+        $this->postJson(self::URL."/lines/{$settlement}/post-adjustment")->assertStatus(422);
+        $this->post(self::URL.'/import', ['file' => $this->csv($content)], ['Accept' => 'application/json'])
+            ->assertCreated()->assertJsonPath('data.skipped', 1)->assertJsonPath('data.imported', 0);
+        $this->postJson(self::URL.'/auto-match', ['period' => '2019-06'])->assertOk()->assertJsonPath('data.matched', 0);
+
+        // Melepas satu anak melepas seluruh gabungan.
+        $this->postJson(self::URL."/lines/{$children[1]->id}/unmatch")->assertOk()->assertJsonPath('data.id', $settlement);
+        $this->assertFalse(BankStatementLine::where('parent_id', $settlement)->exists());
+        $this->assertFalse((bool) BankStatementLine::find($settlement)->is_split);
+        $june = $this->getJson(self::URL.'?period=2019-06')->assertOk()->json('data');
+        $this->assertSame([$a, $b, $c, $refund], array_column($june['outstanding_ledger'], 'journal_item_id'));
+        $match([$a, $b, $c])->assertOk();
+    }
+
+    public function test_group_match_refuses_an_item_already_taken(): void
+    {
+        $a = $this->bankEntry('2019-05-30', 100000, '4-1000');
+        $b = $this->bankEntry('2019-05-31', 200000, '4-1000');
+        $single = $this->line('2019-05-30', 'TRSF A', 100000);
+        $group = $this->line('2019-06-01', 'SETORAN GABUNGAN', 300000);
+        $this->postJson(self::URL."/lines/{$single}/match", ['journal_item_id' => $a])->assertOk();
+
+        $this->postJson(self::URL."/lines/{$group}/match", ['journal_item_ids' => [$a, $b]])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'mutasi lain'));
+        $this->assertFalse(BankStatementLine::where('parent_id', $group)->exists());
+    }
+
     public function test_adjustments_into_a_closed_period_are_refused(): void
     {
         $charge = $this->line('2019-03-31', 'BIAYA ADM', -6500);

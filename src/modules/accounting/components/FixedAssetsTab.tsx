@@ -56,7 +56,16 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
       return;
     const reason = window.prompt(`Alasan membatalkan ${asset.code} ${asset.name}:`);
     if (!reason?.trim()) return;
-    const res = await sakEmkmApi.voidFixedAsset(asset.id, reason.trim()).catch((err: unknown) => {
+    // Aset saldo awal tidak punya jurnal perolehan: tanya apakah saldo awal buku besarnya juga salah.
+    const correctLedger =
+      asset.funding === 'OPENING' &&
+      window.confirm(
+        `Apakah nilai ${asset.code} juga salah di Saldo Awal buku besar?\n\n` +
+          `OK = keluarkan juga dari buku besar hari ini (Dr 3-1000 Modal ${formatRupiah(asset.acquisition_cost - asset.opening_accumulated_depreciation)}, ` +
+          `Dr 1-3999 ${formatRupiah(asset.opening_accumulated_depreciation)} / Cr 1-3000 ${formatRupiah(asset.acquisition_cost)}).\n` +
+          'Batal = hanya hapus dari register (entri register ganda, buku besar sudah benar).',
+      );
+    const res = await sakEmkmApi.voidFixedAsset(asset.id, reason.trim(), correctLedger).catch((err: unknown) => {
       toast.error('Pembatalan Ditolak', errorText(err));
       return null;
     });
@@ -191,7 +200,7 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
                 <tr key={a.id} className={a.status === 'VOID' ? 'text-slate-400 line-through' : ''}>
                   <td className="py-2 px-2 font-mono">{a.code}</td>
                   <td className="py-2 px-2"><span className="font-bold">{a.name}</span><span className="block text-[10px] text-slate-500">{a.category_label} • {a.useful_life_months} bulan</span></td>
-                  <td className="py-2 px-2">{formatDateIndo(a.acquisition_date)}<span className="block text-[10px] text-slate-500">{a.funding === 'OPENING' ? 'Saldo awal' : a.journal_entry_number}</span></td>
+                  <td className="py-2 px-2">{formatDateIndo(a.acquisition_date)}<span className="block text-[10px] text-slate-500">{a.funding === 'OPENING' ? 'Saldo awal' : a.funding === 'MODAL' ? `Setoran modal ${a.journal_entry_number ?? ''}` : a.journal_entry_number}</span></td>
                   <td className="py-2 px-2 text-right font-mono">{formatRupiah(a.acquisition_cost)}</td>
                   <td className="py-2 px-2 text-right font-mono">{formatRupiah(a.monthly_depreciation)}</td>
                   <td className="py-2 px-2 text-right font-mono">{formatRupiah(a.accumulated_depreciation)}</td>
