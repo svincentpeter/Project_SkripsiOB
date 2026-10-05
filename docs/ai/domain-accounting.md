@@ -101,7 +101,7 @@ journal screen has no filter group for them; they show under "Semua".
 | Expense | category `default_account_code` (6-1000…6-1008, seeded) | 1-1000 (TUNAI/KAS_LACI), else 1-1001 | `Accounting/ExpenseService`, now used by the UI. Void posts `VOID_EXPENSE`, the mirror of the original entry, linked by `reversal_of_id` |
 | Manual journal | as submitted | as submitted | `Accounting/ManualJournalService`. Control accounts 1-1002, 1-2000, 2-1000, 2-1004, 1-3000, 1-3999 are rejected (`ManualJournalService::CONTROL_ACCOUNTS`, validated in `ManualJournalRequest`). Only manual journals (`MANUAL_ADJUSTMENT`) are reversible from the journal screen, once each |
 | Period closing | every REVENUE/EXPENSE account's cumulative balance ≤ month end (credit accounts) | 3-2000, or the reverse if the account is net-debit; dated the month's last day, then locked | `Accounting/PeriodClosingService::close`. Reopen posts the mirrored `PERIOD_REOPEN` entry (OWNER only) and unlocks. Close and reopen `lockForUpdate()` the 3-2000 account row (`PeriodClosingService::serialize()`) so two closes/reopens can't run at once. Refuses a month while `DepreciationService::pendingTotal(period) > 0` (depreciation not run) |
-| Account opening | 1-1000, 1-1001, 1-3000, 1-3999, 3-2000 as submitted | 3-1000, for the balancing difference | `Accounting/OpeningBalanceService::post`. Posted once (`ACCOUNT_OPENING`); further changes go through a manual journal. Posting `lockForUpdate()`s the 3-1000 account row before checking whether an opening entry already exists, so two concurrent posts can't both pass |
+| Account opening | 1-1000, 1-1001, 1-3000, 1-3999, 3-2000 as submitted | 3-1000, for the balancing difference | `Accounting/OpeningBalanceService::post`. Posted once (`ACCOUNT_OPENING`). Later changes to 1-1000, 1-1001 or 3-2000 go through a manual journal; 1-3000/1-3999 are control accounts that a manual journal cannot post to (fixed asset corrections: see the fixed asset register below). Posting `lockForUpdate()`s the 3-1000 account row before checking whether an opening entry already exists, so two concurrent posts can't both pass |
 | Cashier shift approved | 6-1010 (shortage) or 1-1000 (overage) | 1-1000 (shortage) or 6-1010 (overage), amount = counted − book | `Accounting/CashSessionService::approve` (`CASH_SESSION_VARIANCE`, `SHIFT-{id}`, dated the approval day; no journal when 0) |
 | Fixed asset bought | 1-3000 | 1-1000 (TUNAI) or 1-1001 (TRANSFER); `OPENING` assets post nothing (already in the account opening balance) | `Accounting/FixedAssetService::create` (`FIXED_ASSET_ACQUISITION`, reference = asset code `AT-YYYYMM-####`, dated the acquisition date). Void only before any depreciation: mirror `FIXED_ASSET_VOID` dated today, `reversal_of_id` |
 | Monthly depreciation | 6-1011 per asset | 1-3999 total; dated the month's last day, reference `SUSUT-YYYY-MM` | `Accounting/DepreciationService::run`. Straight line on cost − residual − opening accumulated, over `useful_life_months`, full month from `depreciation_start`; cumulative in cents so reruns post nothing and locked months are caught up; the previous open month must run first; `fixed_asset_depreciations` keeps one row per asset per run |
@@ -142,7 +142,8 @@ refund goes to the drawer, and they need no open shift). Lock order:
   `sales_returns` → X on the batches.
 - Checkout: `requireOpen()` for a TUNAI payment → X on the cart's catalogue products, sorted by id (`CartLines`) →
   the OB3-INV number → X on the batches (`product_id` index, ascending) → JRN. Opname: X on its products sorted by id
-  → the OPN number → X on their batches. Purchase return and GR cancel: X on the purchase → X on its product → X on
+  → the OPN number (an index range read on `stock_movements.reference_id`, indexed by `2026_10_05_000003`, so it
+  locks only the OPN rows of that month and the next index record, not every stock movement) → X on their batches. Purchase return and GR cancel: X on the purchase → X on its product → X on
   its batches through the `product_id` index. Every flow locks products before batches, and every multi-product
   flow above locks its products sorted by id, so no two of them form a product/batch cycle. Exception:
   `Inventory/StockSelectiveUpdateService` (stock bulk update) still locks products one by one in input order; it
@@ -153,7 +154,8 @@ waiting for a shift row that a sale holds (the FK S-lock cycle). Never lock shif
 next-key lock collides with `approve()`'s status update. `open()`, `close()`, `approve()` and the sales return run in
 `DB::transaction(..., 3)`, as do checkout, void, the purchase return and the GR cancel: three attempts, so at most
 two retries. Laravel retries on a deadlock (1213) and on a lock-wait timeout (1205); both count as concurrency errors.
-Every retried closure only writes to the database. The opname runs once (no retry). A cycle can still
+The opname (`StockOpnameService::adjust`) runs in `DB::transaction(..., 3)` too. Every retried closure only
+writes to the database. A cycle can still
 form through InnoDB's queue on the 1-1000 row (a sale holding S(1-1000) waits for the JRN lock, held by a cash expense
 whose FK S request queues behind a waiting shift X), and the waiting shift operation, which has written nothing yet,
 is the usual victim.
@@ -181,7 +183,9 @@ active register with both ledger balances; the tab shows "Cocok" when both diffe
 (`TUNAI`/`TRANSFER`) posts its acquisition and starts depreciating in its acquisition month. An `OPENING` asset posts
 nothing: its cost and prior depreciation are already in the account opening balance (`ACCOUNT_OPENING`, which may post
 1-3000/1-3999), and it carries its own `depreciation_start` (not before the acquisition month) and
-`opening_accumulated_depreciation`. There is no disposal: an asset can only be voided before its first depreciation.
+`opening_accumulated_depreciation`. For an `OPENING` asset `useful_life_months` is the **remaining** life from
+`depreciation_start` (the form asks for "Sisa umur manfaat"), and the base is cost − residual − opening accumulated
+depreciation; the CALK policy text says the same. There is no disposal: an asset can only be voided before its first depreciation.
 
 **Depreciation semantics** (`DepreciationService`, `FixedAsset::expectedCentsThrough`):
 - Cumulative: per asset, amount = expected depreciation through the month (in cents, `intdiv`, full base once the
@@ -215,8 +219,8 @@ journal Dr 2-1100 / Cr 1-1001), which the cash-flow report puts under expenses.
   Dr 1-1001 / Cr 4-3000, dated the statement date (refused in a locked period: book it with a manual journal in an
   open period). Such a match cannot be undone with unmatch; a matched line must be unmatched before it can be deleted.
 - CSV import (`POST …/import`, multipart `file`, ≤ 1 MB): the header row must name `tanggal`, `keterangan`, `jumlah`
-  (any order; delimiter `;` or `,`, whichever the header uses more; a UTF-8 BOM is ignored). Dates `YYYY-MM-DD` or
-  `DD/MM/YYYY`, not in the future; `jumlah` is a non-zero number with a dot for decimals (max 2) and no thousands
+  (any order; delimiter `;` or `,`, whichever the header uses more; a UTF-8 BOM is ignored). Dates `YYYY-MM-DD`,
+  `DD/MM/YYYY` or `D/M/YYYY` (no leading zeros), not in the future; `keterangan` is required, at most 255 characters; `jumlah` is a non-zero number with a dot for decimals (max 2) and no thousands
   separator, |amount| ≤ 10,000,000,000; a description containing the delimiter must be quoted (a row whose cell count
   differs from the header is rejected). Blank lines are skipped; max 1000 rows. All-or-nothing: one bad row rejects the
   whole file. Rows identical (date, description, amount) to lines already stored are skipped once per stored copy,
@@ -230,9 +234,9 @@ placeholders until the owner confirms them. The PPh Final 0.5% (PP 55/2022) appe
 accrued (user decision): tax paid is expensed to 6-1008 when paid. The payables note nets purchase returns and
 receipt cancellations by `return_date`, so an invoice cancelled after the month end still shows in that month.
 
-**Locking.** Every decision taken under a lock uses locking reads (current reads: `lockForUpdate`/`sharedLock`, or
-`PeriodLock::lockDate(locking: true)`): a plain read taken first fixes the REPEATABLE READ snapshot, which then misses
-rows committed while waiting for the lock. Lock orders:
+**Locking.** Take the locks before the transaction's first plain read, or use locking reads (current reads:
+`lockForUpdate`/`sharedLock`, or `PeriodLock::lockDate(locking: true)`) for every decision taken under a lock: the
+first plain read fixes the REPEATABLE READ snapshot, which then misses rows committed while waiting for a lock. Lock orders:
 - Asset create/void: optional S on 1-1000 (TUNAI funding, like `CashSessionService::requireOpen()`) →
   `FixedAssetService::lockRegister()` (X on the 1-3999 `accounts` row) → the `AT` number / X on the asset → JRN.
   Never take `lockRegister()` after a number lock.
@@ -243,7 +247,10 @@ rows committed while waiting for the lock. Lock orders:
   JRN. The S lock makes them wait for a close in progress, so they cannot post into a month being closed.
 - Asset create/void, depreciation run, period close, AJP, and bank-recon import/match/auto-match/post-adjustment run
   in `DB::transaction(..., 3)` (`ATTEMPTS = 3`): three attempts on a deadlock or lock-wait timeout (for example
-  X 1-3999 → JRN against the opening balance's X 3-1000 → JRN → FK S 1-3999). Reopen, unmatch and delete-line run once.
+  X 1-3999 → JRN against the opening balance's X 3-1000 → JRN → FK S 1-3999). Period reopen and manual journal
+  create/reverse (`ManualJournalService`) retry the same way: a manual journal with a 3-2000 line waits for JRN and
+  then FK S on 3-2000, the opposite order of a close or reopen (X 3-2000 → JRN). Unmatch and delete-line are
+  single-row writes and run once.
 
 ## Reports
 

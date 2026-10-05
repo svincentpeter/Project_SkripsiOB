@@ -48,7 +48,8 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
 - When adding a server-backed feature: add a typed function in `src/services/api/<area>Api.ts`, a mapper if the wire
   shape differs, a handler in App.tsx that calls it and updates state from the **response**, and pass it down.
 - The dashboard reads its money figures from `GET /reports/daily-recap` (one call covering the month and the last 7
-  days, `src/services/dailyReports.ts`) and the FIFO value from `inventoryValuation` (`GET /inventory/valuation`); only
+  days, made by `reportsApi.dailyRecap` in `src/services/api/reportsApi.ts`; `src/services/dailyReports.ts` holds the
+  range, summary, KPI and label helpers) and the FIFO value from `inventoryValuation` (`GET /inventory/valuation`); only
   top products and brand share still use the loaded `transactions` (this month, non-VOID).
 - `DailyReportsScreen` (`src/modules/reports/`, nav "Laporan Harian") has two tabs: Kas Harian (`GET /reports/daily-cash`,
   export `daily_cash`) and Rekap Harian (`GET /reports/daily-recap`, export `daily_recap`; shown only with

@@ -1,6 +1,6 @@
 # Data model
 
-Source of truth: `backend/database/migrations/` (36 migrations at `502c7bb`). Models: `backend/app/Models/`.
+Source of truth: `backend/database/migrations/` (37 migrations, the latest `2026_10_05_000003`). Models: `backend/app/Models/`.
 `database/schema_project_skripsi_ob.sql` and `supabase_schema.sql` are **stale**, so ignore them.
 Most early migrations wrap `Schema::create` in `hasTable` guards. New migrations should be additive:
 add columns and insert-if-missing rows, and never rewrite old migrations.
@@ -32,7 +32,7 @@ comes from `SEED_DEFAULT_PASSWORD`. The legacy `admin@omahban.com` is deactivate
 | Table | Key columns | Notes |
 |---|---|---|
 | `product_batches` | `product_id` (FK cascade), `batch_code` (unique), `source_name`, `purchase_date`, `batch_cost`, `initial_qty`, `remaining_qty`, `purchase_id` | one FIFO cost layer. `Product::activeBatches()` returns batches with remaining > 0, ordered by `purchase_date`, then `id` |
-| `stock_movements` | `product_id` (FK cascade), `movement_type` (MASUK/KELUAR/PENYESUAIAN), `quantity`, `balance_after`, `reference_type`, `reference_id`, `description`, `operator_name` | the stock card; the model sets `UPDATED_AT = null` |
+| `stock_movements` | `product_id` (FK cascade), `movement_type` (MASUK/KELUAR/PENYESUAIAN), `quantity`, `balance_after`, `reference_type`, `reference_id` (indexed since `2026_10_05_000003`, for the `DocumentNumber` lookup of `OPN-…`), `description`, `operator_name` | the stock card; the model sets `UPDATED_AT = null` |
 | `sale_batch_allocations` | `sale_detail_id`, `product_batch_id` (both FK cascade), `quantity_allocated`, `quantity_returned`, `unit_cost`, `total_cost` | which batches a sale line consumed; void and sales returns use these rows to restore stock. `quantity_returned` (migration `2026_10_03_000002`) counts units a sales return already put back |
 
 Intended invariants: `products.product_quantity == Σ product_batches.remaining_qty`, and the balance of account

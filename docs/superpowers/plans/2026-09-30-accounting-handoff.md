@@ -19,18 +19,24 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
   commit `f0a4c10`) one run of both gates printed backend **340 tests, 2126 assertions**, frontend **168 tests in 31
   files**, `tsc` clean; these figures already include the SP5 commits made alongside (up to `7039cfa`). After SP5
   (last code commit `502c7bb`) one run of both gates printed backend **340 tests, 2126 assertions**, frontend **172
-  tests in 32 files**, `tsc` clean.
+  tests in 32 files**, `tsc` clean. After the SP4 and SP5 final fix waves one run of both gates printed backend
+  **346 tests, 2401 assertions**, frontend **174 tests in 32 files**, `tsc` clean (the backend figure includes the
+  fixed-asset commits made alongside).
 - Transaction corrections (sub-project 3) are **implemented and reviewed** (commits `b8c5818` through `67ffe0b`,
   interleaved with SP2 follow-ups and the first SP4 commits; its final fix wave is `f25e9d6 0aca67e f18a3b2 180335f
   83430a8 ad30156 0b9380c aa4d9be 67ffe0b`). Its browser checklist has **not been run yet** (section 2c).
 - SAK EMKM completeness (sub-project 4) is **implemented and reviewed** (`496d084`, `6f3fd03`+`457bca7`,
   `ea83ee2`+`5a61c7b`, `9a8503d`, `1795ee8`+`5e22dec`, `fee0f4f`+`efc70ac`, `f1c0810`, `f13adca`, `3b071fa`,
-  `ceb9dec`+`f0a4c10`, `d470ba3`, plus the docs commit). Its browser checklist and the CALK entity details are
+  `ceb9dec`+`f0a4c10`, `d470ba3`, plus the docs commit; final fix wave `e643d9c` CALK export parity, `c15da73`
+  `stock_movements.reference_id` index + opname retry, `92a5865` manual journal and reopen retry, with its doc
+  corrections in the SP5 final docs commit). Its browser checklist and the CALK entity details are
   **pending on the user** (section 2d).
 - Operational reports & dashboard (sub-project 5) are **implemented and reviewed** (`fd9607f` `daily_reports` key,
   `62122f0` daily recap, `b8644f9`+`61599dc` daily cash report with per-cashier recap and `sales.user_id`, `b55ecf2`
   client and types, `7039cfa` dashboard from the server recap, `55d2e32` Laporan Harian screen and exports, `502c7bb`
-  `localDate()` sweep with a guard test, plus the docs commit). Its browser checklist is pending (section 1b).
+  `localDate()` sweep with a guard test, plus the docs commit; final fix wave `968ed99` exports match the screen and
+  the dashboard export waits for the recap, `a731e9a` recap guard tests, plus a docs commit). Its browser checklist is
+  pending (section 1b).
 
 ## 1b. Pending on the user (everything in one place)
 
@@ -51,9 +57,9 @@ Details are in the sections named; nothing here is run by an agent.
   1-1000 balance for that date; cashier shifts from SP2 appear; export PDF/XLSX opens. As KASIR (via Riwayat Struk →
   "Laporan Harian"): only own notas and sessions, no Rekap Harian tab, no ledger sections. As GUDANG: no "Laporan
   Harian" tab.
-- Browser check (owner, dev DB, after B7): journals, ledger, trial balance ("Seimbang"), statements
-  (balance sheet "Seimbang", cash flow "Terekonsiliasi") and the Biaya screen load from the server with no
-  console errors. It was run before the final fix wave; re-check after setup (step 2.3).
+- [ ] **Stage 4 browser re-check** (owner, dev DB, after setup step 2.3): journals, ledger, trial balance
+  ("Seimbang"), statements (balance sheet "Seimbang", cash flow "Terekonsiliasi") and the Biaya screen load from the
+  server with no console errors. It was last run before the Stage 4 final fix wave.
 
 ## 2. First steps on the new machine
 
@@ -73,9 +79,10 @@ Details are in the sections named; nothing here is run by an agent.
    `2026_10_04_000002_create_fixed_assets_tables`, `2026_10_04_000003_create_bank_reconciliation_tables` and
    `2026_10_04_000004_unique_fixed_asset_depreciation_period` (all additive; already applied to the dev DB).
    Operational reports added `2026_10_05_000001_add_daily_reports_permission` and
-   `2026_10_05_000002_add_user_id_to_sales` (both additive).
+   `2026_10_05_000002_add_user_id_to_sales` (both additive); the SP4 final fix wave added
+   `2026_10_05_000003_index_stock_movements_reference_id` (additive index).
 3. Run the gates (`composer test`, `npm run lint && npm test`), then open the app as owner and repeat the
-   browser check from section 1. The bundled `composer.phar` on this machine is too old for the
+   browser checks from section 1b. The bundled `composer.phar` on this machine is too old for the
    `composer test` script (`@no_additional_args`); use `cd backend && php artisan config:clear && php artisan test`
    as the gate.
 4. **Enter the account opening balances once** (Buku Besar → "Saldo Awal"): cash drawer 1-1000, bank 1-1001,
