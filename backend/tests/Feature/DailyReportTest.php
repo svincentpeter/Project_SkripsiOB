@@ -366,6 +366,24 @@ class DailyReportTest extends TestCase
         ]);
     }
 
+    public function test_backfill_links_old_notas_only_to_a_unique_cashier_name(): void
+    {
+        $tag = uniqid();
+        $solo = $this->makeUser('KASIR', "Kasir Tunggal {$tag}");
+        $this->makeUser('KASIR', "Kasir Kembar {$tag}");
+        $this->makeUser('KASIR', "Kasir Kembar {$tag}");
+        $old = $this->makeSale('2020-03-01', "Kasir Tunggal {$tag}", [['TUNAI', 100000]]);
+        $ambiguous = $this->makeSale('2020-03-01', "Kasir Kembar {$tag}", [['TUNAI', 100000]]);
+        $other = $this->makeUser('KASIR', "Kasir Lain {$tag}");
+        $recorded = $this->makeSale('2020-03-01', "Kasir Tunggal {$tag}", [['TUNAI', 100000]], user: $other);
+
+        (require database_path('migrations/2026_10_05_000005_backfill_sales_user_id.php'))->up();
+
+        $this->assertSame($solo->id, $old->fresh()->user_id);
+        $this->assertNull($ambiguous->fresh()->user_id);
+        $this->assertSame($other->id, $recorded->fresh()->user_id);
+    }
+
     public function test_kasir_scope_matches_the_user_not_the_display_name(): void
     {
         $date = '2020-05-23';
