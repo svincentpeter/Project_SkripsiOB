@@ -45,4 +45,12 @@ describe('stockReconciliationApi after a server answer', () => {
     await expect(stockReconciliationApi.commit('2026-10')).rejects.toMatchObject({ status: 422 });
     expect(JSON.parse(store.get('ob3_products')!)).toHaveLength(1);
   });
+
+  it('has no offline path: an unreachable server fails the commit without writing locally', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    await expect(stockReconciliationApi.commit('2026-10')).rejects.toBeTruthy();
+    await expect(stockReconciliationApi.getStaging()).rejects.toBeTruthy();
+    expect(JSON.parse(store.get('ob3_products')!)).toHaveLength(1);
+  });
 });
