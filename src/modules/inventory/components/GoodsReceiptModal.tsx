@@ -211,7 +211,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
             >
               {activeProducts.map((p) => (
                 <option key={p.id} value={p.id}>
-                  [{p.category}] {p.product_name} — (Stok Saat Ini: {p.stock || p.product_quantity || 0})
+                  [{p.category}] {p.product_name} {p.product_size || p.size || ''} · {p.product_code} — (Stok Saat Ini: {p.stock || p.product_quantity || 0})
                 </option>
               ))}
             </select>

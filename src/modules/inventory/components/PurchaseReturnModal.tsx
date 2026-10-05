@@ -129,7 +129,7 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
                 <th className="py-1.5 font-bold text-right">Qty / Sisa</th>
                 <th className="py-1.5 font-bold text-right">Total</th>
                 <th className="py-1.5 font-bold text-right">Diretur</th>
-                <th className="py-1.5 font-bold">Status</th>
+                <th className="py-1.5 pl-3 font-bold">Status</th>
                 <th className="py-1.5 font-bold text-right">Aksi</th>
               </tr>
             </thead>
@@ -145,7 +145,7 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
                   </td>
                   <td className="py-1.5 text-right font-mono">{formatRupiah(p.total_amount)}</td>
                   <td className="py-1.5 text-right font-mono">{formatRupiah(p.returned_amount ?? 0)}</td>
-                  <td className="py-1.5">
+                  <td className="py-1.5 pl-3">
                     {p.payment_method} · {STATUS_LABEL[p.status]}
                   </td>
                   <td className="py-1.5 text-right whitespace-nowrap">
