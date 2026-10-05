@@ -52,7 +52,7 @@ class GoodsReceiptService
             }
 
             $purchase = Purchase::create([
-                'purchase_number' => DocumentNumber::next(Purchase::class, 'purchase_number', 'GR'),
+                'purchase_number' => DocumentNumber::next(Purchase::class, 'purchase_number', 'GR', $date),
                 'supplier_id' => $supplier?->id,
                 'supplier_name' => $supplierName,
                 'supplier_invoice' => $data['supplier_invoice'] ?? null,

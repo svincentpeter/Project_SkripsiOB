@@ -43,7 +43,8 @@ class GoodsReceiptTest extends TestCase
             ->assertJsonPath('data.purchase.status', 'LUNAS')
             ->assertJsonPath('data.purchase.total_amount', 2000000);
 
-        $this->assertMatchesRegularExpression('/^GR-\d{6}-\d{4}$/', $res->json('data.purchase.purchase_number'));
+        // Nomor mengikuti bulan tanggal penerimaan (20 Sep 2026), bukan bulan hari ini.
+        $this->assertMatchesRegularExpression('/^GR-202609-\d{4}$/', $res->json('data.purchase.purchase_number'));
         $this->assertSame(6, $product->fresh()->product_quantity);
         $j = $this->journalByAccount($res->json('data.purchase.purchase_number'), 'PURCHASE');
         $this->assertEquals(2000000, $j['1-2000']['debit']);
