@@ -5,6 +5,7 @@ import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
 import type { CashFlowReport, DailyCashReport, DashboardSummary, FinancialStatements, StatementLine } from '../../types';
 import { emptyRecapRow, sumRecapRows } from '../../../services/dailyReports';
 import { formatDateIndo } from '../../utils/formatters';
+import { lowStockProducts } from '../../utils/stockAlert';
 import type { BankReconciliationReport, CalkReport } from '../../types/sakEmkm';
 
 setExportConfig(null, null);
@@ -255,6 +256,15 @@ describe('registry dashboard_summary', () => {
   });
 
   it('tren memakai tanggal rekap server', () => expect(doc.sections[1].rows[0].tgl).toBe('2026-10-03'));
+
+  it('stok kritis sama dengan layar: produk aktif di bawah ambang saja', () => {
+    const p = (id: string, qty: number, active = true) =>
+      ({ id, product_name: id, product_quantity: qty, product_stock_alert: 4, is_active: active }) as unknown as ProductItem;
+    const products = [p('kurang', 3), p('pas-ambang', 4), p('nonaktif', 0, false)];
+    const kritis = buildExportDoc('dashboard_summary', { summary, products, fifoValue: null }, ctx).sections[2].rows;
+    expect(kritis).toHaveLength(1);
+    expect(lowStockProducts(products).map((x) => x.id)).toEqual(['kurang']);
+  });
 });
 
 describe('registry daily reports', () => {
@@ -288,6 +298,17 @@ describe('registry daily reports', () => {
     expect(labels).toEqual(expect.arrayContaining(['Uang Tunai', 'Transfer Bank', 'QRIS']));
     expect(doc.sections[0].rows[0]).toMatchObject({ TUNAI: 300, TRANSFER: 200, QRIS: 0 });
     expect(doc.sections[0].totals).toMatchObject({ TUNAI: 300, TRANSFER: 200 });
+  });
+
+  it('rekap harian: hari terbaru di atas seperti di layar', () => {
+    const older = emptyRecapRow('2026-09-30');
+    const doc = buildExportDoc('daily_recap', { from: '2026-09-30', to: '2026-10-01', rows: [older, row], totals: sumRecapRows([older, row]) }, ctx);
+    expect(doc.sections[0].rows.map((r) => r.date)).toEqual(['2026-10-01', '2026-09-30']);
+  });
+
+  it('kas harian: jumlah dan nilai nota VOID per kasir', () => {
+    const doc = buildExportDoc('daily_cash', { ...cashierReport, cashiers: [{ ...cashierReport.cashiers[0], void_count: 2, void_total: 300 }] }, ctx);
+    expect(doc.sections[0].rows[0]).toMatchObject({ void_count: 2, void: 300 });
   });
 
   it('kas harian lingkup kasir tanpa bagian buku besar dan tanpa HPP', () => {

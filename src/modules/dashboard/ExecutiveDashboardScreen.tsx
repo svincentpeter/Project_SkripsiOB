@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { lowStockProducts as lowStockOf } from '../../shared/utils/stockAlert';
 import { 
   Home, 
   ChevronDown, 
@@ -81,11 +82,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
   // 3. Low stock warning count (< 5 pcs or below alert); produk nonaktif tidak perlu di-restock
   const activeProducts = products.filter((p) => p.is_active !== false);
-  const lowStockProducts = activeProducts.filter((p) => {
-    const qty = p.product_quantity ?? p.stock ?? 0;
-    const alert = p.product_stock_alert ?? p.min_stock ?? 5;
-    return qty < alert;
-  });
+  const lowStockProducts = lowStockOf(products);
 
   const outOfStockProducts = activeProducts.filter((p) => (p.product_quantity ?? p.stock ?? 0) <= 0);
 
@@ -333,7 +330,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
               {formatRupiah(todayOmzet)}
             </div>
             <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
-              {todayQty} ban • {todayRow.sales_count} nota
+              {todayQty} unit barang • {todayRow.sales_count} nota
             </div>
           </div>
           <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
