@@ -13,6 +13,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { ProductItem, StockMutation } from '../../../shared/types';
+import { mutationKind } from '../../../services/api/inventoryMappers';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface StockOpnameReceiptViewProps {
@@ -34,15 +35,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'MASUK' | 'KELUAR' | 'PENYESUAIAN'>('ALL');
 
   const filteredMutations = mutations.filter((m) => {
-    const isMasuk = m.type === 'MASUK' || (m as any).type === 'IN';
-    const isKeluar = m.type === 'KELUAR' || (m as any).type === 'OUT';
-    const isOpname = m.type === 'PENYESUAIAN' || (m as any).type === 'ADJUSTMENT';
-
-    const matchesType =
-      typeFilter === 'ALL' ||
-      (typeFilter === 'MASUK' && isMasuk) ||
-      (typeFilter === 'KELUAR' && isKeluar) ||
-      (typeFilter === 'PENYESUAIAN' && isOpname);
+    const matchesType = typeFilter === 'ALL' || mutationKind(m) === typeFilter;
 
     const q = searchQuery.toLowerCase().trim();
     const productName = (m.product_name || m.tire_name || '').toLowerCase();
@@ -60,9 +53,9 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
     return matchesType && matchesSearch;
   });
 
-  const countMasuk = mutations.filter((m) => m.type === 'MASUK' || (m as any).type === 'IN').length;
-  const countKeluar = mutations.filter((m) => m.type === 'KELUAR' || (m as any).type === 'OUT').length;
-  const countOpname = mutations.filter((m) => m.type === 'PENYESUAIAN' || (m as any).type === 'ADJUSTMENT').length;
+  const countMasuk = mutations.filter((m) => mutationKind(m) === 'MASUK').length;
+  const countKeluar = mutations.filter((m) => mutationKind(m) === 'KELUAR').length;
+  const countOpname = mutations.filter((m) => mutationKind(m) === 'PENYESUAIAN').length;
 
   const handleResetFilters = () => {
     setSearchQuery('');
@@ -218,8 +211,8 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
                   </tr>
                 ) : (
                   filteredMutations.map((mut, idx) => {
-                    const isMasuk = mut.type === 'MASUK' || (mut as any).type === 'IN';
-                    const isKeluar = mut.type === 'KELUAR' || (mut as any).type === 'OUT';
+                    const isMasuk = mutationKind(mut) === 'MASUK';
+                    const isKeluar = mutationKind(mut) === 'KELUAR';
                     const rawDate = mut.date || (mut as any).created_at;
                     const displayDate = rawDate
                       ? (rawDate.includes('T') || rawDate.includes(' ')
@@ -262,7 +255,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
                         <td className="py-3 px-4 font-mono text-xs text-slate-700 font-semibold">{refDoc}</td>
                         <td className="py-3 px-4 text-center font-mono font-bold">
                           <span className={isMasuk ? 'text-emerald-700' : isKeluar ? 'text-rose-700' : 'text-amber-700'}>
-                            {isMasuk ? `+${qty}` : isKeluar ? `-${qty}` : `${qty}`}
+                            {mut.type === 'MASUK' ? `+${qty}` : `-${qty}`}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center font-mono text-slate-800 font-semibold">{balance} Unit</td>

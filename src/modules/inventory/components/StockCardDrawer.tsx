@@ -12,6 +12,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { StockMutation, TireProduct } from '../../../shared/types';
+import { mutationKind } from '../../../services/api/inventoryMappers';
 import { formatDateIndo, formatDateTimeIndo, formatRupiah } from '../../../shared/utils/formatters';
 import { ProductFifoBatchList } from './ProductFifoBatchList';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
@@ -48,7 +49,7 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
   const productMutations = mutations.filter((m) => m.tire_id === product.id || m.product_id === product.id);
 
   const filteredMutations = productMutations.filter((m) => {
-    const matchesType = typeFilter === 'ALL' || m.type === typeFilter;
+    const matchesType = typeFilter === 'ALL' || mutationKind(m) === typeFilter;
     const q = searchQuery.toLowerCase().trim();
     const matchesQuery = 
       !q || 
@@ -183,7 +184,7 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
                     : 'bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
                 }`}
               >
-                Masuk ({productMutations.filter((m) => m.type === 'MASUK').length})
+                Masuk ({productMutations.filter((m) => mutationKind(m) === 'MASUK').length})
               </button>
               <button
                 onClick={() => setTypeFilter('KELUAR')}
@@ -193,7 +194,7 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
                     : 'bg-white border border-rose-200 text-rose-700 hover:bg-rose-50'
                 }`}
               >
-                Keluar ({productMutations.filter((m) => m.type === 'KELUAR').length})
+                Keluar ({productMutations.filter((m) => mutationKind(m) === 'KELUAR').length})
               </button>
               <button
                 onClick={() => setTypeFilter('PENYESUAIAN')}
@@ -203,7 +204,7 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
                     : 'bg-white border border-amber-200 text-amber-700 hover:bg-amber-50'
                 }`}
               >
-                Opname ({productMutations.filter((m) => m.type === 'PENYESUAIAN').length})
+                Opname ({productMutations.filter((m) => mutationKind(m) === 'PENYESUAIAN').length})
               </button>
             </div>
 
@@ -266,23 +267,21 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
                         <td className="py-2.5 px-3">
                           <span
                             className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              m.type === 'MASUK'
+                              mutationKind(m) === 'MASUK'
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                : m.type === 'KELUAR'
+                                : mutationKind(m) === 'KELUAR'
                                 ? 'bg-rose-50 text-rose-700 border border-rose-200'
                                 : 'bg-amber-50 text-amber-700 border border-amber-200'
                             }`}
                           >
-                            {m.type}
+                            {mutationKind(m) === 'PENYESUAIAN' ? 'OPNAME' : m.type}
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-center font-mono font-black text-xs">
                           {m.type === 'MASUK' ? (
-                            <span className="text-emerald-600">+{m.qty}</span>
-                          ) : m.type === 'KELUAR' ? (
-                            <span className="text-rose-600">-{m.qty}</span>
+                            <span className={mutationKind(m) === 'PENYESUAIAN' ? 'text-amber-600' : 'text-emerald-600'}>+{m.qty}</span>
                           ) : (
-                            <span className="text-amber-600">Δ {m.qty}</span>
+                            <span className={mutationKind(m) === 'PENYESUAIAN' ? 'text-amber-600' : 'text-rose-600'}>-{m.qty}</span>
                           )}
                         </td>
                         <td className="py-2.5 px-3 text-center font-mono font-black text-slate-900 text-xs">

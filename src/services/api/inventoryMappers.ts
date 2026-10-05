@@ -147,6 +147,12 @@ const REFERENCE_LABELS: Record<string, string> = {
   INITIAL_STOCK: 'Stok awal',
 };
 
+const OPNAME_REFERENCES = ['STOCK_OPNAME', 'STOCK_RECONCILIATION'];
+
+/** Kategori tampilan kartu stok: opname dipisah dari masuk/keluar biasa; tanda +/− tetap dari `type`. */
+export const mutationKind = (m: StockMutation): StockMutation['type'] =>
+  m.is_opname || m.type === 'PENYESUAIAN' ? 'PENYESUAIAN' : m.type;
+
 export const mapMovement = (m: ApiMovement): StockMutation => {
   const name = m.product?.product_name ?? `Produk #${m.product_id}`;
   const label = REFERENCE_LABELS[m.reference_type] ?? m.reference_type;
@@ -160,6 +166,7 @@ export const mapMovement = (m: ApiMovement): StockMutation => {
     date: m.created_at ? localDateTime(new Date(m.created_at)) : '',
     ref_doc: m.reference_id,
     type: m.movement_type,
+    is_opname: OPNAME_REFERENCES.includes(m.reference_type),
     qty: Math.abs(Number(m.quantity) || 0),
     balance: Number(m.balance_after) || 0,
     notes: m.description ?? label,

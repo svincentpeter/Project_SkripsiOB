@@ -223,6 +223,8 @@ export interface StockMutation {
   date: string;
   ref_doc: string; // "OB3-INV-0142" / "PO-SUP-889"
   type: 'MASUK' | 'KELUAR' | 'PENYESUAIAN';
+  /** Mutasi hasil stock opname / rekonsiliasi stok (arahnya tetap di `type`). */
+  is_opname?: boolean;
   qty: number;
   balance: number;
   notes: string;

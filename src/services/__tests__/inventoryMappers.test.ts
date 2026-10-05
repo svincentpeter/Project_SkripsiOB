@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   mapMovement,
+  mutationKind,
   mapPurchaseToPayable,
   payablesFromPurchases,
   productPayload,
@@ -91,6 +92,16 @@ describe('server records to UI', () => {
       product: { id: 42, product_name: 'Ban A', product_size: '185/65 R15' },
     });
     expect(m).toMatchObject({ product_id: '42', type: 'KELUAR', qty: 2, balance: 3, description: 'Penjualan kasir', date: '2026-09-24 09:10:00' });
+  });
+
+  it('files opname movements under the opname kind while keeping their direction', () => {
+    const base = { product_id: 42, quantity: 1, balance_after: 5, reference_id: 'OPN-202610-0001', created_at: null };
+    const plus = mapMovement({ ...base, id: 1, movement_type: 'MASUK', reference_type: 'STOCK_OPNAME' });
+    const sale = mapMovement({ ...base, id: 2, movement_type: 'KELUAR', reference_type: 'SALE' });
+    const excel = mapMovement({ ...base, id: 3, movement_type: 'PENYESUAIAN', reference_type: 'STOCK_OPNAME_COMMIT' });
+    expect([mutationKind(plus), plus.type]).toEqual(['PENYESUAIAN', 'MASUK']);
+    expect(mutationKind(sale)).toBe('KELUAR');
+    expect(mutationKind(excel)).toBe('PENYESUAIAN');
   });
 
   it('uses the supplier invoice number when present', () => {
