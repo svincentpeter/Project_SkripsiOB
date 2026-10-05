@@ -133,7 +133,7 @@ class PeriodClosingService
             }
 
             return $closing->fresh(['closingEntry', 'closedByUser']);
-        });
+        }, self::ATTEMPTS);
     }
 
     /** Satu tutup/buka buku pada satu waktu: kunci baris akun Laba Ditahan sebelum membaca status periode. */

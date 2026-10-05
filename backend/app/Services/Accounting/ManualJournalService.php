@@ -39,7 +39,7 @@ class ManualJournalService
             $reference = DocumentNumber::next(JournalEntry::class, 'reference_id', 'MEMO', $data['date']);
 
             return $draft->post($this->engine, JournalEntry::MANUAL, $reference, $data['description'], $data['date']);
-        });
+        }, 3); // korban deadlock/lock-wait (JRN ↔ FK S 3-2000 dengan tutup/buka buku) diulang; closure hanya menulis DB
     }
 
     public function reverse(JournalEntry $entry, string $reason): JournalEntry
@@ -63,6 +63,6 @@ class ManualJournalService
                 3,
                 $entry->id
             );
-        });
+        }, 3);
     }
 }
