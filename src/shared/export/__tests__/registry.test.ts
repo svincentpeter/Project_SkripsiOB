@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ExpenseRecord, JournalEntry, PosTransaction, ProductItem } from '../../types';
 import { setExportConfig } from '../exportConfig';
 import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
-import type { CashFlowReport, DashboardSummary, FinancialStatements, StatementLine } from '../../types';
+import type { CashFlowReport, DailyCashReport, DashboardSummary, FinancialStatements, StatementLine } from '../../types';
 import { emptyRecapRow, sumRecapRows } from '../../../services/dailyReports';
 import type { BankReconciliationReport, CalkReport } from '../../types/sakEmkm';
 
@@ -31,7 +31,7 @@ describe('registry journal', () => {
     expect(REPORT_FORMATS.trial_balance).toEqual(['xlsx', 'pdf', 'docx', 'csv']);
   });
   it('semua reportId terdaftar (termasuk rekonsiliasi bank)', () => {
-    expect(Object.keys(REPORT_MAPPERS).length).toBe(21);
+    expect(Object.keys(REPORT_MAPPERS).length).toBe(23);
     expect(Object.keys(REPORT_MAPPERS)).toContain('bank_reconciliation');
   });
   it('ekspor accounts_receivable sudah dihapus', () => expect(Object.keys(REPORT_MAPPERS)).not.toContain('accounts_receivable'));
@@ -236,4 +236,53 @@ describe('registry dashboard_summary', () => {
   });
 
   it('tren memakai tanggal rekap server', () => expect(doc.sections[1].rows[0].tgl).toBe('2026-10-03'));
+});
+
+describe('registry daily reports', () => {
+  const row = { ...emptyRecapRow('2026-10-01'), sales_count: 2, net_revenue: 500, cash_in: 450 };
+  const cashierReport: DailyCashReport = {
+    date: '2026-10-01',
+    scope: 'cashier',
+    cashier: 'Kasir 1',
+    summary: null,
+    cash_accounts: null,
+    cash_movements: null,
+    expenses: null,
+    sales: [{
+      id: 1, reference: 'OB3-INV-202610-0001', time: '09:00', cashier_name: 'Kasir 1', customer_name: null,
+      vehicle_plate: null, total_amount: 100, total_hpp: null, status: 'LUNAS',
+      payments: [{ method: 'TUNAI', amount: 100, fee_amount: 0, net_received: 100 }],
+    }],
+    cashiers: [{ cashier_name: 'Kasir 1', sales_count: 1, sales_total: 100, void_count: 0, void_total: 0, by_method: { TUNAI: 100, TRANSFER: 0, QRIS: 0 } }],
+    cash_sessions: [],
+  };
+
+  it('rekap harian: satu baris per hari dan total', () => {
+    const doc = buildExportDoc('daily_recap', { from: '2026-10-01', to: '2026-10-01', rows: [row], totals: sumRecapRows([row]) }, ctx);
+    expect(doc.sections[0].rows[0]).toMatchObject({ date: '2026-10-01', sales_count: 2, net_revenue: 500 });
+    expect(doc.sections[0].totals?.cash_in).toBe(450);
+  });
+
+  it('kas harian lingkup kasir tanpa bagian buku besar dan tanpa HPP', () => {
+    const doc = buildExportDoc('daily_cash', cashierReport, ctx);
+    expect(doc.sections.map((s) => s.title)).toEqual(['Penerimaan per Kasir', 'Daftar Nota', 'Sesi Kasir']);
+    expect(doc.sections[0].rows[0].tunai).toBe(100);
+    expect(doc.sections[1].columns.map((c) => c.key)).not.toContain('hpp');
+  });
+
+  it('kas harian lingkup toko memuat saldo kas, HPP nota dan label mutasi', () => {
+    const doc = buildExportDoc('daily_cash', {
+      ...cashierReport,
+      scope: 'all',
+      cashier: null,
+      summary: row,
+      cash_accounts: [{ code: '1-1000', name: 'Kas Toko Laci Kasir', opening: 10, cash_in: 40, cash_out: 40, closing: 10 }],
+      cash_movements: [{ reference_type: 'CASH_DEPOSIT', cash_in: 40, cash_out: 40 }],
+      expenses: [],
+      sales: [{ ...cashierReport.sales[0], total_hpp: 60 }],
+    }, ctx);
+    expect(doc.sections.find((s) => s.title === 'Mutasi Kas per Jenis Transaksi')?.rows[0].jenis).toBe('Setor kas laci ke bank');
+    expect(doc.sections.find((s) => s.title === 'Saldo Kas & Bank')?.rows[0].akhir).toBe(10);
+    expect(doc.sections.find((s) => s.title === 'Daftar Nota')?.rows[0].hpp).toBe(60);
+  });
 });

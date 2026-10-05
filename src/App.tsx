@@ -65,6 +65,7 @@ import {
 import { PosScreen } from './modules/pos';
 import { ThermalReceiptScreen } from './modules/receipt';
 import { ExecutiveDashboardScreen } from './modules/dashboard';
+import { DailyReportsScreen } from './modules/reports';
 import { InventoryScreen } from './modules/inventory';
 import { ExpensesScreen } from './modules/expenses';
 import { GeneralLedgerScreen } from './modules/accounting';
@@ -1123,6 +1124,10 @@ function MainAppContent() {
 
             {activeScreen === 'financials' && (
               <FinancialStatementsScreen refreshKey={ledgerVersion} />
+            )}
+
+            {activeScreen === 'daily_reports' && (
+              <DailyReportsScreen ledgerVersion={ledgerVersion} canViewRecap={can('dashboard') || can('financial_reports')} />
             )}
 
             {activeScreen === 'settings' && (

@@ -9,7 +9,8 @@ import type {
   TrialBalanceResult,
 } from '../types';
 import type { ExpenseRecord, PosTransaction, ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
-import type { DashboardSummary } from '../types';
+import type { DailyCashReport, DailyCashSale, DailyRecap, DailyRecapTotals, DashboardSummary } from '../types';
+import { cashMovementLabel } from '../../services/dailyReports';
 import type { BankReconciliationReport, CalkReport } from '../types/sakEmkm';
 import { EXPENSE_CATEGORY_CONFIG, formatRupiah } from '../utils/formatters';
 import { buildKop } from './kop';
@@ -347,6 +348,130 @@ const mapDashboard = (d: DashboardInput, ctx: ExportCtx): ExportDoc => {
   ]);
 };
 
+const RECAP_KEYS = ['sales_count', 'net_revenue', 'returns', 'cost_of_sales', 'gross_profit', 'operating_expenses', 'net_income', 'cash_in', 'cash_out'] as const;
+const pickRecap = (r: DailyRecapTotals): Record<string, number> => Object.fromEntries(RECAP_KEYS.map((k) => [k, r[k]]));
+
+const mapDailyRecap = (r: DailyRecap, ctx: ExportCtx): ExportDoc =>
+  makeDoc('daily_recap', 'Rekap Harian', 'landscape', ctx, [{
+    columns: [
+      { key: 'date', label: 'Tanggal', type: 'date', width: 12 },
+      { key: 'sales_count', label: 'Nota', type: 'number', width: 8 },
+      { key: 'net_revenue', label: 'Pendapatan Bersih', type: 'currency' },
+      { key: 'returns', label: 'Retur', type: 'currency' },
+      { key: 'cost_of_sales', label: 'HPP', type: 'currency' },
+      { key: 'gross_profit', label: 'Laba Kotor', type: 'currency' },
+      { key: 'operating_expenses', label: 'Beban', type: 'currency' },
+      { key: 'net_income', label: 'Laba Bersih', type: 'currency' },
+      { key: 'cash_in', label: 'Kas Masuk', type: 'currency' },
+      { key: 'cash_out', label: 'Kas Keluar', type: 'currency' },
+    ],
+    rows: r.rows.map((row) => ({ date: row.date, ...pickRecap(row) })),
+    totals: pickRecap(r.totals),
+  }]);
+
+const paymentsText = (payments: DailyCashSale['payments']): string =>
+  payments.map((p) => `${p.method} ${formatRupiah(p.amount)}`).join(', ');
+
+const mapDailyCash = (r: DailyCashReport, ctx: ExportCtx): ExportDoc => {
+  const live = r.sales.filter((s) => s.status !== 'VOID');
+  // HPP nota hanya dikirim untuk lingkup toko; lingkup kasir menerima null, jadi kolomnya tidak dicetak.
+  const showHpp = r.scope === 'all';
+  const sections: ExportSection[] = [
+    {
+      title: 'Penerimaan per Kasir',
+      columns: [
+        { key: 'kasir', label: 'Kasir', type: 'text', width: 22 },
+        { key: 'nota', label: 'Nota', type: 'number', width: 8 },
+        { key: 'tunai', label: 'Tunai', type: 'currency' },
+        { key: 'transfer', label: 'Transfer', type: 'currency' },
+        { key: 'qris', label: 'QRIS', type: 'currency' },
+        { key: 'total', label: 'Total Nota', type: 'currency' },
+        { key: 'void', label: 'Nota VOID', type: 'currency' },
+      ],
+      rows: r.cashiers.map((c) => ({
+        kasir: c.cashier_name, nota: c.sales_count, tunai: c.by_method.TUNAI, transfer: c.by_method.TRANSFER,
+        qris: c.by_method.QRIS, total: c.sales_total, void: c.void_total,
+      })),
+      totals: { nota: sum(r.cashiers, (c) => c.sales_count), total: sum(r.cashiers, (c) => c.sales_total), void: sum(r.cashiers, (c) => c.void_total) },
+    },
+    {
+      title: 'Daftar Nota',
+      columns: [
+        { key: 'jam', label: 'Jam', type: 'text', width: 8 },
+        { key: 'nota', label: 'No Nota', type: 'text', width: 22 },
+        { key: 'kasir', label: 'Kasir', type: 'text', width: 16 },
+        { key: 'pelanggan', label: 'Pelanggan', type: 'text', width: 20 },
+        { key: 'bayar', label: 'Pembayaran', type: 'text', width: 30 },
+        { key: 'total', label: 'Total', type: 'currency' },
+        ...(showHpp ? [{ key: 'hpp', label: 'HPP', type: 'currency' as const }] : []),
+        { key: 'status', label: 'Status', type: 'text', width: 10 },
+      ],
+      rows: r.sales.map((s) => ({
+        jam: s.time ?? '-', nota: s.reference, kasir: s.cashier_name, pelanggan: s.customer_name ?? 'Umum',
+        bayar: paymentsText(s.payments), total: s.total_amount, ...(showHpp ? { hpp: s.total_hpp } : {}), status: s.status,
+      })),
+      totals: { total: sum(live, (s) => s.total_amount) },
+    },
+  ];
+  if (r.cash_accounts) {
+    sections.push({
+      title: 'Saldo Kas & Bank',
+      columns: [
+        { key: 'akun', label: 'Akun', type: 'text', width: 30 },
+        { key: 'awal', label: 'Saldo Awal', type: 'currency' },
+        { key: 'masuk', label: 'Masuk', type: 'currency' },
+        { key: 'keluar', label: 'Keluar', type: 'currency' },
+        { key: 'akhir', label: 'Saldo Akhir', type: 'currency' },
+      ],
+      rows: r.cash_accounts.map((a) => ({ akun: `${a.code} ${a.name}`, awal: a.opening, masuk: a.cash_in, keluar: a.cash_out, akhir: a.closing })),
+    });
+  }
+  if (r.cash_movements) {
+    sections.push({
+      title: 'Mutasi Kas per Jenis Transaksi',
+      columns: [
+        { key: 'jenis', label: 'Jenis', type: 'text', width: 34 },
+        { key: 'masuk', label: 'Masuk', type: 'currency' },
+        { key: 'keluar', label: 'Keluar', type: 'currency' },
+      ],
+      rows: r.cash_movements.map((m) => ({ jenis: cashMovementLabel(m.reference_type), masuk: m.cash_in, keluar: m.cash_out })),
+      totals: { masuk: sum(r.cash_movements, (m) => m.cash_in), keluar: sum(r.cash_movements, (m) => m.cash_out) },
+    });
+  }
+  if (r.expenses) {
+    sections.push({
+      title: 'Biaya Hari Ini',
+      columns: [
+        { key: 'ref', label: 'No BKK', type: 'text', width: 20 },
+        { key: 'kategori', label: 'Kategori', type: 'text', width: 20 },
+        { key: 'keterangan', label: 'Keterangan', type: 'text', width: 30 },
+        { key: 'jumlah', label: 'Jumlah', type: 'currency' },
+      ],
+      rows: r.expenses.map((e) => ({ ref: e.reference, kategori: e.category ?? '-', keterangan: e.description, jumlah: e.amount })),
+      totals: { jumlah: sum(r.expenses, (e) => e.amount) },
+    });
+  }
+  sections.push({
+    title: 'Sesi Kasir',
+    columns: [
+      { key: 'kasir', label: 'Kasir', type: 'text', width: 18 },
+      { key: 'buka', label: 'Buka', type: 'text', width: 18 },
+      { key: 'tutup', label: 'Tutup', type: 'text', width: 18 },
+      { key: 'modal', label: 'Modal Awal', type: 'currency' },
+      { key: 'seharusnya', label: 'Kas Seharusnya', type: 'currency' },
+      { key: 'dihitung', label: 'Kas Dihitung', type: 'currency' },
+      { key: 'selisih', label: 'Selisih', type: 'currency' },
+      { key: 'alasan', label: 'Alasan Selisih', type: 'text', width: 24 },
+      { key: 'status', label: 'Status', type: 'text', width: 16 },
+    ],
+    rows: r.cash_sessions.map((s) => ({
+      kasir: s.user_name ?? '-', buka: s.opened_at ?? '-', tutup: s.closed_at ?? '-', modal: s.opening_float,
+      seharusnya: s.expected_cash, dihitung: s.counted_cash, selisih: s.variance, alasan: s.variance_reason ?? '-', status: s.status,
+    })),
+  });
+  return makeDoc('daily_cash', 'Laporan Kas Harian', 'landscape', ctx, sections);
+};
+
 type LabelValue = { label: string; value: number };
 const lvSection = (title: string, rows: LabelValue[]): ExportSection => ({
   title,
@@ -579,6 +704,8 @@ export const REPORT_MAPPERS = {
   goods_receipts: mapGoodsReceipts,
   pos_sales_history: mapPosHistory,
   dashboard_summary: mapDashboard,
+  daily_cash: mapDailyCash,
+  daily_recap: mapDailyRecap,
   fin_income_statement: mapIncome,
   fin_equity_statement: mapEquity,
   fin_balance_sheet: mapBalance,
@@ -594,6 +721,8 @@ export type ReportData<K extends ReportId> = Parameters<(typeof REPORT_MAPPERS)[
 
 export const REPORT_FORMATS: Record<ReportId, ExportFormat[]> = {
   dashboard_summary: ['xlsx', 'pdf'],
+  daily_cash: ['xlsx', 'pdf'],
+  daily_recap: ['xlsx', 'pdf', 'csv'],
   pos_sales_history: ['xlsx', 'pdf', 'csv'],
   inventory_products: ['xlsx', 'pdf', 'csv'],
   inventory_services: ['xlsx', 'pdf', 'csv'],

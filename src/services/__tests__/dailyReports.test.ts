@@ -49,6 +49,7 @@ describe('summarizeDashboard', () => {
 describe('cashMovementLabel', () => {
   it('labels known journal types and falls back to the raw type', () => {
     expect(cashMovementLabel('SALES_RETURN')).toBe('Retur penjualan (refund)');
+    expect(cashMovementLabel('FIXED_ASSET_ACQUISITION')).toBe('Pembelian aset tetap');
     expect(cashMovementLabel('SOMETHING_NEW')).toBe('SOMETHING_NEW');
   });
 });

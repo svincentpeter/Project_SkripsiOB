@@ -716,7 +716,8 @@ export interface DailyCashSale {
   customer_name: string | null;
   vehicle_plate: string | null;
   total_amount: number;
-  total_hpp: number;
+  /** HPP nota; null untuk lingkup kasir (kasir tidak melihat harga pokok). */
+  total_hpp: number | null;
   status: string;
   payments: { method: string; amount: number; fee_amount: number; net_received: number }[];
 }

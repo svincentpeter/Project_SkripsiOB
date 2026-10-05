@@ -14,6 +14,7 @@ import {
   Home,
   ChevronRight,
   Settings as SettingsIcon,
+  CalendarDays,
   ShieldCheck,
   Store,
   Boxes,
@@ -112,6 +113,12 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
       label: 'Laporan Keuangan', 
       icon: FileText,
       breadcrumb: ['Laporan Keuangan', 'Laba Rugi & Posisi Keuangan (Neraca)'],
+    },
+    {
+      id: 'daily_reports' as ActiveScreen,
+      label: 'Laporan Harian',
+      icon: CalendarDays,
+      breadcrumb: ['Laporan Harian', 'Kas Harian, Rekap Harian & Per Kasir'],
     },
     { 
       id: 'receipt' as ActiveScreen, 

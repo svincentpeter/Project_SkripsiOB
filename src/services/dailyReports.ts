@@ -69,6 +69,8 @@ const CASH_MOVEMENT_LABELS: Record<string, string> = {
   CASH_DEPOSIT: 'Setor kas laci ke bank',
   OWNER_DRAWING: 'Prive pemilik',
   CAPITAL_INJECTION: 'Setoran modal pemilik',
+  FIXED_ASSET_ACQUISITION: 'Pembelian aset tetap',
+  FIXED_ASSET_VOID: 'Pembatalan pembelian aset tetap',
   BANK_RECON_ADJUSTMENT: 'Penyesuaian rekonsiliasi bank',
   ADJUSTING_ENTRY: 'Jurnal penyesuaian',
   ADJUSTING_REVERSAL: 'Pembalik jurnal penyesuaian',
