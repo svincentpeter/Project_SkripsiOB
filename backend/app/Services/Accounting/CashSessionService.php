@@ -98,10 +98,13 @@ class CashSessionService
         return round(self::ledgerBalance() + self::pendingAdjustment(), 2);
     }
 
-    /** Selisih shift yang menunggu persetujuan OWNER (belum dijurnal ke 1-1000). */
+    /**
+     * Selisih shift yang menunggu persetujuan OWNER (belum dijurnal ke 1-1000). Current read (sharedLock): snapshot
+     * transaksi pemanggil bisa lebih tua dari close/approve yang baru di-commit, sedangkan saldo jurnal dibaca terkini.
+     */
     public static function pendingAdjustment(): float
     {
-        return round(CashSession::where('status', CashSession::PENDING)->get()
+        return round(CashSession::where('status', CashSession::PENDING)->sharedLock()->get()
             ->sum(fn (CashSession $s) => (float) $s->adjustment()), 2);
     }
 
@@ -214,8 +217,9 @@ class CashSessionService
             if ($session->status !== CashSession::PENDING) {
                 throw new PosRuleException('Hanya shift yang menunggu persetujuan yang dapat disetujui.');
             }
-            if ($approver->role !== 'OWNER' && (int) $session->user_id === (int) $approver->id) {
-                throw new PosRuleException('Shift yang Anda buka sendiri harus disetujui pemilik.');
+            // Pembuka dan penutup (yang menghitung kas fisik) tidak boleh menyetujui selisihnya sendiri.
+            if ($approver->role !== 'OWNER' && in_array((int) $approver->id, [(int) $session->user_id, (int) $session->closed_by], true)) {
+                throw new PosRuleException('Shift yang Anda buka atau tutup sendiri harus disetujui pemilik.');
             }
 
             $amount = (float) $session->adjustment();

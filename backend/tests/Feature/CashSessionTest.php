@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ExpenseCategory;
 use App\Models\RolePermission;
+use App\Models\User;
 use App\Services\Accounting\CashSessionService;
 use App\Services\Accounting\ExpenseService;
 use App\Services\AccountingEngine;
@@ -11,6 +12,7 @@ use App\Services\JournalDraft;
 use Illuminate\Database\DeadlockException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
 
@@ -327,6 +329,27 @@ class CashSessionTest extends TestCase
         $this->actingAsRole('KASIR');
         $session = $this->openShift();
         $this->closeShift($session['id'], $session['opening_float'])->assertOk();
+
+        $this->postJson("/api/v1/cash-sessions/{$session['id']}/approve")
+            ->assertStatus(422)
+            ->assertJsonPath('message', fn (string $m) => str_contains($m, 'harus disetujui pemilik'));
+
+        $this->actingAsRole('OWNER');
+        $this->postJson("/api/v1/cash-sessions/{$session['id']}/approve")->assertOk();
+    }
+
+    public function test_a_non_owner_who_closed_the_shift_cannot_approve_its_variance(): void
+    {
+        RolePermission::where(['role' => 'KASIR', 'permission_key' => 'cash_session_approve'])->update(['allowed' => true]);
+        $this->actingAsRole('KASIR');
+        $session = $this->openShift();
+
+        // Kasir lain menutup shift itu dengan hitungan kurang, lalu mencoba menyetujui selisihnya sendiri.
+        Sanctum::actingAs(User::create([
+            'name' => 'Kasir Kedua', 'username' => uniqid('kasir2-'), 'email' => uniqid('kasir2-').'@omahban.test',
+            'role' => 'KASIR', 'password' => 'secret-test', 'is_active' => true,
+        ]));
+        $this->closeShift($session['id'], $session['opening_float'] - 50000, 'Uang kurang')->assertOk();
 
         $this->postJson("/api/v1/cash-sessions/{$session['id']}/approve")
             ->assertStatus(422)
