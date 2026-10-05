@@ -20,6 +20,7 @@ import { apiClient } from '../../../services/api';
 import type { ApiJournal } from '../../../services/api';
 import { useToast } from '../../../shared/components';
 import { formatRupiah, formatNumber, formatSignedQty } from '../../../shared/utils/formatters';
+import { currentMonth } from '../../../services/accountingPeriod';
 import {
   calculateClientStockLedger,
   StockLedgerRow,
@@ -43,7 +44,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
   onServerChanged,
 }) => {
   const toast = useToast();
-  const currentMonthStr = useMemo(() => new Date().toISOString().substring(0, 7), []);
+  const currentMonthStr = useMemo(() => currentMonth(), []);
 
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');

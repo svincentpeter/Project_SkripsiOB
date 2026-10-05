@@ -1,4 +1,5 @@
 import { ProductItem, PosTransaction, StockMutation } from '../shared/types';
+import { currentMonth } from './accountingPeriod';
 
 export interface StockLedgerLayer {
   batch_id: string | number | null;
@@ -64,7 +65,7 @@ export function calculateClientStockLedger(
   products: ProductItem[] = [],
   transactions: PosTransaction[] = [],
   mutations: StockMutation[] = [],
-  month: string = new Date().toISOString().substring(0, 7),
+  month: string = currentMonth(),
   brandFilter?: string
 ): StockMonthlyReportData {
   const [yearStr, monthStr] = month.split('-');

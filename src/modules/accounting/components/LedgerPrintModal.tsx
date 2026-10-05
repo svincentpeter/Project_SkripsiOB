@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Printer, Download, BookMarked, Building2 } from 'lucide-react';
 import { LedgerAccountSummary, ChartOfAccount } from '../../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
+import { localDate } from '../../../services/accountingPeriod';
 
 interface LedgerPrintModalProps {
   isOpen: boolean;
@@ -192,7 +193,7 @@ export const LedgerPrintModal: React.FC<LedgerPrintModalProps> = ({
                 <div className="space-y-0.5">
                   <div className="border-b border-slate-400 w-36 mx-auto"></div>
                   <p className="font-bold text-slate-800">Kasir Toko Cabang 3</p>
-                  <p className="text-[10px] text-slate-500">Tanggal: {new Date().toISOString().substring(0, 10)}</p>
+                  <p className="text-[10px] text-slate-500">Tanggal: {localDate()}</p>
                 </div>
               </div>
 
@@ -201,7 +202,7 @@ export const LedgerPrintModal: React.FC<LedgerPrintModalProps> = ({
                 <div className="space-y-0.5">
                   <div className="border-b border-slate-400 w-36 mx-auto"></div>
                   <p className="font-bold text-slate-800">Spv. Operasional Cabang 3</p>
-                  <p className="text-[10px] text-slate-500">Tanggal: {new Date().toISOString().substring(0, 10)}</p>
+                  <p className="text-[10px] text-slate-500">Tanggal: {localDate()}</p>
                 </div>
               </div>
 
@@ -210,7 +211,7 @@ export const LedgerPrintModal: React.FC<LedgerPrintModalProps> = ({
                 <div className="space-y-0.5">
                   <div className="border-b border-slate-400 w-36 mx-auto"></div>
                   <p className="font-bold text-slate-800">Direktur / Owner Omah Ban</p>
-                  <p className="text-[10px] text-slate-500">Tanggal: {new Date().toISOString().substring(0, 10)}</p>
+                  <p className="text-[10px] text-slate-500">Tanggal: {localDate()}</p>
                 </div>
               </div>
             </div>

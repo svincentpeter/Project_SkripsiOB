@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { GoodsReceiptInput, PaymentTerms, StockMutation, TireProduct, SupplierItem } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
+import { localDate } from '../../../services/accountingPeriod';
 import {
   PpnMode,
   costDelta,
@@ -77,12 +78,12 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
       return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDate();
     setReceiptDate(todayStr);
 
     const due = new Date();
     due.setDate(due.getDate() + 30);
-    setDueDate(due.toISOString().split('T')[0]);
+    setDueDate(localDate(due));
 
     setPpnMode('exclude');
 

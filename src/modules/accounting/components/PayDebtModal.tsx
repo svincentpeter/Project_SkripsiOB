@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, CreditCard, Building2, Wallet, CheckCircle2, AlertCircle } from 'lucide-react';
 import { DebtPaymentInput, PayableInvoice } from '../../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
+import { localDate } from '../../../services/accountingPeriod';
 
 interface PayDebtModalProps {
   invoice: PayableInvoice | null;
@@ -26,7 +27,7 @@ export const PayDebtModal: React.FC<PayDebtModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().substring(0, 10));
+  const [paymentDate, setPaymentDate] = useState(() => localDate());
   const [amount, setAmount] = useState<number>(invoice.remaining_amount);
   const [sourceAccount, setSourceAccount] = useState<'1-1000' | '1-1001'>('1-1001'); // Default Bank BCA
   const [notes, setNotes] = useState(`Pelunasan hutang pembelian ban ${invoice.supplier_name}`);

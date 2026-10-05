@@ -27,6 +27,7 @@ import {
 import { PosTransaction, UserSession } from '../../shared/types';
 import { formatDateIndo, formatRupiah, playCashDrawerSound } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
+import { localDate } from '../../services/accountingPeriod';
 import { SalesReturnModal, type SalesReturnItemInput } from './components/SalesReturnModal';
 
 interface ThermalReceiptScreenProps {
@@ -91,11 +92,10 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
 
   // Filter logic
   const filteredTransactions = useMemo(() => {
-    const todayStr = new Date().toISOString().substring(0, 10);
-    const now = new Date();
+    const todayStr = localDate();
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(now.getDate() - 7);
-    const sevenDaysStr = sevenDaysAgo.toISOString().substring(0, 10);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysStr = localDate(sevenDaysAgo);
     const currentMonthPrefix = todayStr.substring(0, 7);
 
     return transactionsHistory.filter((tx) => {

@@ -68,6 +68,7 @@ import {
   CashShiftControl,
 } from './components';
 import { useToast } from '../../shared/components';
+import { localDate } from '../../services/accountingPeriod';
 
 interface PosScreenProps {
   products: ProductItem[];
@@ -456,7 +457,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
     const newParked: ParkedTransaction = {
       id: `park-${Date.now()}`,
-      reference: `PARK-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`,
+      reference: `PARK-${localDate().replace(/-/g, '')}-${Math.floor(100 + Math.random() * 900)}`,
       customer_name: customerName.trim() || 'Pelanggan Walk-In',
       vehicle_plate: vehiclePlate.trim() || 'TANPA PLAT',
       vehicle_model: vehicleModel.trim() || '-',

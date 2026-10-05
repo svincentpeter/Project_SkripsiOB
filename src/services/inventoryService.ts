@@ -8,6 +8,7 @@ import {
   TireProduct, 
   TireRing 
 } from '../shared/types';
+import { localDate } from './accountingPeriod';
 
 // ============================================================================
 // 1. AUTONUMERIC ENGINE: SMART SEMANTIC CODES
@@ -221,7 +222,7 @@ export const createProductWithInitialStock = (
   let mutation: StockMutation | undefined;
 
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
+  const dateStr = localDate(now);
   const timeStr = now.toTimeString().split(' ')[0];
   const fullDateTime = `${dateStr} ${timeStr}`;
 
@@ -331,7 +332,7 @@ export const processGoodsReceipt = (
   }
 
   const now = new Date();
-  const dateStr = input.receipt_date || now.toISOString().split('T')[0];
+  const dateStr = input.receipt_date || localDate(now);
   const timeStr = now.toTimeString().split(' ')[0];
   const fullDateTime = `${dateStr} ${timeStr}`;
 
@@ -485,7 +486,7 @@ export const createStockMutationRecord = (
       : beforeQty - qty;
 
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
+  const dateStr = localDate(now);
 
   const mappedType: 'MASUK' | 'KELUAR' | 'PENYESUAIAN' =
     mutationType === 'IN'
