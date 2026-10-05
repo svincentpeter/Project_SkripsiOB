@@ -134,7 +134,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
         {/* 4 Metric Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total Beban Bulan Ini</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Total BKK Bulan Ini</span>
             <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
               {formatRupiah(totalActiveAmount)}
             </span>
@@ -146,7 +146,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
           <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
               <Wallet className="w-3 h-3 text-amber-600" />
-              <span>Kas Laci Toko</span>
+              <span>Dibayar dari Kas Laci</span>
             </span>
             <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
               {formatRupiah(cashAmount)}
@@ -159,7 +159,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
           <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3.5">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
               <Building2 className="w-3 h-3 text-blue-600" />
-              <span>Bank BCA Cabang 3</span>
+              <span>Dibayar dari Bank BCA</span>
             </span>
             <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">
               {formatRupiah(bankAmount)}
