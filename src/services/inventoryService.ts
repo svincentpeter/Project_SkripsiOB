@@ -425,20 +425,16 @@ export const canSafelyDeleteProduct = (
 };
 
 /**
- * Calculate total inventory valuation and summary statistics
+ * Unit & stock-alert summary of active products. The rupiah value is the server's FIFO valuation, not computed here.
  */
 export const calculateInventoryValuation = (
   products: TireProduct[]
 ): {
   totalPcs: number;
-  totalValuationHpp: number;
-  totalValuationJual: number;
   lowStockCount: number;
   outOfStockCount: number;
 } => {
   let totalPcs = 0;
-  let totalValuationHpp = 0;
-  let totalValuationJual = 0;
   let lowStockCount = 0;
   let outOfStockCount = 0;
 
@@ -447,8 +443,6 @@ export const calculateInventoryValuation = (
     if (p.is_active === false) return;
 
     totalPcs += p.stock;
-    totalValuationHpp += p.stock * (p.cost_price ?? p.product_cost ?? 0);
-    totalValuationJual += p.stock * (p.product_price ?? p.price ?? 0);
 
     const minAlert = p.product_stock_alert ?? p.min_stock ?? 5;
     if (p.stock <= 0) {
@@ -460,8 +454,6 @@ export const calculateInventoryValuation = (
 
   return {
     totalPcs,
-    totalValuationHpp,
-    totalValuationJual,
     lowStockCount,
     outOfStockCount,
   };

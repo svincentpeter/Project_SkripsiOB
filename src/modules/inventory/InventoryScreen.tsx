@@ -424,7 +424,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
             <div className="text-right hidden sm:block">
               <span className="text-[10px] uppercase font-bold text-slate-500 block">Valuasi Persediaan (HPP)</span>
               <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 mt-0.5 font-mono">
-                {formatRupiah(valuation.totalValuationHpp)}
+                {ledgerValuation ? formatRupiah(ledgerValuation.fifo_value) : '—'}
               </span>
             </div>
           </div>
@@ -591,7 +591,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 Total Nilai HPP
               </span>
               <span className="text-base sm:text-2xl font-black text-emerald-700 truncate block">
-                {formatRupiah(valuation.totalValuationHpp)}
+                {ledgerValuation ? formatRupiah(ledgerValuation.fifo_value) : '—'}
               </span>
             </div>
             <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
