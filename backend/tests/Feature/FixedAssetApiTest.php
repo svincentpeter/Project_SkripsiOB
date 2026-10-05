@@ -9,6 +9,7 @@ use App\Models\JournalEntry;
 use App\Services\Accounting\DepreciationService;
 use App\Services\Accounting\LedgerBalances;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -146,10 +147,11 @@ class FixedAssetApiTest extends TestCase
             ->assertOk()->assertJsonPath('data.asset.status', 'VOID')->assertJsonPath('data.journals', []);
     }
 
-    /** Saldo seluruh waktu 1-3000, 1-3999 dan 6-1011 dari sisi debit. */
-    private function ledger(): array
+    /** Saldo 1-3000, 1-3999 dan 6-1011 dari sisi debit, seluruh waktu atau dalam satu bulan. */
+    private function ledger(?string $period = null): array
     {
-        $balances = LedgerBalances::forRange(null, null)->keyBy(fn ($b) => $b->account->account_code);
+        $range = $period === null ? [null, null] : [$period.'-01', DepreciationService::endOf($period)];
+        $balances = LedgerBalances::forRange(...$range)->keyBy(fn ($b) => $b->account->account_code);
 
         return array_map(fn (string $code) => $balances[$code]->signed('DEBIT'), ['1-3000' => '1-3000', '1-3999' => '1-3999', '6-1011' => '6-1011']);
     }
@@ -159,30 +161,69 @@ class FixedAssetApiTest extends TestCase
         return $this->getJson('/api/v1/reports/calk?period='.$period)->assertOk()->json('data.notes.fixed_assets');
     }
 
-    public function test_void_of_a_depreciated_asset_reverses_its_depreciation(): void
+    private function calkDifferences(array $note): array
     {
+        return [round($note['total_cost'] - $note['ledger_cost'], 2), round($note['total_accumulated'] - $note['ledger_accumulated'], 2)];
+    }
+
+    /** @return list<string> $months bulan berurutan mulai $from (YYYY-MM) */
+    private static function periods(string $from, int $months): array
+    {
+        return array_map(fn (int $i) => Carbon::parse($from.'-01')->addMonthsNoOverflow($i)->format('Y-m'), range(0, $months - 1));
+    }
+
+    /** Jalankan penyusutan bulan demi bulan; mengembalikan daftar periode. */
+    private function depreciateThrough(string $from, int $months): array
+    {
+        $periods = self::periods($from, $months);
+        foreach ($periods as $period) {
+            $this->postJson(self::URL.'/depreciation', ['period' => $period])->assertCreated();
+        }
+
+        return $periods;
+    }
+
+    /** Tunai (S 1-1000) dan riwayat 25 bulan: catatan baris tidak memuat daftar periode, jadi tidak melewati varchar(255). */
+    public function test_void_of_a_depreciated_asset_reverses_each_month_in_its_own_month(): void
+    {
+        $months = 25;
         $before = $this->ledger();
+        $beforeMonth = collect(self::periods('2019-01', $months))->mapWithKeys(fn ($p) => [$p => $this->ledger($p)['6-1011']]);
         $register = $this->getJson(self::URL)->json('data.summary');
-        $calk = $this->calkFixedAssets(now()->format('Y-m'));
+        $calkPast = $this->calkDifferences($this->calkFixedAssets('2019-02'));
+        $calkNow = $this->calkDifferences($this->calkFixedAssets(now()->format('Y-m')));
 
         $created = $this->postJson(self::URL, $this->payload())->assertCreated()->json('data');
         $id = $created['asset']['id'];
         $code = $created['asset']['code'];
-        $this->postJson(self::URL.'/depreciation', ['period' => '2019-01'])->assertCreated();
-        $this->postJson(self::URL.'/depreciation', ['period' => '2019-02'])->assertCreated();
+        $periods = $this->depreciateThrough('2019-01', $months);
 
-        $res = $this->postJson(self::URL."/{$id}/void", ['reason' => 'Salah input harga'])
+        $journals = $this->postJson(self::URL."/{$id}/void", ['reason' => 'Salah input harga'])
             ->assertOk()
             ->assertJsonPath('data.asset.status', 'VOID')
-            ->assertJsonPath('data.journals.0.reversal_of', $created['journals'][0]['entry_number'])
-            ->assertJsonPath('data.journals.1.reference_type', 'FIXED_ASSET_VOID')
-            ->assertJsonPath('data.journals.1.reference_id', $code)
-            ->assertJsonPath('data.journals.1.entry_date', now()->toDateString());
-        $reversal = $res->json('data.journals.1');
-        $this->assertEquals(500000, $this->line($reversal, '1-3999')['debit']);
-        $this->assertEquals(500000, $this->line($reversal, '6-1011')['credit']);
+            ->json('data.journals');
+
+        // 25 pembalikan berurutan bulan (tanggal & nomor JRN naik), lalu cermin perolehan bertanggal hari ini.
+        $this->assertCount($months + 1, $journals);
+        $mirror = array_pop($journals);
+        $this->assertSame($created['journals'][0]['entry_number'], $mirror['reversal_of']);
+        $this->assertSame(now()->toDateString(), $mirror['entry_date']);
+        foreach ($journals as $i => $journal) {
+            $this->assertSame('FIXED_ASSET_VOID', $journal['reference_type']);
+            $this->assertSame($code, $journal['reference_id']);
+            $this->assertSame(DepreciationService::endOf($periods[$i]), $journal['entry_date']);
+            $this->assertCount(2, $journal['lines']);
+            $this->assertEquals(250000, $this->line($journal, '1-3999')['debit']);
+            $this->assertEquals(250000, $this->line($journal, '6-1011')['credit']);
+            if ($i > 0) {
+                $this->assertGreaterThan($journals[$i - 1]['id'], $journal['id']);
+            }
+        }
 
         $this->assertEquals($before, $this->ledger());
+        foreach ($periods as $period) {
+            $this->assertEquals($beforeMonth[$period], $this->ledger($period)['6-1011'], "6-1011 {$period}");
+        }
         $after = $this->getJson(self::URL)->json('data.summary');
         $this->assertEquals($register['difference_cost'], $after['difference_cost']);
         $this->assertEquals($register['difference_accumulated'], $after['difference_accumulated']);
@@ -191,15 +232,34 @@ class FixedAssetApiTest extends TestCase
             fn (array $l) => $l['asset']->id === $id,
         ));
 
-        // CALK: bulan lampau (sebelum pembatalan) masih memuat aset & penyusutannya, bulan berjalan tidak; keduanya cocok dengan buku besar.
-        $february = collect($this->calkFixedAssets('2019-02')['assets'])->firstWhere('code', $code);
-        $this->assertEquals(500000, $february['accumulated']);
+        // CALK bulan lampau (sebelum hari pembatalan): aset masih tercatat, akumulasinya hanya saldo awal (0); cocok dengan 1-3999.
+        $february = $this->calkFixedAssets('2019-02');
+        $this->assertEquals(0, collect($february['assets'])->firstWhere('code', $code)['accumulated']);
+        $this->assertEquals($calkPast, $this->calkDifferences($february));
         $now = $this->calkFixedAssets(now()->format('Y-m'));
         $this->assertNotContains($code, array_column($now['assets'], 'code'));
-        $this->assertEquals(round($calk['total_cost'] - $calk['ledger_cost'], 2), round($now['total_cost'] - $now['ledger_cost'], 2));
-        $this->assertEquals(round($calk['total_accumulated'] - $calk['ledger_accumulated'], 2), round($now['total_accumulated'] - $now['ledger_accumulated'], 2));
+        $this->assertEquals($calkNow, $this->calkDifferences($now));
 
         $this->postJson(self::URL."/{$id}/void", ['reason' => 'lagi'])->assertStatus(422);
+    }
+
+    public function test_void_of_a_depreciated_opening_asset_reverses_only_system_depreciation(): void
+    {
+        $calkPast = $this->calkDifferences($this->calkFixedAssets('2019-03'));
+        $created = $this->postJson(self::URL, $this->openingPayload())->assertCreated()->json('data');
+        $this->depreciateThrough('2019-02', 2);
+
+        $journals = $this->postJson(self::URL."/{$created['asset']['id']}/void", ['reason' => 'Dobel'])->assertOk()->json('data.journals');
+
+        $this->assertSame(['2019-02-28', '2019-03-31'], array_column($journals, 'entry_date'));
+        foreach ($journals as $journal) {
+            $this->assertCount(2, $journal['lines']);
+            $this->assertEquals(250000, $this->line($journal, '1-3999')['debit']);
+        }
+        $note = $this->calkFixedAssets('2019-03');
+        $this->assertEquals(3000000, collect($note['assets'])->firstWhere('code', $created['asset']['code'])['accumulated']);
+        // Saldo awal aset (biaya & akumulasi lama) tidak lewat jurnal sistem, jadi selisih CALK bergeser tepat sebesar itu.
+        $this->assertEquals([round($calkPast[0] + 10000000, 2), round($calkPast[1] + 3000000, 2)], $this->calkDifferences($note));
     }
 
     public function test_void_is_refused_when_a_depreciation_month_is_closed(): void

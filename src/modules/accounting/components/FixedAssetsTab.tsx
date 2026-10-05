@@ -47,8 +47,9 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
       asset.last_depreciated_period &&
       !window.confirm(
         `${asset.code} sudah disusutkan ${formatRupiah(asset.accumulated_depreciation - asset.opening_accumulated_depreciation)}. ` +
-          'Pembatalan membalik seluruh penyusutannya (Dr 1-3999 / Cr 6-1011) dan jurnal perolehannya, bertanggal hari ini, ' +
-          'sehingga pengurangan beban penyusutan masuk bulan berjalan. Hanya bisa bila semua bulan penyusutannya belum ditutup. ' +
+          'Pembatalan membalik penyusutannya per bulan (Dr 1-3999 / Cr 6-1011, bertanggal akhir tiap bulan penyusutan)' +
+          (asset.journal_entry_number ? ' dan jurnal perolehannya (bertanggal hari ini). ' : '. ') +
+          'Hanya bisa bila semua bulan penyusutannya belum ditutup. ' +
           'Setelah itu catat ulang aset dengan data yang benar. Lanjutkan?',
       )
     )

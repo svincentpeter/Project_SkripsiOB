@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Register aset tetap: perolehan (Dr 1-3000 / Cr kas atau bank), aset dari saldo awal (tanpa jurnal),
- * dan pembatalan aset salah input (jurnal cermin perolehan + pembalikan penyusutannya, keduanya bertanggal hari ini).
+ * dan pembatalan aset salah input (jurnal cermin perolehan + pembalikan penyusutannya per bulan penyusutan).
  */
 class FixedAssetService
 {
@@ -93,11 +93,11 @@ class FixedAssetService
     }
 
     /**
-     * Batalkan aset salah input. Bila sudah disusutkan, seluruh penyusutannya dibalik (Dr 1-3999 / Cr 6-1011) dalam satu
-     * jurnal FIXED_ASSET_VOID bertanggal hari ini, hanya bila setiap bulan yang memuat jurnal penyusutannya masih terbuka.
-     * Baris fixed_asset_depreciations tetap disimpan (riwayat); semua pemakainya hanya membaca aset ACTIVE, atau aset
-     * yang dibatalkan sesudah akhir bulan laporan (CALK), sehingga register, penyusutan tertunda, dan CALK tetap cocok
-     * dengan buku besar di setiap tanggal.
+     * Batalkan aset salah input. Bila sudah disusutkan, penyusutannya dibalik per bulan (Dr 1-3999 / Cr 6-1011, satu
+     * jurnal FIXED_ASSET_VOID per bulan penyusutan, bertanggal akhir bulan itu), hanya bila setiap bulan itu masih
+     * terbuka; jurnal cermin perolehan bertanggal hari ini. Baris fixed_asset_depreciations tetap disimpan (riwayat):
+     * register & penyusutan tertunda hanya membaca aset ACTIVE, dan CALK menghitung akumulasi aset VOID dari saldo
+     * awalnya saja, sehingga keduanya tetap cocok dengan buku besar di setiap tanggal.
      *
      * @return array{asset: FixedAsset, journals: list<JournalEntry>}
      */
@@ -123,7 +123,18 @@ class FixedAssetService
                 throw new PosRuleException("Aset {$asset->code} sudah disusutkan pada periode {$closed->period} yang sudah ditutup; pembatalan hanya bila semua bulan penyusutannya masih terbuka. Buka kembali periode itu lebih dulu.");
             }
 
+            // Urut bulan naik, sebelum cermin perolehan, agar nomor JRN mengikuti urutan tanggal.
             $journals = [];
+            foreach ($depreciations as $d) {
+                if ((float) $d->amount <= 0) {
+                    continue;
+                }
+                $journals[] = (new JournalDraft())
+                    ->debit(self::ACCUMULATED_ACCOUNT, (float) $d->amount, "[BATAL] Akumulasi penyusutan {$asset->code} {$d->period}")
+                    ->credit(DepreciationService::EXPENSE_ACCOUNT, (float) $d->amount, "[BATAL] Penyusutan {$asset->code} {$d->period}")
+                    ->post($this->engine, self::VOID, $asset->code, "Pembalikan penyusutan {$d->period} aset tetap {$asset->code} {$asset->name}: {$reason}", DepreciationService::endOf($d->period));
+            }
+
             if ($asset->journal_entry_number !== null) {
                 $original = JournalEntry::where('entry_number', $asset->journal_entry_number)->firstOrFail();
                 $journals[] = $this->engine->createEntry(
@@ -135,15 +146,6 @@ class FixedAssetService
                     3,
                     $original->id
                 );
-            }
-
-            $depreciated = FixedAsset::cents($depreciations->sum(fn ($d) => (float) $d->amount)) / 100;
-            if ($depreciated > 0) {
-                $periods = $depreciations->pluck('period')->implode(', ');
-                $journals[] = (new JournalDraft())
-                    ->debit(self::ACCUMULATED_ACCOUNT, $depreciated, "[BATAL] Akumulasi penyusutan {$asset->code} ({$periods})")
-                    ->credit(DepreciationService::EXPENSE_ACCOUNT, $depreciated, "[BATAL] Penyusutan {$asset->code} {$asset->name}")
-                    ->post($this->engine, self::VOID, $asset->code, "Pembalikan penyusutan aset tetap {$asset->code} ({$periods}): {$reason}", now()->toDateString());
             }
 
             $asset->update(['status' => 'VOID', 'void_reason' => $reason, 'voided_by' => $user->id, 'voided_at' => now()]);

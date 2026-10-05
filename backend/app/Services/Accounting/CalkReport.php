@@ -129,7 +129,9 @@ class CalkReport
             ->orderBy('code')
             ->get()
             ->map(function (FixedAsset $a) {
-                $accumulated = round((float) $a->opening_accumulated_depreciation + (float) ($a->posted_through ?? 0), 2);
+                // Aset VOID: penyusutan sistemnya dibalik di bulannya masing-masing, jadi tinggal akumulasi saldo awal.
+                $posted = $a->status === 'VOID' ? 0 : (float) ($a->posted_through ?? 0);
+                $accumulated = round((float) $a->opening_accumulated_depreciation + $posted, 2);
 
                 return [
                     'code' => $a->code,

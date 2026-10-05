@@ -70,6 +70,6 @@ class OpeningBalanceService
             }
 
             return $draft->post($this->engine, self::REFERENCE_TYPE, 'SALDO-AWAL', 'Saldo awal akun kas, bank, aset tetap & laba ditahan', $date);
-        });
+        }, 3); // X 3-1000 → JRN bisa bersiklus dengan alur X 1-3999 → JRN (aset tetap, penyusutan): coba ulang saat deadlock.
     }
 }
