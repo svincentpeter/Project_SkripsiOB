@@ -25,7 +25,7 @@ import { paymentApi, PaymentOptions } from '../../../services/api/paymentApi';
 import { CheckoutPaymentMeta, providerIdOf } from '../../../services/api/posMappers';
 import { useServerData } from '../../accounting/hooks/useServerData';
 import { QrisDynamicModal } from './QrisDynamicModal';
-import { reusableSettledQris, SettledQris, settledQrisWarning } from '../settledQris';
+import { qrisCartKey, reusableSettledQris, SettledQris, settledQrisWarning } from '../settledQris';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -236,6 +236,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     });
   };
 
+  const cartKey = qrisCartKey(cart, customerName, vehiclePlate);
+
   // Semua checkout lewat sini: order QRIS lunas yang tertunda baru dilepas setelah nota tercatat.
   const confirmCheckout = async (...args: Parameters<typeof onConfirmCheckout>) => {
     if (await onConfirmCheckout(...args)) setSettledQris(null);
@@ -249,11 +251,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleQrisPaymentSuccess = () => {
     setIsQrisModalOpen(false);
-    setSettledQris({ orderId: qrisOrderId, amount: netPayable });
+    setSettledQris({ orderId: qrisOrderId, amount: netPayable, cartKey });
     submitSettledQris(qrisOrderId);
   };
 
-  const checkoutSelection = { isSplitMode, paymentMethod, qrisFlowType, netPayable };
+  const checkoutSelection = { isSplitMode, paymentMethod, qrisFlowType, netPayable, cartKey };
   const settledWarning = settledQrisWarning(settledQris, checkoutSelection);
 
   const usesQris = isSplitMode ? splitRows.some((r) => r.method === 'QRIS') : paymentMethod === 'QRIS';
