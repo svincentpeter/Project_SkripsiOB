@@ -171,7 +171,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     return activeCats;
   }, [categories]);
 
-  const [catalogTab, setCatalogTab] = useState<string>('BAN_BARU');
+  const [catalogTab, setCatalogTab] = useState<string>('ALL');
   const [isCartBouncing, setIsCartBouncing] = useState<boolean>(false);
 
   const triggerCartBounce = () => {
