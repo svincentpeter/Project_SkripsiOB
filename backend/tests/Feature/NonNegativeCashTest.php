@@ -7,6 +7,7 @@ use App\Models\JournalEntry;
 use App\Services\Accounting\CashSessionService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
 
 /**
@@ -15,6 +16,7 @@ use Tests\TestCase;
  */
 class NonNegativeCashTest extends TestCase
 {
+    use CreatesPosFixtures;
     use DatabaseTransactions;
 
     protected function setUp(): void
@@ -98,6 +100,36 @@ class NonNegativeCashTest extends TestCase
         $this->fund('1-1000', round(100000 - $pending, 2));
         // Isi laci menurut buku tinggal 50.000: prive 80.000 harus ditolak walau snapshot belum melihat shift itu.
         $this->move(['type' => 'DRAWING', 'account_code' => '1-1000', 'amount' => 80000])->assertStatus(422);
+    }
+
+    public function test_a_pending_shortage_counts_only_from_the_day_its_shift_closed(): void
+    {
+        $earlier = now()->subDays(3)->toDateString();
+        $this->fund('1-1000', 500000, $earlier);
+        $this->move(['type' => 'CAPITAL', 'account_code' => '1-1000', 'amount' => 1000000])->assertCreated();
+        CashSession::create([
+            'user_id' => auth()->id(), 'opened_at' => now(), 'opening_float' => 0, 'book_opening' => 0,
+            'closed_at' => now(), 'closed_by' => auth()->id(), 'expected_cash' => 600000, 'counted_cash' => 0,
+            'variance' => -600000, 'variance_reason' => 'Uji', 'status' => CashSession::PENDING,
+        ]);
+
+        // Tiga hari lalu laci masih 500.000; kekurangan shift baru ada hari ini (1.500.000 − 600.000).
+        $this->move(['type' => 'DRAWING', 'account_code' => '1-1000', 'amount' => 100000, 'date' => $earlier])->assertCreated();
+        $this->move(['type' => 'DRAWING', 'account_code' => '1-1000', 'amount' => 800001])->assertStatus(422);
+        $this->move(['type' => 'DRAWING', 'account_code' => '1-1000', 'amount' => 800000])->assertCreated();
+    }
+
+    public function test_a_cash_goods_receipt_beyond_the_drawer_is_refused(): void
+    {
+        $this->fund('1-1000', 100000);
+        $product = $this->makeProduct(800000, [[0, 450000, '2026-08-01']]);
+
+        $this->postJson('/api/v1/inventory/restock', [
+            'product_id' => $product->id, 'quantity' => 1, 'batch_cost' => 100000.01, 'purchase_date' => now()->toDateString(),
+            'source_name' => 'Toko Grosir', 'payment_method' => 'TUNAI',
+        ])->assertStatus(422)->assertJsonPath('message', fn (string $m) => str_contains($m, '1-1000'));
+        $this->assertSame(0, $product->fresh()->product_quantity);
+        $this->assertEquals(100000, $this->balance('1-1000'));
     }
 
     public function test_bank_cannot_go_negative_either(): void
