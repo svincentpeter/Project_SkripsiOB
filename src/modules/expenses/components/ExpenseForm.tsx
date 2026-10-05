@@ -40,10 +40,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
   const [category, setCategory] = useState<ExpenseCategory>('ATK & Keperluan Bengkel');
   const [date, setDate] = useState<string>(localDate());
-  const [nominalInput, setNominalInput] = useState<number>(350000);
+  const [nominalInput, setNominalInput] = useState<number>(0);
   const [cashSource, setCashSource] = useState<CashSource>('Kas Tunai Laci Kasir');
-  const [paidTo, setPaidTo] = useState<string>('Toko Perkakas Teknik');
-  const [description, setDescription] = useState<string>('Beli timah balancing tempel & pentil tubeless');
+  const [paidTo, setPaidTo] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [imageSizeKb, setImageSizeKb] = useState<number>(0);
@@ -137,14 +137,13 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       return;
     }
 
-    // Saldo buku laci ≤ 0 (belum ada saldo awal/shift tercatat) tidak memblokir, sama seperti aturan bank di bawah.
-    if (isCash && cashInDrawer > 0 && numericAmount > cashInDrawer) {
+    // Sama dengan aturan server (saldo kas/bank tidak boleh negatif); server tetap yang memutuskan.
+    if (isCash && numericAmount > cashInDrawer) {
       setFormError(`Saldo Kas Laci tidak mencukupi (${formatRupiah(cashInDrawer)}). Silakan pilih rekening Bank BCA atau sesuaikan nominal.`);
       return;
     }
 
-    // Saldo bank buku besar ≤ 0 (belum ada saldo awal/setoran tercatat) tidak memblokir: rekening nyata bisa berisi dana.
-    if (!isCash && bankBalance > 0 && numericAmount > bankBalance) {
+    if (!isCash && numericAmount > bankBalance) {
       setFormError(`Saldo Rekening Bank BCA tidak mencukupi (${formatRupiah(bankBalance)}).`);
       return;
     }
