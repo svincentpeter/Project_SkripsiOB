@@ -86,7 +86,11 @@ interleaved with SP2 follow-ups and the first SP4 commits; the final fix wave is
 - 🟡 PPh Final UMKM 0.5% accrual — decided out of scope (user, 2026-09-30); stated in the CALK tax policy only.
 - 🟡 Adjusting-entry workflow for accruals/prepayments; bank reconciliation.
 
-## Sub-project 5 — Operational reports & dashboard
+## Sub-project 5 — Operational reports & dashboard  → spec `2026-09-30-operational-reports-design.md` (done)
+
+> Plan `docs/superpowers/plans/2026-09-30-operational-reports.md`; commits `fd9607f`, `62122f0`, `b8644f9`+`61599dc`,
+> `b55ecf2`, `7039cfa`, `55d2e32`, `502c7bb`, plus the docs commit (interleaved with the end of SP4). Browser
+> checklist pending, run by the user (handoff section 1b).
 
 - 🟠 Daily cash report and daily recap on a cash-received basis (reference: `ReportDailyCashApiController.php`,
   `DailyNotaGlobalService.php`); per-cashier recap.

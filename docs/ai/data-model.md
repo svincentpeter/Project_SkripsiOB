@@ -1,6 +1,6 @@
 # Data model
 
-Source of truth: `backend/database/migrations/` (34 migrations). Models: `backend/app/Models/`.
+Source of truth: `backend/database/migrations/` (36 migrations at `502c7bb`). Models: `backend/app/Models/`.
 `database/schema_project_skripsi_ob.sql` and `supabase_schema.sql` are **stale**, so ignore them.
 Most early migrations wrap `Schema::create` in `hasTable` guards. New migrations should be additive:
 add columns and insert-if-missing rows, and never rewrite old migrations.
@@ -42,7 +42,7 @@ See [domain-inventory.md](domain-inventory.md) for how they can drift.
 ## Sales (POS)
 | Table | Key columns | Notes |
 |---|---|---|
-| `sales` | `reference` (unique, `OB3-INV-YYYYMM-####`), `date`, customer and vehicle fields, gross/discount/total (no tax columns; dropped by `2026_09_27_000001`), `paid_amount`, `change_amount`, fee/net fields, `payment_method` (method or `SPLIT`), `status` (LUNAS/VOID), `voided_at`, `voided_by`, `void_reason`, `total_hpp`, `total_profit` | `Sale::toReceiptArray()` is the API shape. Legacy columns `booking_id`, `dp_applied`, `due_date`, `edc_bank`, `edc_type`, `surcharge_amount` are unused since 2026-09-30 (kept for history; old rows may say `BON`/`PENDING`) |
+| `sales` | `reference` (unique, `OB3-INV-YYYYMM-####`), `date`, `cashier_name`, `user_id` (nullable FK `users`, null on delete; migration `2026_10_05_000002`, set by `CheckoutService`; older rows are null), customer and vehicle fields, gross/discount/total (no tax columns; dropped by `2026_09_27_000001`), `paid_amount`, `change_amount`, fee/net fields, `payment_method` (method or `SPLIT`), `status` (LUNAS/VOID), `voided_at`, `voided_by`, `void_reason`, `total_hpp`, `total_profit` | `Sale::toReceiptArray()` is the API shape. The kasir-scoped daily cash report matches notas by `user_id` (names are not unique), falling back to `cashier_name` only where `user_id` is null. Legacy columns `booking_id`, `dp_applied`, `due_date`, `edc_bank`, `edc_type`, `surcharge_amount` are unused since 2026-09-30 (kept for history; old rows may say `BON`/`PENDING`) |
 | `sale_details` | `item_type` (PRODUCT/SERVICE), `product_id`, `service_id`, `item_name`, `is_manual`, `quantity`, prices, discount, `hpp`, `profit` | |
 | `sale_payments` | `method`, `account_code`, `amount`, `tendered_amount`, `change_amount`, `fee_percentage`, `fee_amount`, `net_received`, `provider_name`, `reference` | one row per split payment; fee and provider name come from `payment_provider_settings`. Legacy `surcharge_amount`, `edc_bank`, `edc_type` unused since 2026-09-30 |
 | `qris_transactions` | `order_id` (unique), `gross_amount`, `transaction_status` (pending/settlement), `settlement_source` (WEBHOOK/STATUS_API/SIMULATION), `settled_at`, `sale_payment_id` (nullable, **unique** FK `sale_payments`) | one row per dynamic QRIS order (migration `2026_10_01_000001`). Created by charge, settled by webhook/status/simulation, claimed once by checkout |

@@ -14,8 +14,8 @@
 
    Stages so far: stage 1 auth/RBAC (2026-09-23), stage 2 POS (2026-09-24), stage 3 inventory (2026-09-24), stage 4
    accounting core (2026-09-29). Cash & bank, payment hardening and transaction corrections (returns) followed on
-   2026-09-30, then SAK EMKM completeness (fixed assets and depreciation, AJP, bank reconciliation, CALK). The
-   remaining area (dashboard/daily reports) is tracked as a later sub-project of the accounting roadmap.
+   2026-09-30, then SAK EMKM completeness (fixed assets and depreciation, AJP, bank reconciliation, CALK) and
+   operational reports (daily cash report, daily recap, per-cashier recap, dashboard from the server).
 3. **Commits:** Conventional Commits with a scope, in English, with the imperative subject in lowercase:
    `feat(pos): …`, `fix(accounting): …`, `test: …`, `docs(inventory): …`. The body explains why. Commits are made
    directly on `main`. When Claude writes the commit, it ends with the `Co-Authored-By: Claude …` trailer.
@@ -41,6 +41,7 @@
 | 09-30 | cash & bank (roadmap SP2): cashier shifts, variance journal, deposits, Prive, capital | done |
 | 09-30 | transaction corrections (roadmap SP3) | done |
 | 09-30 | SAK EMKM completeness (SP4): fixed assets & depreciation, AJP, bank reconciliation, CALK | done |
+| 09-30 | operational reports & dashboard (roadmap SP5): daily recap, daily cash report, per-cashier recap, dashboard from server, `localDate()` sweep | done |
 | — | `API_DOCUMENTATION.md` | stale; use [api-reference.md](api-reference.md) |
 
 ## Testing
@@ -52,8 +53,8 @@
 | Backend | `cd backend && composer test` | MySQL `project-skripsi_ob_testing`, which must exist and be migrated. See [../../backend/AGENTS.md](../../backend/AGENTS.md#tests) |
 | E2E | `node tests/e2e/<file>.mjs` | Plain Playwright scripts, not `@playwright/test`. They need `npm run dev` (dev mode), the backend on :8000 with seeded users, and `VITE_DEV_LOGIN_PASSWORD`. They log in via the "Agus Subagyo" quick-login card, write screenshots and JSON to `tests/e2e/screenshots/`, and have **no pass/fail assertions** |
 
-As of 2026-10-01 (after SAK EMKM completeness, with the SP5 commits made alongside), the frontend passes: 31 test
-files, 168 tests, and `tsc` is clean. The backend passes 340 tests (2126 assertions).
+As of 2026-10-05 (after operational reports, SP5, last code commit `502c7bb`), the frontend passes: 32 test files,
+172 tests, and `tsc` is clean. The backend passes 340 tests (2126 assertions).
 
 ## Glossary (Indonesian → meaning)
 
@@ -119,12 +120,9 @@ files, 168 tests, and `tsc` is clean. The backend passes 340 tests (2126 asserti
   `now()` and business dates match the shop's clock. Existing rows created before the switch keep their old UTC
   timestamps; `DATE` columns are unaffected. New frontend code must take business dates from `localDate()`
   (`src/services/accountingPeriod.ts`), not `toISOString()`, which gives the UTC date.
-- **Known issue: `toISOString()` dates.** Older screens still derive "today" with `new Date().toISOString()`
-  (sliced to a date or month), which yields the previous day between 00:00 and 07:00 WIB:
-  `GoodsReceiptModal`, `PosScreen` (parked order numbers), `ThermalReceiptScreen`, `inventoryService`,
-  `ExecutiveDashboardScreen`, `StockMonthlyLedgerView` / `stockMonthlyLedgerService`, the export registry
-  (`src/shared/export/registry.ts`), and the default payment date in `PayDebtModal`.
-  Switch them to `localDate()` when touching those files.
+- **`toISOString()` dates.** Business dates never come from `toISOString()` (UTC: the previous day between 00:00
+  and 07:00 WIB). `src/services/__tests__/localDateUsage.test.ts` fails if any source file slices it into a date or
+  month; real instants (`created_at`, QRIS `settlement_time`, export `generatedAt`) may stay ISO.
 - **Test database.** Backend tests without a DB trait leave rows behind, and `RefreshDatabase` tests wipe everything.
   If a test fails only when the whole suite runs, suspect test order.
 - **Windows.** Paths contain `C:\laragon\www\…`. The DB name has a hyphen (`project-skripsi_ob`), so quote it in SQL.

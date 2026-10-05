@@ -16,7 +16,7 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
 
 ### Shell and navigation (`src/App.tsx`)
 - There is **no router**. `activeScreen` state (`ActiveScreen` in `src/shared/types/index.ts`) picks one of
-  `pos | receipt | dashboard | inventory | expenses | ledger | financials | settings`. There are no URLs or deep links.
+  `pos | receipt | dashboard | inventory | expenses | ledger | financials | daily_reports | settings`. There are no URLs or deep links.
 - Render order: auth-checking spinner → `LoginScreen` if no user → `pos` full-screen (no header) → every other
   screen with `HeaderNavbar`.
 - Screen gates live in `isScreenPermittedForRole` / `getDefaultScreenForUser`
@@ -31,6 +31,7 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
   | expenses (Biaya Toko) | `expenses` |
   | ledger (Buku Besar) | `accounting_hub`, `accounts_payable`, `cash_session_approve`, `cash_movement`, `fixed_assets` or `bank_reconciliation` (non-hub roles see only the tabs their keys allow: `payables` with `accounts_payable`, `cash` with a cash key, `fixed-assets` with `fixed_assets`, `bank-recon` with `bank_reconciliation`; the first visible tab opens by default) |
   | financials (Laporan Keuangan) | `financial_reports` |
+  | daily_reports (Laporan Harian) | `daily_reports` (the Rekap Harian tab also needs `dashboard` or `financial_reports`) |
   | settings | `role_settings` (the Roles tab is OWNER only) |
 
 - Action-level gates use `can(key)` from App.tsx, passed down as booleans (for example `canVoid={can('sale_void')}`).
@@ -46,6 +47,13 @@ Browser (React SPA, :3000)                      Laravel API (:8000/api/v1)      
   purchases in parallel, filtered by permission. Each call does `.catch(() => null)`, so failures are silent.
 - When adding a server-backed feature: add a typed function in `src/services/api/<area>Api.ts`, a mapper if the wire
   shape differs, a handler in App.tsx that calls it and updates state from the **response**, and pass it down.
+- The dashboard reads its money figures from `GET /reports/daily-recap` (one call covering the month and the last 7
+  days, `src/services/dailyReports.ts`) and the FIFO value from `inventoryValuation` (`GET /inventory/valuation`); only
+  top products and brand share still use the loaded `transactions` (this month, non-VOID).
+- `DailyReportsScreen` (`src/modules/reports/`, nav "Laporan Harian") has two tabs: Kas Harian (`GET /reports/daily-cash`,
+  export `daily_cash`) and Rekap Harian (`GET /reports/daily-recap`, export `daily_recap`; shown only with
+  `dashboard` or `financial_reports`). Both reload on `ledgerVersion`. KASIR has `daily_reports` by default and sees
+  only their own notas and shifts (server-scoped); GUDANG does not.
 
 ### localStorage keys still in use
 `ob3_auth_token`, `ob3_store_settings` (receipt/store text only; legacy `bank_providers`,

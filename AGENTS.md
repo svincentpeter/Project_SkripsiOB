@@ -80,6 +80,7 @@ The app started fully client-side (localStorage, briefly Supabase) and is being 
 | Products, categories, services, suppliers, FIFO batches, goods receipt, purchase returns and receipt cancellation, payables, stock opname, Excel import, monthly stock ledger | Server | 3 (done); transaction corrections 2026-09-30 |
 | Expenses, manual journals, journal reversal, account opening balances, period closing & lock | Server | 4 (done) |
 | Financial reports (journals, ledger, trial balance, statements, equity changes, cash flow) | Server, computed per period | 4 (done) |
+| Daily cash report, daily recap, per-cashier recap, dashboard money figures | Server (`/reports/daily-*`, computed from journals) | roadmap SP5 (done) |
 | Cashier shifts, drawer balance (= ledger 1-1000), cash deposits, Prive, capital injections | Server | SP2 cash & bank (done) |
 | Fixed asset register & depreciation, adjusting entries (AJP), bank reconciliation, CALK | Server | SP4 (done) |
 | Store settings (receipt text), parked orders, cart | **Client** (localStorage `ob3_*` keys) | not scheduled |

@@ -288,6 +288,11 @@ COA rather than hard-coded account lists, in `app/Services/Accounting/`:
   first statement line (the cut-over) and `ACCOUNT_OPENING` lines are never outstanding.
 - `CashFlowReport::bucket()` puts 4-3000 in "other operating" and 1-1100/2-1100 in "expenses"; depreciation and AJP
   entries touch no cash account and never appear in the cash-flow statement.
+- **`Reports/DailyReportService`** (roadmap sub-project 5) groups POSTED journals per day with
+  `FinancialReportService::incomeSection()` (closing entries excluded), so Σ daily-recap rows = the income statement
+  for the same range, and sums 1-1000/1-1001 debits/credits per day and journal type (`ACCOUNT_OPENING` folded into
+  the opening balance), so cash movements reconcile opening to closing. A void or expense void therefore reverses
+  money on its own date. It posts nothing. See [api-reference.md](api-reference.md#operational-reports-roadmap-sub-project-5).
 - **`ExpenseService`**, **`ManualJournalService`**, **`PeriodClosingService`**, **`OpeningBalanceService`**,
   **`FixedAssetService`**, **`DepreciationService`**, **`AdjustingEntryService`** and **`BankReconciliationService`**
   are the posting-side services (see the posting rules table above).

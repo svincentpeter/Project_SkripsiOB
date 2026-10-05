@@ -17,7 +17,9 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
   assertions), frontend 147 (29 test files); after the SP3 final fix wave (`67ffe0b`, which ran interleaved with the
   first SP4 tasks, so the backend figure includes their tests) backend 300, frontend 148. After SP4 (last code
   commit `f0a4c10`) one run of both gates printed backend **340 tests, 2126 assertions**, frontend **168 tests in 31
-  files**, `tsc` clean; these figures already include the SP5 commits made alongside (up to `7039cfa`).
+  files**, `tsc` clean; these figures already include the SP5 commits made alongside (up to `7039cfa`). After SP5
+  (last code commit `502c7bb`) one run of both gates printed backend **340 tests, 2126 assertions**, frontend **172
+  tests in 32 files**, `tsc` clean.
 - Transaction corrections (sub-project 3) are **implemented and reviewed** (commits `b8c5818` through `67ffe0b`,
   interleaved with SP2 follow-ups and the first SP4 commits; its final fix wave is `f25e9d6 0aca67e f18a3b2 180335f
   83430a8 ad30156 0b9380c aa4d9be 67ffe0b`). Its browser checklist has **not been run yet** (section 2c).
@@ -25,6 +27,30 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
   `ea83ee2`+`5a61c7b`, `9a8503d`, `1795ee8`+`5e22dec`, `fee0f4f`+`efc70ac`, `f1c0810`, `f13adca`, `3b071fa`,
   `ceb9dec`+`f0a4c10`, `d470ba3`, plus the docs commit). Its browser checklist and the CALK entity details are
   **pending on the user** (section 2d).
+- Operational reports & dashboard (sub-project 5) are **implemented and reviewed** (`fd9607f` `daily_reports` key,
+  `62122f0` daily recap, `b8644f9`+`61599dc` daily cash report with per-cashier recap and `sales.user_id`, `b55ecf2`
+  client and types, `7039cfa` dashboard from the server recap, `55d2e32` Laporan Harian screen and exports, `502c7bb`
+  `localDate()` sweep with a guard test, plus the docs commit). Its browser checklist is pending (section 1b).
+
+## 1b. Pending on the user (everything in one place)
+
+Details are in the sections named; nothing here is run by an agent.
+
+- [ ] **Dev DB reset (task M1 of `2026-09-30-remove-dp-bon-edc.md`, section 2b):** `php artisan migrate:fresh --seed`
+  + `php artisan inventory:opening-balance`. Until then the dev DB has 23 products whose quantity exceeds their FIFO
+  layers (query in step 2.5): opname them or pick other products for any manual test, since such a sale is 422.
+- [ ] **Account opening balances before the first cashier shift** (step 2.4): a shift opened first books the whole
+  float as an opening difference.
+- [ ] **Confirm the CALK entity details** (`CalkReport::ENTITY`, section 2d).
+- [ ] **QRIS demo:** `MIDTRANS_ALLOW_SIMULATION=true` in `backend/.env` (sandbox only, step 2.2), or real sandbox keys.
+- [ ] Browser checklists: transaction corrections (2c), SAK EMKM (2d), and operational reports below.
+- [ ] **Operational reports browser checklist** (`npm run dev:all`). As OWNER: Dashboard "Omzet Hari Ini" equals
+  today's Laba Rugi net revenue (Laporan Keuangan, range = today); "Beban Operasional" equals this month's operating
+  expenses; "Valuasi Stok FIFO" equals Buku FIFO's valuation banner; voiding a nota lowers today's figure and the
+  payment mix; before 07:00 the dates are today's. Laporan Harian → Kas Harian: 1-1000 closing equals Buku Besar
+  1-1000 balance for that date; cashier shifts from SP2 appear; export PDF/XLSX opens. As KASIR (via Riwayat Struk →
+  "Laporan Harian"): only own notas and sessions, no Rekap Harian tab, no ledger sections. As GUDANG: no "Laporan
+  Harian" tab.
 - Browser check (owner, dev DB, after B7): journals, ledger, trial balance ("Seimbang"), statements
   (balance sheet "Seimbang", cash flow "Terekonsiliasi") and the Biaya screen load from the server with no
   console errors. It was run before the final fix wave; re-check after setup (step 2.3).
@@ -46,6 +72,8 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
    additive). SAK EMKM completeness added `2026_10_04_000001_add_sak_emkm_accounts`,
    `2026_10_04_000002_create_fixed_assets_tables`, `2026_10_04_000003_create_bank_reconciliation_tables` and
    `2026_10_04_000004_unique_fixed_asset_depreciation_period` (all additive; already applied to the dev DB).
+   Operational reports added `2026_10_05_000001_add_daily_reports_permission` and
+   `2026_10_05_000002_add_user_id_to_sales` (both additive).
 3. Run the gates (`composer test`, `npm run lint && npm test`), then open the app as owner and repeat the
    browser check from section 1. The bundled `composer.phar` on this machine is too old for the
    `composer test` script (`@no_additional_args`); use `cd backend && php artisan config:clear && php artisan test`
@@ -124,7 +152,7 @@ In roadmap order; details and file references are in the roadmap.
 | 2 | Cash & bank (**done**, `2026-09-30-cash-and-bank`) | Cashier shift open/close with counted cash and required variance reason, variance journal (new over/short account), cash→bank deposit, owner drawings (new Prive account), capital injection; replace the `ob3_cash_drawer` counter with the 1-1000 ledger balance |
 | 3 | Transaction corrections (**done**, `2026-09-30-transaction-corrections`; browser checklist pending, 2c) | Partial sales return (cash refund, 4-9100), purchase return / goods-receipt cancel, FIFO shortfall → 422, manual POS lines services only, one-shot inventory opening balance (go-live), Excel stock rebuilds refused after go-live, payment/GR date validation |
 | 4 | SAK EMKM completeness | Fixed asset register + monthly straight-line depreciation (new expense account), real CALK in UI/export, PPh Final 0.5% (confirm scope with supervisor), accruals/prepayments — **done** (`2026-09-30-sak-emkm-completeness`) |
-| 5 | Operational reports & dashboard | Daily cash report, daily recap, per-cashier recap; dashboard figures from server reports (fix VOID/all-month expense totals, FIFO value, UTC "today") |
+| 5 | Operational reports & dashboard (**done**, `2026-09-30-operational-reports.md`) | Daily cash report, daily recap, per-cashier recap; dashboard figures from server reports (fix VOID/all-month expense totals, FIFO value, UTC "today") |
 | 6 | Payment hardening | **Done** (`2026-09-30-payment-hardening-design.md`): `qris_transactions` (settled amount, single use), simulation behind `MIDTRANS_ALLOW_SIMULATION`, no fallback Midtrans key, server-side fees via `provider_id`; one bank account 1-1001 kept by ruling |
 
 > 2026-09-30: booking DP, BON credit sales and EDC were removed from the POS
@@ -170,6 +198,14 @@ Each with its cost if wrong. Revisit any you disagree with.
 - Print modal reuses id `a4-invoice-printable`; negative section subtotals not colored.
 - Dead legacy exports in `supabaseDataService.ts`.
 - POS void reversal is not linked via `reversal_of_id` (no "Dibalik oleh" on voided sales).
-- Older screens still use `toISOString()` for default dates (PayDebtModal, inventoryService, dashboard, export
-  registry) — wrong day before 07:00 WIB.
-- Dashboard expense total includes VOID and all months (sub-project 5).
+- ~~Older screens still use `toISOString()` for default dates~~ — fixed by sub-project 5 (guard test
+  `localDateUsage.test.ts`).
+- ~~Dashboard expense total includes VOID and all months~~ — fixed by sub-project 5 (dashboard reads
+  `/reports/daily-recap`).
+- Sub-project 5 known caveats (accepted):
+  - Average order value (net revenue ÷ non-VOID notas) is skewed when a void lands on a later day: the count drops on
+    the sale's date, the revenue reversal lands on the void's date.
+  - Dashboard top products and brand share are computed client-side from the newest 200 notas `App.tsx` loads (this
+    month, non-VOID) and are not net of sales returns.
+  - Sales-return refunds are not attributed per cashier in the per-cashier recap; they show as `SALES_RETURN` cash
+    movements and in the shift.

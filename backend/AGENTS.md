@@ -42,6 +42,7 @@ app/Services/                  business logic; one service per use case
                                StockSelectiveUpdate, StockExcelImport, MonthlyStockLedger, InventoryValueJournal,
                                Excel/* (reader, parser, brand resolver, match key)
   Payment/MidtransQrisService.php   charge/status/simulate/webhook settlements → qris_transactions
+  Reports/DailyReportService.php  daily recap, daily cash report, per-cashier recap (reads journals; posts nothing)
 app/Support/Permissions.php    permission keys, roles, KASIR/GUDANG defaults
 app/Exceptions/                PosRuleException (renders 422 {message}), AccountingUnbalancedException
 routes/console.php             `inventory:opening-balance`; app/Console/Commands/StockOpname.php = `stock:opname`

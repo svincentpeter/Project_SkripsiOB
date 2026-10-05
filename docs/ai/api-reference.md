@@ -122,7 +122,15 @@ The frontend calls these through `sakEmkmApi.ts` (see [domain-accounting.md](dom
 | GET | `/cash-movements` | `cash_movement` | 50 newest deposit/Prive/capital journals |
 | POST | `/cash-movements` | `cash_movement` | `{type: DEPOSIT\|DRAWING\|CAPITAL, date ≤ today, amount, account_code (1-1000/1-1001, not for DEPOSIT), description}` → 201 journal |
 
-## Role settings
+## Operational reports (roadmap sub-project 5)
+Read-only; money figures come from POSTED journals (same classification as the income statement), counts and payment
+mix from notas that are not VOID. Service: `app/Services/Reports/DailyReportService.php`.
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/reports/daily-recap` | `dashboard`, `financial_reports` | `from, to` (Y-m-d, `to` ≥ `from`, ≤ 92 days, else 422); one row per day + `totals`: sales_count, product_qty, revenue, goods/service revenue, contra revenue, returns (4-9100), net revenue, cost of sales, gross profit, operating expenses, net income, payment_mix {TUNAI, TRANSFER (incl. TRANSFER_BCA), QRIS}, cash_in/out/net (1-1000 + 1-1001, `ACCOUNT_OPENING` excluded) |
+| GET | `/reports/daily-cash` | `daily_reports` | `date` (default today). With `financial_reports` (or OWNER), `scope: "all"`: summary (the recap row), cash accounts (opening + in − out = closing), cash movements per journal type, notas, per-cashier recap, non-VOID expenses, cashier sessions opened that day. Otherwise `scope: "cashier"`: only the user's own notas (`sales.user_id`; legacy rows with a null `user_id` match on `cashier_name`), own sessions and one cashier row; `summary`, `cash_accounts`, `cash_movements`, `expenses` are `null` and each nota's `total_hpp` is `null` |
+
 | Method | Path | Permission |
 |---|---|---|
 | PUT | `/settings/role-permissions` with body `{KASIR:{key:bool}, GUDANG:{key:bool}}` | `role_settings` |
