@@ -25,8 +25,10 @@ class BankReconciliationController extends Controller
         $request->merge(['period' => $period]);
         $data = $request->validate([
             'period' => 'date_format:Y-m',
-            'statement_ending_balance' => 'required|numeric|min:-100000000000|max:100000000000',
-        ]);
+            // Rekening tanpa fasilitas cerukan (keputusan 2026-10-05): saldo rekening koran tidak pernah negatif,
+            // sama dengan buku besar yang menolak 1-1001 negatif.
+            'statement_ending_balance' => 'required|numeric|min:0|max:100000000000',
+        ], ['statement_ending_balance.min' => 'Saldo rekening koran tidak boleh negatif: rekening Bank BCA toko tidak memiliki fasilitas cerukan.']);
         $this->bank->setStatementBalance($period, (float) $data['statement_ending_balance'], $request->user());
 
         return response()->json([

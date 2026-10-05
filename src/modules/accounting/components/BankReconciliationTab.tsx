@@ -22,12 +22,12 @@ const cents = (n: number): number => Math.round(n * 100);
 const ledgerAmount = (i: OutstandingLedgerItem): number => i.debit - i.credit;
 const errorText = (err: unknown): string => (err instanceof Error ? err.message : 'Permintaan ditolak server.');
 const decimalText = (n: number): string => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n);
-const FORMAT_HINT = 'Gunakan format 12.345.678,90 atau 12345678.90 (minus di depan untuk saldo cerukan).';
+const FORMAT_HINT = 'Gunakan format 12.345.678,90 atau 12345678.90.';
 
 export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ refreshKey = 0, onJournalsPosted, lockDate = null }) => {
   const toast = useToast();
   const [period, setPeriod] = useState(currentMonth());
-  // Teks bebas (bukan MoneyInput yang hanya bilangan bulat positif): saldo bank bisa bersen dan negatif (cerukan).
+  // Teks bebas (bukan MoneyInput yang hanya bilangan bulat): saldo bank bisa bersen. Rekening tanpa fasilitas cerukan: tidak negatif.
   const [balanceText, setBalanceText] = useState('');
   const [draft, setDraft] = useState({ statement_date: localDate(), description: '', amount: '', direction: 'OUT' as 'IN' | 'OUT' });
   const [busy, setBusy] = useState(false);
@@ -68,6 +68,10 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
     const balance = parseDecimalRupiah(balanceText);
     if (balance === null || !balanceText.trim()) {
       toast.warning('Format Saldo Salah', `Isi saldo akhir rekening koran. ${FORMAT_HINT}`);
+      return;
+    }
+    if (balance < 0) {
+      toast.warning('Saldo Tidak Valid', 'Rekening Bank BCA toko tidak memiliki fasilitas cerukan; saldo rekening koran tidak boleh negatif.');
       return;
     }
     void act('Saldo Rekening Koran', () => sakEmkmApi.setStatementBalance(period, balance), () => `Saldo akhir ${monthLabel(period)} disimpan.`);

@@ -53,6 +53,13 @@ class BankReconciliationApiTest extends TestCase
             ->assertStatus(422)->assertJsonValidationErrors('amount');
     }
 
+    public function test_a_negative_statement_balance_is_rejected_without_an_overdraft_facility(): void
+    {
+        $this->putJson(self::URL.'/2019-05', ['statement_ending_balance' => -1])
+            ->assertStatus(422)->assertJsonValidationErrors(['statement_ending_balance' => 'Saldo rekening koran tidak boleh negatif: rekening Bank BCA toko tidak memiliki fasilitas cerukan.']);
+        $this->putJson(self::URL.'/2019-05', ['statement_ending_balance' => 0])->assertOk();
+    }
+
     public function test_a_manual_line_that_rounds_to_zero_is_rejected(): void
     {
         foreach ([0, '0.00', '0.004', '-0.001'] as $amount) {
