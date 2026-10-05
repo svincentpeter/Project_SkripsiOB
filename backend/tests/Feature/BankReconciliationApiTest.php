@@ -53,6 +53,15 @@ class BankReconciliationApiTest extends TestCase
             ->assertStatus(422)->assertJsonValidationErrors('amount');
     }
 
+    public function test_a_manual_line_that_rounds_to_zero_is_rejected(): void
+    {
+        foreach ([0, '0.00', '0.004', '-0.001'] as $amount) {
+            $this->postJson(self::URL.'/lines', ['statement_date' => '2019-05-04', 'description' => 'NOL', 'amount' => $amount])
+                ->assertStatus(422)->assertJsonValidationErrors(['amount' => 'Nominal mutasi tidak boleh nol.']);
+        }
+        $this->postJson(self::URL.'/lines', ['statement_date' => '2019-05-04', 'description' => 'SEN', 'amount' => '0.01'])->assertCreated();
+    }
+
     public function test_csv_import_detects_the_delimiter_and_skips_lines_already_stored(): void
     {
         $content = "Tanggal;Keterangan;Jumlah\n04/05/2019;TRSF CUST;500000\n2019-05-10;TRSF SEWA;-200000\n2019-05-10;TRSF SEWA;-200000\n";

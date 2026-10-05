@@ -41,8 +41,13 @@ class BankReconciliationController extends Controller
         $data = $request->validate([
             'statement_date' => 'required|date_format:Y-m-d|before_or_equal:today',
             'description' => 'required|string|max:255',
-            'amount' => 'required|numeric|not_in:0|min:-10000000000|max:10000000000',
-        ], ['amount.not_in' => 'Nominal mutasi tidak boleh nol.']);
+            // Dibandingkan setelah dibulatkan ke sen: not_in:0 membandingkan teks, sehingga "0.00" atau "0.004" lolos.
+            'amount' => ['required', 'numeric', 'min:-10000000000', 'max:10000000000', function (string $attribute, mixed $value, \Closure $fail) {
+                if (is_numeric($value) && round((float) $value, 2) == 0.0) {
+                    $fail('Nominal mutasi tidak boleh nol.');
+                }
+            }],
+        ]);
 
         return response()->json([
             'success' => true,
