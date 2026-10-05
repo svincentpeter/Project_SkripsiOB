@@ -90,7 +90,7 @@ describe('server records to UI', () => {
       reference_id: 'OB3-INV-202609-0001', operator_name: 'Kasir OB3', created_at: '2026-09-24T02:10:00.000000Z',
       product: { id: 42, product_name: 'Ban A', product_size: '185/65 R15' },
     });
-    expect(m).toMatchObject({ product_id: '42', type: 'KELUAR', qty: 2, balance: 3, description: 'Penjualan kasir', date: '2026-09-24 02:10:00' });
+    expect(m).toMatchObject({ product_id: '42', type: 'KELUAR', qty: 2, balance: 3, description: 'Penjualan kasir', date: '2026-09-24 09:10:00' });
   });
 
   it('uses the supplier invoice number when present', () => {

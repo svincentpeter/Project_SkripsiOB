@@ -9,6 +9,7 @@ import {
   SupplierItem,
   UpdateProductInput,
 } from '../../shared/types';
+import { localDateTime } from '../accountingPeriod';
 
 // ---------------------------------------------------------------------------
 // Bentuk respons server
@@ -156,7 +157,7 @@ export const mapMovement = (m: ApiMovement): StockMutation => {
     tire_name: name,
     product_name: name,
     tire_size: m.product?.product_size ?? '',
-    date: (m.created_at ?? '').replace('T', ' ').slice(0, 19),
+    date: m.created_at ? localDateTime(new Date(m.created_at)) : '',
     ref_doc: m.reference_id,
     type: m.movement_type,
     qty: Math.abs(Number(m.quantity) || 0),

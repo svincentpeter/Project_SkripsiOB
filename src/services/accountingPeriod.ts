@@ -5,6 +5,10 @@ const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 
 /** Tanggal lokal perangkat (WIB di toko) sebagai YYYY-MM-DD. toISOString() memakai UTC dan bisa mundur sehari. */
 export const localDate = (d: Date = new Date()): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
+/** Waktu lokal perangkat sebagai 'YYYY-MM-DD HH:mm:ss' (timestamp server berakhiran Z adalah UTC). */
+export const localDateTime = (d: Date): string =>
+  `${localDate(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
 export const currentMonth = (d: Date = new Date()): string => localDate(d).slice(0, 7);
 
 export const previousMonth = (d: Date = new Date()): string => currentMonth(new Date(d.getFullYear(), d.getMonth() - 1, 1));
