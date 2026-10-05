@@ -95,10 +95,14 @@ class CashSessionService
     /** Isi laci menurut buku: saldo 1-1000 + selisih shift yang belum disetujui (belum dijurnal). */
     public static function bookBalance(): float
     {
-        $pending = CashSession::where('status', CashSession::PENDING)->get()
-            ->sum(fn (CashSession $s) => (float) $s->adjustment());
+        return round(self::ledgerBalance() + self::pendingAdjustment(), 2);
+    }
 
-        return round(self::ledgerBalance() + $pending, 2);
+    /** Selisih shift yang menunggu persetujuan OWNER (belum dijurnal ke 1-1000). */
+    public static function pendingAdjustment(): float
+    {
+        return round(CashSession::where('status', CashSession::PENDING)->get()
+            ->sum(fn (CashSession $s) => (float) $s->adjustment()), 2);
     }
 
     /**

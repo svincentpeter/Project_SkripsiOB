@@ -53,6 +53,6 @@ class CashMovementService
             $reference = DocumentNumber::next(JournalEntry::class, 'reference_id', 'KAS', $data['date']);
 
             return $draft->post($this->engine, self::TYPES[$data['type']], $reference, $data['description'], $data['date']);
-        });
+        }, 3); // korban deadlock (cek saldo kas/bank tidak negatif: S lock journal_items) diulang; closure hanya menulis DB
     }
 }

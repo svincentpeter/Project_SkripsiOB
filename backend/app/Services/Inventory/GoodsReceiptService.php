@@ -89,7 +89,7 @@ class GoodsReceiptService
             }
 
             return ['purchase' => $purchase->fresh(), 'batch' => $batch, 'journal' => $journal];
-        });
+        }, 3); // korban deadlock (cek saldo kas/bank tidak negatif: S lock journal_items) diulang; closure hanya menulis DB
     }
 
     /**

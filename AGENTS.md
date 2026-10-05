@@ -96,7 +96,7 @@ Details: [docs/ai/architecture.md](docs/ai/architecture.md).
 1. **Journals balance.** All server postings go through `JournalDraft` → `AccountingEngine::createEntry`,
    which requires Σdebit = Σcredit to the cent (no tolerance). Never write `journal_entries`/`journal_items` directly.
    `createEntry` also rejects lines that are negative, two-sided or fewer than two, and any date on or before
-   the period lock date (`PeriodLock`).
+   the period lock date (`PeriodLock`), and any entry that would make cash 1-1000 or bank 1-1001 negative.
 2. **Account codes come from the COA.** 33 accounts (1-1002, 2-1004, 4-2000 inactive since 2026-09-30; 4-9100 Retur
    Penjualan added by `2026_10_03_000001`; 1-1100, 2-1100, 4-3000, 6-1011, 6-1012 added by `2026_10_04_000001`), seeded by `AccountCoaSeeder` (+ migration `2026_09_24_000003`). The frontend has no COA copy; it loads `GET /accounts`. A new account needs only
    a migration (so existing databases get it) and the seeder.

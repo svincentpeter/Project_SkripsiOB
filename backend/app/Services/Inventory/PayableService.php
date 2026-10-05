@@ -65,7 +65,7 @@ class PayableService
             ]);
 
             return ['purchase' => $purchase->fresh(), 'journal' => $journal];
-        });
+        }, 3); // korban deadlock (cek saldo kas/bank tidak negatif: S lock journal_items) diulang; closure hanya menulis DB
     }
 
     /**
@@ -102,6 +102,6 @@ class PayableService
             }
 
             return $journals;
-        });
+        }, 3); // korban deadlock (cek saldo kas/bank tidak negatif: S lock journal_items) diulang; closure hanya menulis DB
     }
 }

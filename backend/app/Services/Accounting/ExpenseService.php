@@ -39,6 +39,10 @@ class ExpenseService
 
         try {
             return DB::transaction(function () use ($data, $attachment, $user, &$storedPath) {
+                if ($storedPath !== null) { // percobaan ulang: lampiran percobaan sebelumnya ikut di-rollback
+                    Storage::disk('public')->delete($storedPath);
+                    $storedPath = null;
+                }
                 $category = ExpenseCategory::findOrFail($data['category_id']);
                 $reference = DocumentNumber::next(Expense::class, 'reference', 'BKK', $data['expense_date']);
 
@@ -70,7 +74,7 @@ class ExpenseService
                 }
 
                 return ['expense' => $expense->load('category'), 'journal' => $journal];
-            });
+            }, 3); // korban deadlock (cek saldo kas/bank tidak negatif) diulang
         } catch (\Throwable $e) {
             if ($storedPath !== null) {
                 Storage::disk('public')->delete($storedPath);

@@ -69,6 +69,19 @@ The README's 21-account table is outdated.
   records `created_by` (the authenticated user, nullable for console commands) and an optional
   `reversal_of_id` linking a reversal to its original (unique, so an entry can be reversed at most once),
   always sets status `POSTED`, and always uses branch 3.
+- **Cash and bank never go negative** (`AccountingEngine::NON_NEGATIVE_ACCOUNTS` = 1-1000, 1-1001; AIS sign/limit
+  check). When an entry credits one of them, `createEntry` reads that account's POSTED balance per `entry_date` with a
+  current read (`sharedLock`, after the JRN number lock and its own inserts) and rejects (`PosRuleException`, 422)
+  if the cumulative balance on the entry date or any later date is below zero, so a backdated outflow cannot turn a
+  later day negative either. Inflows are never checked. For 1-1000 the balance includes the adjustments of shifts
+  still `PENDING_APPROVAL` (`CashSessionService::pendingAdjustment()`, same as `bookBalance`); the shift approval
+  itself (`CASH_SESSION_VARIANCE`) is exempt because it sets 1-1000 to the counted cash. Every outflow path is
+  covered (expenses, cash/transfer receipts and payable payments, refunds, voids, deposits, Prive, asset purchases,
+  bank adjustments, manual journals). The S locks on `journal_items`/`journal_entries` can deadlock two outflows in
+  different months, or a KAS/MEMO number lock against a same-month outflow; every crediting caller runs
+  `DB::transaction(..., 3)` so the victim retries. A database that already has a negative day must post an inflow
+  (manual journal or capital injection) before outflows dated on or before that day pass. Switch: `config('accounting.guard_negative_cash')` (`ACCOUNTING_GUARD_NEGATIVE_CASH`, default true;
+  `phpunit.xml` sets it false because older fixtures pay without an opening balance, `NonNegativeCashTest` turns it on).
 - Posting happens inside the caller's DB transaction, so an unbalanced journal rolls back the whole business
   operation.
 - Journals are never edited or deleted. Corrections are reversing entries (`POS_SALE_VOID`, `VOID_EXPENSE`,
