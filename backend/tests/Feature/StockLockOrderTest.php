@@ -150,6 +150,30 @@ class StockLockOrderTest extends TestCase
     }
 
     /**
+     * Nomor OPN dibaca lewat indeks stock_movements.reference_id. Tanpa indeks, SELECT … FOR UPDATE memindai seluruh
+     * tabel dan menunggu setiap mutasi stok yang belum commit (checkout, retur, GR), lalu ikut menjadi korban deadlock.
+     */
+    public function test_opname_number_does_not_wait_for_other_uncommitted_stock_movements(): void
+    {
+        $other = $this->onSide(fn () => $this->sideProduct([[1, 0, '2026-08-01']]));
+        $side = DB::connection('side');
+        $side->beginTransaction();
+        $side->table('stock_movements')->insert([
+            'product_id' => $other->id, 'movement_type' => 'KELUAR', 'quantity' => 1, 'balance_after' => 0,
+            'reference_type' => 'TEST', 'reference_id' => 'AAA-LOCK-TEST', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        DB::beginTransaction();
+        $product = $this->makeProduct(800000, [[2, 0, '2026-08-01']]);
+        DB::statement('SET SESSION innodb_lock_wait_timeout = 1');
+
+        $out = app(StockOpnameService::class)->adjust([['product_id' => $product->id, 'physical_qty' => 1]], null, null);
+
+        $this->assertStringStartsWith('OPN-', $out['reference']);
+        $this->assertSame(-1, $out['adjustments'][0]['difference']);
+    }
+
+    /**
      * Checkout mengunci produk keranjang urut id, sama dengan void, retur dan opname. Keranjang [B, A] yang menunggu A
      * tidak boleh sudah memegang B (dua urutan berlawanan = deadlock).
      */

@@ -46,7 +46,7 @@ class StockOpnameService
             );
 
             return ['reference' => $reference, 'adjustments' => $out['result'], 'journal' => $out['journal']];
-        });
+        }, 3); // korban deadlock/lock-wait diulang; closure hanya menulis DB, jadi aman diulang
     }
 
     /**
