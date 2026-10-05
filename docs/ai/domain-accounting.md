@@ -103,7 +103,7 @@ journal screen has no filter group for them; they show under "Semua".
 | Period closing | every REVENUE/EXPENSE account's cumulative balance ≤ month end (credit accounts) | 3-2000, or the reverse if the account is net-debit; dated the month's last day, then locked | `Accounting/PeriodClosingService::close`. Reopen posts the mirrored `PERIOD_REOPEN` entry (OWNER only) and unlocks. Close and reopen `lockForUpdate()` the 3-2000 account row (`PeriodClosingService::serialize()`) so two closes/reopens can't run at once. Refuses a month while `DepreciationService::pendingTotal(period) > 0` (depreciation not run) |
 | Account opening | 1-1000, 1-1001, 1-3000, 1-3999, 3-2000 as submitted | 3-1000, for the balancing difference | `Accounting/OpeningBalanceService::post`. Posted once (`ACCOUNT_OPENING`). Later changes to 1-1000, 1-1001 or 3-2000 go through a manual journal; 1-3000/1-3999 are control accounts that a manual journal cannot post to (fixed asset corrections: see the fixed asset register below). Posting `lockForUpdate()`s the 3-1000 account row before checking whether an opening entry already exists, so two concurrent posts can't both pass |
 | Cashier shift approved | 6-1010 (shortage) or 1-1000 (overage) | 1-1000 (shortage) or 6-1010 (overage), amount = counted − book | `Accounting/CashSessionService::approve` (`CASH_SESSION_VARIANCE`, `SHIFT-{id}`, dated the approval day; no journal when 0) |
-| Fixed asset bought | 1-3000 | 1-1000 (TUNAI) or 1-1001 (TRANSFER); `OPENING` assets post nothing (already in the account opening balance) | `Accounting/FixedAssetService::create` (`FIXED_ASSET_ACQUISITION`, reference = asset code `AT-YYYYMM-####`, dated the acquisition date). Void only before any depreciation: mirror `FIXED_ASSET_VOID` dated today, `reversal_of_id` |
+| Fixed asset bought | 1-3000 | 1-1000 (TUNAI) or 1-1001 (TRANSFER); `OPENING` assets post nothing (already in the account opening balance) | `Accounting/FixedAssetService::create` (`FIXED_ASSET_ACQUISITION`, reference = asset code `AT-YYYYMM-####`, dated the acquisition date). Void (also after depreciation, while every depreciation month is open): one `FIXED_ASSET_VOID` per depreciation month (Dr 1-3999 / Cr 6-1011, dated the month end), then the acquisition mirror `FIXED_ASSET_VOID` dated today, `reversal_of_id` (none for `OPENING`); see the register below |
 | Monthly depreciation | 6-1011 per asset | 1-3999 total; dated the month's last day, reference `SUSUT-YYYY-MM` | `Accounting/DepreciationService::run`. Straight line on cost − residual − opening accumulated, over `useful_life_months`, full month from `depreciation_start`; cumulative in cents so reruns post nothing and locked months are caught up; the previous open month must run first; `fixed_asset_depreciations` keeps one row per asset per run |
 | Adjusting entry (AJP) | 6-xxxx expense (not 6-1011) | 2-1100 (`ACCRUAL`) or 1-1100 (`PREPAID`); dated the month's last day, reference `AJP-YYYYMM-####` | `Accounting/AdjustingEntryService::create` (`ADJUSTING_ENTRY`). `auto_reverse` (accruals only) posts the mirror `ADJUSTING_REVERSAL` immediately, dated day 1 of the next month |
 | Bank charge / interest from the statement | 6-1012, or 1-1001 | 1-1001, or 4-3000; dated the statement date, reference `REKON-{lineId}` | `Accounting/BankReconciliationService::postAdjustment` (`BANK_RECON_ADJUSTMENT`); the statement line is matched to the new 1-1001 line |
@@ -185,7 +185,25 @@ nothing: its cost and prior depreciation are already in the account opening bala
 1-3000/1-3999), and it carries its own `depreciation_start` (not before the acquisition month) and
 `opening_accumulated_depreciation`. For an `OPENING` asset `useful_life_months` is the **remaining** life from
 `depreciation_start` (the form asks for "Sisa umur manfaat"), and the base is cost − residual − opening accumulated
-depreciation; the CALK policy text says the same. There is no disposal: an asset can only be voided before its first depreciation.
+depreciation; the CALK policy text says the same. There is no disposal.
+
+**Correcting a wrongly entered asset (void).** `POST /accounting/fixed-assets/{id}/void {reason}`
+(`FixedAssetService::void`) works before and after depreciation (user decision SP4, 2026-10-05). It is allowed only
+while every month holding one of the asset's `fixed_asset_depreciations` rows is still open; if any is on or before
+the lock date it is 422 and nothing is posted (reopen that month first). The void posts, in this order:
+- one `FIXED_ASSET_VOID` entry per depreciation month, ascending: Dr 1-3999 / Cr 6-1011 for that month's amount,
+  dated the month end, so each month's depreciation expense nets to zero (months with a zero amount are skipped);
+- then the acquisition mirror (`FIXED_ASSET_VOID`, `reversal_of_id` = the acquisition, dated today). An `OPENING`
+  asset has no acquisition journal, so only the depreciation reversals (if any) are posted.
+
+The depreciation rows stay as history (the asset turns `VOID`). Every consumer ignores VOID assets: the register
+summary and pending depreciation read ACTIVE only; the CALK lists a VOID asset only for month ends before its void
+date, with accumulated = its opening accumulated depreciation only (its system depreciation was reversed in those
+months), so the note still equals ledger 1-3999. `GET /accounting/fixed-assets` still returns a VOID row's historical
+`accumulated_depreciation` (sum of its rows); the tab shows it struck through, outside the totals. Afterwards the user
+re-enters the asset with correct data and runs depreciation for the open months (catch-up applies).
+Thesis caveat: because the acquisition mirror is dated today, balance sheets and CALK notes for month ends between
+the acquisition and the void date still show the wrong cost in 1-3000 (register and ledger agree, both wrong).
 
 **Depreciation semantics** (`DepreciationService`, `FixedAsset::expectedCentsThrough`):
 - Cumulative: per asset, amount = expected depreciation through the month (in cents, `intdiv`, full base once the
@@ -237,9 +255,10 @@ receipt cancellations by `return_date`, so an invoice cancelled after the month 
 **Locking.** Take the locks before the transaction's first plain read, or use locking reads (current reads:
 `lockForUpdate`/`sharedLock`, or `PeriodLock::lockDate(locking: true)`) for every decision taken under a lock: the
 first plain read fixes the REPEATABLE READ snapshot, which then misses rows committed while waiting for a lock. Lock orders:
-- Asset create/void: optional S on 1-1000 (TUNAI funding, like `CashSessionService::requireOpen()`) →
-  `FixedAssetService::lockRegister()` (X on the 1-3999 `accounts` row) → the `AT` number / X on the asset → JRN.
-  Never take `lockRegister()` after a number lock.
+- Asset create: optional S on 1-1000 (TUNAI funding, like `CashSessionService::requireOpen()`) →
+  `FixedAssetService::lockRegister()` (X on the 1-3999 `accounts` row) → the `AT` number → JRN.
+  Asset void: optional S on 1-1000 → `lockRegister()` → X on the asset → X on its depreciation rows → locking
+  `lockDate` (only when it has depreciation rows) → JRN. Never take `lockRegister()` after a number lock.
 - Depreciation run: `lockRegister()` first, then locking reads of the lock date, assets and posted depreciation → JRN.
 - Period close: X on 3-2000 (`serialize()`) → X on 1-3999 (`lockRegister()`, right after serialize, before any plain
   read) → the pending-depreciation check → JRN. No flow holds 1-3999 and then asks for 3-2000.
@@ -247,7 +266,8 @@ first plain read fixes the REPEATABLE READ snapshot, which then misses rows comm
   JRN. The S lock makes them wait for a close in progress, so they cannot post into a month being closed.
 - Asset create/void, depreciation run, period close, AJP, and bank-recon import/match/auto-match/post-adjustment run
   in `DB::transaction(..., 3)` (`ATTEMPTS = 3`): three attempts on a deadlock or lock-wait timeout (for example
-  X 1-3999 → JRN against the opening balance's X 3-1000 → JRN → FK S 1-3999). Period reopen and manual journal
+  X 1-3999 → JRN against the opening balance's X 3-1000 → JRN → FK S 1-3999). The account opening balance post
+  (`OpeningBalanceService::post`) retries 3 attempts too, for that same cycle. Period reopen and manual journal
   create/reverse (`ManualJournalService`) retry the same way: a manual journal with a 3-2000 line waits for JRN and
   then FK S on 3-2000, the opposite order of a close or reopen (X 3-2000 → JRN). Unmatch and delete-line are
   single-row writes and run once.

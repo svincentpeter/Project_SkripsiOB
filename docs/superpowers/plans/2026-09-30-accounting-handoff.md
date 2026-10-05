@@ -29,7 +29,9 @@ Related: roadmap `docs/superpowers/specs/2026-09-29-accounting-roadmap.md`, Stag
   `ea83ee2`+`5a61c7b`, `9a8503d`, `1795ee8`+`5e22dec`, `fee0f4f`+`efc70ac`, `f1c0810`, `f13adca`, `3b071fa`,
   `ceb9dec`+`f0a4c10`, `d470ba3`, plus the docs commit; final fix wave `e643d9c` CALK export parity, `c15da73`
   `stock_movements.reference_id` index + opname retry, `92a5865` manual journal and reopen retry, with its doc
-  corrections in the SP5 final docs commit). Its browser checklist and the CALK entity details are
+  corrections in the SP5 final docs commit; then `a390828`+`7c9ef1e` voiding a depreciated fixed asset (user decision
+  2026-10-05: reverse its depreciation per month while all those months are open, then re-enter the asset; the
+  opening balance post now retries 3 attempts). Its browser checklist and the CALK entity details are
   **pending on the user** (section 2d).
 - Operational reports & dashboard (sub-project 5) are **implemented and reviewed** (`fd9607f` `daily_reports` key,
   `62122f0` daily recap, `b8644f9`+`61599dc` daily cash report with per-cashier recap and `sales.user_id`, `b55ecf2`
@@ -158,7 +160,7 @@ In roadmap order; details and file references are in the roadmap.
 |---|---|---|
 | 2 | Cash & bank (**done**, `2026-09-30-cash-and-bank`) | Cashier shift open/close with counted cash and required variance reason, variance journal (new over/short account), cash→bank deposit, owner drawings (new Prive account), capital injection; replace the `ob3_cash_drawer` counter with the 1-1000 ledger balance |
 | 3 | Transaction corrections (**done**, `2026-09-30-transaction-corrections`; browser checklist pending, 2c) | Partial sales return (cash refund, 4-9100), purchase return / goods-receipt cancel, FIFO shortfall → 422, manual POS lines services only, one-shot inventory opening balance (go-live), Excel stock rebuilds refused after go-live, payment/GR date validation |
-| 4 | SAK EMKM completeness | Fixed asset register + monthly straight-line depreciation (new expense account), real CALK in UI/export, PPh Final 0.5% (confirm scope with supervisor), accruals/prepayments — **done** (`2026-09-30-sak-emkm-completeness`) |
+| 4 | SAK EMKM completeness | Fixed asset register + monthly straight-line depreciation (new expense account), real CALK in UI/export, PPh Final 0.5% (confirm scope with supervisor), accruals/prepayments — **done** (`2026-09-30-sak-emkm-completeness`); fixed-asset correction by void incl. depreciation reversal (`a390828`, `7c9ef1e`) |
 | 5 | Operational reports & dashboard (**done**, `2026-09-30-operational-reports.md`) | Daily cash report, daily recap, per-cashier recap; dashboard figures from server reports (fix VOID/all-month expense totals, FIFO value, UTC "today") |
 | 6 | Payment hardening | **Done** (`2026-09-30-payment-hardening-design.md`): `qris_transactions` (settled amount, single use), simulation behind `MIDTRANS_ALLOW_SIMULATION`, no fallback Midtrans key, server-side fees via `provider_id`; one bank account 1-1001 kept by ruling |
 
