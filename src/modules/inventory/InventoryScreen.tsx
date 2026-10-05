@@ -180,7 +180,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
   const [selectedRing, setSelectedRing] = useState<string>('ALL');
-  const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT' | 'INACTIVE'>('ALL');
+  const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT' | 'INACTIVE' | 'NO_PRICE'>('ALL');
 
   // Modals & Drawers
   const [selectedTireForCard, setSelectedTireForCard] = useState<ProductItem | null>(null);
@@ -242,6 +242,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
       if (stockFilter === 'LOW' && (stock <= 0 || stock >= minAlert)) return false;
       if (stockFilter === 'OUT' && stock > 0) return false;
       if (stockFilter === 'INACTIVE' && p.is_active !== false) return false;
+      if (stockFilter === 'NO_PRICE' && (p.is_active === false || (p.product_price || p.price || 0) > 0)) return false;
 
       // Search query
       const q = searchQuery.toLowerCase().trim();
@@ -713,6 +714,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   <option value="LOW">Stok Menipis (&lt; Batas Alert)</option>
                   <option value="OUT">Stok Habis (0 Unit)</option>
                   <option value="INACTIVE">Nonaktif Saja</option>
+                  <option value="NO_PRICE">Harga Jual Belum Diisi (Rp 0)</option>
                 </select>
               </div>
             </div>

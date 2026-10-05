@@ -51,6 +51,9 @@ class CartLines
                     throw new PosRuleException("Produk \"{$name}\" tidak ditemukan atau sudah nonaktif.");
                 }
                 $name = $product->product_name;
+                if ($unitPrice <= 0) {
+                    throw new PosRuleException("Harga jual {$product->product_name} ({$product->product_code}) masih Rp 0. Isi harga jualnya di katalog dulu.");
+                }
 
                 $requested[$product->id] = ($requested[$product->id] ?? 0) + $qty;
                 if ($requested[$product->id] > $product->product_quantity) {

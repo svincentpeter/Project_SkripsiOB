@@ -343,6 +343,16 @@ class PosCheckoutTest extends TestCase
         $this->assertFalse(JournalEntry::where('reference_id', $res->json('data.reference'))->exists());
     }
 
+    public function test_catalogue_product_at_zero_price_is_rejected(): void
+    {
+        $product = $this->makeProduct();
+        $line = ['unit_price' => 0] + $this->productLine($product, 1);
+
+        $this->checkout(['items' => [$line], 'payments' => []])
+            ->assertStatus(422)
+            ->assertJsonPath('message', fn (string $m) => str_contains($m, 'masih Rp 0'));
+    }
+
     public function test_manual_goods_line_is_rejected_without_side_effects(): void
     {
         $product = $this->makeProduct();

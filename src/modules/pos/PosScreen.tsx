@@ -298,6 +298,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const handleAddToCart = (product: ProductItem) => {
     const stockAvailable = product.stock || product.product_quantity || 0;
     if (stockAvailable <= 0) return;
+    // Server menolak barang katalog berharga Rp 0; beri tahu sebelum masuk keranjang.
+    if ((product.product_price || product.price || 0) <= 0) {
+      toast.warning('Harga Jual Belum Diisi', `${product.product_name} masih Rp 0. Minta admin mengisi harga jualnya di katalog.`);
+      return;
+    }
 
     triggerCartBounce();
     setCart((prevCart) => {
@@ -962,9 +967,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                     <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
                       <div className="flex flex-col">
                         <span className="text-[9.5px] text-slate-400 font-semibold uppercase tracking-tight">Harga Satuan</span>
-                        <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono tracking-tight">
-                          {formatRupiah(p.product_price || p.price || 0)}
-                        </span>
+                        {(p.product_price || p.price || 0) > 0 ? (
+                          <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono tracking-tight">
+                            {formatRupiah(p.product_price || p.price || 0)}
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold text-rose-600">Harga belum diisi</span>
+                        )}
                       </div>
                       <span className="p-1.5 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-700 group-hover:text-white transition-all shadow-2xs">
                         <Plus className="w-4 h-4" />
