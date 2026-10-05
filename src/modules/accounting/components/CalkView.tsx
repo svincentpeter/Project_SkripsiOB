@@ -123,7 +123,7 @@ export const CalkView: React.FC<{ calk: CalkReport }> = ({ calk }) => {
       <Note n={8} title="Utang Usaha">
         <Rows rows={[
           ...n.payables.suppliers.map((s) => ({ label: s.supplier_name, value: s.amount })),
-          ...(n.payables.other_adjustments !== 0 ? [{ label: 'Penyesuaian lain (retur/koreksi)', value: n.payables.other_adjustments }] : []),
+          ...(n.payables.other_adjustments !== 0 ? [{ label: 'Penyesuaian lain (selisih historis)', value: n.payables.other_adjustments }] : []),
           { label: 'Jumlah utang usaha (2-1000)', value: n.payables.ledger_balance, strong: true },
         ]} />
       </Note>

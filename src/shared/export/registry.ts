@@ -12,7 +12,7 @@ import type { ExpenseRecord, PosTransaction, ProductItem, ServiceMasterItem, Sto
 import type { DailyCashReport, DailyCashSale, DailyRecap, DailyRecapTotals, DashboardSummary } from '../types';
 import { cashMovementLabel } from '../../services/dailyReports';
 import type { BankReconciliationReport, CalkReport } from '../types/sakEmkm';
-import { EXPENSE_CATEGORY_CONFIG, formatRupiah } from '../utils/formatters';
+import { EXPENSE_CATEGORY_CONFIG, formatDateIndo, formatRupiah } from '../utils/formatters';
 import { buildKop } from './kop';
 import type { ExportCtx, ExportDoc, ExportFormat, ExportSection } from './types';
 
@@ -472,7 +472,7 @@ const mapDailyCash = (r: DailyCashReport, ctx: ExportCtx): ExportDoc => {
   return makeDoc('daily_cash', 'Laporan Kas Harian', 'landscape', ctx, sections);
 };
 
-type LabelValue = { label: string; value: number };
+type LabelValue = { label: string; value: number | null };
 const lvSection = (title: string, rows: LabelValue[]): ExportSection => ({
   title,
   columns: [
@@ -557,20 +557,20 @@ const calkSections = (c: CalkReport): ExportSection[] => {
       `Kegiatan usaha: ${c.entity.activity}`,
       `Bentuk usaha: ${c.entity.legal_form}`,
       `Status pajak: ${c.entity.tax_status}`,
-      `Mata uang pelaporan: ${c.entity.currency}. Periode catatan: ${c.start_date} s/d ${c.end_date}.`,
+      `Mata uang pelaporan: ${c.entity.currency}. Periode catatan: ${formatDateIndo(c.start_date)} s/d ${formatDateIndo(c.end_date)}.`,
     ]),
     textSection('CALK 2. PERNYATAAN KEPATUHAN', [c.compliance]),
     textSection('CALK 3. IKHTISAR KEBIJAKAN AKUNTANSI', c.policies.map((p) => `${p.title}: ${p.body}`)),
     lvSection('CALK 4. KAS DAN BANK', [
       ...n.cash_and_bank.lines.map((l) => ({ label: `${l.code ?? ''} ${l.name}`.trim(), value: l.amount })),
       { label: 'JUMLAH KAS DAN BANK', value: n.cash_and_bank.total },
-      ...(n.cash_and_bank.bank_statement_balance !== null
-        ? [{ label: `Saldo rekening koran bank (${n.cash_and_bank.bank_reconciled ? 'terekonsiliasi' : 'belum terekonsiliasi'})`, value: n.cash_and_bank.bank_statement_balance }]
-        : []),
+      n.cash_and_bank.bank_statement_balance !== null
+        ? { label: `Saldo rekening koran bank (${n.cash_and_bank.bank_reconciled ? 'terekonsiliasi' : 'belum terekonsiliasi'})`, value: n.cash_and_bank.bank_statement_balance }
+        : { label: 'Saldo rekening koran bulan ini belum diisi pada menu Rekonsiliasi Bank.', value: null },
     ]),
     lvSection('CALK 5. PERSEDIAAN (FIFO)', [
       { label: 'Persediaan ban (1-2000) per akhir periode', value: n.inventory.ledger_balance },
-      ...n.inventory.breakdown.map((b) => ({ label: `Nilai FIFO ${b.category} (${b.quantity} unit, per ${n.inventory.breakdown_as_of})`, value: b.value })),
+      ...n.inventory.breakdown.map((b) => ({ label: `Nilai FIFO ${b.category} (${b.quantity} unit, per ${formatDateIndo(n.inventory.breakdown_as_of ?? '')})`, value: b.value })),
     ]),
     lvSection('CALK 6. BEBAN DIBAYAR DI MUKA DAN BEBAN YANG MASIH HARUS DIBAYAR', [
       { label: 'Beban dibayar di muka (1-1100)', value: n.prepaid_expenses.balance },
@@ -594,9 +594,15 @@ const calkSections = (c: CalkReport): ExportSection[] => {
       })),
       totals: { perolehan: fa.total_cost, akumulasi: fa.total_accumulated, nilai_buku: fa.total_book_value },
     },
+    // Lanjutan CALK 7 tanpa judul (writer melewati judul kosong): register dicocokkan dengan buku besar, seperti di layar.
+    lvSection('', [
+      { label: 'Beban penyusutan bulan ini', value: fa.depreciation_expense },
+      { label: 'Saldo buku besar Aset Tetap (1-3000)', value: fa.ledger_cost },
+      { label: 'Saldo buku besar Akumulasi Penyusutan (1-3999)', value: fa.ledger_accumulated },
+    ]),
     lvSection('CALK 8. UTANG USAHA', [
       ...n.payables.suppliers.map((s) => ({ label: s.supplier_name, value: s.amount })),
-      ...(n.payables.other_adjustments !== 0 ? [{ label: 'Penyesuaian lain (retur/koreksi)', value: n.payables.other_adjustments }] : []),
+      ...(n.payables.other_adjustments !== 0 ? [{ label: 'Penyesuaian lain (selisih historis)', value: n.payables.other_adjustments }] : []),
       { label: 'JUMLAH UTANG USAHA (2-1000)', value: n.payables.ledger_balance },
     ]),
     lvSection('CALK 9. EKUITAS', [

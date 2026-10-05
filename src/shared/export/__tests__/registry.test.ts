@@ -4,6 +4,7 @@ import { setExportConfig } from '../exportConfig';
 import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
 import type { CashFlowReport, DailyCashReport, DashboardSummary, FinancialStatements, StatementLine } from '../../types';
 import { emptyRecapRow, sumRecapRows } from '../../../services/dailyReports';
+import { formatDateIndo } from '../../utils/formatters';
 import type { BankReconciliationReport, CalkReport } from '../../types/sakEmkm';
 
 setExportConfig(null, null);
@@ -156,13 +157,30 @@ describe('registry financial statements', () => {
     },
   };
 
-  it('calk memiliki 9 catatan dengan pernyataan kepatuhan dan kebijakan', () => {
+  it('calk memiliki 9 catatan (+ rincian buku besar aset tetap) dengan pernyataan kepatuhan dan kebijakan', () => {
     const doc = buildExportDoc('fin_calk', calk, ctx);
-    expect(doc.sections).toHaveLength(9);
+    expect(doc.sections).toHaveLength(10);
     expect(doc.sections[1].rows[0].uraian).toContain('SAK EMKM');
     expect(doc.sections[2].rows.map((r) => r.uraian)).toContain('Persediaan: Metode FIFO.');
     expect(doc.sections[6].rows[0].nilai_buku).toBe(800000);
     expect(doc.sections[6].totals?.nilai_buku).toBe(800000);
+  });
+
+  it('calk ekspor mencetak hal yang sama dengan layar', () => {
+    const noStatement = { ...calk, notes: { ...calk.notes,
+      cash_and_bank: { ...calk.notes.cash_and_bank, bank_statement_balance: null, bank_reconciled: null },
+      payables: { ...calk.notes.payables, other_adjustments: -5000 } } };
+    const doc = buildExportDoc('fin_calk', noStatement, ctx);
+    const labels = (i: number) => doc.sections[i].rows.map((r) => r.label);
+    expect(doc.sections[0].rows.map((r) => r.uraian)).toContain(
+      `Mata uang pelaporan: Rupiah (Rp). Periode catatan: ${formatDateIndo('2026-09-01')} s/d ${formatDateIndo('2026-09-30')}.`);
+    expect(labels(3)).toContain('Saldo rekening koran bulan ini belum diisi pada menu Rekonsiliasi Bank.');
+    expect(doc.sections[4].rows[1].label).toContain(`per ${formatDateIndo('2026-09-30')}`);
+    const ledger = doc.sections[7];
+    expect(ledger.rows.find((r) => r.label === 'Beban penyusutan bulan ini')?.value).toBe(20833.33);
+    expect(ledger.rows.find((r) => String(r.label).includes('1-3000'))?.value).toBe(1000000);
+    expect(ledger.rows.find((r) => String(r.label).includes('1-3999'))?.value).toBe(200000);
+    expect(labels(8)).toContain('Penyesuaian lain (selisih historis)');
   });
 
   it('laba rugi memuat setiap akun dan potongan bernilai negatif', () => {
@@ -190,7 +208,7 @@ describe('registry financial statements', () => {
 
   it('sak emkm package memuat 4 laporan dan 9 catatan CALK', () => {
     const doc = buildExportDoc('sak_emkm_package', { financials: statements, cashFlow, calk }, ctx);
-    expect(doc.sections.length).toBe(13);
+    expect(doc.sections.length).toBe(14);
     expect(doc.sections[4].title).toBe('CALK 1. INFORMASI UMUM');
   });
 });
