@@ -299,7 +299,11 @@ class FixedAssetApiTest extends TestCase
         $created = $this->postJson(self::URL, $this->openingPayload())->assertCreated()->json('data');
         $this->depreciateThrough('2019-02', 2);
 
-        $journals = $this->postJson(self::URL."/{$created['asset']['id']}/void", ['reason' => 'Dobel'])->assertOk()->json('data.journals');
+        $journals = $this->postJson(self::URL."/{$created['asset']['id']}/void", ['reason' => 'Dobel'])
+            ->assertOk()
+            // Penyusutan sistem sudah dibalik: register menampilkan akumulasi saldo awal saja, seperti CALK.
+            ->assertJsonPath('data.asset.accumulated_depreciation', 3000000)
+            ->json('data.journals');
 
         $this->assertSame(['2019-02-28', '2019-03-31'], array_column($journals, 'entry_date'));
         foreach ($journals as $journal) {
