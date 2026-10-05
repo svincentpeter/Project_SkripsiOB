@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Account;
+use App\Models\Sale;
 use App\Services\Accounting\FinancialReportService;
 use App\Services\AccountingEngine;
 use App\Services\JournalDraft;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Concerns\CreatesPosFixtures;
 use Tests\TestCase;
 
 /**
@@ -16,6 +19,7 @@ use Tests\TestCase;
  */
 class RemovedPosFeaturesTest extends TestCase
 {
+    use CreatesPosFixtures;
     use DatabaseTransactions;
 
     public static function removedEndpoints(): array
@@ -83,5 +87,30 @@ class RemovedPosFeaturesTest extends TestCase
         }
 
         return 0.0;
+    }
+
+    public function test_legacy_bon_with_settlements_and_dp_sales_cannot_be_voided(): void
+    {
+        $product = $this->makeProduct(1000000, [[5, 600000, '2026-08-01']]);
+        $sale = fn () => $this->checkout([
+            'items' => [$this->productLine($product, 1)],
+            'payments' => [['method' => 'TRANSFER_BCA', 'amount' => 1000000]],
+        ])->assertCreated()->json('data.id');
+
+        // Riwayat sebelum 2026-09-30: nota BON yang sudah menerima pelunasan, dan nota yang memakai DP booking.
+        $bon = $sale();
+        DB::table('receivable_payments')->insert([
+            'sale_id' => $bon, 'payment_date' => now()->toDateString(), 'amount' => 400000, 'account_code' => '1-1000',
+            'operator_name' => 'Uji', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->postJson("/api/v1/pos/transactions/{$bon}/void", ['reason' => 'Salah input'])
+            ->assertStatus(422)->assertJsonPath('message', fn (string $m) => str_contains($m, 'pelunasan'));
+
+        $dp = $sale();
+        Sale::whereKey($dp)->update(['dp_applied' => 200000]);
+        $this->postJson("/api/v1/pos/transactions/{$dp}/void", ['reason' => 'Salah input'])
+            ->assertStatus(422)->assertJsonPath('message', fn (string $m) => str_contains($m, 'uang muka'));
+
+        $this->postJson('/api/v1/pos/transactions/'.$sale().'/void', ['reason' => 'Salah input'])->assertOk();
     }
 }
