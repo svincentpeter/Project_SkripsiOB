@@ -914,7 +914,7 @@ function MainAppContent() {
   };
 
   const handleResetData = () => {
-    if (window.confirm('Tarik ulang seluruh data dari database Supabase?')) {
+    if (window.confirm('Hapus data lokal di browser ini (keranjang, nota tertahan, pengaturan struk) lalu muat ulang? Anda akan keluar dan perlu login lagi. Data di server tidak berubah.')) {
       localStorage.clear();
       window.location.reload();
     }

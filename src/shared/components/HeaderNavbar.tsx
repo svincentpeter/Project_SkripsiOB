@@ -308,7 +308,7 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
                     className="w-full sm:hidden flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-100 font-semibold text-xs transition-colors cursor-pointer"
                   >
                     <RotateCcw className="w-4 h-4 text-slate-500" />
-                    <span>Reset Data Toko</span>
+                    <span>Bersihkan Data Lokal</span>
                   </button>
                   <button
                     type="button"
@@ -340,8 +340,8 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
               type="button"
               onClick={onResetData}
               className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-              title="Reset Data Toko"
-              aria-label="Reset Data Toko"
+              title="Bersihkan data lokal browser (data server tidak berubah)"
+              aria-label="Bersihkan data lokal browser"
             >
               <RotateCcw className="w-4 h-4" />
             </button>
@@ -562,7 +562,7 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-bold cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4 text-rose-500" />
-                <span>Reset Data Toko</span>
+                <span>Bersihkan Data Lokal</span>
               </button>
             </div>
           </div>
