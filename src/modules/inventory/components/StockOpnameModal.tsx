@@ -210,7 +210,7 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
             </span>
             <span className="text-slate-300">|</span>
             <span className="text-slate-600 font-semibold">
-              Valuasi Selisih HPP:{' '}
+              Estimasi Selisih HPP:{' '}
               <strong className={`font-mono font-black ${
                 totalDifferenceValuation === 0
                   ? 'text-slate-500'
@@ -282,7 +282,7 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
                 <th className="py-2.5 px-3 text-center">Stok Sistem</th>
                 <th className="py-2.5 px-3 text-center">Stok Fisik Nyata</th>
                 <th className="py-2.5 px-3 text-center">Selisih Unit</th>
-                <th className="py-2.5 px-3 text-right">Selisih Nilai HPP</th>
+                <th className="py-2.5 px-3 text-right">Estimasi Selisih Nilai</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -341,7 +341,7 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
         {/* Modal Actions */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
           <span className="text-xs text-slate-500">
-            Posting akan memperbarui saldo stok master dan menerbitkan mutasi <strong>PENYESUAIAN</strong> di kartu stok.
+            Posting akan memperbarui saldo stok master dan menerbitkan mutasi masuk/keluar bernomor <strong>OPN</strong> di kartu stok. Estimasi memakai modal terakhir; nilai jurnal dihitung server per batch FIFO.
           </span>
           <div className="flex items-center gap-2">
             <button

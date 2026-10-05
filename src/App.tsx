@@ -611,7 +611,7 @@ function MainAppContent() {
       const res = await inventoryApi.stockOpname(items, notes);
       if (res.journal) notifyLedgerChanged([res.journal]);
       handleRefreshProducts();
-      toast.success('Stock Opname Dibukukan', `${res.reference}: ${res.adjustments.length} produk disesuaikan, selisih nilai dijurnal.`);
+      toast.success('Stock Opname Dibukukan', `${res.reference}: ${res.adjustments.length} produk disesuaikan, selisih nilai bersih ${formatRupiah(res.journal?.total_debit ?? 0)} dijurnal (FIFO).`);
       return true;
     } catch (err) {
       toast.error('Stock Opname Gagal', errorMessage(err));
