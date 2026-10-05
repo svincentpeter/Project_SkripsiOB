@@ -13,6 +13,7 @@ use App\Services\Accounting\CashFlowReport;
 use App\Services\Accounting\FinancialReportService;
 use App\Services\AccountingEngine;
 use App\Services\JournalDraft;
+use App\Services\Pos\PosAccounts;
 use App\Services\Reports\DailyReportService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -129,6 +130,29 @@ class DailyReportTest extends TestCase
         // Mutasi kas = perubahan saldo 1-1000 + 1-1001.
         $change = array_sum(CashFlowReport::cashBalances('2020-02-12')) - array_sum(CashFlowReport::cashBalances('2020-02-09'));
         $this->assertEqualsWithDelta($change, $recap['totals']['net_cash'], 0.001);
+    }
+
+    public function test_recap_cash_columns_exclude_a_same_day_account_opening(): void
+    {
+        // Saldo awal akun bukan arus kas: tidak masuk Kas Masuk/Kas Bersih rekap (dilipat ke saldo awal Kas Harian).
+        $this->postJournal('2020-02-20', [['1-1000', 500000, 0], ['3-1000', 0, 500000]], 'ACCOUNT_OPENING');
+        $this->postJournal('2020-02-20', [['1-1000', 100000, 0], ['4-1000', 0, 100000]], 'POS_SALE');
+
+        $row = app(DailyReportService::class)->recap('2020-02-20', '2020-02-20')['rows'][0];
+
+        $this->assertEquals(100000, $row['cash_in']);
+        $this->assertEquals(0, $row['cash_out']);
+        $this->assertEquals(100000, $row['net_cash']);
+        $this->assertEquals(100000, $row['net_income']);
+    }
+
+    public function test_every_checkout_method_maps_to_a_payment_group(): void
+    {
+        // Metode checkout baru tanpa kelompok akan hilang diam-diam dari payment_mix dan by_method kasir.
+        foreach (PosAccounts::CHECKOUT_METHODS as $method) {
+            $this->assertArrayHasKey($method, DailyReportService::PAYMENT_GROUPS, $method);
+            $this->assertContains(DailyReportService::PAYMENT_GROUPS[$method], ['TUNAI', 'TRANSFER', 'QRIS'], $method);
+        }
     }
 
     public function test_counts_and_payment_mix_ignore_voided_notas(): void
