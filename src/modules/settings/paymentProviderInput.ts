@@ -10,7 +10,8 @@ interface ProviderFields {
 export function validateProviderInput(input: ProviderFields): string | null {
   if (!(input.provider_name ?? '').trim()) return 'Nama provider tidak boleh kosong.';
   const fee = input.fee_percentage ?? 0;
-  if (!Number.isFinite(fee) || fee < 0 || fee > 100) return 'Persentase fee harus antara 0 dan 100.';
+  // Sama dengan batas server: MDR di atas 10% hampir pasti salah ketik (mis. 30 untuk 0,3).
+  if (!Number.isFinite(fee) || fee < 0 || fee > 10) return 'Persentase fee harus antara 0 dan 10.';
   const threshold = input.fee_threshold_amount ?? 0;
   if (!Number.isFinite(threshold) || threshold < 0) return 'Batas nominal fee tidak boleh negatif.';
   return null;

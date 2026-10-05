@@ -58,4 +58,17 @@ class PaymentMethodSettingsParityTest extends TestCase
 
         $this->assertNull(PaymentProviderSetting::find($providerId));
     }
+
+    public function test_provider_fees_reject_null_and_implausible_percentages(): void
+    {
+        $id = $this->postJson('/api/v1/settings/payment-providers', ['method_type' => 'qris', 'provider_name' => uniqid('Uji MDR '), 'fee_percentage' => 0.3])
+            ->assertCreated()->json('data.id');
+
+        // null dulu menghasilkan galat SQL 500 (kolom NOT NULL); 30 hampir pasti salah ketik untuk 0,3.
+        $this->putJson("/api/v1/settings/payment-providers/{$id}", ['fee_percentage' => null])->assertStatus(422);
+        $this->putJson("/api/v1/settings/payment-providers/{$id}", ['fee_threshold_amount' => null])->assertStatus(422);
+        $this->putJson("/api/v1/settings/payment-providers/{$id}", ['fee_percentage' => 30])->assertStatus(422);
+        $this->putJson("/api/v1/settings/payment-providers/{$id}", ['fee_percentage' => 0.7])->assertOk()->assertJsonPath('data.fee_percentage', '0.70');
+        PaymentProviderSetting::destroy($id); // kelas ini tanpa DatabaseTransactions
+    }
 }

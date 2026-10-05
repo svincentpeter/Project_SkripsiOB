@@ -49,8 +49,9 @@ class PaymentMethodSettingController extends Controller
             'method_type' => 'required|in:bank,qris',
             'provider_name' => 'required|string|max:100',
             'provider_code' => 'nullable|string|max:50',
-            'fee_percentage' => 'nullable|numeric|min:0|max:100',
-            'fee_threshold_amount' => 'nullable|numeric|min:0',
+            // Kolom NOT NULL; MDR di atas 10% hampir pasti salah ketik (mis. 30 untuk 0,3).
+            'fee_percentage' => 'sometimes|numeric|min:0|max:10',
+            'fee_threshold_amount' => 'sometimes|numeric|min:0|max:10000000000',
             'is_active' => 'boolean',
             'sort_order' => 'nullable|integer',
             'notes' => 'nullable|string',
@@ -75,8 +76,9 @@ class PaymentMethodSettingController extends Controller
         $validated = $request->validate([
             'provider_name' => 'sometimes|required|string|max:100',
             'provider_code' => 'nullable|string|max:50',
-            'fee_percentage' => 'nullable|numeric|min:0|max:100',
-            'fee_threshold_amount' => 'nullable|numeric|min:0',
+            // Kolom NOT NULL; MDR di atas 10% hampir pasti salah ketik (mis. 30 untuk 0,3).
+            'fee_percentage' => 'sometimes|numeric|min:0|max:10',
+            'fee_threshold_amount' => 'sometimes|numeric|min:0|max:10000000000',
             'is_active' => 'boolean',
             'sort_order' => 'nullable|integer',
             'notes' => 'nullable|string',
