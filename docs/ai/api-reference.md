@@ -45,7 +45,7 @@ purchases, has live batches), it is deactivated or refused with 422 instead of b
 | POST | `/pos/checkout` | `pos` |
 | GET | `/pos/transactions` (`search`, `date`, `limit` ≤ 500), `/pos/transactions/{id}` | `pos`, `receipt` |
 | POST | `/pos/transactions/{id}/void` (`reason`, min 5 characters; 422 once the sale has a return) | `sale_void` |
-| POST | `/pos/transactions/{id}/returns` (`{reason, items[{sale_detail_id, quantity}]}`; cash refund, needs an OPEN shift) → 201 `{sale, sales_return, journal}` | `sales_return` |
+| POST | `/pos/transactions/{id}/returns` (`{reason, items[{sale_detail_id, quantity}]}`; refund follows the nota's payments: cash share needs an OPEN shift, QRIS/transfer share from 1-1001; non-OWNER ≤ 30-day-old notas) → 201 `{sale, sales_return, journal}` | `sales_return` |
 | POST | `/payment/qris/charge` (records the order; response has `simulation_enabled`) | `pos` |
 | POST | `/payment/qris/simulate/{orderId}` (403 unless `MIDTRANS_ALLOW_SIMULATION`; only charged orders) | `pos` |
 | GET | `/payment/qris/status/{orderId}` | `pos` |

@@ -273,8 +273,8 @@ journal Dr 2-1100 / Cr 1-1001), which the cash-flow report puts under expenses.
   differs from the header is rejected). Blank lines are skipped; max 1000 rows. All-or-nothing: one bad row rejects the
   whole file. Rows identical (date, description, amount) to lines already stored are skipped once per stored copy,
   so re-importing a file is safe and only surplus duplicates inside the file are added.
-- Status: "Terekonsiliasi" when the statement ending balance (`bank_reconciliations`, one per month, may be negative
-  and carry cents) is entered and the difference is 0.
+- Status: "Terekonsiliasi" when the statement ending balance (`bank_reconciliations`, one per month, may carry cents;
+  never negative: the BCA account has no overdraft facility, owner decision 2026-10-05) is entered and the difference is 0.
 
 **CALK.** Built on the server (`CalkReport`) from the same journals as the balance sheet. The entity details are
 constants in `CalkReport::ENTITY` (`backend/app/Services/Accounting/CalkReport.php`); the legal form and address are

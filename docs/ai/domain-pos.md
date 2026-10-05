@@ -75,8 +75,13 @@ returned. Sale statuses produced: `LUNAS` and `VOID`. A returned sale stays `LUN
 Request `{reason (min 5), items[{sale_detail_id, quantity}]}`. `SalesReturnService::create`, one transaction (three
 attempts on a deadlock or lock-wait timeout; lock order in
 [domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts)):
-- The refund is always **cash from the drawer**, whatever the original payment method, so an OPEN cashier shift is
-  required (422 "Buka shift kasir dulu…"). Its id is stored on `sales_returns.cash_session_id`.
+- The refund **follows the nota's payments** (owner decision 2026-10-05): the share paid TUNAI comes from the drawer
+  (1-1000, needs an OPEN cashier shift, 422 "Buka shift kasir dulu…", id stored on `sales_returns.cash_session_id`),
+  the share paid QRIS/transfer from Bank BCA (1-1001, no shift). A split nota is divided by payment amount in cents,
+  cumulatively per nota, so a fully returned nota refunds each account exactly what it received
+  (`refund_cash`/`refund_bank` on `sales_returns`). A nota whose till payments do not equal its total (old BON/DP) is
+  refused; correct it with a manual journal.
+- Non-OWNER users may only return notas at most `SalesReturnService::MAX_AGE_DAYS` (30) days old; older ones are 422.
 - The refund is computed by the server: the line's net value minus its cent-exact share of the nota discount (shares
   proportional to `sub_total`, rounding remainder on the largest line). A partial return gets its share of that, and
   the return that empties a line gets the rest, so Σ refunds of a fully returned nota = the nota total. The QRIS MDR
@@ -84,7 +89,7 @@ attempts on a deadlock or lock-wait timeout; lock order in
 - Product units go back to the batches the sale consumed, newest allocation first, at the allocation's `unit_cost`;
   `sale_batch_allocations.quantity_returned` tracks what already came back. `product_quantity` goes up and a
   MASUK/`SALES_RETURN` movement is written. Service lines (catalogue or manual) return revenue only.
-- Numbered `RTJ-YYYYMM-####`, dated today. Journal `SALES_RETURN`: Dr 4-9100 / Cr 1-1000 for the refund, Dr 1-2000 /
+- Numbered `RTJ-YYYYMM-####`, dated today. Journal `SALES_RETURN`: Dr 4-9100 / Cr 1-1000 and/or 1-1001 for the refund, Dr 1-2000 /
   Cr 5-1000 for the restored cost. A return worth Rp 0 with no cost posts nothing.
 - Refused (422): a VOID sale; a quantity above what is left to return; a line of another nota; and the **first**
   return of a nota that has a product line without a complete allocation trail (old fallback costing, or
