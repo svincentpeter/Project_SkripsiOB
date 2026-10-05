@@ -79,14 +79,15 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
   // 2. Beban operasional bulan berjalan (akun beban 6-xxxx)
   const totalExpensesMonth = month.operating_expenses;
 
-  // 3. Low stock warning count (< 5 pcs or below alert)
-  const lowStockProducts = products.filter((p) => {
+  // 3. Low stock warning count (< 5 pcs or below alert); produk nonaktif tidak perlu di-restock
+  const activeProducts = products.filter((p) => p.is_active !== false);
+  const lowStockProducts = activeProducts.filter((p) => {
     const qty = p.product_quantity ?? p.stock ?? 0;
     const alert = p.product_stock_alert ?? p.min_stock ?? 5;
     return qty < alert;
   });
 
-  const outOfStockProducts = products.filter((p) => (p.product_quantity ?? p.stock ?? 0) <= 0);
+  const outOfStockProducts = activeProducts.filter((p) => (p.product_quantity ?? p.stock ?? 0) <= 0);
 
   // 4. Nilai persediaan FIFO dari server (Σ sisa batch × harga batch), bukan stok × harga beli terakhir
   const totalInventoryValue = inventoryValuation?.fifo_value ?? null;
@@ -381,7 +382,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
           </div>
           <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
             <span className="text-slate-500">SKU Aktif:</span>
-            <span className="font-bold text-slate-800 font-mono">{products.length} SKU</span>
+            <span className="font-bold text-slate-800 font-mono">{activeProducts.length} SKU</span>
           </div>
         </div>
 
