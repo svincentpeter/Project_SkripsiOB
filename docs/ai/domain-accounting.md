@@ -74,7 +74,8 @@ The README's 21-account table is outdated.
   current read (`sharedLock`, after the JRN number lock and its own inserts) and rejects (`PosRuleException`, 422)
   if the cumulative balance on the entry date or any later date is below zero, so a backdated outflow cannot turn a
   later day negative either. Inflows are never checked. For 1-1000 the balance includes the adjustments of shifts
-  still `PENDING_APPROVAL` (`CashSessionService::pendingAdjustment()`, same as `bookBalance`); the shift approval
+  still `PENDING_APPROVAL`, each from the day its shift closed (`CashSessionService::pendingAdjustmentsByDate()`, read
+  with a shared lock so a close/approval committed after the transaction snapshot is seen); the shift approval
   itself (`CASH_SESSION_VARIANCE`) is exempt because it sets 1-1000 to the counted cash. Every outflow path is
   covered (expenses, cash/transfer receipts and payable payments, refunds, voids, deposits, Prive, asset purchases,
   bank adjustments, manual journals). The S locks on `journal_items`/`journal_entries` can deadlock two outflows in
