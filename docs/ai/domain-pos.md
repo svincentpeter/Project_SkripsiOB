@@ -33,6 +33,8 @@ order in [domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts)):
    - All catalogue products are locked first, sorted by id, and must be active. Their summed quantity must not exceed
      `products.product_quantity`; otherwise the server returns 422 "Stok X tidak cukup".
    - The item name is replaced with the catalogue name.
+   - A catalogue PRODUCT line priced Rp 0 or less is rejected (422, "Harga jual … masih Rp 0"); the POS card shows
+     "Harga belum diisi" and the catalogue filter "Harga Jual Belum Diisi" lists them. Zero-priced services stay allowed.
    - Manual lines (`is_manual`) are services only: a manual PRODUCT line is rejected (422, "…belum terdaftar di
      katalog…"), because goods need a catalogue entry and a goods receipt to have FIFO cost. A manual SERVICE line
      books 4-1001 with HPP 0. The POS "Input Manual" form (`ManualItemForm`) offers only services.

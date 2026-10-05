@@ -54,7 +54,7 @@
 | E2E | `node tests/e2e/<file>.mjs` | Plain Playwright scripts, not `@playwright/test`. They need `npm run dev` (dev mode), the backend on :8000 with seeded users, and `VITE_DEV_LOGIN_PASSWORD`. They log in via the "Agus Subagyo" quick-login card, write screenshots and JSON to `tests/e2e/screenshots/`, and have **no pass/fail assertions** |
 
 As of 2026-10-05 (after the SP4 and SP5 final fix waves, last SP5 code commit `a731e9a`), the frontend passes: 32
-test files, 174 tests, and `tsc` is clean. The backend passes 350 tests (2422 assertions; the non-negative cash guard is off in `phpunit.xml` except in `NonNegativeCashTest`).
+test files, 175 tests, and `tsc` is clean. The backend passes 352 tests (2428 assertions; the non-negative cash guard is off in `phpunit.xml` except in `NonNegativeCashTest`).
 
 ## Glossary (Indonesian → meaning)
 
