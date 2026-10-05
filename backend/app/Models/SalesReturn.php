@@ -12,13 +12,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class SalesReturn extends Model
 {
     protected $fillable = [
-        'reference', 'sale_id', 'return_date', 'reason', 'refund_amount', 'cost_amount', 'cash_session_id',
+        'reference', 'sale_id', 'return_date', 'reason', 'refund_amount', 'refund_cash', 'refund_bank', 'cost_amount', 'cash_session_id',
         'journal_entry_number', 'created_by', 'operator_name', 'branch_id',
     ];
 
     protected $casts = [
         'return_date' => 'date',
         'refund_amount' => 'decimal:2',
+        'refund_cash' => 'decimal:2',
+        'refund_bank' => 'decimal:2',
         'cost_amount' => 'decimal:2',
     ];
 
@@ -42,6 +44,8 @@ class SalesReturn extends Model
             'return_date' => $this->return_date?->toDateString(),
             'reason' => $this->reason,
             'refund_amount' => (float) $this->refund_amount,
+            'refund_cash' => (float) $this->refund_cash,
+            'refund_bank' => (float) $this->refund_bank,
             'cost_amount' => (float) $this->cost_amount,
             'journal_entry_number' => $this->journal_entry_number,
             'operator_name' => $this->operator_name,

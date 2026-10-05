@@ -69,11 +69,15 @@ class PosController extends Controller
             'items.*.quantity' => 'required|integer|min:1',
         ]);
         $out = $returns->create($id, $data['items'], $data['reason'], $request->user());
+        $rupiah = fn ($v) => 'Rp '.number_format((float) $v, 0, ',', '.');
+        $parts = array_filter([
+            (float) $out['return']->refund_cash > 0 ? 'serahkan tunai '.$rupiah($out['return']->refund_cash).' dari laci' : null,
+            (float) $out['return']->refund_bank > 0 ? 'transfer balik '.$rupiah($out['return']->refund_bank).' dari Bank BCA' : null,
+        ]);
 
         return response()->json([
             'success' => true,
-            'message' => "Retur {$out['return']->reference} dibukukan. Serahkan refund tunai Rp "
-                .number_format((float) $out['return']->refund_amount, 0, ',', '.').'.',
+            'message' => "Retur {$out['return']->reference} dibukukan".($parts ? ': '.implode(' dan ', $parts) : '').'.',
             'data' => [
                 'sale' => $out['sale']->toReceiptArray(),
                 'sales_return' => $out['return']->toApiArray(),

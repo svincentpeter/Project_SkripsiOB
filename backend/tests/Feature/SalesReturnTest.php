@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Exceptions\PosRuleException;
 use App\Models\AccountingPeriodClosing;
+use App\Models\Sale;
 use App\Models\SaleBatchAllocation;
+use App\Models\SalePayment;
 use App\Models\SalesReturn;
 use App\Models\ServiceMaster;
 use App\Services\Accounting\CashFlowReport;
@@ -18,8 +20,8 @@ use Tests\Concerns\OpensReturnCashSession;
 use Tests\TestCase;
 
 /**
- * Retur penjualan sebagian: refund tunai dari laci (Dr 4-9100 / Cr 1-1000), barang kembali ke batch asal
- * dengan modal aslinya (Dr 1-2000 / Cr 5-1000).
+ * Retur penjualan sebagian: refund mengikuti cara bayar nota (tunai dari laci 1-1000, QRIS/transfer dari bank 1-1001),
+ * barang kembali ke batch asal dengan modal aslinya (Dr 1-2000 / Cr 5-1000).
  */
 class SalesReturnTest extends TestCase
 {
@@ -29,13 +31,18 @@ class SalesReturnTest extends TestCase
     use OpensReturnCashSession;
 
     /** 3 unit @1 jt dengan diskon nota 300rb: FIFO 1 @500rb + 2 @600rb. */
-    private function discountedSale($product)
+    private function discountedSale($product, array $payments = [['method' => 'TRANSFER_BCA', 'amount' => 2700000]])
     {
         return $this->checkout([
             'items' => [$this->productLine($product, 3)],
             'discount_amount' => 300000,
-            'payments' => [['method' => 'TRANSFER_BCA', 'amount' => 2700000]],
+            'payments' => $payments,
         ])->assertCreated();
+    }
+
+    private function cashSale($product)
+    {
+        return $this->discountedSale($product, [['method' => 'TUNAI', 'amount' => 2700000]]);
     }
 
     private function returnLines(int $saleId, array $items, string $reason = 'Ban tidak cocok ukuran')
@@ -43,11 +50,12 @@ class SalesReturnTest extends TestCase
         return $this->postJson("/api/v1/pos/transactions/{$saleId}/returns", ['reason' => $reason, 'items' => $items]);
     }
 
-    public function test_partial_then_final_return_refunds_cash_and_restores_original_layers(): void
+    public function test_partial_then_final_return_of_a_transfer_sale_refunds_from_the_bank_and_restores_layers(): void
     {
         $product = $this->makeProduct(1000000, [[1, 500000, '2026-07-01'], [5, 600000, '2026-08-01']]);
         $this->alignInventoryLedger();
-        $session = $this->ensureOpenCashSessionForReturn();
+        // Nota transfer: refund dari bank, tanpa shift kasir.
+        DB::table('cash_sessions')->where('status', 'OPEN')->update(['status' => 'CLOSED', 'closed_at' => now()]);
         $sale = $this->discountedSale($product);
         $saleId = $sale->json('data.id');
         $lineId = $sale->json('data.items.0.id');
@@ -57,6 +65,9 @@ class SalesReturnTest extends TestCase
         $first = $this->returnLines($saleId, [['sale_detail_id' => $lineId, 'quantity' => 1]])
             ->assertCreated()
             ->assertJsonPath('data.sales_return.refund_amount', 900000)
+            ->assertJsonPath('data.sales_return.refund_bank', 900000)
+            ->assertJsonPath('data.sales_return.refund_cash', 0)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'Bank BCA') && ! str_contains($m, 'laci'))
             ->assertJsonPath('data.sales_return.cost_amount', 600000)
             ->assertJsonPath('data.sale.returned_amount', 900000)
             ->assertJsonPath('data.sale.items.0.returned_qty', 1)
@@ -65,7 +76,8 @@ class SalesReturnTest extends TestCase
 
         $j = $this->journalByAccount($first->json('data.sales_return.reference'), 'SALES_RETURN');
         $this->assertEquals(900000, $j['4-9100']['debit']);
-        $this->assertEquals(900000, $j['1-1000']['credit']);
+        $this->assertEquals(900000, $j['1-1001']['credit']);
+        $this->assertArrayNotHasKey('1-1000', $j);
         $this->assertEquals(600000, $j['1-2000']['debit']);
         $this->assertEquals(600000, $j['5-1000']['credit']);
         $this->assertContains('SALES_RETURN', array_column($first->json('data.sale.journals'), 'reference_type'));
@@ -85,7 +97,7 @@ class SalesReturnTest extends TestCase
             ->assertJsonPath('data.sales_return.cost_amount', 1100000)
             ->assertJsonPath('data.sale.returned_amount', 2700000);
         $this->assertEquals([1, 5], $product->batches()->orderBy('purchase_date')->pluck('remaining_qty')->all());
-        $this->assertEquals(2700000, SalesReturn::where('cash_session_id', $session)->sum('refund_amount'), 'refund tercatat pada shift');
+        $this->assertEquals(2700000, SalesReturn::where('sale_id', $saleId)->whereNull('cash_session_id')->sum('refund_bank'), 'refund bank tanpa shift');
         $this->assertEquals(0.0, InventoryValueJournal::summary()['difference']);
 
         $this->returnLines($saleId, [['sale_detail_id' => $lineId, 'quantity' => 1]])
@@ -125,7 +137,8 @@ class SalesReturnTest extends TestCase
     public function test_return_is_refused_without_open_shift_void_sale_or_batch_trail(): void
     {
         $product = $this->makeProduct(1000000, [[1, 500000, '2026-07-01'], [5, 600000, '2026-08-01']]);
-        $sale = $this->discountedSale($product);
+        $this->ensureOpenCashSessionForReturn();
+        $sale = $this->cashSale($product);
         $lineId = $sale->json('data.items.0.id');
         $items = [['sale_detail_id' => $lineId, 'quantity' => 1]];
 
@@ -241,8 +254,9 @@ class SalesReturnTest extends TestCase
     {
         $product = $this->makeProduct(1000000, [[1, 500000, '2026-07-01'], [5, 600000, '2026-08-01']]);
         $this->ensureOpenCashSessionForReturn();
-        $sale = $this->discountedSale($product);
-        $other = $this->discountedSale($product);
+        // Nota tunai: retur mengambil kunci laci & shift lebih dulu.
+        $sale = $this->cashSale($product);
+        $other = $this->cashSale($product);
 
         DB::enableQueryLog();
         $this->returnLines($sale->json('data.id'), [['sale_detail_id' => $sale->json('data.items.0.id'), 'quantity' => 1]])->assertCreated();
@@ -270,6 +284,64 @@ class SalesReturnTest extends TestCase
         }
 
         return $order;
+    }
+
+    public function test_split_payment_refund_follows_each_payment_share_exactly(): void
+    {
+        $product = $this->makeProduct(1000000, [[3, 500000, '2026-08-01']]);
+        $this->alignInventoryLedger();
+        $session = $this->ensureOpenCashSessionForReturn();
+        $sale = $this->discountedSale($product, [['method' => 'TUNAI', 'amount' => 1000000], ['method' => 'TRANSFER_BCA', 'amount' => 1700000]]);
+        $saleId = $sale->json('data.id');
+        $lineId = $sale->json('data.items.0.id');
+
+        $first = $this->returnLines($saleId, [['sale_detail_id' => $lineId, 'quantity' => 1]])
+            ->assertCreated()
+            ->assertJsonPath('data.sales_return.refund_amount', 900000)
+            ->assertJsonPath('data.sales_return.refund_cash', 333333.33)
+            ->assertJsonPath('data.sales_return.refund_bank', 566666.67);
+        $j = $this->journalByAccount($first->json('data.sales_return.reference'), 'SALES_RETURN');
+        $this->assertEquals(333333.33, $j['1-1000']['credit']);
+        $this->assertEquals(566666.67, $j['1-1001']['credit']);
+        $this->assertSame($session, SalesReturn::where('reference', $first->json('data.sales_return.reference'))->value('cash_session_id'));
+
+        // Retur penuh: Σ bagian tiap akun = pembayaran ke akun itu, tepat sampai sen.
+        $this->returnLines($saleId, [['sale_detail_id' => $lineId, 'quantity' => 2]])->assertCreated()
+            ->assertJsonPath('data.sales_return.refund_cash', 666666.67)
+            ->assertJsonPath('data.sales_return.refund_bank', 1133333.33);
+        $this->assertEquals([1000000.0, 1700000.0], [
+            (float) SalesReturn::where('sale_id', $saleId)->sum('refund_cash'),
+            (float) SalesReturn::where('sale_id', $saleId)->sum('refund_bank'),
+        ]);
+        $this->assertEquals(0.0, InventoryValueJournal::summary()['difference']);
+    }
+
+    public function test_only_the_owner_returns_notas_older_than_thirty_days(): void
+    {
+        $product = $this->makeProduct(1000000, [[6, 500000, '2026-08-01']]);
+        $old = $this->discountedSale($product);
+        $recent = $this->discountedSale($product);
+        Sale::whereKey($old->json('data.id'))->update(['date' => now()->subDays(31)->toDateString()]);
+        Sale::whereKey($recent->json('data.id'))->update(['date' => now()->subDays(30)->toDateString()]);
+        $line = fn ($sale) => [['sale_detail_id' => $sale->json('data.items.0.id'), 'quantity' => 1]];
+
+        $this->actingAsRole('KASIR');
+        $this->returnLines($old->json('data.id'), $line($old))
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, '30 hari') && str_contains($m, 'pemilik'));
+        $this->returnLines($recent->json('data.id'), $line($recent))->assertCreated();
+
+        $this->actingAsRole('OWNER');
+        $this->returnLines($old->json('data.id'), $line($old))->assertCreated();
+    }
+
+    public function test_a_nota_not_paid_in_full_at_the_till_cannot_be_returned(): void
+    {
+        $sale = $this->discountedSale($this->makeProduct(1000000, [[3, 500000, '2026-08-01']]));
+        // Nota BON/DP lama: pembayaran di kasir tidak sebesar total nota.
+        SalePayment::where('sale_id', $sale->json('data.id'))->update(['amount' => 700000]);
+
+        $this->returnLines($sale->json('data.id'), [['sale_detail_id' => $sale->json('data.items.0.id'), 'quantity' => 1]])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'jurnal manual'));
     }
 
     public function test_validation_and_permission(): void

@@ -551,10 +551,13 @@ function MainAppContent() {
       const tx = mapSaleToTransaction(res.sale);
       setTransactions((prev) => prev.map((t) => (t.id === txId ? tx : t)));
       if (currentReceiptTx?.id === txId) setCurrentReceiptTx(tx);
-      toast.success(
-        'Retur Penjualan Dibukukan',
-        `${res.sales_return.reference}: serahkan refund tunai ${formatRupiah(res.sales_return.refund_amount)} dari laci.`
-      );
+      // Refund mengikuti cara bayar nota (dihitung server): tunai dari laci, QRIS/transfer dari Bank BCA.
+      const { refund_cash: cash, refund_bank: bank } = res.sales_return;
+      const parts = [
+        cash > 0 ? `serahkan tunai ${formatRupiah(cash)} dari laci` : '',
+        bank > 0 ? `transfer balik ${formatRupiah(bank)} dari Bank BCA` : '',
+      ].filter(Boolean);
+      toast.success('Retur Penjualan Dibukukan', `${res.sales_return.reference}${parts.length ? `: ${parts.join(' dan ')}` : ''}.`);
     });
     return true;
   };
