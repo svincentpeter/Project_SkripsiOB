@@ -294,6 +294,9 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                       <td className="py-2 px-2 font-mono">{i.entry_number}</td>
                       <td className="py-2 px-2">
                         {i.description}
+                        {i.reversal_pair && (
+                          <span className="block text-[10px] text-slate-500">Saling hapus dengan {i.reversal_pair} (bersih Rp 0); cocokkan keduanya hanya bila uangnya benar keluar-masuk rekening.</span>
+                        )}
                         {!isCurrent && now.data && !unmatchedIds.has(i.journal_item_id) && (
                           <span className="block text-[10px] text-emerald-700">Sudah dicocokkan dengan mutasi bulan berikutnya.</span>
                         )}

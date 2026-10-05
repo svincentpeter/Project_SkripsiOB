@@ -165,6 +165,23 @@ class BankReconciliationApiTest extends TestCase
         $this->assertCount(1, $after['outstanding_ledger']);
     }
 
+    public function test_an_entry_and_its_reversal_are_tagged_as_a_pair_but_still_listed(): void
+    {
+        $item = JournalItem::with('account')->findOrFail($this->bankEntry('2018-03-05', 400000, '3-1000'));
+        $capital = JournalItem::with('account')->where('journal_entry_id', $item->journal_entry_id)->where('id', '!=', $item->id)->firstOrFail();
+        $reversal = app(AccountingEngine::class)->createEntry('TEST_REVERSAL', 'BR-'.uniqid(), 'Pembalik uji', [
+            ['account_id' => $capital->account_id, 'debit' => 400000],
+            ['account_id' => $item->account_id, 'credit' => 400000],
+        ], '2018-03-06', 3, $item->journal_entry_id);
+        $this->line('2018-03-20', 'LAIN', 1000);
+
+        $rows = collect($this->getJson(self::URL.'?period=2018-03')->assertOk()->json('data.outstanding_ledger'))->keyBy('entry_number');
+        $original = JournalEntry::findOrFail($item->journal_entry_id)->entry_number;
+
+        $this->assertSame($reversal->entry_number, $rows[$original]['reversal_pair']);
+        $this->assertSame($original, $rows[$reversal->entry_number]['reversal_pair']);
+    }
+
     public function test_a_ledger_line_matches_only_one_statement_line(): void
     {
         $deposit = $this->bankEntry('2019-05-03', 500000, '4-1000');

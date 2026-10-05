@@ -97,6 +97,8 @@ export interface OutstandingLedgerItem {
   description: string;
   debit: number;
   credit: number;
+  /** Nomor jurnal pasangan (asli ↔ pembalik) yang juga belum muncul di rekening koran; bersih keduanya nol. */
+  reversal_pair?: string | null;
 }
 
 export interface BankReconciliationReport {

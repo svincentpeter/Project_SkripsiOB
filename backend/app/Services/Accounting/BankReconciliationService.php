@@ -304,6 +304,11 @@ class BankReconciliationService
                 ->orWhereHas('journalItem.journalEntry', fn ($e) => $e->where('entry_date', '>', $end)))
             ->orderBy('statement_date')->orderBy('id')->get();
         $outstanding = $this->unmatchedLedgerItems($from, $end, clearedBy: $end);
+        // Jurnal dan pembaliknya yang sama-sama belum muncul di rekening koran: bersihnya nol. Tetap ditampilkan
+        // (bila uang benar bergerak dua arah, keduanya harus dicocokkan), hanya diberi tanda pasangannya.
+        $byEntry = $outstanding->keyBy('entry_id');
+        $pairOf = fn ($i) => $byEntry->get($i->reversal_of_id)?->entry_number
+            ?? $outstanding->first(fn ($o) => $o->reversal_of_id === $i->entry_id)?->entry_number;
 
         $statement = BankReconciliation::where('period', $period)->value('statement_ending_balance');
         $book = CashFlowReport::cashBalances($end)[self::BANK];
@@ -333,6 +338,7 @@ class BankReconciliationService
                 'description' => $i->description,
                 'debit' => (float) $i->debit,
                 'credit' => (float) $i->credit,
+                'reversal_pair' => $pairOf($i),
             ])->values()->all(),
             'unrecorded_bank' => $unrecorded->map(fn (BankStatementLine $l) => $l->toApiArray())->values()->all(),
             'deposits_in_transit' => $depositsInTransit,
@@ -365,7 +371,7 @@ class BankReconciliationService
                 ->whereColumn('b.journal_item_id', 'journal_items.id')
                 ->when($clearedBy !== null, fn ($q) => $q->where('b.statement_date', '<=', $clearedBy)))
             ->orderBy('e.entry_date')->orderBy('journal_items.id')
-            ->get(['journal_items.id', 'journal_items.debit', 'journal_items.credit', 'e.entry_number', 'e.entry_date', 'e.reference_type', 'e.description']);
+            ->get(['journal_items.id', 'journal_items.debit', 'journal_items.credit', 'e.id as entry_id', 'e.reversal_of_id', 'e.entry_number', 'e.entry_date', 'e.reference_type', 'e.description']);
     }
 
     /** Bacaan mengunci: apakah baris jurnal ini sudah dipakai mutasi lain (termasuk yang baru saja di-commit). */
