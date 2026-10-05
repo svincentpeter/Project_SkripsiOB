@@ -6,8 +6,8 @@ use App\Models\AccountingPeriodClosing;
 use App\Models\FixedAsset;
 use App\Models\FixedAssetDepreciation;
 use App\Models\JournalEntry;
-use App\Services\AccountingEngine;
-use App\Services\JournalDraft;
+use App\Services\Accounting\DepreciationService;
+use App\Services\Accounting\LedgerBalances;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -146,23 +146,80 @@ class FixedAssetApiTest extends TestCase
             ->assertOk()->assertJsonPath('data.asset.status', 'VOID')->assertJsonPath('data.journals', []);
     }
 
-    public function test_void_is_refused_once_depreciation_was_posted(): void
+    /** Saldo seluruh waktu 1-3000, 1-3999 dan 6-1011 dari sisi debit. */
+    private function ledger(): array
     {
-        $id = $this->postJson(self::URL, $this->payload())->json('data.asset.id');
-        $entry = (new JournalDraft())->debit('6-1011', 250000, 'uji')->credit('1-3999', 250000, 'uji')
-            ->post(app(AccountingEngine::class), 'TEST', 'FA-'.uniqid(), 'Uji penyusutan', '2019-01-31');
-        FixedAssetDepreciation::create(['fixed_asset_id' => $id, 'period' => '2019-01', 'amount' => 250000, 'journal_entry_id' => $entry->id]);
+        $balances = LedgerBalances::forRange(null, null)->keyBy(fn ($b) => $b->account->account_code);
+
+        return array_map(fn (string $code) => $balances[$code]->signed('DEBIT'), ['1-3000' => '1-3000', '1-3999' => '1-3999', '6-1011' => '6-1011']);
+    }
+
+    private function calkFixedAssets(string $period): array
+    {
+        return $this->getJson('/api/v1/reports/calk?period='.$period)->assertOk()->json('data.notes.fixed_assets');
+    }
+
+    public function test_void_of_a_depreciated_asset_reverses_its_depreciation(): void
+    {
+        $before = $this->ledger();
+        $register = $this->getJson(self::URL)->json('data.summary');
+        $calk = $this->calkFixedAssets(now()->format('Y-m'));
+
+        $created = $this->postJson(self::URL, $this->payload())->assertCreated()->json('data');
+        $id = $created['asset']['id'];
+        $code = $created['asset']['code'];
+        $this->postJson(self::URL.'/depreciation', ['period' => '2019-01'])->assertCreated();
+        $this->postJson(self::URL.'/depreciation', ['period' => '2019-02'])->assertCreated();
+
+        $res = $this->postJson(self::URL."/{$id}/void", ['reason' => 'Salah input harga'])
+            ->assertOk()
+            ->assertJsonPath('data.asset.status', 'VOID')
+            ->assertJsonPath('data.journals.0.reversal_of', $created['journals'][0]['entry_number'])
+            ->assertJsonPath('data.journals.1.reference_type', 'FIXED_ASSET_VOID')
+            ->assertJsonPath('data.journals.1.reference_id', $code)
+            ->assertJsonPath('data.journals.1.entry_date', now()->toDateString());
+        $reversal = $res->json('data.journals.1');
+        $this->assertEquals(500000, $this->line($reversal, '1-3999')['debit']);
+        $this->assertEquals(500000, $this->line($reversal, '6-1011')['credit']);
+
+        $this->assertEquals($before, $this->ledger());
+        $after = $this->getJson(self::URL)->json('data.summary');
+        $this->assertEquals($register['difference_cost'], $after['difference_cost']);
+        $this->assertEquals($register['difference_accumulated'], $after['difference_accumulated']);
+        $this->assertSame([], array_filter(
+            app(DepreciationService::class)->pendingLines(now()->format('Y-m')),
+            fn (array $l) => $l['asset']->id === $id,
+        ));
+
+        // CALK: bulan lampau (sebelum pembatalan) masih memuat aset & penyusutannya, bulan berjalan tidak; keduanya cocok dengan buku besar.
+        $february = collect($this->calkFixedAssets('2019-02')['assets'])->firstWhere('code', $code);
+        $this->assertEquals(500000, $february['accumulated']);
+        $now = $this->calkFixedAssets(now()->format('Y-m'));
+        $this->assertNotContains($code, array_column($now['assets'], 'code'));
+        $this->assertEquals(round($calk['total_cost'] - $calk['ledger_cost'], 2), round($now['total_cost'] - $now['ledger_cost'], 2));
+        $this->assertEquals(round($calk['total_accumulated'] - $calk['ledger_accumulated'], 2), round($now['total_accumulated'] - $now['ledger_accumulated'], 2));
+
+        $this->postJson(self::URL."/{$id}/void", ['reason' => 'lagi'])->assertStatus(422);
+    }
+
+    public function test_void_is_refused_when_a_depreciation_month_is_closed(): void
+    {
+        $created = $this->postJson(self::URL, $this->payload())->json('data');
+        $id = $created['asset']['id'];
+        $this->postJson(self::URL.'/depreciation', ['period' => '2019-01'])->assertCreated();
+        AccountingPeriodClosing::create(['period' => '2019-01', 'end_date' => '2019-01-31', 'net_income' => 0, 'closed_at' => now()]);
 
         $this->postJson(self::URL."/{$id}/void", ['reason' => 'x'])
             ->assertStatus(422)
-            ->assertJsonPath('message', fn ($m) => str_contains($m, 'sudah disusutkan'));
-        $this->assertSame(0, JournalEntry::where('reference_type', 'FIXED_ASSET_VOID')->count());
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'periode 2019-01 yang sudah ditutup'));
+        $this->assertSame(0, JournalEntry::where('reference_type', 'FIXED_ASSET_VOID')->where('reference_id', $created['asset']['code'])->count());
+        $this->assertSame('ACTIVE', FixedAsset::findOrFail($id)->status);
     }
 
     /**
      * Penyusutan yang commit di koneksi lain setelah snapshot REPEATABLE READ void terbentuk (bacaan funding tanpa
-     * kunci) harus tetap terlihat oleh cek di bawah kunci. Aset & baris penyusutan di-commit lewat koneksi kedua
-     * (nilai 0, tanpa jurnal: cek FK dimatikan di sesi itu saja) dan dihapus sendiri setelah rollback test.
+     * kunci) harus tetap terlihat oleh bacaan di bawah kunci, sehingga ikut dibalik. Aset & baris penyusutan di-commit lewat
+     * koneksi kedua (tanpa jurnal: cek FK dimatikan di sesi itu saja) dan dihapus sendiri setelah rollback test.
      */
     public function test_void_sees_a_depreciation_committed_after_its_snapshot(): void
     {
@@ -180,12 +237,11 @@ class FixedAssetApiTest extends TestCase
         DB::select('select count(*) from fixed_asset_depreciations'); // snapshot transaksi test ditetapkan di sini
         $side = DB::connection('side');
         $side->statement('SET FOREIGN_KEY_CHECKS = 0');
-        FixedAssetDepreciation::on('side')->create(['fixed_asset_id' => $asset->id, 'period' => '2019-01', 'amount' => 0, 'journal_entry_id' => 0]);
+        FixedAssetDepreciation::on('side')->create(['fixed_asset_id' => $asset->id, 'period' => '2019-01', 'amount' => 100, 'journal_entry_id' => 0]);
         $side->statement('SET FOREIGN_KEY_CHECKS = 1');
 
-        $this->postJson(self::URL."/{$asset->id}/void", ['reason' => 'x'])
-            ->assertStatus(422)
-            ->assertJsonPath('message', fn ($m) => str_contains($m, 'sudah disusutkan'));
+        $res = $this->postJson(self::URL."/{$asset->id}/void", ['reason' => 'x'])->assertOk();
+        $this->assertEquals(100, $this->line($res->json('data.journals.0'), '1-3999')['debit']);
     }
 
     public function test_index_lists_the_register_next_to_the_ledger(): void

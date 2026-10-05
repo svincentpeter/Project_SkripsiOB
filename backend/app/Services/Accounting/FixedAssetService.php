@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Register aset tetap: perolehan (Dr 1-3000 / Cr kas atau bank), aset dari saldo awal (tanpa jurnal),
- * dan pembatalan aset yang belum pernah disusutkan (jurnal cermin).
+ * dan pembatalan aset salah input (jurnal cermin perolehan + pembalikan penyusutannya, keduanya bertanggal hari ini).
  */
 class FixedAssetService
 {
@@ -93,7 +93,13 @@ class FixedAssetService
     }
 
     /**
-     * @return array{asset: FixedAsset, journal: ?JournalEntry}
+     * Batalkan aset salah input. Bila sudah disusutkan, seluruh penyusutannya dibalik (Dr 1-3999 / Cr 6-1011) dalam satu
+     * jurnal FIXED_ASSET_VOID bertanggal hari ini, hanya bila setiap bulan yang memuat jurnal penyusutannya masih terbuka.
+     * Baris fixed_asset_depreciations tetap disimpan (riwayat); semua pemakainya hanya membaca aset ACTIVE, atau aset
+     * yang dibatalkan sesudah akhir bulan laporan (CALK), sehingga register, penyusutan tertunda, dan CALK tetap cocok
+     * dengan buku besar di setiap tanggal.
+     *
+     * @return array{asset: FixedAsset, journals: list<JournalEntry>}
      */
     public function void(int $id, string $reason, User $user): array
     {
@@ -108,14 +114,19 @@ class FixedAssetService
             if ($asset->status === 'VOID') {
                 throw new PosRuleException("Aset {$asset->code} sudah dibatalkan.");
             }
-            if ($asset->depreciations()->sharedLock()->exists()) {
-                throw new PosRuleException("Aset {$asset->code} sudah disusutkan; pembatalan hanya untuk aset yang belum pernah disusutkan.");
+            // Kunci baris penyusutan & tanggal kunci periode (bacaan berkunci): penutupan bulan mengambil X 1-3999 tepat
+            // sesudah X 3-2000, jadi lockRegister() di atas sudah menyerialkan pembatalan ini dengan tutup buku.
+            $depreciations = $asset->depreciations()->lockForUpdate()->orderBy('period')->get();
+            $lock = $depreciations->isEmpty() ? null : PeriodLock::lockDate(locking: true);
+            $closed = $depreciations->first(fn ($d) => $lock !== null && DepreciationService::endOf($d->period) <= $lock);
+            if ($closed !== null) {
+                throw new PosRuleException("Aset {$asset->code} sudah disusutkan pada periode {$closed->period} yang sudah ditutup; pembatalan hanya bila semua bulan penyusutannya masih terbuka. Buka kembali periode itu lebih dulu.");
             }
 
-            $journal = null;
+            $journals = [];
             if ($asset->journal_entry_number !== null) {
                 $original = JournalEntry::where('entry_number', $asset->journal_entry_number)->firstOrFail();
-                $journal = $this->engine->createEntry(
+                $journals[] = $this->engine->createEntry(
                     self::VOID,
                     $asset->code,
                     "Pembatalan aset tetap {$asset->code}: {$reason}",
@@ -126,9 +137,18 @@ class FixedAssetService
                 );
             }
 
+            $depreciated = FixedAsset::cents($depreciations->sum(fn ($d) => (float) $d->amount)) / 100;
+            if ($depreciated > 0) {
+                $periods = $depreciations->pluck('period')->implode(', ');
+                $journals[] = (new JournalDraft())
+                    ->debit(self::ACCUMULATED_ACCOUNT, $depreciated, "[BATAL] Akumulasi penyusutan {$asset->code} ({$periods})")
+                    ->credit(DepreciationService::EXPENSE_ACCOUNT, $depreciated, "[BATAL] Penyusutan {$asset->code} {$asset->name}")
+                    ->post($this->engine, self::VOID, $asset->code, "Pembalikan penyusutan aset tetap {$asset->code} ({$periods}): {$reason}", now()->toDateString());
+            }
+
             $asset->update(['status' => 'VOID', 'void_reason' => $reason, 'voided_by' => $user->id, 'voided_at' => now()]);
 
-            return ['asset' => $asset->fresh(), 'journal' => $journal];
+            return ['asset' => $asset->fresh(), 'journals' => $journals];
         }, self::ATTEMPTS);
     }
 

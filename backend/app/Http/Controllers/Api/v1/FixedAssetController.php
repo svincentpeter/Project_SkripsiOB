@@ -60,7 +60,7 @@ class FixedAssetController extends Controller
             'message' => "Aset tetap {$result['asset']->code} dibatalkan.",
             'data' => [
                 'asset' => $result['asset']->toApiArray(),
-                'journals' => $result['journal'] ? [$result['journal']->toApiArray()] : [],
+                'journals' => array_map(fn ($j) => $j->toApiArray(), $result['journals']),
             ],
         ]);
     }

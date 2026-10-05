@@ -43,6 +43,16 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
   };
 
   const handleVoid = async (asset: FixedAsset) => {
+    if (
+      asset.last_depreciated_period &&
+      !window.confirm(
+        `${asset.code} sudah disusutkan ${formatRupiah(asset.accumulated_depreciation - asset.opening_accumulated_depreciation)}. ` +
+          'Pembatalan membalik seluruh penyusutannya (Dr 1-3999 / Cr 6-1011) dan jurnal perolehannya, bertanggal hari ini, ' +
+          'sehingga pengurangan beban penyusutan masuk bulan berjalan. Hanya bisa bila semua bulan penyusutannya belum ditutup. ' +
+          'Setelah itu catat ulang aset dengan data yang benar. Lanjutkan?',
+      )
+    )
+      return;
     const reason = window.prompt(`Alasan membatalkan ${asset.code} ${asset.name}:`);
     if (!reason?.trim()) return;
     const res = await sakEmkmApi.voidFixedAsset(asset.id, reason.trim()).catch((err: unknown) => {
@@ -52,7 +62,7 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
     if (!res) return;
     onJournalsPosted(res.journals);
     reloadAll();
-    toast.warning('Aset Dibatalkan', `${asset.code} dikeluarkan dari register.`);
+    toast.warning('Aset Dibatalkan', `${asset.code} dikeluarkan dari register${asset.last_depreciated_period ? ' dan penyusutannya dibalik' : ''}.`);
   };
 
   const handleRun = async () => {
@@ -191,6 +201,12 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
                       <button type="button" onClick={() => handleVoid(a)} aria-label={`Batalkan ${a.code}`}
                         className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg cursor-pointer">
                         <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {a.status === 'ACTIVE' && a.last_depreciated_period && (
+                      <button type="button" onClick={() => handleVoid(a)}
+                        className="px-2 py-1 font-bold text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer whitespace-nowrap">
+                        Batalkan (balik penyusutan)
                       </button>
                     )}
                   </td>
