@@ -177,6 +177,7 @@ export const mapPurchaseToPayable = (p: ApiPurchase): PayableInvoice => ({
   due_date: p.due_date ?? p.purchase_date,
   total_amount: Number(p.total_amount) || 0,
   paid_amount: Number(p.paid_amount) || 0,
+  returned_amount: Number(p.returned_amount) || 0,
   remaining_amount: Number(p.remaining_amount) || 0,
   // BATAL tidak pernah sampai ke daftar hutang (payablesFromPurchases menyaringnya); sisa hutangnya 0.
   status: p.status === 'BATAL' ? 'LUNAS' : p.status,

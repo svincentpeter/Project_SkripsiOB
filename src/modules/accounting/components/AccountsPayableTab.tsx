@@ -47,6 +47,7 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
 
   const totalInvoiced = invoices.reduce((acc, i) => acc + i.total_amount, 0);
   const totalPaid = invoices.reduce((acc, i) => acc + i.paid_amount, 0);
+  const totalReturned = invoices.reduce((acc, i) => acc + (i.returned_amount ?? 0), 0);
   const totalRemainingDebt = invoices.reduce((acc, i) => acc + i.remaining_amount, 0);
   const unpaidCount = invoices.filter((i) => i.status !== 'LUNAS').length;
 
@@ -89,7 +90,7 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
               {formatRupiah(totalPaid)}
             </span>
             <span className="text-[10px] text-emerald-700 font-medium mt-0.5 block">
-              Terbayar via Kas & Bank
+              Terbayar via Kas & Bank{totalReturned > 0 ? ` · retur ${formatRupiah(totalReturned)}` : ''}
             </span>
           </div>
 
@@ -219,6 +220,9 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
                   </td>
                   <td className="py-2 px-3 text-right font-bold text-emerald-700 text-xs truncate">
                     {formatRupiah(inv.paid_amount)}
+                    {(inv.returned_amount ?? 0) > 0 && (
+                      <span className="block text-[10px] font-semibold text-rose-700">Retur {formatRupiah(inv.returned_amount ?? 0)}</span>
+                    )}
                   </td>
                   <td className="py-2 px-3 text-right font-black text-amber-800 bg-amber-50/30 text-xs truncate">
                     {formatRupiah(inv.remaining_amount)}

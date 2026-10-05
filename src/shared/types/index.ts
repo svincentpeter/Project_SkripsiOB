@@ -450,6 +450,8 @@ export interface PayableInvoice {
   due_date: string;
   total_amount: number;
   paid_amount: number;
+  /** Retur pembelian yang mengurangi hutang (sisa = total − dibayar − retur). */
+  returned_amount?: number;
   remaining_amount: number;
   status: 'BELUM_LUNAS' | 'SEBAGIAN' | 'LUNAS';
   notes?: string;
