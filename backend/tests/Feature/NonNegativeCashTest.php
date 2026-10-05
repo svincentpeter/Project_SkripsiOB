@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CashSession;
 use App\Models\JournalEntry;
 use App\Services\Accounting\CashSessionService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -69,6 +70,34 @@ class NonNegativeCashTest extends TestCase
         $this->move(['type' => 'DRAWING', 'account_code' => '1-1000', 'amount' => 50000, 'date' => now()->subDay()->toDateString()])
             ->assertStatus(422)
             ->assertJsonPath('message', fn (string $m) => str_contains($m, now()->format('d/m/Y')));
+    }
+
+    public function test_guard_counts_a_shift_shortage_committed_after_the_transaction_snapshot(): void
+    {
+        // Baca biasa (tanpa kunci) agar snapshot transaksi test terbentuk sebelum koneksi kedua commit.
+        $pending = CashSession::where('status', CashSession::PENDING)->get()->sum(fn (CashSession $s) => (float) $s->adjustment());
+
+        // Koneksi kedua meniru shift yang ditutup kurang Rp 50.000 dan di-commit setelah snapshot itu.
+        config(['database.connections.side' => config('database.connections.'.config('database.default'))]);
+        $side = DB::connection('side');
+        $userId = $side->table('users')->insertGetId([
+            'name' => 'Kasir Snapshot', 'username' => uniqid('snap-'), 'email' => uniqid('snap-').'@omahban.test',
+            'role' => 'KASIR', 'password' => bcrypt('secret-test'), 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $sessionId = $side->table('cash_sessions')->insertGetId([
+            'user_id' => $userId, 'opened_at' => now(), 'opening_float' => 0, 'book_opening' => 0, 'closed_at' => now(),
+            'closed_by' => $userId, 'expected_cash' => 50000, 'counted_cash' => 0, 'variance' => -50000,
+            'variance_reason' => 'Uji snapshot', 'status' => CashSession::PENDING, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->beforeApplicationDestroyed(function () use ($sessionId, $userId) {
+            DB::connection('side')->table('cash_sessions')->where('id', $sessionId)->delete();
+            DB::connection('side')->table('users')->where('id', $userId)->delete();
+            DB::purge('side');
+        });
+
+        $this->fund('1-1000', round(100000 - $pending, 2));
+        // Isi laci menurut buku tinggal 50.000: prive 80.000 harus ditolak walau snapshot belum melihat shift itu.
+        $this->move(['type' => 'DRAWING', 'account_code' => '1-1000', 'amount' => 80000])->assertStatus(422);
     }
 
     public function test_bank_cannot_go_negative_either(): void
