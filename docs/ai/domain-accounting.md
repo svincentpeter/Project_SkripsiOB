@@ -345,5 +345,5 @@ triggers every mounted report to reload. There is no local fallback: a failed re
 retry.
 
 ## Known issues (verified 2026-09-30)
-- `GR-`, `OB3-INV-`, and `OPN-` document numbers still use the month of `now()` rather than the document
-  date (only `JRN`/`BKK` were fixed to use the document date's month in Stage 4).
+- None open. (`GR-` numbers follow the receipt date's month since 2026-10-05; `OB3-INV-` and `OPN-` documents are
+  always dated today, so `now()` is their document date.)

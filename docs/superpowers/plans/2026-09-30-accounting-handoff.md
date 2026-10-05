@@ -206,7 +206,7 @@ Each with its cost if wrong. Revisit any you disagree with.
   error when its loads fail; reopen button has no busy state.
 - Print modal reuses id `a4-invoice-printable`; negative section subtotals not colored.
 - Dead legacy exports in `supabaseDataService.ts`.
-- POS void reversal is not linked via `reversal_of_id` (no "Dibalik oleh" on voided sales).
+- ~~POS void reversal is not linked via `reversal_of_id`~~ — fixed 2026-10-05.
 - ~~Older screens still use `toISOString()` for default dates~~ — fixed by sub-project 5 (guard test
   `localDateUsage.test.ts`).
 - ~~Dashboard expense total includes VOID and all months~~ — fixed by sub-project 5 (dashboard reads

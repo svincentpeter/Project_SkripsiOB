@@ -107,8 +107,8 @@ test files, 175 tests, and `tsc` is clean. The backend passes 352 tests (2428 as
   in `AGENTS.md`). Do not add new localStorage persistence for business data.
 - **`App.tsx` is the hub.** Almost every handler lives there, and many imports are dead (legacy local services). Edit
   the handler you need; do not trust an import as evidence that something is used.
-- **Silent failures.** `loadPosData` swallows API errors (`.catch(() => null)`), and `stockReconciliationApi` falls
-  back to local processing on server 422s. When debugging "data not showing", check the network tab and backend logs.
+- **Silent failures.** `loadPosData` swallows API errors (`.catch(() => null)`). `stockReconciliationApi` has no
+  offline fallback any more (2026-10-05): every Excel import call goes to the server. When debugging "data not showing", check the network tab and backend logs.
 - **Mock data.** Accounting data (expenses, journals, balances, reports) is server-owned and has no mock seed.
   `src/shared/data/mockData.ts` now only supplies non-accounting defaults: `DEFAULT_ROLE_PERMISSIONS` (fallback
   when the permissions request fails), `INITIAL_STORE_SETTINGS`, and category seeds for the legacy local category
