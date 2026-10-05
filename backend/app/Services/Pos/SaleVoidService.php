@@ -151,7 +151,8 @@ class SaleVoidService
             "Jurnal pembalik void nota {$sale->reference}: {$reason}",
             $items,
             now()->toDateString(),
-            3
+            3,
+            $original->id
         );
     }
 }

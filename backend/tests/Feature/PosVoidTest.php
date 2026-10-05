@@ -38,6 +38,10 @@ class PosVoidTest extends TestCase
         $this->assertEquals(2000000, $reversal['1-1000']['credit']);
         $this->assertEquals(2000000, $reversal['4-1000']['debit']);
         $this->assertEquals(1100000, $reversal['1-2000']['debit']);
+
+        // Pembalik tertaut ke jurnal penjualannya ("Dibalik oleh" di jurnal umum, pasangan di rekonsiliasi bank).
+        $original = \App\Models\JournalEntry::where('reference_type', 'POS_SALE')->where('reference_id', $res->json('data.reference'))->firstOrFail();
+        $this->assertTrue(\App\Models\JournalEntry::where('reference_type', 'POS_SALE_VOID')->where('reversal_of_id', $original->id)->exists());
     }
 
     public function test_void_does_not_release_the_qris_order(): void
