@@ -137,6 +137,23 @@ class PurchaseReturnTest extends TestCase
         $this->postJson("/api/v1/purchases/{$id}/returns", ['quantity' => 1, 'reason' => 'Salah input faktur'])->assertStatus(422);
     }
 
+    public function test_return_and_cancel_are_refused_when_system_stock_is_below_the_receipt_layers(): void
+    {
+        $product = $this->emptyProduct();
+        $this->alignInventoryLedger();
+        $id = $this->receive($product, ['supplier_id' => $this->supplier()->id, 'payment_method' => 'TEMPO'])->json('data.purchase.id');
+        $product->update(['product_quantity' => 2]); // drift lama: lapisan GR 4 unit, stok sistem 2
+
+        $this->postJson("/api/v1/purchases/{$id}/returns", ['quantity' => 3, 'reason' => 'Ban cacat produksi'])
+            ->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'stock opname'));
+        $this->postJson("/api/v1/purchases/{$id}/cancel", ['reason' => 'Salah input faktur'])->assertStatus(422);
+        $this->assertSame(4, (int) ProductBatch::where('purchase_id', $id)->sum('remaining_qty'));
+        $this->assertSame(2, $product->fresh()->product_quantity);
+
+        $this->postJson("/api/v1/purchases/{$id}/returns", ['quantity' => 2, 'reason' => 'Ban cacat produksi'])->assertCreated();
+        $this->assertSame(0, $product->fresh()->product_quantity);
+    }
+
     public function test_used_receipt_cannot_be_cancelled_and_kasir_is_forbidden(): void
     {
         $product = $this->emptyProduct();

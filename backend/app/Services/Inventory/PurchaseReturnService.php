@@ -213,7 +213,15 @@ class PurchaseReturnService
 
     private function takeOutOfStock(Product $product, int $qty, string $type, string $reference, string $description, User $user): void
     {
-        $product->update(['product_quantity' => max(0, (int) $product->product_quantity - $qty)]);
+        // Lapisan GR masih ada tetapi stok sistem lebih kecil: drift lama. Dipotong ke 0 akan menyembunyikannya dan
+        // membuat kartu stok tidak lagi menjumlah, jadi ditolak seperti penjualan melebihi lapisan FIFO.
+        if ((int) $product->product_quantity < $qty) {
+            throw new PosRuleException(sprintf(
+                'Stok sistem %s tinggal %d unit, kurang dari %d unit yang dikeluarkan. Lakukan stock opname dulu agar stok dan lapisan FIFO cocok.',
+                $product->product_name, (int) $product->product_quantity, $qty,
+            ));
+        }
+        $product->update(['product_quantity' => (int) $product->product_quantity - $qty]);
         StockMovement::create([
             'product_id' => $product->id,
             'movement_type' => 'KELUAR',
