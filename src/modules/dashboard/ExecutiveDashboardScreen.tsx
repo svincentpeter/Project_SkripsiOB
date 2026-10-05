@@ -214,11 +214,14 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
           </div>
 
           <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
-            <ExportMenu
-              reportId="dashboard_summary"
-              data={{ summary, products, fifoValue: totalInventoryValue }}
-              ctx={{ periodLabel: `Sampai ${formatDateIndo(today)}` }}
-            />
+            {/* Tanpa rekap server (memuat/galat) ringkasan bernilai nol: jangan sampai terekspor. */}
+            {recap.data && (
+              <ExportMenu
+                reportId="dashboard_summary"
+                data={{ summary, products, fifoValue: totalInventoryValue }}
+                ctx={{ periodLabel: `Sampai ${formatDateIndo(today)}` }}
+              />
+            )}
             <button
               type="button"
               onClick={onNavigateToInventory}

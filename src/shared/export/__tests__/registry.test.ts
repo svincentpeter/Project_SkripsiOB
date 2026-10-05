@@ -257,7 +257,7 @@ describe('registry dashboard_summary', () => {
 });
 
 describe('registry daily reports', () => {
-  const row = { ...emptyRecapRow('2026-10-01'), sales_count: 2, net_revenue: 500, cash_in: 450 };
+  const row = { ...emptyRecapRow('2026-10-01'), sales_count: 2, net_revenue: 500, cash_in: 450, payment_mix: { TUNAI: 300, TRANSFER: 200, QRIS: 0 } };
   const cashierReport: DailyCashReport = {
     date: '2026-10-01',
     scope: 'cashier',
@@ -281,6 +281,14 @@ describe('registry daily reports', () => {
     expect(doc.sections[0].totals?.cash_in).toBe(450);
   });
 
+  it('rekap harian: kolom bauran pembayaran seperti di layar', () => {
+    const doc = buildExportDoc('daily_recap', { from: '2026-10-01', to: '2026-10-01', rows: [row], totals: sumRecapRows([row]) }, ctx);
+    const labels = doc.sections[0].columns.map((c) => c.label);
+    expect(labels).toEqual(expect.arrayContaining(['Uang Tunai', 'Transfer Bank', 'QRIS']));
+    expect(doc.sections[0].rows[0]).toMatchObject({ TUNAI: 300, TRANSFER: 200, QRIS: 0 });
+    expect(doc.sections[0].totals).toMatchObject({ TUNAI: 300, TRANSFER: 200 });
+  });
+
   it('kas harian lingkup kasir tanpa bagian buku besar dan tanpa HPP', () => {
     const doc = buildExportDoc('daily_cash', cashierReport, ctx);
     expect(doc.sections.map((s) => s.title)).toEqual(['Penerimaan per Kasir', 'Daftar Nota', 'Sesi Kasir']);
@@ -300,7 +308,10 @@ describe('registry daily reports', () => {
       sales: [{ ...cashierReport.sales[0], total_hpp: 60 }],
     }, ctx);
     expect(doc.sections.find((s) => s.title === 'Mutasi Kas per Jenis Transaksi')?.rows[0].jenis).toBe('Setor kas laci ke bank');
-    expect(doc.sections.find((s) => s.title === 'Saldo Kas & Bank')?.rows[0].akhir).toBe(10);
+    expect(doc.sections.find((s) => s.title === 'Saldo Kas Laci & Bank')?.rows[0].akhir).toBe(10);
+    const ringkasan = doc.sections.find((s) => s.title === 'Ringkasan Hari Ini');
+    expect(ringkasan?.rows.map((r) => r.label)).toEqual(['Pendapatan Bersih', 'HPP', 'Laba Kotor', 'Beban Operasional', 'Laba Bersih']);
+    expect(ringkasan?.rows[0].value).toBe(500);
     expect(doc.sections.find((s) => s.title === 'Daftar Nota')?.rows[0].hpp).toBe(60);
   });
 });

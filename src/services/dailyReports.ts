@@ -35,6 +35,15 @@ export const sumRecapRows = (rows: DailyRecapRow[]): DailyRecapTotals => {
   return total;
 };
 
+/** KPI laba rugi satu hari (strip Kas Harian dan bagian ekspor "Ringkasan Hari Ini"). */
+export const dailySummaryKpis = (summary: DailyRecapTotals): [string, number][] => [
+  ['Pendapatan Bersih', summary.net_revenue],
+  ['HPP', summary.cost_of_sales],
+  ['Laba Kotor', summary.gross_profit],
+  ['Beban Operasional', summary.operating_expenses],
+  ['Laba Bersih', summary.net_income],
+];
+
 /** Satu permintaan rekap untuk dashboard: 7 hari terakhir sekaligus bulan berjalan (tanggal lokal WIB). */
 export const dashboardRange = (today: string = localDate()): { from: string; to: string } => {
   const weekStart = shiftDays(today, -6);

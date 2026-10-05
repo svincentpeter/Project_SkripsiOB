@@ -5,7 +5,7 @@ import { formatDateIndo, formatRupiah } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
 import { reportsApi } from '../../services/api';
 import { localDate } from '../../services/accountingPeriod';
-import { cashMovementLabel, PAYMENT_GROUP_LABELS, PAYMENT_GROUPS } from '../../services/dailyReports';
+import { cashMovementLabel, dailySummaryKpis, PAYMENT_GROUP_LABELS, PAYMENT_GROUPS } from '../../services/dailyReports';
 import { useServerData } from '../accounting/hooks/useServerData';
 
 interface DailyReportsScreenProps {
@@ -61,15 +61,7 @@ const DailyCashTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =>
   const r = report.data;
   // HPP per nota hanya dikirim server untuk lingkup toko; lingkup kasir menerima null.
   const showHpp = r?.scope === 'all';
-  const kpis: [string, number][] = r?.summary
-    ? [
-        ['Pendapatan Bersih', r.summary.net_revenue],
-        ['HPP', r.summary.cost_of_sales],
-        ['Laba Kotor', r.summary.gross_profit],
-        ['Beban Operasional', r.summary.operating_expenses],
-        ['Laba Bersih', r.summary.net_income],
-      ]
-    : [];
+  const kpis = r?.summary ? dailySummaryKpis(r.summary) : [];
 
   return (
     <div className="space-y-4">
@@ -84,7 +76,7 @@ const DailyCashTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =>
             className="h-9 px-3 rounded-lg border border-slate-300 text-xs"
           />
         </label>
-        {r && <ExportMenu reportId="daily_cash" data={r} ctx={{ periodLabel: formatDateIndo(date), startDate: date, endDate: date }} />}
+        {r && <ExportMenu reportId="daily_cash" data={r} ctx={{ periodLabel: formatDateIndo(r.date), startDate: r.date, endDate: r.date }} />}
       </div>
 
       <LoadState loading={report.loading} error={report.error} onRetry={report.reload} />
@@ -262,7 +254,7 @@ const DailyRecapTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =
             <input type="date" value={to} min={from} max={today} onChange={(e) => e.target.value && setTo(e.target.value)} className="h-9 px-3 rounded-lg border border-slate-300 text-xs" />
           </label>
         </div>
-        {r && <ExportMenu reportId="daily_recap" data={r} ctx={{ periodLabel: `${formatDateIndo(from)} - ${formatDateIndo(to)}`, startDate: from, endDate: to }} />}
+        {r && <ExportMenu reportId="daily_recap" data={r} ctx={{ periodLabel: `${formatDateIndo(r.from)} - ${formatDateIndo(r.to)}`, startDate: r.from, endDate: r.to }} />}
       </div>
 
       <LoadState loading={recap.loading} error={recap.error} onRetry={recap.reload} />

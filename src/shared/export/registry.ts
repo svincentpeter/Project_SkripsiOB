@@ -10,7 +10,7 @@ import type {
 } from '../types';
 import type { ExpenseRecord, PosTransaction, ProductItem, ServiceMasterItem, StockMutation, StockOpnameItem, SupplierItem } from '../types';
 import type { DailyCashReport, DailyCashSale, DailyRecap, DailyRecapTotals, DashboardSummary } from '../types';
-import { cashMovementLabel } from '../../services/dailyReports';
+import { cashMovementLabel, dailySummaryKpis, PAYMENT_GROUP_LABELS, PAYMENT_GROUPS } from '../../services/dailyReports';
 import type { BankReconciliationReport, CalkReport } from '../types/sakEmkm';
 import { EXPENSE_CATEGORY_CONFIG, formatDateIndo, formatRupiah } from '../utils/formatters';
 import { buildKop } from './kop';
@@ -349,7 +349,10 @@ const mapDashboard = (d: DashboardInput, ctx: ExportCtx): ExportDoc => {
 };
 
 const RECAP_KEYS = ['sales_count', 'net_revenue', 'returns', 'cost_of_sales', 'gross_profit', 'operating_expenses', 'net_income', 'cash_in', 'cash_out'] as const;
-const pickRecap = (r: DailyRecapTotals): Record<string, number> => Object.fromEntries(RECAP_KEYS.map((k) => [k, r[k]]));
+const pickRecap = (r: DailyRecapTotals): Record<string, number> => ({
+  ...Object.fromEntries(RECAP_KEYS.map((k) => [k, r[k]])),
+  ...Object.fromEntries(PAYMENT_GROUPS.map((g) => [g, r.payment_mix[g]])),
+});
 
 const mapDailyRecap = (r: DailyRecap, ctx: ExportCtx): ExportDoc =>
   makeDoc('daily_recap', 'Rekap Harian', 'landscape', ctx, [{
@@ -364,6 +367,7 @@ const mapDailyRecap = (r: DailyRecap, ctx: ExportCtx): ExportDoc =>
       { key: 'net_income', label: 'Laba Bersih', type: 'currency' },
       { key: 'cash_in', label: 'Kas Masuk', type: 'currency' },
       { key: 'cash_out', label: 'Kas Keluar', type: 'currency' },
+      ...PAYMENT_GROUPS.map((g) => ({ key: g, label: PAYMENT_GROUP_LABELS[g], type: 'currency' as const })),
     ],
     rows: r.rows.map((row) => ({ date: row.date, ...pickRecap(row) })),
     totals: pickRecap(r.totals),
@@ -377,6 +381,7 @@ const mapDailyCash = (r: DailyCashReport, ctx: ExportCtx): ExportDoc => {
   // HPP nota hanya dikirim untuk lingkup toko; lingkup kasir menerima null, jadi kolomnya tidak dicetak.
   const showHpp = r.scope === 'all';
   const sections: ExportSection[] = [
+    ...(r.summary ? [lvSection('Ringkasan Hari Ini', dailySummaryKpis(r.summary).map(([label, value]) => ({ label, value })))] : []),
     {
       title: 'Penerimaan per Kasir',
       columns: [
@@ -415,7 +420,7 @@ const mapDailyCash = (r: DailyCashReport, ctx: ExportCtx): ExportDoc => {
   ];
   if (r.cash_accounts) {
     sections.push({
-      title: 'Saldo Kas & Bank',
+      title: 'Saldo Kas Laci & Bank',
       columns: [
         { key: 'akun', label: 'Akun', type: 'text', width: 30 },
         { key: 'awal', label: 'Saldo Awal', type: 'currency' },
