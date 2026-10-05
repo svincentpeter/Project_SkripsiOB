@@ -312,7 +312,8 @@ COA rather than hard-coded account lists, in `app/Services/Accounting/`:
 - **`FinancialReportService`** builds the trial balance, general ledger (with the opening balance before
   `$from`), income statement, balance sheet, and statement of changes in equity. Sections are classified from
   `account_type` and `normal_balance`/code prefix (current vs fixed assets, cost of sales `5-…` vs operating
-  expenses `6-…`, revenue vs contra-revenue), so a new account shows up without a code change. The income
+  expenses `6-…`, revenue vs contra-revenue, other income `4-3…` such as bank interest, shown after operating
+  expenses and outside gross profit), so a new account shows up without a code change. The income
   statement excludes `PERIOD_CLOSING`/`PERIOD_REOPEN` entries so closing never hides a month's result; the
   balance sheet as of a date includes everything, showing unclosed earnings as an equity line so it always
   balances.

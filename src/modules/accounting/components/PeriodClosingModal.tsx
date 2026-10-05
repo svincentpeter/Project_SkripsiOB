@@ -95,6 +95,12 @@ export const PeriodClosingModal: React.FC<PeriodClosingModalProps> = ({ isOpen, 
                 <dd className="text-right font-mono">({formatRupiah(statement.cost_of_sales.total)})</dd>
                 <dt>Beban operasional</dt>
                 <dd className="text-right font-mono">({formatRupiah(statement.operating_expenses.total)})</dd>
+                {statement.other_income.total !== 0 && (
+                  <>
+                    <dt>Pendapatan lain-lain</dt>
+                    <dd className="text-right font-mono">{formatRupiah(statement.other_income.total)}</dd>
+                  </>
+                )}
                 <dt className="font-black">Laba (rugi) bersih</dt>
                 <dd className="text-right font-mono font-black">{formatRupiah(statement.net_income)}</dd>
               </dl>

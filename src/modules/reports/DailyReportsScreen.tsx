@@ -236,6 +236,7 @@ const DailyRecapTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =
     ['HPP', 'cost_of_sales'],
     ['Laba Kotor', 'gross_profit'],
     ['Beban', 'operating_expenses'],
+    ['Pend. Lain', 'other_income'],
     ['Laba Bersih', 'net_income'],
     ['Kas Masuk', 'cash_in'],
     ['Kas Keluar', 'cash_out'],

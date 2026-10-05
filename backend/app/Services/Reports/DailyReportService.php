@@ -303,6 +303,9 @@ final class DailyReportService
                     case 'operating_expenses':
                         $row['operating_expenses'] += $net;
                         break;
+                    case 'other_income':
+                        $row['other_income'] += $net;
+                        break;
                 }
             }
 
@@ -357,6 +360,7 @@ final class DailyReportService
             'cost_of_sales' => 0.0,
             'gross_profit' => 0.0,
             'operating_expenses' => 0.0,
+            'other_income' => 0.0,
             'net_income' => 0.0,
             'payment_mix' => ['TUNAI' => 0.0, 'TRANSFER' => 0.0, 'QRIS' => 0.0],
             'cash_in' => 0.0,
@@ -370,7 +374,7 @@ final class DailyReportService
     {
         $row['net_revenue'] = $row['revenue'] - $row['contra_revenue'];
         $row['gross_profit'] = $row['net_revenue'] - $row['cost_of_sales'];
-        $row['net_income'] = $row['gross_profit'] - $row['operating_expenses'];
+        $row['net_income'] = $row['gross_profit'] - $row['operating_expenses'] + $row['other_income'];
         $row['net_cash'] = $row['cash_in'] - $row['cash_out'];
 
         return self::rounded($row);

@@ -100,6 +100,7 @@ describe('registry financial statements', () => {
       cost_of_sales: section([{ code: '5-1000', name: 'HPP Ban Baru', amount: 600000 }]),
       gross_profit: 350000,
       operating_expenses: section([{ code: '6-1000', name: 'Beban Gaji', amount: 100000 }]),
+      other_income: section([]),
       net_income: 250000,
     },
     balance_sheet: {

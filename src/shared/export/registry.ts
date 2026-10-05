@@ -348,7 +348,7 @@ const mapDashboard = (d: DashboardInput, ctx: ExportCtx): ExportDoc => {
   ]);
 };
 
-const RECAP_KEYS = ['sales_count', 'net_revenue', 'returns', 'cost_of_sales', 'gross_profit', 'operating_expenses', 'net_income', 'cash_in', 'cash_out'] as const;
+const RECAP_KEYS = ['sales_count', 'net_revenue', 'returns', 'cost_of_sales', 'gross_profit', 'operating_expenses', 'other_income', 'net_income', 'cash_in', 'cash_out'] as const;
 const pickRecap = (r: DailyRecapTotals): Record<string, number> => ({
   ...Object.fromEntries(RECAP_KEYS.map((k) => [k, r[k]])),
   ...Object.fromEntries(PAYMENT_GROUPS.map((g) => [g, r.payment_mix[g]])),
@@ -364,6 +364,7 @@ const mapDailyRecap = (r: DailyRecap, ctx: ExportCtx): ExportDoc =>
       { key: 'cost_of_sales', label: 'HPP', type: 'currency' },
       { key: 'gross_profit', label: 'Laba Kotor', type: 'currency' },
       { key: 'operating_expenses', label: 'Beban', type: 'currency' },
+      { key: 'other_income', label: 'Pendapatan Lain', type: 'currency' },
       { key: 'net_income', label: 'Laba Bersih', type: 'currency' },
       { key: 'cash_in', label: 'Kas Masuk', type: 'currency' },
       { key: 'cash_out', label: 'Kas Keluar', type: 'currency' },
@@ -499,6 +500,7 @@ const incomeSection = (fs: FinancialStatements): ExportSection => {
     ...sectionRows('Beban Pokok: ', is.cost_of_sales, -1),
     { label: 'LABA KOTOR', value: is.gross_profit },
     ...sectionRows('Beban Operasional: ', is.operating_expenses, -1),
+    ...sectionRows('Pendapatan Lain-lain: ', is.other_income),
     { label: 'LABA (RUGI) BERSIH', value: is.net_income },
   ]);
 };
