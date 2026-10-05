@@ -122,10 +122,10 @@ Details: [docs/ai/architecture.md](docs/ai/architecture.md).
 1. Code, migrations, `backend/routes/api.php`, tests.
 2. `docs/ai/*` (this set, written 2026-09-27 from the code).
 3. The latest specs in `docs/superpowers/specs/` (2026-09-23 and later match the code closely).
-4. **Stale — verify before use:** `README.md` (COA list, Supabase as source of truth, setup steps),
-   `docs/superpowers/specs/API_DOCUMENTATION.md` (no auth, ~40 routes missing, wrong checkout payload),
-   `docs/SPESIFIKASI_DAN_JUSTIFIKASI_SISTEM.md` (says Laravel 12), `database/schema_project_skripsi_ob.sql`,
-   `supabase_schema.sql`, `SUPABASE_VERCEL_SETUP.md`, root `.env.example` (Supabase/Gemini keys unused).
+   `README.md`, `docs/superpowers/specs/API_DOCUMENTATION.md` (110 routes) and `docs/SPESIFIKASI_DAN_JUSTIFIKASI_SISTEM.md`
+   were rewritten from the code on 2026-10-05; keep them in step when routes or modules change.
+4. **Stale — verify before use:** `database/schema_project_skripsi_ob.sql`, `supabase_schema.sql`,
+   `SUPABASE_VERCEL_SETUP.md`, root `.env.example` (Supabase/Gemini keys unused).
 
 ## Topic docs
 
