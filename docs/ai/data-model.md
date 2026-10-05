@@ -86,7 +86,7 @@ Providers and fees are server-only since 2026-09-30: the POS reads `GET /pos/pay
 |---|---|---|
 | `fixed_assets` | `code` (`AT-YYYYMM-####`), `name`, `category`, `acquisition_date`, `acquisition_cost`, `residual_value`, `useful_life_months`, `depreciation_start` (YYYY-MM), `opening_accumulated_depreciation`, `funding` (TUNAI/TRANSFER/OPENING), `journal_entry_number`, `status` (ACTIVE/VOID), `void_reason`, `voided_by`, `voided_at`, `created_by` | sub-ledger of 1-3000/1-3999 (migration `2026_10_04_000002`) |
 | `fixed_asset_depreciations` | `fixed_asset_id`, `period`, `amount`, `journal_entry_id` | one row per asset per depreciation run; unique (`fixed_asset_id`, `period`) since `2026_10_04_000004` |
-| `bank_statement_lines` | `statement_date`, `description`, `amount` (+ in, − out), `source` (MANUAL/CSV), `journal_item_id` (unique, nullable) | matched when `journal_item_id` is set (migration `2026_10_04_000003`) |
+| `bank_statement_lines` | `statement_date`, `description`, `amount` (+ in, − out), `source` (MANUAL/CSV), `is_split`, `parent_id`, `journal_item_id` (unique, nullable) | matched when `journal_item_id` is set (migration `2026_10_04_000003`); a group match flags the parent `is_split` and adds matched child rows (`2026_10_05_000004`) |
 | `bank_reconciliations` | `period` (unique), `statement_ending_balance`, `updated_by` | status is computed by the report |
 
 ## Not in the database

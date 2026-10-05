@@ -101,14 +101,14 @@ The frontend calls these through `sakEmkmApi.ts` (see [domain-accounting.md](dom
 | Method | Path | Permission | Notes |
 |---|---|---|---|
 | GET | `/accounting/fixed-assets` | `fixed_assets` | register + summary vs ledger 1-3000/1-3999 |
-| POST | `/accounting/fixed-assets` | `fixed_assets` | `{name, category PERALATAN_BENGKEL\|INVENTARIS_TOKO\|KENDARAAN, acquisition_date≤today, acquisition_cost, residual_value?, useful_life_months 1..600, funding TUNAI\|TRANSFER\|OPENING, depreciation_start (OPENING only), opening_accumulated_depreciation (OPENING only), notes?}` → 201 `{asset, journals}`; residual + opening accumulated ≤ cost |
-| POST | `/accounting/fixed-assets/{id}/void` | `fixed_assets` | `{reason}` → `{asset, journals}`; also after depreciation: 422 (nothing posted) if any month holding its depreciation is locked, else one `FIXED_ASSET_VOID` per depreciation month (Dr 1-3999 / Cr 6-1011, month end, ascending) then the acquisition mirror dated today (none for `OPENING`); 422 if already void |
+| POST | `/accounting/fixed-assets` | `fixed_assets` | `{name, category PERALATAN_BENGKEL\|INVENTARIS_TOKO\|KENDARAAN, acquisition_date≤today, acquisition_cost, residual_value?, useful_life_months 1..600, funding TUNAI\|TRANSFER\|OPENING\|MODAL, depreciation_start (OPENING/MODAL only), opening_accumulated_depreciation (OPENING/MODAL only), notes?}` → 201 `{asset, journals}`; residual + opening accumulated ≤ cost |
+| POST | `/accounting/fixed-assets/{id}/void` | `fixed_assets` | `{reason, correct_ledger?}` → `{asset, journals}`; `correct_ledger` (OPENING only) also posts Dr 3-1000 / Dr 1-3999 / Cr 1-3000 today; also after depreciation: 422 (nothing posted) if any month holding its depreciation is locked, else one `FIXED_ASSET_VOID` per depreciation month (Dr 1-3999 / Cr 6-1011, month end, ascending) then the acquisition mirror dated today (none for `OPENING`); 422 if already void |
 | GET / POST | `/accounting/fixed-assets/depreciation` | `fixed_assets` | `period=YYYY-MM` (≤ current month); GET previews, POST posts (201) or reports nothing pending (200) |
 | POST | `/accounting/adjusting-entries` | `accounting_hub` | `{period, kind ACCRUAL\|PREPAID, account_code 6-xxxx (not 6-1011), amount, description, auto_reverse (ACCRUAL only)}` → 201 `{journals}` |
 | GET | `/accounting/bank-reconciliation` | `bank_reconciliation` | `period=YYYY-MM` report |
 | PUT | `/accounting/bank-reconciliation/{period}` | `bank_reconciliation` | `{statement_ending_balance}` (may be negative) → the report |
 | POST | `/accounting/bank-reconciliation/lines`, `/import` (multipart `file`, CSV `tanggal,keterangan,jumlah`), `/auto-match` | `bank_reconciliation` | `lines`: `{statement_date≤today, description, amount≠0}`; `auto-match`: `{period}` |
-| DELETE / POST | `/accounting/bank-reconciliation/lines/{id}`, `/lines/{id}/match` (`journal_item_id`), `/lines/{id}/unmatch`, `/lines/{id}/post-adjustment` | `bank_reconciliation` | `post-adjustment` → 201 `{journals}` |
+| DELETE / POST | `/accounting/bank-reconciliation/lines/{id}`, `/lines/{id}/match` (`journal_item_id`, or `journal_item_ids[]` to split one line across several journal lines), `/lines/{id}/unmatch`, `/lines/{id}/post-adjustment` | `bank_reconciliation` | `post-adjustment` → 201 `{journals}` |
 | GET | `/reports/calk` | `financial_reports`, `accounting_hub` | `period=YYYY-MM` (≤ current month) |
 
 ## Cash shifts and cash movements ([domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts))
