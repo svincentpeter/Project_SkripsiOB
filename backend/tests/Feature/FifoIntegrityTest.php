@@ -64,6 +64,26 @@ class FifoIntegrityTest extends TestCase
         $this->assertEquals(0.0, InventoryValueJournal::summary()['difference']);
     }
 
+    public function test_layer_only_opnames_in_one_month_get_distinct_references(): void
+    {
+        $product = $this->makeProduct(1000000, [[3, 500000, '2026-08-01']]);
+        $product->update(['product_quantity' => 5]);
+        $this->alignInventoryLedger();
+        $repair = fn () => $this->postJson('/api/v1/inventory/stock-opname', ['items' => [['product_id' => $product->id, 'physical_qty' => 5]]])
+            ->assertOk()
+            ->json('data.reference');
+
+        $first = $repair();
+        // Drift lama muncul lagi: 2 unit lapisan hilang, kuantitas sistem tetap 5.
+        $product->batches()->where('batch_code', "{$first}-{$product->id}")->update(['remaining_qty' => 0]);
+        $this->alignInventoryLedger();
+        $second = $repair();
+
+        $this->assertNotSame($first, $second);
+        $this->assertTrue(ProductBatch::where('batch_code', "{$second}-{$product->id}")->exists());
+        $this->assertEquals(0.0, InventoryValueJournal::summary()['difference']);
+    }
+
     public function test_void_restores_units_without_an_allocation_at_their_booked_cost(): void
     {
         $product = $this->makeProduct(1000000, [[1, 500000, '2026-07-01'], [5, 600000, '2026-08-01']]);
