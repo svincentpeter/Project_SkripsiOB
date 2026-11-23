@@ -401,18 +401,18 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar bg-[#F8FAFC] text-slate-900 space-y-5">
-      {/* Top Header & Navigation Container ("Terbungkus Rapi") */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+    <div className="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar bg-[#F8FAFC] text-slate-900 space-y-4">
+      {/* Top Header & Navigation Container ("Command Deck Sub-Bar") */}
+      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 shadow-2xs space-y-3.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
+            <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 uppercase tracking-wider mb-1">
               <Package className="w-4 h-4 text-blue-700" />
               <span>Sistem Informasi Inventori & Master • SAK EMKM Standar</span>
             </div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <span>Produk & Master Layanan Jasa</span>
-              <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="text-xs font-semibold font-mono px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
                 Cabang 3 Magelang
               </span>
             </h1>
@@ -423,8 +423,8 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
           <div className="flex items-center gap-2 shrink-0">
             <div className="text-right hidden sm:block">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Valuasi Persediaan (HPP)</span>
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 mt-0.5 font-mono">
+              <span className="text-[10px] uppercase font-semibold text-slate-500 block">Valuasi Persediaan (HPP)</span>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md inline-flex items-center gap-1 mt-0.5 font-mono tabular-nums">
                 {ledgerValuation ? formatRupiah(ledgerValuation.fifo_value) : '—'}
               </span>
             </div>
@@ -432,19 +432,19 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         </div>
 
         {/* Integrated Sub-Navigation Tabs Bar */}
-        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200/80 overflow-x-auto scrollbar-none text-xs font-bold">
+        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-slate-200 overflow-x-auto scrollbar-none text-xs font-medium">
           <button
             type="button"
             onClick={() => setActiveSubView('katalog')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubView === 'katalog'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-white text-blue-700 font-bold shadow-2xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
-            <Package className="w-4 h-4" />
+            <Package className="w-3.5 h-3.5" />
             <span>Katalog Produk</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-50 text-blue-700 border border-blue-200">
+            <span className="px-1.5 py-0.2 rounded text-[10px] bg-blue-50 text-blue-700 border border-blue-200 font-mono tabular-nums">
               {products.length} SKU
             </span>
           </button>
@@ -452,15 +452,15 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveSubView('buku_fifo')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubView === 'buku_fifo'
-                ? 'bg-white text-indigo-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-white text-emerald-700 font-bold shadow-2xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
             <span>Buku Stok FIFO (Excel)</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="px-1.5 py-0.2 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
               Live Grid
             </span>
           </button>
@@ -468,15 +468,15 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveSubView('kategori')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubView === 'kategori'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-white text-blue-700 font-bold shadow-2xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
-            <Tag className="w-4 h-4" />
+            <Tag className="w-3.5 h-3.5" />
             <span>Kategori Produk</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-700">
+            <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-200 text-slate-700 font-mono tabular-nums">
               {categories.length}
             </span>
           </button>
@@ -484,15 +484,15 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveSubView('jasa')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubView === 'jasa'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-white text-blue-700 font-bold shadow-2xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
-            <Wrench className="w-4 h-4" />
+            <Wrench className="w-3.5 h-3.5" />
             <span>Master Jasa & Servis</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-700">
+            <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-200 text-slate-700 font-mono tabular-nums">
               {currentServices.length}
             </span>
           </button>
@@ -500,31 +500,31 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveSubView('stok_mutasi')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubView === 'stok_mutasi'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-white text-blue-700 font-bold shadow-2xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
-            <Boxes className="w-4 h-4" />
+            <Boxes className="w-3.5 h-3.5" />
             <span>Penerimaan & Stok Opname</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800">
-              {mutations.length} Mutasi
+            <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-100 text-amber-800 border border-amber-200 font-mono tabular-nums">
+              {mutations.length}
             </span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveSubView('supplier')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubView === 'supplier'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-white text-blue-700 font-bold shadow-2xs border border-slate-200/80'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
             }`}
           >
-            <Truck className="w-4 h-4" />
+            <Truck className="w-3.5 h-3.5" />
             <span>Distributor & Supplier</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-700">
+            <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-200 text-slate-700 font-mono tabular-nums">
               {suppliers.length}
             </span>
           </button>
@@ -550,7 +550,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         <div className="w-full space-y-4 animate-in fade-in duration-200">
           {ledgerValuation && (
             <div
-              className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5 rounded-xl border text-xs ${
+              className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5 rounded-lg border text-xs ${
                 Math.abs(ledgerValuation.difference) < 1
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                   : 'bg-amber-50 border-amber-300 text-amber-900'
@@ -569,7 +569,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 <button
                   type="button"
                   onClick={onPostOpeningBalance}
-                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-bold transition-colors cursor-pointer"
                 >
                   Bukukan Saldo Awal Persediaan
                 </button>
@@ -579,46 +579,46 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
           {/* KPI Cards Ringkas */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-lg shadow-2xs">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
                 Total Unit Fisik
               </span>
-              <span className="text-base sm:text-2xl font-black text-slate-900 truncate block">
-                {valuation.totalPcs} <span className="text-xs text-slate-500 font-semibold">Unit</span>
+              <span className="text-base sm:text-2xl font-bold font-mono tabular-nums text-slate-900 truncate block">
+                {valuation.totalPcs} <span className="text-xs text-slate-500 font-sans font-normal">Unit</span>
               </span>
             </div>
-            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-lg shadow-2xs">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
                 Total Nilai HPP
               </span>
-              <span className="text-base sm:text-2xl font-black text-emerald-700 truncate block">
+              <span className="text-base sm:text-2xl font-bold font-mono tabular-nums text-emerald-700 truncate block">
                 {ledgerValuation ? formatRupiah(ledgerValuation.fifo_value) : '—'}
               </span>
             </div>
-            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-lg shadow-2xs">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
                 Stok Kritis
               </span>
-              <span className="text-base sm:text-2xl font-black text-amber-700 truncate block">
-                {valuation.lowStockCount} <span className="text-xs text-slate-500 font-semibold">SKU</span>
+              <span className="text-base sm:text-2xl font-bold font-mono tabular-nums text-amber-700 truncate block">
+                {valuation.lowStockCount} <span className="text-xs text-slate-500 font-sans font-normal">SKU</span>
               </span>
             </div>
-            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-lg shadow-2xs">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
                 Stok Habis
               </span>
-              <span className="text-base sm:text-2xl font-black text-rose-700 truncate block">
-                {valuation.outOfStockCount} <span className="text-xs text-slate-500 font-semibold">SKU</span>
+              <span className="text-base sm:text-2xl font-bold font-mono tabular-nums text-rose-700 truncate block">
+                {valuation.outOfStockCount} <span className="text-xs text-slate-500 font-sans font-normal">SKU</span>
               </span>
             </div>
           </div>
 
           {/* Main Unified Table Card ("Terbungkus Rapi") */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+          <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 shadow-2xs space-y-4">
             {/* Table Top Controls & Action CTA */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
-                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <Package className="w-4 h-4 text-blue-700" />
                   <span>Daftar SKU & Katalog Master Produk</span>
                 </h3>
@@ -637,7 +637,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowReconciliationModal(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg shadow-2xs transition-colors cursor-pointer"
                   title="Impor dan rekonsiliasi stok dari berkas Excel multi-sheet"
                 >
                   <FileSpreadsheet className="w-4 h-4" />
@@ -648,7 +648,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 <button
                   type="button"
                   onClick={handleOpenCreateProduct}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-2xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Tambah Master Produk</span>
@@ -667,7 +667,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   placeholder="Cari nama ban, kode produk, motif, atau barcode..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white transition-colors"
                 />
               </div>
 
@@ -676,7 +676,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 <select
                   value={selectedCategoryFilter}
                   onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                  className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  className="w-full py-2 px-3 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-700 font-medium focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="ALL">Semua Kategori Produk</option>
                   {categories.map((c) => (
@@ -692,7 +692,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 <select
                   value={selectedBrand}
                   onChange={(e) => setSelectedBrand(e.target.value)}
-                  className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  className="w-full py-2 px-3 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-700 font-medium focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="ALL">Semua Merek ({uniqueBrands.length})</option>
                   {uniqueBrands.map((b) => (
@@ -708,7 +708,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 <select
                   value={stockFilter}
                   onChange={(e) => setStockFilter(e.target.value as any)}
-                  className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  className="w-full py-2 px-3 bg-white border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-700 font-medium focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="ALL">Status Stok: Semua</option>
                   <option value="LOW">Stok Menipis (&lt; Batas Alert)</option>
@@ -720,7 +720,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
             </div>
 
             {/* Tabel Katalog Produk */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+            <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs sm:text-sm">
                 <thead>
@@ -780,7 +780,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
                       return (
                         <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{itemIndex}</td>
+                          <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs tabular-nums">{itemIndex}</td>
                           <td className="py-3 px-4">
                             <div className="font-bold text-slate-900">{p.product_name || p.name}</div>
                             <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
@@ -799,7 +799,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                           </td>
                           <td className="py-3 px-4 text-center">
                             <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold font-mono tabular-nums ${
                                 isOut
                                   ? 'bg-rose-100 text-rose-800 border border-rose-200'
                                   : isLow
@@ -810,10 +810,10 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                               {stock} Unit
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right font-mono text-slate-600">
+                          <td className="py-3 px-4 text-right font-mono tabular-nums text-slate-600">
                             {formatRupiah(p.product_cost || p.cost_price || 0)}
                           </td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-slate-900">
+                          <td className="py-3 px-4 text-right font-mono font-bold tabular-nums text-slate-900">
                             {formatRupiah(p.product_price || p.price || 0)}
                           </td>
                           <td className="py-3 px-4 text-center">
@@ -1005,11 +1005,11 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
       {/* SUB-VIEW 5: DISTRIBUTOR & SUPPLIER */}
       {activeSubView === 'supplier' && (
         <div className="w-full space-y-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+          <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 shadow-2xs space-y-4">
             {/* Table Top Controls & Action CTA */}
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
-                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                   <Truck className="w-4 h-4 text-blue-700" />
                   <span>Distributor & Rekanan Pemasok Resmi</span>
                 </h3>
@@ -1028,7 +1028,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                     setSupplierToEdit(null);
                     setShowSupplierModal(true);
                   }}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-2xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Tambah Supplier</span>
@@ -1038,7 +1038,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
             </div>
 
             {/* Supplier Table */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+            <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs sm:text-sm">
                   <thead>

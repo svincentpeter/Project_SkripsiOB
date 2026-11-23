@@ -114,7 +114,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   initialTab = 'journals',
   canApproveCash = false,
   canMoveCash = false,
-  onLedgerChanged = () => {},
+  onLedgerChanged = (_journals?: ApiJournal[]) => {},
 }) => {
   const access: TabAccess = {
     hub: canUseHub,

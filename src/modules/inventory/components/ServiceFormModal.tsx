@@ -109,12 +109,12 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto font-['Plus_Jakarta_Sans',sans-serif]">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+      <div className="bg-white border border-slate-200 rounded-lg w-full max-w-xl shadow-md overflow-hidden my-8 animate-in fade-in duration-150">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50">
           <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-xl ${mode === 'CREATE' ? 'bg-cyan-50 text-cyan-700 border border-cyan-200' : 'bg-amber-50 text-amber-700 border border-amber-200'} shadow-2xs`}>
-              {mode === 'CREATE' ? <Plus className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
+            <div className={`p-2 rounded-md ${mode === 'CREATE' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'} shadow-2xs`}>
+              {mode === 'CREATE' ? <Plus className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
@@ -125,12 +125,12 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 bg-white">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 bg-white">
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 text-sm">
               <AlertTriangle className="w-5 h-5 shrink-0" />
@@ -145,7 +145,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
             <select
               value={category}
               onChange={(e) => handleCategoryChange(e.target.value as ServiceCategory)}
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm focus:outline-none focus:border-cyan-500 shadow-2xs"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 text-sm focus:outline-hidden focus:ring-1 focus:ring-blue-600 shadow-2xs"
             >
               {categoryOptions.map((cat) => (
                 <option key={cat.value} value={cat.value}>
@@ -164,7 +164,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
               value={serviceName}
               onChange={(e) => setServiceName(e.target.value)}
               placeholder="e.g. Spooring 3D Digital Mobil SUV"
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-bold text-sm focus:outline-none focus:border-cyan-500 shadow-2xs"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-slate-900 font-bold text-sm focus:outline-hidden focus:ring-1 focus:ring-blue-600 shadow-2xs"
             />
           </div>
 
@@ -177,7 +177,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
                 type="text"
                 value={serviceCode}
                 onChange={(e) => setServiceCode(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-mono text-xs focus:outline-none focus:border-cyan-500 shadow-2xs"
+                className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-slate-900 font-mono text-xs focus:outline-hidden focus:ring-1 focus:ring-blue-600 shadow-2xs"
               />
             </div>
             <div>
@@ -188,7 +188,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
                 type="text"
                 value={formatRupiah(standardPrice)}
                 onChange={(e) => setStandardPrice(parseRupiahInput(e.target.value))}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-emerald-600 font-extrabold text-sm shadow-2xs"
+                className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-emerald-700 font-bold text-sm font-mono tabular-nums shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-blue-600"
               />
             </div>
           </div>
@@ -202,7 +202,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
               value={formatRupiah(costPrice)}
               onChange={(e) => setCostPrice(parseRupiahInput(e.target.value))}
               placeholder="0 jika murni tenaga bengkel"
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm shadow-2xs"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 text-sm shadow-2xs font-mono tabular-nums focus:outline-hidden focus:ring-1 focus:ring-blue-600"
             />
             <p className="text-[11px] text-slate-500 mt-1">
               Contoh: Timah balancing Rp 5.000 / Lem tambal Rp 10.000. Isi 0 jika tanpa bahan.
@@ -218,7 +218,7 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               placeholder="Deskripsi pengerjaan layanan..."
-              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-slate-800 text-sm shadow-2xs"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 text-sm shadow-2xs focus:outline-hidden focus:ring-1 focus:ring-blue-600"
             />
           </div>
 
@@ -226,15 +226,15 @@ export const ServiceFormModal: React.FC<ServiceFormModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold shadow-2xs"
+              className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-bold shadow-md shadow-cyan-500/20 flex items-center gap-2"
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Wrench className="w-4 h-4" />
+              <Wrench className="w-3.5 h-3.5" />
               {mode === 'CREATE' ? 'Simpan Layanan' : 'Perbarui Layanan'}
             </button>
           </div>

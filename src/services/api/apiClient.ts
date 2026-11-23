@@ -22,7 +22,7 @@ const TOKEN_KEY = 'ob3_auth_token';
 
 const safeStorage = (): Storage | null => {
   try {
-    return typeof localStorage !== 'undefined' ? localStorage : null;
+    return typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function' ? localStorage : null;
   } catch {
     return null;
   }

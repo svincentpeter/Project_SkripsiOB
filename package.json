@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "unslop:audit": "npx unslop-mcp audit . --no-fail",
+    "slop:lint": "node scripts/slop-lint.mjs src/",
     "test": "vitest run"
   },
   "dependencies": {
