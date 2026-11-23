@@ -71,28 +71,28 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white border border-slate-200 rounded-lg w-full max-w-4xl max-h-[92vh] overflow-hidden shadow-md flex flex-col text-slate-900">
+      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col text-slate-900">
         {/* Modal Header */}
         <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shadow-2xs">
-              <History className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+              <History className="w-5 h-5" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-bold text-base text-slate-900 tracking-tight">
+                <h3 className="font-black text-lg text-slate-900 tracking-tight">
                   Kartu Stok: {product.name || product.product_name}
                 </h3>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 border border-blue-200 text-blue-700 font-mono">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 font-mono">
                   {product.product_code || 'SKU'}
                 </span>
                 {product.is_active === false && (
-                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 text-slate-600">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600">
                     Nonaktif
                   </span>
                 )}
@@ -100,7 +100,7 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
               <p className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span>Ukuran: <strong className="text-slate-800 font-mono">{product.product_size}</strong></span>
                 <span>Barcode: <strong className="text-slate-800 font-mono">{product.barcode}</strong></span>
-                <span>Saldo Gudang: <strong className="text-emerald-700 font-mono tabular-nums">{product.stock} pcs</strong></span>
+                <span>Saldo Gudang: <strong className="text-emerald-700 font-mono">{product.stock} pcs</strong></span>
               </p>
             </div>
           </div>
@@ -134,26 +134,26 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 custom-scrollbar space-y-4">
           {/* Quick Summary Pill Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-emerald-50 border border-emerald-200/80 p-3 rounded-lg flex items-center justify-between">
+            <div className="bg-emerald-50 border border-emerald-200/80 p-3 rounded-xl flex items-center justify-between">
               <div>
                 <span className="text-[11px] text-emerald-700 font-semibold block">Total Mutasi Masuk</span>
-                <span className="text-base sm:text-lg font-bold text-emerald-900 font-mono tabular-nums">+{totalMasuk} pcs</span>
+                <span className="text-lg font-black text-emerald-900 font-mono">+{totalMasuk} pcs</span>
               </div>
               <ArrowDownLeft className="w-5 h-5 text-emerald-600" />
             </div>
 
-            <div className="bg-rose-50 border border-rose-200/80 p-3 rounded-lg flex items-center justify-between">
+            <div className="bg-rose-50 border border-rose-200/80 p-3 rounded-xl flex items-center justify-between">
               <div>
                 <span className="text-[11px] text-rose-700 font-semibold block">Total Mutasi Terjual</span>
-                <span className="text-base sm:text-lg font-bold text-rose-900 font-mono tabular-nums">-{totalKeluar} pcs</span>
+                <span className="text-lg font-black text-rose-900 font-mono">-{totalKeluar} pcs</span>
               </div>
               <ArrowUpRight className="w-5 h-5 text-rose-600" />
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg flex items-center justify-between">
+            <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center justify-between">
               <div>
                 <span className="text-[11px] text-slate-600 font-semibold block">Saldo Fisik Berjalan</span>
-                <span className="text-base sm:text-lg font-bold text-slate-900 font-mono tabular-nums">{product.stock} pcs</span>
+                <span className="text-lg font-black text-slate-900 font-mono">{product.stock} pcs</span>
               </div>
               <Package className="w-5 h-5 text-slate-500" />
             </div>
@@ -163,14 +163,14 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
           <ProductFifoBatchList batches={product.batches} productName={product.name} />
 
           {/* Filter & Search Bar for Mutations */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
               <span className="text-slate-400 text-[11px] mr-1">Tipe Mutasi:</span>
               <button
                 onClick={() => setTypeFilter('ALL')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
                   typeFilter === 'ALL'
-                    ? 'bg-slate-900 text-white font-bold'
+                    ? 'bg-slate-900 text-white'
                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -178,9 +178,9 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
               </button>
               <button
                 onClick={() => setTypeFilter('MASUK')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
                   typeFilter === 'MASUK'
-                    ? 'bg-emerald-600 text-white font-bold'
+                    ? 'bg-emerald-600 text-white'
                     : 'bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-50'
                 }`}
               >
@@ -188,9 +188,9 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
               </button>
               <button
                 onClick={() => setTypeFilter('KELUAR')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
                   typeFilter === 'KELUAR'
-                    ? 'bg-rose-600 text-white font-bold'
+                    ? 'bg-rose-600 text-white'
                     : 'bg-white border border-rose-200 text-rose-700 hover:bg-rose-50'
                 }`}
               >
@@ -198,9 +198,9 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
               </button>
               <button
                 onClick={() => setTypeFilter('PENYESUAIAN')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
                   typeFilter === 'PENYESUAIAN'
-                    ? 'bg-amber-600 text-white font-bold'
+                    ? 'bg-amber-600 text-white'
                     : 'bg-white border border-amber-200 text-amber-700 hover:bg-amber-50'
                 }`}
               >

@@ -282,7 +282,7 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                             <span className="flex flex-wrap items-center gap-2">
                               {options.length > 0 && (
                                 <select value="" disabled={busy} aria-label={`Cocokkan ${line.description}`}
-                                  onChange={(e) => e.target.value && match(line, [Number(e.target.value)])} className={field}>
+                                  onChange={(e) => e.target.value && match(line, [Number(e.target.value)])} className={`${field} min-w-[220px] max-w-full`}>
                                   <option value="">Cocokkan dengan jurnal…</option>
                                   {options.map((i) => (
                                     <option key={i.journal_item_id} value={i.journal_item_id}>{i.entry_date} {i.entry_number} — {i.description}</option>

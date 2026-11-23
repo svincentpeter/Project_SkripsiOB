@@ -467,9 +467,9 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
               />
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/30 rounded-lg p-4 text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 bg-white shadow-2xs"
+                className="border-2 border-dashed border-blue-300 hover:border-blue-500 hover:bg-blue-50/50 rounded-xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 bg-white shadow-xs"
               >
-                <Upload className="w-5 h-5 text-blue-600" />
+                <Upload className="w-6 h-6 text-blue-600 animate-bounce" />
                 <div className="text-xs font-bold text-slate-800">
                   {selectedFile ? (
                     <span className="text-blue-700 font-black">{selectedFile.name}</span>
@@ -484,8 +484,8 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
             </div>
 
             {/* Parsing Settings */}
-            <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-3 self-center">
-              <div>
+            <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-12 gap-3 self-center">
+              <div className="sm:col-span-7">
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">
                   Sumber Kuantitas Stok
                 </label>
@@ -500,7 +500,7 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
                   }}
                   className="w-full text-xs font-bold rounded-lg border border-slate-300 bg-white p-2 text-slate-800 focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="H">Kolom H: Sisa Akhir Bulan (Bawaan Omah Ban)</option>
+                  <option value="H">Kolom H: Sisa Akhir Bulan (Bawaan)</option>
                   <option value="G">Kolom G: Stok Awal Bulan</option>
                 </select>
                 <span className="text-[10px] text-slate-400 mt-1 block">
@@ -508,7 +508,7 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
                 </span>
               </div>
 
-              <div>
+              <div className="sm:col-span-5">
                 <label className="block text-[11px] font-bold text-slate-600 mb-1">
                   Periode Tujuan (YYYY-MM)
                 </label>
@@ -1168,7 +1168,7 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
               <button
                 type="button"
                 onClick={() => setShowBulkModal(false)}
-                className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors"
               >
                 Batal
               </button>
@@ -1176,10 +1176,10 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
                 type="button"
                 disabled={isBulkUpdating || bulkSummary.matched === 0}
                 onClick={handleExecuteBulkUpdate}
-                className={`px-4 py-2 rounded-lg text-xs font-bold text-white shadow-2xs transition-colors cursor-pointer flex items-center gap-1.5 ${
+                className={`px-5 py-2 rounded-xl text-xs font-black text-white shadow-xs transition-all flex items-center gap-1.5 ${
                   isBulkUpdating || bulkSummary.matched === 0
                     ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700'
+                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'
                 }`}
               >
                 {isBulkUpdating ? (
@@ -1201,14 +1201,14 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
 
       {/* Result Breakdown Dialog */}
       {commitResult && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70">
-          <div className="bg-white rounded-lg shadow-md border border-slate-200 w-full max-w-md p-6 space-y-4 animate-in fade-in duration-150">
-            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-6 h-6" />
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-7 h-7" />
             </div>
 
             <div className="text-center">
-              <h3 className="text-base font-bold text-slate-900">Sinkronisasi Stok Berhasil!</h3>
+              <h3 className="text-lg font-black text-slate-900">Sinkronisasi Stok Berhasil!</h3>
               <p className="text-xs text-slate-500 mt-1">
                 Data inventori produk ban dan kartu stok berhasil disinkronkan ke database Omah Ban.
               </p>

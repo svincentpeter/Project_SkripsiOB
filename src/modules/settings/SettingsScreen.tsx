@@ -102,15 +102,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </div>
         </div>
 
-        {/* Integrated Sub-Navigation Tabs */}
+        {/* Integrated Sub-Navigation Tabs with Clear Button Borders */}
         <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200/80 overflow-x-auto scrollbar-none text-xs font-bold">
           <button
             type="button"
             onClick={() => setActiveSubTab('profile')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubTab === 'profile'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
             <Store className="w-4 h-4" />
@@ -120,10 +120,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveSubTab('invoice')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubTab === 'invoice'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
             <Receipt className="w-4 h-4" />
@@ -133,10 +133,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveSubTab('payment')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubTab === 'payment'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
             <CreditCard className="w-4 h-4" />
@@ -146,10 +146,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveSubTab('accounting')}
-            className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubTab === 'accounting'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
             <Sliders className="w-4 h-4" />
@@ -160,13 +160,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <button
               type="button"
               onClick={() => setActiveSubTab('roles')}
-              className={`px-3.5 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
                 activeSubTab === 'roles'
-                  ? 'bg-white text-blue-700 shadow-xs font-black'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                  ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                  : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
               }`}
             >
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <ShieldCheck className={`w-4 h-4 ${activeSubTab === 'roles' ? 'text-white' : 'text-emerald-600'}`} />
               <span>Wewenang & Hak Akses (RBAC)</span>
             </button>
           )}

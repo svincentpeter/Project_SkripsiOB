@@ -11,14 +11,19 @@ import {
   ChevronDown, 
   RotateCcw,
   HelpCircle,
+  Home,
+  ChevronRight,
   Settings as SettingsIcon,
   CalendarDays,
+  ShieldCheck,
+  Store,
+  Boxes,
   LogOut,
+  UserCheck,
   Menu,
-  X,
-  Keyboard
+  X
 } from 'lucide-react';
-import { ActiveScreen, RolePermissionsConfig, UserSession } from '../types';
+import { ActiveScreen, PermissionKey, RolePermissionsConfig, UserSession } from '../types';
 import { DEFAULT_ROLE_PERMISSIONS } from '../data/mockData';
 import { formatRupiah } from '../utils/formatters';
 import { NotificationBellDropdown } from './NotificationBellDropdown';
@@ -81,51 +86,51 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
     { 
       id: 'dashboard' as ActiveScreen, 
       label: 'Dashboard', 
-      keyNumber: '1',
       icon: LayoutGrid,
+      breadcrumb: ['Dashboard', 'Executive Overview'],
     },
     { 
       id: 'inventory' as ActiveScreen, 
-      label: 'Produk & Ban', 
-      keyNumber: '2',
+      label: 'Produk & Jasa', 
       icon: Package,
       badge: lowStockCount > 0 ? `${lowStockCount}` : undefined,
+      breadcrumb: ['Produk & Jasa', 'Katalog Ban, Kategori, Servis & Rekanan'],
     },
     { 
       id: 'expenses' as ActiveScreen, 
-      label: 'Beban Toko', 
-      keyNumber: '3',
+      label: 'Biaya Toko', 
       icon: Wallet,
+      breadcrumb: ['Biaya & Kas Kecil', 'Beban Operasional Bengkel'],
     },
     { 
       id: 'ledger' as ActiveScreen, 
       label: 'Buku Besar', 
-      keyNumber: '4',
       icon: BookOpen,
+      breadcrumb: ['Akuntansi SAK EMKM', 'Buku Besar, Neraca Saldo & Hutang'],
     },
     { 
       id: 'financials' as ActiveScreen, 
-      label: 'Laporan SAK', 
-      keyNumber: '5',
+      label: 'Laporan Keuangan', 
       icon: FileText,
+      breadcrumb: ['Laporan Keuangan', 'Laba Rugi & Posisi Keuangan (Neraca)'],
     },
     {
       id: 'daily_reports' as ActiveScreen,
-      label: 'Kas Harian',
-      keyNumber: '6',
+      label: 'Laporan Harian',
       icon: CalendarDays,
+      breadcrumb: ['Laporan Harian', 'Kas Harian, Rekap Harian & Per Kasir'],
     },
     { 
       id: 'receipt' as ActiveScreen, 
       label: 'Riwayat Struk', 
-      keyNumber: '7',
       icon: Receipt,
+      breadcrumb: ['Transaksi Kasir', 'Riwayat Nota & Struk Thermal 80mm'],
     },
     { 
       id: 'settings' as ActiveScreen, 
       label: 'Pengaturan', 
-      keyNumber: '8',
       icon: SettingsIcon,
+      breadcrumb: ['Pengaturan Sistem', 'Identitas Toko, Hak Akses & SAK EMKM'],
     },
   ];
 
@@ -134,33 +139,7 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   };
 
   const visibleNavTabs = navTabs.filter((t) => isScreenAllowed(t.id));
-
-  // Global hotkeys for rapid module jumping (when not typing in an input)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeEl = document.activeElement;
-      const isInput = activeEl && (
-        activeEl.tagName === 'INPUT' || 
-        activeEl.tagName === 'TEXTAREA' || 
-        (activeEl as HTMLElement).isContentEditable
-      );
-      if (isInput) return;
-
-      if (e.key === 'F1' && isScreenAllowed('pos')) {
-        e.preventDefault();
-        setActiveScreen('pos');
-        return;
-      }
-
-      const matchedTab = visibleNavTabs.find((t) => t.keyNumber === e.key);
-      if (matchedTab && isScreenAllowed(matchedTab.id)) {
-        setActiveScreen(matchedTab.id);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [visibleNavTabs, isScreenAllowed, setActiveScreen]);
+  const currentTabInfo = navTabs.find((t) => t.id === activeScreen) || navTabs[0];
 
   const getInitials = (name: string) => {
     return name
@@ -172,118 +151,35 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   };
 
   return (
-    <>
-      {/* UNIFIED 50px TECHNICAL COMMAND DECK (Non-Sidebar Workstation Header) */}
-      <header className="h-[52px] bg-slate-900 border-b border-slate-800 text-slate-100 sticky top-0 z-40 select-none flex items-center justify-between px-3 sm:px-5">
-        {/* Left: Brand Identity & Branch Code */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="xl:hidden p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
-            title="Menu Navigasi"
-            aria-label="Menu Navigasi"
-          >
-            {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
-
+    <header className="bg-white sticky top-0 z-40 select-none shadow-xs border-b border-slate-200 font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* TIER 1: TOP BAR (Logo + User + Live Telemetry Actions) */}
+      <div className="h-14 px-3 sm:px-4 lg:px-8 flex items-center justify-between gap-2 sm:gap-4 border-b border-slate-100 bg-white">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div 
-            className="flex items-center gap-2 cursor-pointer focus-ring rounded-md"
+            className="flex items-center gap-2 sm:gap-2.5 cursor-pointer min-w-0" 
             onClick={() => {
               if (isScreenAllowed('dashboard')) setActiveScreen('dashboard');
               else if (visibleNavTabs.length > 0) setActiveScreen(visibleNavTabs[0].id);
             }}
           >
-            <div className="w-7 h-7 rounded-md bg-blue-600 text-white font-black text-xs flex items-center justify-center tracking-tighter">
-              OB3
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-xs tracking-tight transition-colors shrink-0">
+              OB
             </div>
-            <div className="leading-tight hidden sm:block">
+            <div className="leading-tight min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xs tracking-tight text-white uppercase">Omah Ban</span>
-                <span className="text-[10px] font-mono font-bold text-slate-400 border border-slate-700 bg-slate-800/80 px-1 py-0.2 rounded">
-                  CABANG 3
+                <span className="font-extrabold text-xs sm:text-base text-slate-900 tracking-tight shrink-0">Omah Ban</span>
+                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-md shrink-0">
+                  <span className="hidden sm:inline">Cabang 3 Magelang</span>
+                  <span className="sm:hidden">Cabang 3</span>
                 </span>
               </div>
+              <span className="text-[11px] text-slate-500 font-semibold hidden sm:block">POS & SAK EMKM Terpadu</span>
             </div>
           </div>
         </div>
 
-        {/* Center: High-Density Segmented Module Switcher (Desktop) */}
-        <nav className="hidden xl:flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800/80">
-          {visibleNavTabs.map((tab) => {
-            const isActive = activeScreen === tab.id;
-            const Icon = tab.icon;
-
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveScreen(tab.id)}
-                className={`h-7.5 px-2.5 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer focus-ring ${
-                  isActive
-                    ? 'bg-blue-600 text-white shadow-xs font-bold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`}
-                title={`Shortcut: Tekan tombol [${tab.keyNumber}]`}
-              >
-                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{tab.label}</span>
-                <span className={`text-[10px] font-mono px-1 py-0.2 rounded ml-0.5 ${
-                  isActive ? 'bg-blue-700/80 text-blue-100' : 'bg-slate-800 text-slate-400'
-                }`}>
-                  {tab.keyNumber}
-                </span>
-                {tab.badge && (
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500 text-slate-950 font-mono">
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Right: Operational Telemetry & User Controls */}
-        <div className="flex items-center gap-2 text-xs shrink-0">
-          {/* Kas Laci Live Metric (Account 1-1000) */}
-          {cashInDrawer !== null && (
-            <div 
-              className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 text-slate-200"
-              title={`Saldo Kas Laci (Akun 1-1000 SAK EMKM): ${formatRupiah(cashInDrawer)}`}
-            >
-              <span className="text-[10px] uppercase font-bold text-slate-400">Kas Laci:</span>
-              <span className="font-mono font-bold text-emerald-400 tabular-nums">
-                {formatRupiah(cashInDrawer)}
-              </span>
-            </div>
-          )}
-
-          {/* Quick POS Jump Button */}
-          {isScreenAllowed('pos') && (
-            <button
-              type="button"
-              onClick={() => setActiveScreen('pos')}
-              className={`h-8 px-3 rounded-md font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer focus-ring ${
-                activeScreen === 'pos'
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-              title="Shortcut: Tekan F1 untuk Kasir POS"
-            >
-              <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden sm:inline">Kasir POS</span>
-              <span className="text-[10px] font-mono px-1 py-0.2 bg-black/25 rounded">F1</span>
-              {cartCount > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.2 rounded text-[10px] font-mono bg-white text-blue-700 font-bold">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-          )}
-
-          <div className="h-5 w-px bg-slate-800 hidden sm:block" />
-
-          {/* Notifications */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 text-xs">
+          {/* Notification Bell with Minimalist Dropdown */}
           <NotificationBellDropdown
             notifications={notifications}
             onMarkAsRead={(id) => onMarkNotificationRead?.(id)}
@@ -291,51 +187,95 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
             onNavigateTo={(screen) => setActiveScreen(screen as ActiveScreen)}
           />
 
-          {/* User Menu Dropdown */}
-          <div className="relative" ref={userMenuRef}>
-            <button
-              type="button"
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="flex items-center gap-2 h-8 px-2 rounded-md hover:bg-slate-800 text-slate-300 hover:text-white transition-colors cursor-pointer focus-ring"
+          {/* Saldo buku kas laci (akun 1-1000), hanya untuk peran yang boleh membaca saldo kas */}
+          {cashInDrawer !== null && (
+            <div
+              className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono shadow-2xs shrink-0"
+              title={`Kas Laci (buku 1-1000): ${formatRupiah(cashInDrawer)}`}
             >
-              <div className="w-6 h-6 rounded bg-slate-700 text-white font-bold text-[11px] flex items-center justify-center">
+              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse shrink-0" />
+              <span className="hidden md:inline text-emerald-800 text-[11px] font-semibold">Kas Laci:</span>
+              <span className="font-extrabold text-[10px] sm:text-xs text-emerald-950 truncate max-w-[70px] sm:max-w-none">{formatRupiah(cashInDrawer)}</span>
+            </div>
+          )}
+
+          <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+
+          {/* Database & Cloud Live Status Badge */}
+          {backendStatus === 'supabase' ? (
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-lg text-[11px] font-bold shadow-2xs" title={`Terhubung ke Supabase PostgreSQL Cloud (${databaseName})`}>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Supabase Cloud</span>
+            </div>
+          ) : backendStatus === 'connected' ? (
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-[11px] font-bold shadow-2xs" title={`Terhubung ke MySQL (${databaseName}) via Laravel 12 REST API`}>
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+              <span>MySQL Live</span>
+            </div>
+          ) : (
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 text-slate-600 rounded-lg text-[11px] font-medium" title="Mode Penyimpanan Lokal Browser (Offline/Fallback)">
+              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+              <span>Mode Lokal</span>
+            </div>
+          )}
+
+          {/* User Profile & Role Switcher Dropdown */}
+          <div className="relative shrink-0" ref={userMenuRef}>
+            <button
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="flex items-center gap-1.5 p-1 sm:p-1.5 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
+            >
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full text-white font-bold flex items-center justify-center text-[11px] sm:text-xs shadow-xs shrink-0 ${
+                currentUser.role === 'OWNER'
+                  ? 'bg-blue-600'
+                  : currentUser.role === 'KASIR'
+                  ? 'bg-emerald-600'
+                  : 'bg-amber-600'
+              }`}>
                 {getInitials(currentUser.name)}
               </div>
-              <span className="hidden lg:inline text-xs font-semibold text-slate-200 truncate max-w-[100px]">
-                {currentUser.name}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <div className="hidden lg:block text-left leading-tight">
+                <span className="font-bold text-slate-900 block text-xs truncate max-w-[120px]">
+                  {currentUser.name}
+                </span>
+                <span className={`text-[10px] font-extrabold uppercase px-1 rounded-sm inline-block ${
+                  currentUser.role === 'OWNER'
+                    ? 'text-blue-700 bg-blue-50'
+                    : currentUser.role === 'KASIR'
+                    ? 'text-emerald-700 bg-emerald-50'
+                    : 'text-amber-700 bg-amber-50'
+                }`}>
+                  {currentUser.role}
+                </span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
             </button>
 
+            {/* Dropdown Menu */}
             {isUserMenuOpen && (
-              <div className="absolute right-0 mt-1.5 w-60 bg-slate-900 border border-slate-800 rounded-lg shadow-xl py-1 z-50 text-xs">
-                <div className="px-3 py-2 border-b border-slate-800 bg-slate-950/60">
+              <div className="absolute right-0 mt-2 w-60 sm:w-64 max-w-[calc(100vw-24px)] bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-xs font-medium animate-in fade-in zoom-in-95">
+                <div className="px-3.5 py-2.5 border-b border-slate-100 bg-slate-50/70">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                    Operator Aktif
+                    Pengguna Aktif
                   </span>
-                  <span className="font-bold text-white block text-xs mt-0.5">
+                  <span className="font-bold text-slate-900 block text-xs mt-0.5">
                     {currentUser.name}
                   </span>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="text-[10px] font-mono font-bold px-1 py-0.2 bg-blue-900/60 text-blue-300 rounded border border-blue-700/50">
-                      {currentUser.role}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono truncate">
-                      {currentUser.email}
-                    </span>
-                  </div>
+                  <span className="text-[11px] text-slate-500 font-mono block">
+                    {currentUser.email}
+                  </span>
                 </div>
 
-                <div className="p-1.5 space-y-0.5">
+                <div className="border-t border-slate-100 p-2 space-y-1">
                   <button
                     type="button"
                     onClick={() => {
                       setIsUserMenuOpen(false);
                       onOpenWireframeModal();
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 font-medium transition-colors cursor-pointer"
+                    className="w-full sm:hidden flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-100 font-semibold text-xs transition-colors cursor-pointer"
                   >
-                    <HelpCircle className="w-4 h-4 text-slate-400" />
+                    <HelpCircle className="w-4 h-4 text-slate-500" />
                     <span>Panduan Pengguna Toko</span>
                   </button>
                   <button
@@ -344,19 +284,18 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
                       setIsUserMenuOpen(false);
                       onResetData();
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 font-medium transition-colors cursor-pointer"
+                    className="w-full sm:hidden flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-slate-700 hover:bg-slate-100 font-semibold text-xs transition-colors cursor-pointer"
                   >
-                    <RotateCcw className="w-4 h-4 text-slate-400" />
+                    <RotateCcw className="w-4 h-4 text-slate-500" />
                     <span>Bersihkan Data Lokal</span>
                   </button>
-                  <div className="border-t border-slate-800 my-1" />
                   <button
                     type="button"
                     onClick={() => {
                       setIsUserMenuOpen(false);
                       onLogout?.();
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-rose-400 hover:bg-rose-950/50 hover:text-rose-300 font-semibold transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-rose-600 hover:bg-rose-50 font-bold transition-colors cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Keluar (Logout)</span>
@@ -365,74 +304,82 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
               </div>
             )}
           </div>
-        </div>
-      </header>
 
-      {/* MOBILE NAVIGATION DRAWER (Slide-over for small viewports) */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 xl:hidden">
-          <div 
-            className="fixed inset-0 bg-black/60 transition-opacity"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-          <div className="fixed inset-y-0 left-0 w-64 bg-slate-900 border-r border-slate-800 z-50 flex flex-col justify-between text-slate-100">
-            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-md bg-blue-600 text-white font-black text-xs flex items-center justify-center">
-                  OB3
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-xs text-white uppercase">Omah Ban</h3>
-                  <span className="text-[10px] text-slate-400">Cabang 3 Magelang</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="p-1 text-slate-400 hover:text-white rounded"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <nav className="p-2 space-y-1 overflow-y-auto flex-1">
-              {visibleNavTabs.map((tab) => {
-                const isActive = activeScreen === tab.id;
-                const Icon = tab.icon;
-
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveScreen(tab.id);
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between p-2 rounded-md text-xs font-semibold ${
-                      isActive ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <span>{tab.label}</span>
-                    </div>
-                    <span className="text-[10px] font-mono px-1 bg-black/20 rounded">
-                      {tab.keyNumber}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-
-            <div className="p-3 border-t border-slate-800 text-[11px] text-slate-400">
-              <div className="flex items-center justify-between">
-                <span>Database:</span>
-                <span className="font-mono text-white">{databaseName}</span>
-              </div>
-            </div>
+          <div className="hidden sm:flex items-center gap-0.5 sm:gap-1">
+            <button
+              type="button"
+              onClick={onOpenWireframeModal}
+              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              title="Buku Panduan Pengguna Toko (User Guide)"
+              aria-label="Buku Panduan Pengguna Toko"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onResetData}
+              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+              title="Bersihkan data lokal browser (data server tidak berubah)"
+              aria-label="Bersihkan data lokal browser"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
           </div>
         </div>
-      )}
-    </>
+      </div>
+
+      {/* TIER 2: HORIZONTAL NAVIGATION MENU BAR WITH CLEAR BUTTON BORDERS */}
+      <div className="h-12 px-3 sm:px-4 lg:px-8 flex items-center justify-between bg-slate-50/70 relative">
+        {/* Scrollable Tabs */}
+        <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none py-1 touch-pan-x scroll-smooth">
+          <nav className="flex items-center gap-1.5 w-max pr-6">
+            {visibleNavTabs.map((tab) => {
+              const isActive = activeScreen === tab.id;
+              const Icon = tab.icon;
+
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveScreen(tab.id)}
+                  className={`h-9 flex items-center gap-1.5 sm:gap-2 px-3 text-xs font-bold rounded-xl border transition-colors shrink-0 cursor-pointer ${
+                    isActive
+                      ? 'bg-blue-50 text-blue-700 font-extrabold border-blue-300 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-950 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-500'}`} />
+                  <span className="whitespace-nowrap">{tab.label}</span>
+                  {tab.badge && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-600 text-white font-mono">
+                      {tab.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Sticky Pinned POS Button on mobile & desktop */}
+        {isScreenAllowed('pos') && (
+          <div className="shrink-0 pl-2 bg-gradient-to-l from-slate-50 via-slate-50 to-transparent sticky right-0 z-10 py-1">
+            <button
+              onClick={() => setActiveScreen('pos')}
+              className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer whitespace-nowrap"
+              title="Buka Terminal Mesin Kasir POS Fullscreen"
+            >
+              <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Mesin Kasir (POS)</span>
+              <span className="inline sm:hidden">Kasir</span>
+              {cartCount > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-blue-800 text-white font-bold">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </header>
   );
 };

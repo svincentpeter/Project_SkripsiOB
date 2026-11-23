@@ -1,95 +1,92 @@
-# 🚀 Panduan Lengkap Deploy Omah Ban Cabang 3 ke Vercel & Supabase Cloud
+# Panduan Deploy Omah Ban Cabang 3: Vercel + Laravel API + Supabase PostgreSQL
 
-Dokumen ini berisi panduan praktis langkah demi langkah untuk menghubungkan aplikasi **Toko Ban Omah Ban Cabang 3 - Magelang** (Standar Akuntansi SAK EMKM) ke **Database PostgreSQL Cloud Supabase** dan melakukan hosting produksi di **Vercel**.
-
----
-
-## 📋 Data Kredensial Supabase Anda
-
-Project Supabase Anda telah dikonfigurasi:
-- **Project URL:** `https://tgicdfugemwsrbdbtgda.supabase.co`
-- **Publishable / Anon Key:** `sb_publishable_RvmFF-NYiKuvpMbPtGsfTw_arSn_-0l`
+> **Penting:** Arsitektur aplikasi sudah bermigrasi penuh dari client-side Supabase ke **Laravel 13 REST API (`backend/`)** sebagai satu-satunya sumber kebenaran (*single source of truth*) akuntansi SAK EMKM & stok FIFO.
+> File `supabase_schema.sql` dan `src/services/supabaseClient.ts` adalah **kode legacy** yang sudah tidak dipakai. Jangan menjalankan `supabase_schema.sql` ke Supabase.
 
 ---
 
-## ⚡ Langkah 1: Eksekusi Skrip DDL Database di Supabase (1 Menit)
+## Arsitektur Produksi
 
-Database Supabase Anda memerlukan struktur tabel dan data awal toko. Ikuti langkah ini:
-
-1. Buka dashboard Supabase project Anda:
-   👉 **[https://supabase.com/dashboard/project/tgicdfugemwsrbdbtgda](https://supabase.com/dashboard/project/tgicdfugemwsrbdbtgda)**
-2. Pada menu sidebar kiri, klik icon **SQL Editor** (`>_`).
-3. Klik tombol **New Query**.
-4. Buka file [`supabase_schema.sql`](file:///c:/laragon/www/Project_SkripsiOB/supabase_schema.sql) di root folder project ini, **Copy seluruh isinya** (Ctrl+A, Ctrl+C).
-5. Paste ke dalam editor query Supabase, lalu klik tombol hijau **RUN** di kanan bawah.
-6. Tunggu beberapa detik sampai muncul pesan `Success. No rows returned`.
-
-✅ **Hasil:**
-Seluruh **17 tabel** (`products`, `services`, `suppliers`, `pos_transactions`, `parked_transactions`, `sales_bookings`, `expenses`, `stock_mutations`, `journal_entries`, `payable_invoices`, `receivable_invoices`, `store_settings`, `account_balances`, `accounting_period`, `users`, `role_permissions`), kebijakan keamanan RLS, dan seed data resmi Omah Ban Cabang 3 telah aktif di database PostgreSQL Cloud Anda!
+```text
+Browser (Vercel Static SPA)  ──HTTPS + Bearer Token──►  Laravel 13 API (Railway / Render / VPS / Tunnel)  ──►  Database (Supabase PostgreSQL / MySQL)
+```
 
 ---
 
-## 🔐 Akun Login Pengguna (Tersimpan di Database Supabase)
+## 1. Setup Database di Supabase PostgreSQL (Untuk Laravel Backend)
 
-Sistem mendukung login menggunakan **Username ATAU Email** dengan password default:
+Jika Anda ingin memakai **Supabase** sebagai database cloud, hubungkan **Laravel (`backend/`)** ke PostgreSQL Supabase (bukan dari frontend React):
 
-| Peran (Role) | Username | Email | Password | Hak Akses Utama |
-|---|---|---|---|---|
-| **Owner** (Pemilik) | `owner` | `owner@omahban.com` | `password` | Akses penuh (Dashboard Eksekutif, Akuntansi SAK EMKM, Laporan Laba Rugi, Pengaturan Sistem & Role Permissions) |
-| **Kasir** (Kasir OB3) | `kasir` | `kasir@omahban.com` | `password` | POS Penjualan, Penerimaan Pembayaran Bon/Piutang, Kas Masuk/Keluar, Riwayat Nota & Cetak Struk Thermal |
-| **Admin Gudang** (Gudang OB3) | `gudang` | `gudang@omahban.com` | `password` | Master Stok Ban & Jasa, Penerimaan Barang (PO), Stok Opname, Mutasi Stok, Hutang Dagang Supplier |
-
-*Catatan: Pada layar login, Anda juga dapat mengklik tombol "Login Cepat / Demo" untuk langsung mengisi formulir login.*
-
-## 🌐 Langkah 2: Deploy ke Vercel (Gratis & Otomatis)
-
-1. Buka website **[https://vercel.com](https://vercel.com)** dan login menggunakan akun GitHub Anda.
-2. Klik tombol **Add New...** di pojok kanan atas, lalu pilih **Project**.
-3. Di daftar repository GitHub Anda, cari dan pilih **`Project_SkripsiOB`** lalu klik **Import**.
-4. Di halaman konfigurasi project (*Configure Project*):
-   - **Framework Preset:** Biarkan `Vite` (sudah terdeteksi otomatis via `vercel.json`).
-   - **Root Directory:** `./` (default).
-   - Buka accordion **Environment Variables** dan tambahkan 2 variabel penting berikut:
-
-| Key | Value |
-|---|---|
-| `VITE_SUPABASE_URL` | `https://tgicdfugemwsrbdbtgda.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | `sb_publishable_RvmFF-NYiKuvpMbPtGsfTw_arSn_-0l` |
-
-5. Klik tombol biru **Deploy**.
-6. Vercel akan otomatis melakukan build (`npm run build`) dan mendeploy aplikasi Anda dalam waktu ~45 detik.
-7. Setelah selesai, Vercel akan memberikan link domain publik, misalnya: `https://project-skripsi-ob.vercel.app`.
+1. Buka Dashboard Supabase → **Project Settings** → **Database** → **Connection string** (pilih mode **Session pooler** IPv4 port `5432` atau `6543` agar kompatibel dengan Railway/Render).
+2. Catat detail koneksi:
+   - `DB_CONNECTION=pgsql`
+   - `DB_HOST=aws-0-<region>.pooler.supabase.com`
+   - `DB_PORT=5432`
+   - `DB_DATABASE=postgres`
+   - `DB_USERNAME=postgres.<project-ref>`
+   - `DB_PASSWORD=<password-database-supabase>`
+   - `DB_SSLMODE=require`
 
 ---
 
-## 💻 Langkah 3: Menjalankan di Lokal (Localhost)
+## 2. Deploy Laravel Backend (`backend/`) via Docker
 
-Jika ingin menjalankan di laptop / komputer lokal:
-1. Pastikan file `.env` atau `.env.local` sudah terisi:
+Sudah tersedia `backend/Dockerfile`, `backend/.dockerignore`, dan `backend/docker-entrypoint.sh` (mendukung `pdo_pgsql` untuk Supabase PostgreSQL dan `pdo_mysql` untuk MySQL).
+
+### Langkah di Railway / Render:
+1. Buat service baru dari repo GitHub **`Project_SkripsiOB`**.
+2. Set **Root Directory** ke `backend` (Runtime: **Docker**).
+3. Isi **Environment Variables** pada service backend:
    ```env
-   VITE_SUPABASE_URL=https://tgicdfugemwsrbdbtgda.supabase.co
-   VITE_SUPABASE_ANON_KEY=sb_publishable_RvmFF-NYiKuvpMbPtGsfTw_arSn_-0l
+   APP_NAME="Omah Ban Cabang 3"
+   APP_ENV=production
+   APP_DEBUG=false
+   APP_KEY=base64:<generate dengan php artisan key:generate --show>
+   APP_TIMEZONE=Asia/Jakarta
+   APP_URL=https://<domain-backend-anda>
+
+   DB_CONNECTION=pgsql
+   DB_HOST=<host-pooler-supabase>
+   DB_PORT=5432
+   DB_DATABASE=postgres
+   DB_USERNAME=<user-supabase>
+   DB_PASSWORD=<password-supabase>
+   DB_SSLMODE=require
+
+   SANCTUM_EXPIRATION=720
+   SEED_DEFAULT_PASSWORD=<password-awal-yang-aman>
+   RUN_MIGRATIONS_ON_BOOT=true
+
+   # Opsional Midtrans QRIS Sandbox/Prod:
+   MIDTRANS_SERVER_KEY=
+   MIDTRANS_CLIENT_KEY=
+   MIDTRANS_IS_PRODUCTION=false
+   MIDTRANS_ALLOW_SIMULATION=true
    ```
-2. Jalankan:
-   ```powershell
-   npm run dev
+4. Setelah container berjalan, buka shell/terminal backend sekali saja untuk seed data awal & saldo awal persediaan:
+   ```bash
+   php artisan db:seed --force
+   php artisan inventory:opening-balance
    ```
-3. Buka browser di `http://localhost:3000`.
-4. Perhatikan navbar atas:
-   - Badge hijau berkedip **`Supabase Cloud`** menandakan aplikasi terhubung langsung ke database PostgreSQL Supabase Anda secara real-time!
+
+> **Alternatif Cepat Saat Bimbingan (Tanpa Host Backend Cloud):**
+> Tetap jalankan Laragon MySQL (`project-skripsi_ob`) + `php artisan serve --port=8000` di laptop, lalu ekspos memakai Cloudflare Tunnel (`cloudflared tunnel --url http://127.0.0.1:8000`) dan pasang URL HTTPS tunnel tersebut di `VITE_API_URL` Vercel.
 
 ---
 
-## 🛡️ Arsitektur Hybrid Fallback (Keamanan & Ketahanan)
+## 3. Pengaturan Vercel (Frontend `project-skripsiob`)
 
-Aplikasi dilengkapi proteksi fallback multi-lapis:
-1. **Prioritas 1 (Supabase Cloud):** Jika internet & kredensial tersedia, seluruh data dibaca dan disimpan langsung ke Supabase PostgreSQL.
-2. **Prioritas 2 (Laravel Backend Lokal):** Jika di laptop terpasang backend PHP/Laravel MySQL di port 8000, sistem otomatis menyinkronkan data ke MySQL.
-3. **Prioritas 3 (Mode Lokal Browser / Offline):** Jika koneksi internet terputus, sistem tetap dapat beroperasi normal menggunakan localStorage tanpa pernah mengalami crash / error layar putih (*white-screen*).
+Di **Vercel Dashboard → Project Settings → Environment Variables**:
 
----
-
-## 🧾 Catatan Transaksi POS & Akuntansi SAK EMKM
-
-- Setiap kali kasir menyelesaikan nota penjualan di POS, data transaksi disimpan ke Supabase `pos_transactions`, stok ban berkurang di `products`, mutasi tercatat di `stock_mutations`, dan jurnal debit/kredit SAK EMKM otomatis dibukukan di `journal_entries`.
-- Jika nota dibatalkan (**VOID**) melalui menu Riwayat Nota, status transaksi diperbarui di Supabase, stok fisik ban dikembalikan, dan Jurnal Pembalik (*Reversing Journal*) otomatis diposting.
+1. **Hapus variabel usang** (jika masih ada):
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `GEMINI_API_KEY`
+   - `VITE_DEV_LOGIN_PASSWORD` *(jangan pasang di production agar tombol login cepat tidak ter-expose)*
+2. **Tambahkan / Perbarui**:
+   | Key | Value |
+   |---|---|
+   | `VITE_API_URL` | `https://<domain-backend-laravel>/api/v1` |
+3. Lakukan **Redeploy** setelah mengubah Environment Variables agar Vite mem-bundle nilai `VITE_API_URL` yang baru ke dalam `dist/`.

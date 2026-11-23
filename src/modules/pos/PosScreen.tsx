@@ -905,46 +905,57 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                   <div
                     key={p.id}
                     onClick={() => !isOutOfStock && handleAddToCart(p)}
-                    className={`bg-white border rounded-lg p-3 flex flex-col justify-between transition-colors group relative focus-ring ${
+                    className={`bg-white border rounded-2xl p-3.5 flex flex-col justify-between transition-all group shadow-2xs relative ${
                       isOutOfStock
-                        ? 'opacity-40 bg-slate-50 border-slate-200 cursor-not-allowed'
+                        ? 'opacity-45 bg-slate-100/60 border-slate-200 cursor-not-allowed'
                         : isLowStock
-                        ? 'border-amber-300 hover:border-amber-400 cursor-pointer shadow-xs'
-                        : 'border-slate-200 hover:border-blue-600 cursor-pointer shadow-xs'
+                        ? 'border-amber-300/80 hover:border-amber-400 hover:shadow-md cursor-pointer active:scale-[0.98]'
+                        : 'border-slate-200 hover:border-blue-500 hover:shadow-md cursor-pointer active:scale-[0.98]'
                     }`}
                   >
                     <div>
-                      {/* Top Line: Technical Ring/Category + Stock Indicator */}
-                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
-                        <div className="flex items-center gap-1">
+                      {/* Top Line: Prominent Ring / Category Badge + Stock Status */}
+                      <div className="flex items-center justify-between gap-1.5 mb-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           {p.ring && (
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-slate-900 text-amber-400">
+                            <span className="px-2 py-0.5 rounded-lg text-[11px] font-black tracking-tight bg-slate-900 text-amber-400 shadow-2xs">
                               {p.ring}
                             </span>
                           )}
-                          <span className="text-[10px] font-mono font-bold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                            {p.category === 'OLI_PELUMAS' ? 'OLI' : (p.category || 'BAN_BARU').replace('_', ' ')}
+                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
+                            p.category === 'BAN_BARU'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : p.category === 'VELG'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : p.category === 'OLI_PELUMAS'
+                              ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          }`}>
+                            {p.category === 'OLI_PELUMAS' ? 'OLI & PELUMAS' : (p.category || 'BAN_BARU').replace('_', ' ')}
                           </span>
                         </div>
 
-                        <span className={`text-[10.5px] font-mono font-bold px-1.5 py-0.2 rounded border tabular-nums ${
+                        <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 shrink-0 ${
                           isOutOfStock
-                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200 font-extrabold'
                             : isLowStock
-                            ? 'bg-amber-50 text-amber-800 border-amber-300'
-                            : 'bg-slate-50 text-slate-700 border-slate-200'
+                            ? 'bg-amber-50 text-amber-800 border-amber-300 font-extrabold'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                         }`}>
-                          {isOutOfStock ? 'Habis' : `Stok: ${stockQty}`}
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`} />
+                          {isOutOfStock ? 'Habis' : isLowStock ? `Sisa ${stockQty}` : `Stok: ${stockQty}`}
                         </span>
                       </div>
 
-                      {/* Product Headline: Name & Size */}
-                      <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
+                      {/* Product Title */}
+                      <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
                         {p.product_name || p.name}
                       </h3>
 
-                      {/* Technical Specs */}
-                      <div className="text-[11px] text-slate-500 mt-0.5 font-mono line-clamp-1">
+                      {/* Specs / Motip */}
+                      <div className="text-[11px] text-slate-500 mt-1 font-medium line-clamp-1">
                         {p.category === 'BAN_BARU' && `${p.product_size || ''} ${p.motif ? `• ${p.motif}` : ''}`}
                         {p.category === 'VELG' && `${p.ring || ''} | PCD ${p.pcd || ''} | ${p.color_finish || ''}`}
                         {p.category === 'OLI_PELUMAS' && `${p.product_size || ''} ${p.motif ? `• ${p.motif}` : ''}`}
@@ -952,19 +963,20 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                       </div>
                     </div>
 
-                    {/* Bottom Line: Tabular Price & Compact Add Action */}
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                      <div>
+                    {/* Bottom Line: Price & Add Button */}
+                    <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[9.5px] text-slate-400 font-semibold uppercase tracking-tight">Harga Satuan</span>
                         {(p.product_price || p.price || 0) > 0 ? (
-                          <span className="text-xs sm:text-sm font-bold text-slate-900 font-mono tabular-nums">
+                          <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono tracking-tight">
                             {formatRupiah(p.product_price || p.price || 0)}
                           </span>
                         ) : (
-                          <span className="text-xs font-semibold text-rose-600">Harga belum diisi</span>
+                          <span className="text-xs font-bold text-rose-600">Harga belum diisi</span>
                         )}
                       </div>
-                      <span className="p-1 rounded-md bg-slate-100 group-hover:bg-blue-600 text-slate-600 group-hover:text-white transition-colors">
-                        <Plus className="w-3.5 h-3.5" />
+                      <span className="p-1.5 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-700 group-hover:text-white transition-all shadow-2xs">
+                        <Plus className="w-4 h-4" />
                       </span>
                     </div>
                   </div>
@@ -1297,10 +1309,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             type="button"
             onClick={handlePrintCurrentCartNota}
             disabled={cart.length === 0}
-            className="w-full py-2 px-3 rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer transition-colors focus-ring"
+            className="w-full py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-900 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-2xs transition-colors"
             title="Buka pratinjau fisik nota kasir thermal 80mm sebelum bayar"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-600" />
+            <Printer className="w-4 h-4 text-sky-700" />
             <span>Pratinjau &amp; Cetak Struk (80mm)</span>
           </button>
 
@@ -1309,10 +1321,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             type="button"
             onClick={handleOpenCheckout}
             disabled={cart.length === 0}
-            className="w-full h-11 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-xs flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer focus-ring"
+            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 transition-all cursor-pointer"
           >
             <CreditCard className="w-4 h-4" />
-            <span>Proses Pembayaran (F4 / Enter)</span>
+            <span>Proses Pesanan (Bayar) ➔</span>
           </button>
         </div>
       </div>

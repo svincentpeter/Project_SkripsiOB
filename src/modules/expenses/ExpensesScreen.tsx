@@ -84,32 +84,23 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
               Pengelolaan bukti kas keluar (BKK), pembukuan beban operasional, dan integrasi buku besar double-entry.
             </p>
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="text-right hidden sm:block">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Metode Pembukuan</span>
-              <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 mt-0.5">
-                Akrual SAK EMKM
-              </span>
-            </div>
-          </div>
         </div>
 
-        {/* Integrated Sub-Navigation Tabs Bar */}
+        {/* Integrated Sub-Navigation Tabs Bar with Clear Button Borders */}
         <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200/80 overflow-x-auto scrollbar-none text-xs font-bold">
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'history'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
             <FileSpreadsheet className="w-4 h-4" />
             <span>Riwayat Pengeluaran (BKK)</span>
             <span className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-full ${
-              activeTab === 'history' ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'
+              activeTab === 'history' ? 'bg-white text-blue-700' : 'bg-slate-200 text-slate-600'
             }`}>
               {activeCount}
             </span>
@@ -118,10 +109,10 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('create')}
-            className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'create'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
             <PlusCircle className="w-4 h-4" />
@@ -131,10 +122,10 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('analytics')}
-            className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'analytics'
-                ? 'bg-white text-blue-700 shadow-xs font-black'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
             <BarChart3 className="w-4 h-4" />

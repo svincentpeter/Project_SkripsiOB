@@ -399,8 +399,13 @@ const mapDailyCash = (r: DailyCashReport, ctx: ExportCtx): ExportDoc => {
         qris: c.by_method.QRIS, total: c.sales_total, void_count: c.void_count, void: c.void_total,
       })),
       totals: {
-        nota: sum(r.cashiers, (c) => c.sales_count), total: sum(r.cashiers, (c) => c.sales_total),
-        void_count: sum(r.cashiers, (c) => c.void_count), void: sum(r.cashiers, (c) => c.void_total),
+        nota: sum(r.cashiers, (c) => c.sales_count),
+        tunai: sum(r.cashiers, (c) => c.by_method.TUNAI),
+        transfer: sum(r.cashiers, (c) => c.by_method.TRANSFER),
+        qris: sum(r.cashiers, (c) => c.by_method.QRIS),
+        total: sum(r.cashiers, (c) => c.sales_total),
+        void_count: sum(r.cashiers, (c) => c.void_count),
+        void: sum(r.cashiers, (c) => c.void_total),
       },
     },
     {
@@ -419,7 +424,10 @@ const mapDailyCash = (r: DailyCashReport, ctx: ExportCtx): ExportDoc => {
         jam: s.time ?? '-', nota: s.reference, kasir: s.cashier_name, pelanggan: s.customer_name ?? 'Umum',
         bayar: paymentsText(s.payments), total: s.total_amount, ...(showHpp ? { hpp: s.total_hpp } : {}), status: s.status,
       })),
-      totals: { total: sum(live, (s) => s.total_amount) },
+      totals: {
+        total: sum(live, (s) => s.total_amount),
+        ...(showHpp ? { hpp: sum(live, (s) => s.total_hpp ?? 0) } : {}),
+      },
     },
   ];
   if (r.cash_accounts) {

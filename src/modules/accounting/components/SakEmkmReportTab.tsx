@@ -20,20 +20,20 @@ interface SakEmkmReportTabProps {
 type ReportTab = 'income' | 'balance' | 'equity' | 'cashflow' | 'calk';
 
 const TABS: { id: ReportTab; label: string }[] = [
-  { id: 'income', label: '1. Laba Rugi' },
-  { id: 'balance', label: '2. Posisi Keuangan' },
-  { id: 'equity', label: '3. Perubahan Ekuitas' },
-  { id: 'cashflow', label: '4. Arus Kas' },
-  { id: 'calk', label: '5. CALK' },
+  { id: 'income', label: 'Laba Rugi' },
+  { id: 'balance', label: 'Posisi Keuangan' },
+  { id: 'equity', label: 'Perubahan Ekuitas' },
+  { id: 'cashflow', label: 'Arus Kas' },
+  { id: 'calk', label: 'CALK' },
 ];
 
 const Kpi: React.FC<{ label: string; value: string; note: string; tone?: 'neutral' | 'good' | 'bad' }> = ({ label, value, note, tone = 'neutral' }) => (
-  <div className={`rounded-md p-3 border ${
-    tone === 'good' ? 'bg-emerald-50/60 border-emerald-200' : tone === 'bad' ? 'bg-rose-50/60 border-rose-200' : 'bg-slate-50 border-slate-200'
+  <div className={`rounded-xl p-3.5 border ${
+    tone === 'good' ? 'bg-emerald-50 border-emerald-200' : tone === 'bad' ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'
   }`}>
-    <span className="text-[11px] font-bold text-slate-500 uppercase font-mono tracking-wider block">{label}</span>
-    <span className="text-base sm:text-lg font-bold font-mono tabular-nums text-slate-900 block mt-0.5">{value}</span>
-    <span className="text-[11px] text-slate-500 mt-0.5 block font-medium">{note}</span>
+    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">{label}</span>
+    <span className="text-base sm:text-lg font-black font-mono text-slate-900 block mt-0.5">{value}</span>
+    <span className="text-[10px] text-slate-500 mt-0.5 block">{note}</span>
   </div>
 );
 
@@ -68,7 +68,7 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 shadow-xs space-y-4">
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-xs space-y-5">
       {fs && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Kpi label="Pendapatan Bersih" value={formatRupiah(netRevenue)}
@@ -87,13 +87,17 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div role="tablist" aria-label="Jenis laporan" onKeyDown={handleTablistKeyDown}
-          className="flex items-center gap-1 bg-slate-100 p-1 rounded-md overflow-x-auto text-xs font-semibold">
+          className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-slate-200 overflow-x-auto text-xs font-bold">
           {TABS.map((t) => (
             <button key={t.id} id={`laporan-tab-${t.id}`} type="button" role="tab" aria-selected={tab === t.id}
               aria-controls="laporan-panel" onClick={() => setTab(t.id)}
-              className={`shrink-0 px-3 py-1.5 rounded-md cursor-pointer transition-colors focus-ring ${tab === t.id ? 'bg-slate-900 text-white font-bold' : 'text-slate-600 hover:text-slate-900'}`}>
+              className={`shrink-0 px-3.5 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                tab === t.id
+                  ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                  : 'bg-white text-slate-700 border-slate-200/90 hover:border-slate-300 hover:text-slate-900'
+              }`}>
               {t.label}
             </button>
           ))}

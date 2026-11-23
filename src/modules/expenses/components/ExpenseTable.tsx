@@ -190,8 +190,8 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
         </div>
 
         {/* Filters & Search Toolbar */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
-          <div className="sm:col-span-4 relative">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 pt-1">
+          <div className="sm:col-span-2 lg:col-span-4 relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
@@ -205,7 +205,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             />
           </div>
 
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-2 lg:col-span-4">
             <select
               value={categoryFilter}
               onChange={(e) => {
@@ -223,7 +223,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             </select>
           </div>
 
-          <div className="sm:col-span-3">
+          <div className="lg:col-span-2">
             <select
               value={sourceFilter}
               onChange={(e) => {
@@ -238,7 +238,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             </select>
           </div>
 
-          <div className="sm:col-span-2">
+          <div className="lg:col-span-2">
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -247,7 +247,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
               }}
               className="w-full px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
             >
-              <option value="ALL">Semua Status Transaksi</option>
+              <option value="ALL">Semua Status</option>
               <option value="ACTIVE">Aktif (Posted)</option>
               <option value="VOID">Dibatalkan (Void)</option>
             </select>

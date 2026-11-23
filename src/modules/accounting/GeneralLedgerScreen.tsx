@@ -67,14 +67,14 @@ interface GeneralLedgerScreenProps {
 }
 
 const TABS: { id: AccountingTabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'journals', label: '1. Jurnal Umum', icon: BookOpen },
-  { id: 'ledger', label: '2. Buku Besar', icon: BookMarked },
-  { id: 'trial-balance', label: '3. Neraca Saldo', icon: Scale },
-  { id: 'payables', label: '4. Pembantu Hutang', icon: CreditCard },
-  { id: 'reports', label: '5. Laporan Keuangan', icon: FileText },
-  { id: 'cash', label: '6. Kas & Bank', icon: Wallet },
-  { id: 'fixed-assets', label: '7. Aset Tetap', icon: Factory },
-  { id: 'bank-recon', label: '8. Rekonsiliasi Bank', icon: Banknote },
+  { id: 'journals', label: 'Jurnal Umum', icon: BookOpen },
+  { id: 'ledger', label: 'Buku Besar', icon: BookMarked },
+  { id: 'trial-balance', label: 'Neraca Saldo', icon: Scale },
+  { id: 'payables', label: 'Pembantu Hutang', icon: CreditCard },
+  { id: 'reports', label: 'Laporan Keuangan', icon: FileText },
+  { id: 'cash', label: 'Kas & Bank', icon: Wallet },
+  { id: 'fixed-assets', label: 'Aset Tetap', icon: Factory },
+  { id: 'bank-recon', label: 'Rekonsiliasi Bank', icon: Banknote },
 ];
 
 interface TabAccess {
@@ -114,7 +114,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   initialTab = 'journals',
   canApproveCash = false,
   canMoveCash = false,
-  onLedgerChanged = (_journals?: ApiJournal[]) => {},
+  onLedgerChanged = () => {},
 }) => {
   const access: TabAccess = {
     hub: canUseHub,
@@ -230,13 +230,17 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
         <div role="tablist" aria-label="Menu akuntansi" className="flex items-center gap-1.5 p-1.5 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto text-xs font-bold">
           {visibleTabs.map(({ id, label, icon: Icon }) => (
             <button key={id} type="button" role="tab" aria-selected={activeTab === id} onClick={() => setSelectedTab(id)}
-              className={`px-3 py-2 rounded-lg flex items-center gap-1.5 whitespace-nowrap cursor-pointer ${
-                activeTab === id ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              className={`px-3 py-2 rounded-lg border flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer ${
+                activeTab === id
+                  ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                  : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300'
               }`}>
               <Icon className="w-4 h-4" />
               <span>{label}</span>
               {(badges[id] ?? 0) > 0 && (
-                <span className="px-1.5 rounded-full text-[10px] font-mono bg-amber-100 text-amber-900">{badges[id]}</span>
+                <span className={`px-1.5 rounded-full text-[10px] font-mono ${
+                  activeTab === id ? 'bg-white text-blue-700' : 'bg-amber-100 text-amber-900'
+                }`}>{badges[id]}</span>
               )}
             </button>
           ))}

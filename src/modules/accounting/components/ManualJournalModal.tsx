@@ -84,7 +84,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({ isOpen, 
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="manual-journal-title" className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden flex flex-col max-h-[90vh]">
+      <div role="dialog" aria-modal="true" aria-labelledby="manual-journal-title" className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[90vh]">
         <div className="bg-slate-50 px-6 py-4 flex items-center justify-between border-b border-slate-200">
           <div className="flex items-center gap-2.5">
             <Scale className="w-5 h-5 text-blue-600" />
@@ -114,7 +114,7 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({ isOpen, 
           <table className="w-full text-xs border border-slate-200">
             <thead className="bg-slate-50 font-bold text-slate-700">
               <tr>
-                <th className="py-2 px-2 text-left">Akun</th>
+                <th className="py-2 px-2 text-left w-[42%] min-w-[240px]">Akun</th>
                 <th className="py-2 px-2 text-right w-32">Debit</th>
                 <th className="py-2 px-2 text-right w-32">Kredit</th>
                 <th className="py-2 px-2 text-left">Catatan baris</th>

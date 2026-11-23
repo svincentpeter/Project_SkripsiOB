@@ -183,7 +183,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Alert Banner Sukses */}
       {isSuccess && (
         <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-900 flex items-center justify-between shadow-xs animate-in fade-in">
@@ -224,32 +224,33 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
           </div>
 
           <div className="space-y-4 text-xs">
-            {/* Kategori & Tanggal */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-slate-700 font-bold block mb-1.5 flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Kategori Beban Usaha:</span>
-                </label>
-                <select
-                  value={category}
-                  onChange={(e) => {
-                    const newCat = e.target.value as ExpenseCategory;
-                    setCategory(newCat);
-                    if (EXPENSE_CATEGORY_CONFIG[newCat]?.default_cash_source) {
-                      setCashSource(EXPENSE_CATEGORY_CONFIG[newCat].default_cash_source!);
-                    }
-                  }}
-                  className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-semibold focus-ring"
-                >
-                  {categories.map((c) => (
-                    <option key={c} value={c}>
-                      {c} ({EXPENSE_CATEGORY_CONFIG[c]?.account_code})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Kategori Beban Usaha (Full Width agar nama kategori & kode akun tidak terpotong) */}
+            <div>
+              <label className="text-slate-700 font-bold block mb-1.5 flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5 text-slate-500" />
+                <span>Kategori Beban Usaha:</span>
+              </label>
+              <select
+                value={category}
+                onChange={(e) => {
+                  const newCat = e.target.value as ExpenseCategory;
+                  setCategory(newCat);
+                  if (EXPENSE_CATEGORY_CONFIG[newCat]?.default_cash_source) {
+                    setCashSource(EXPENSE_CATEGORY_CONFIG[newCat].default_cash_source!);
+                  }
+                }}
+                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-semibold focus-ring"
+              >
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c} ({EXPENSE_CATEGORY_CONFIG[c]?.account_code})
+                  </option>
+                ))}
+              </select>
+            </div>
 
+            {/* Tanggal & Nominal */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-slate-700 font-bold block mb-1.5 flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-slate-500" />
@@ -262,10 +263,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-semibold focus-ring"
                 />
               </div>
-            </div>
 
-            {/* Nominal & Sumber Kas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-slate-700 font-bold block mb-1.5">
                   Nominal Pengeluaran:
@@ -284,57 +282,53 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                   </span>
                 )}
               </div>
+            </div>
 
-              <div>
-                <label className="text-slate-700 font-bold block mb-1.5 flex items-center gap-1.5">
-                  {isCash ? <Wallet className="w-3.5 h-3.5 text-amber-600" /> : <Building2 className="w-3.5 h-3.5 text-blue-600" />}
-                  <span>Sumber Kas / Bank:</span>
-                </label>
-                <select
-                  value={cashSource}
-                  onChange={(e) => setCashSource(e.target.value as CashSource)}
-                  className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-semibold focus-ring"
-                >
-                  <option value="Kas Tunai Laci Kasir">
-                    Kas Tunai Laci Kasir (Saldo: {formatRupiah(cashInDrawer)})
-                  </option>
-                  <option value="Rekening Bank BCA (Cabang 3)">
-                    Rekening Bank BCA (Saldo: {formatRupiah(bankBalance)})
-                  </option>
-                </select>
-                <span className="text-[10px] text-slate-500 mt-1 block">
-                  Sisa saldo tersedia: <strong className="text-slate-700 font-mono">{formatRupiah(currentSourceBalance)}</strong>
-                </span>
-                {numericAmount > currentSourceBalance && (
-                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5 font-bold animate-in fade-in">
-                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>Nominal melebihi saldo {isCash ? 'Kas Laci' : 'Bank BCA'} yang tampil; server akan menolak bila saldonya memang tidak cukup.</span>
-                  </div>
-                )}
-              </div>
+            {/* Sumber Kas / Bank (Full Width agar pilihan & saldo terbaca utuh tanpa terpotong) */}
+            <div>
+              <label className="text-slate-700 font-bold block mb-1.5 flex items-center gap-1.5">
+                {isCash ? <Wallet className="w-3.5 h-3.5 text-amber-600" /> : <Building2 className="w-3.5 h-3.5 text-blue-600" />}
+                <span>Sumber Kas / Bank:</span>
+              </label>
+              <select
+                value={cashSource}
+                onChange={(e) => setCashSource(e.target.value as CashSource)}
+                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-semibold focus-ring"
+              >
+                <option value="Kas Tunai Laci Kasir">
+                  1-1000 — Kas Tunai Laci Kasir (Saldo: {formatRupiah(cashInDrawer)})
+                </option>
+                <option value="Rekening Bank BCA (Cabang 3)">
+                  1-1001 — Rekening Bank BCA Cabang 3 (Saldo: {formatRupiah(bankBalance)})
+                </option>
+              </select>
+              <span className="text-[11px] text-slate-500 mt-1 block">
+                Sisa saldo tersedia: <strong className="text-slate-800 font-mono">{formatRupiah(currentSourceBalance)}</strong>
+              </span>
+              {numericAmount > currentSourceBalance && (
+                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5 font-bold animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>Nominal melebihi saldo {isCash ? 'Kas Laci' : 'Bank BCA'} yang tampil; server akan menolak bila saldonya memang tidak cukup.</span>
+                </div>
+              )}
             </div>
 
             {/* Dibayarkan Kepada & Otorisasi */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-slate-700 font-bold block mb-1.5">
-                  Dibayarkan Kepada (Penerima Uang):
-                </label>
-                <input
-                  type="text"
-                  value={paidTo}
-                  onChange={(e) => setPaidTo(e.target.value)}
-                  placeholder="Contoh: Toko Perkakas Magelang / Montir Agus / PLN..."
-                  className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
-                  <UserCheck className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Penyetuju tercatat otomatis sebagai pengguna yang sedang login.</span>
-                </p>
-              </div>
+            <div>
+              <label className="text-slate-700 font-bold block mb-1.5">
+                Dibayarkan Kepada (Penerima Uang):
+              </label>
+              <input
+                type="text"
+                value={paidTo}
+                onChange={(e) => setPaidTo(e.target.value)}
+                placeholder="Contoh: Toko Perkakas Magelang / Montir Agus / PLN..."
+                className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
+              />
+              <p className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                <span>Penyetuju tercatat otomatis sebagai pengguna yang sedang login.</span>
+              </p>
             </div>
 
             {/* Keterangan */}

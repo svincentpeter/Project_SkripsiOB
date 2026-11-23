@@ -26,8 +26,7 @@ import {
   QrCode,
   Building2,
   Tag,
-  Package,
-  Loader2
+  Package
 } from 'lucide-react';
 import { PosTransaction } from '../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../shared/utils/formatters';
@@ -196,19 +195,24 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
   return (
     <div className="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar bg-[#F8FAFC] text-slate-900 space-y-5">
-      {/* Top Header & Navigation Container (Technical Operations Console) */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 shadow-xs space-y-3.5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      {/* Top Header & Navigation Container ("Terbungkus Rapi") */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 leading-snug">
-              Ringkasan Kinerja Toko & Akuntansi SAK EMKM
+            <div className="flex items-center gap-2 text-[11px] sm:text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
+              <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+              <span className="truncate">Pusat Kendali Eksekutif • Cabang 3 Magelang</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 leading-snug">
+              Dashboard Kinerja Toko & Akuntansi SAK EMKM
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Monitoring real-time omzet kasir harian, margin laba kotor FIFO, persediaan ban gudang, dan beban usaha.
+            <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+              Monitoring real-time omzet kasir, margin laba kotor FIFO, persediaan ban gudang, dan beban operasional.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto shrink-0">
+            {/* Tanpa rekap server (memuat/galat) ringkasan bernilai nol: jangan sampai terekspor. */}
             {recap.data && (
               <ExportMenu
                 reportId="dashboard_summary"
@@ -219,65 +223,74 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
             <button
               type="button"
               onClick={onNavigateToInventory}
-              className="flex-1 sm:flex-none h-9 flex items-center justify-center gap-1.5 px-3 rounded-md bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors focus-ring"
+              className="flex-1 sm:flex-none h-10 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 rounded-xl bg-white border border-slate-300 hover:border-blue-500 hover:text-blue-700 text-slate-700 text-xs font-bold transition-all shadow-xs cursor-pointer whitespace-nowrap"
             >
-              <Boxes className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-              <span>Katalog Ban & FIFO</span>
+              <Boxes className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>Inventori & FIFO</span>
             </button>
 
             <button
               type="button"
               onClick={onNavigateToPos}
-              className="flex-1 sm:flex-none h-9 flex items-center justify-center gap-1.5 px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-bold transition-colors focus-ring shadow-xs"
+              className="flex-1 sm:flex-none h-10 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl text-xs font-extrabold transition-all shadow-xs cursor-pointer whitespace-nowrap"
             >
-              <ShoppingCart className="w-3.5 h-3.5 shrink-0" />
-              <span>Buka Kasir (F1)</span>
+              <ShoppingCart className="w-4 h-4 shrink-0" />
+              <span>Terminal Kasir</span>
             </button>
           </div>
         </div>
 
-        {/* Technical Sub-Navigation Tabs */}
-        <div className="flex items-center gap-1 border-b border-slate-200 pb-2 text-xs font-medium">
+        {/* Integrated Sub-Navigation Tabs with Clear Button Borders */}
+        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200/80 overflow-x-auto scrollbar-none text-xs font-bold">
           <button
             type="button"
             onClick={() => setActiveTab('overview')}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-2 cursor-pointer focus-ring ${
+            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'overview'
-                ? 'bg-slate-900 text-white font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
-            <BarChart2 className="w-3.5 h-3.5 shrink-0" />
-            <span>Ringkasan Utama</span>
+            <BarChart2 className="w-4 h-4 shrink-0" />
+            <span>
+              <span className="sm:hidden">Overview</span>
+              <span className="hidden sm:inline">Ringkasan Utama (Overview)</span>
+            </span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('sales')}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-2 cursor-pointer focus-ring ${
+            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'sales'
-                ? 'bg-slate-900 text-white font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
-            <TrendingUp className="w-3.5 h-3.5 shrink-0" />
-            <span>Analisis Penjualan & Kasir</span>
+            <TrendingUp className="w-4 h-4 shrink-0" />
+            <span>
+              <span className="sm:hidden">Penjualan</span>
+              <span className="hidden sm:inline">Analisis Penjualan & Kasir</span>
+            </span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('inventory')}
-            className={`px-3 py-1.5 rounded-md transition-colors flex items-center gap-2 cursor-pointer focus-ring ${
+            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'inventory'
-                ? 'bg-slate-900 text-white font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
             }`}
           >
-            <Package className="w-3.5 h-3.5 shrink-0" />
-            <span>Status Stok & FIFO</span>
+            <Package className="w-4 h-4 shrink-0" />
+            <span>
+              <span className="sm:hidden">Persediaan</span>
+              <span className="hidden sm:inline">Status Persediaan & FIFO</span>
+            </span>
             {lowStockProducts.length > 0 && (
-              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-500 text-slate-950">
-                {lowStockProducts.length} Kritis
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500 text-white">
+                {lowStockProducts.length}
               </span>
             )}
           </button>
@@ -285,127 +298,135 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
       </div>
 
       {recap.loading && !recap.data && (
-        <div role="status" className="p-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-600 flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin text-blue-600 shrink-0" />
-          <span>Memuat rekap harian dari server…</span>
+        <div role="status" className="p-3 rounded-xl border border-slate-200 bg-white text-xs text-slate-600">
+          Memuat rekap harian dari server…
         </div>
       )}
 
       {recap.error && (
-        <div role="alert" className="flex items-center justify-between gap-3 p-3 rounded-lg border border-rose-200 bg-rose-50 text-xs text-rose-800">
+        <div role="alert" className="flex items-center justify-between gap-3 p-3 rounded-xl border border-rose-200 bg-rose-50 text-xs text-rose-800">
           <span>Gagal memuat rekap harian dari server: {recap.error}</span>
-          <button type="button" onClick={recap.reload} className="px-3 py-1.5 rounded-md bg-white border border-rose-300 font-bold cursor-pointer focus-ring">
+          <button type="button" onClick={recap.reload} className="px-3 py-1.5 rounded-lg bg-white border border-rose-300 font-bold cursor-pointer">
             Coba lagi
           </button>
         </div>
       )}
 
       {/* =======================================================================
-          OPERATIONAL CONSOLE: PRIMARY COMMERCIAL & SECONDARY TELEMETRY
+          5 REAL KPI METRIC CARDS (Responsive 2x2 Grid + 1 Banner on Mobile)
           ======================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-        {/* PRIMARY PANEL (Col 1-7): Commercial Real-time Metrics */}
-        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-lg p-4 shadow-xs flex flex-col justify-between space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">
-              KINERJA KASIR HARI INI ({formatDateIndo(today)})
-            </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>TERVERIFIKASI SERVER</span>
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-4">
+        {/* Card 1: Omzet Hari Ini */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Omzet Hari Ini</span>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/80">
+              <ArrowUpRight className="w-2.5 h-2.5" />
+              <span>Real-time</span>
             </span>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <span className="text-xs text-slate-500 font-medium block">Omzet Kotor Kasir</span>
-              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-mono tracking-tight tabular-nums mt-0.5" title={formatRupiah(todayOmzet)}>
-                {formatRupiah(todayOmzet)}
-              </div>
-              <div className="text-xs text-slate-500 font-medium mt-1">
-                {todayQty} unit terjual • {todayRow.sales_count} transaksi kasir
-              </div>
+          <div>
+            <div className="text-sm sm:text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight truncate" title={formatRupiah(todayOmzet)}>
+              {formatRupiah(todayOmzet)}
             </div>
-
-            <div className="sm:border-l sm:border-slate-100 sm:pl-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">Margin Laba Kotor (FIFO)</span>
-                <span className="text-xs font-mono font-bold text-slate-700">
-                  {grossProfitMargin}%
-                </span>
-              </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 font-mono tracking-tight tabular-nums mt-0.5" title={formatRupiah(todayGrossProfit)}>
-                {formatRupiah(todayGrossProfit)}
-              </div>
-              <div className="text-xs text-slate-500 font-medium mt-1">
-                HPP FIFO: <span className="font-mono text-slate-700 font-semibold">{formatRupiah(todayHpp)}</span>
-              </div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+              {todayQty} unit barang • {todayRow.sales_count} nota
             </div>
           </div>
-
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Rata-rata Nilai Transaksi (AOV):</span>
-            <span className="font-mono font-bold text-slate-800 tabular-nums">{formatRupiah(averageOrderValue)}</span>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-slate-500">AOV:</span>
+            <span className="font-bold text-slate-800 font-mono">{formatRupiah(averageOrderValue)}</span>
           </div>
         </div>
 
-        {/* SECONDARY PANEL (Col 8-12): Operational Metrics Stack */}
-        <div className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-2.5">
-          {/* Valuasi Stok */}
-          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block font-mono">
-                Valuasi Persediaan (FIFO)
-              </span>
-              <div className="text-base sm:text-lg font-bold text-slate-900 font-mono tabular-nums mt-0.5">
-                {totalInventoryValue === null ? '—' : formatRupiah(totalInventoryValue)}
-              </div>
-              <span className="text-[11px] text-slate-500 font-medium">
-                {totalInventoryQty} Unit Fisik • {activeProducts.length} SKU Aktif
-              </span>
+        {/* Card 2: Laba Kotor FIFO */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Laba Kotor FIFO</span>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/80 font-mono">
+              {grossProfitMargin}% Margin
+            </span>
+          </div>
+          <div>
+            <div className="text-sm sm:text-lg md:text-xl font-black text-emerald-700 font-mono tracking-tight truncate" title={formatRupiah(todayGrossProfit)}>
+              {formatRupiah(todayGrossProfit)}
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-emerald-700 font-bold mt-0.5 truncate">
+              Margin Laba: {grossProfitMargin}%
             </div>
           </div>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-slate-500">HPP:</span>
+            <span className="font-bold text-slate-800 font-mono">{formatRupiah(todayHpp)}</span>
+          </div>
+        </div>
 
-          {/* Beban Usaha */}
-          <div className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide font-mono">
-                  Beban Usaha ({monthLabel(monthPrefix)})
-                </span>
-              </div>
-              <div className="text-base sm:text-lg font-bold text-slate-900 font-mono tabular-nums mt-0.5">
-                {formatRupiah(totalExpensesMonth)}
-              </div>
-              <span className="text-[11px] text-slate-500 font-medium">
-                Beban operasional & kas kecil bengkel
-              </span>
+        {/* Card 3: Valuasi Persediaan */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Valuasi Stok FIFO</span>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-200/80 font-mono">
+              {products.length} SKU
+            </span>
+          </div>
+          <div>
+            <div className="text-sm sm:text-lg md:text-xl font-black text-indigo-900 font-mono tracking-tight truncate" title={totalInventoryValue === null ? 'Butuh izin lihat inventori' : formatRupiah(totalInventoryValue)}>
+              {totalInventoryValue === null ? '—' : formatRupiah(totalInventoryValue)}
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+              {totalInventoryQty} Unit Fisik
             </div>
           </div>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-slate-500">SKU Aktif:</span>
+            <span className="font-bold text-slate-800 font-mono">{activeProducts.length} SKU</span>
+          </div>
+        </div>
 
-          {/* Restock Warning */}
-          <div 
-            onClick={onNavigateToInventory}
-            className={`border rounded-lg p-3.5 shadow-xs flex items-center justify-between cursor-pointer transition-colors focus-ring ${
-              lowStockProducts.length > 0 
-                ? 'bg-amber-50/50 border-amber-300 hover:border-amber-400' 
-                : 'bg-white border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 font-mono block">
-                Peringatan Restock Ban
-              </span>
-              <div className={`text-base sm:text-lg font-bold font-mono tabular-nums mt-0.5 ${
-                lowStockProducts.length > 0 ? 'text-amber-800' : 'text-slate-900'
-              }`}>
-                {lowStockProducts.length > 0 ? `${lowStockProducts.length} Ukuran Kritis` : 'Stok Aman'}
-              </div>
-              <span className="text-[11px] text-slate-500 font-medium">
-                {outOfStockProducts.length} SKU Habis (0 Unit)
-              </span>
+        {/* Card 4: Beban Toko Bulan Berjalan */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Beban Operasional</span>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-200/80 font-mono">
+              {monthLabel(monthPrefix)}
+            </span>
+          </div>
+          <div>
+            <div className="text-sm sm:text-lg md:text-xl font-black text-rose-700 font-mono tracking-tight truncate" title={formatRupiah(totalExpensesMonth)}>
+              {formatRupiah(totalExpensesMonth)}
             </div>
-            <ArrowRight className="w-4 h-4 text-slate-400" />
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+              Jurnal akun beban 6-xxxx
+            </div>
+          </div>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-slate-500">Operasional:</span>
+            <span className="font-bold text-rose-600 font-mono">Tercatat</span>
+          </div>
+        </div>
+
+        {/* Card 5: Peringatan Stok Kritis (Spans 2 columns on mobile) */}
+        <div 
+          onClick={onNavigateToInventory}
+          className="col-span-2 sm:col-span-1 bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2 cursor-pointer hover:border-amber-400 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Peringatan Restock</span>
+            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${lowStockProducts.length > 0 ? 'bg-amber-50 text-amber-800 border-amber-200/80' : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'}`}>
+              {lowStockProducts.length > 0 ? `${lowStockProducts.length} Kritis` : 'Aman'}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between sm:block">
+            <div className={`text-sm sm:text-lg md:text-xl font-black font-mono tracking-tight truncate ${lowStockProducts.length > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
+              {lowStockProducts.length} Ukuran Ban
+            </div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+              {outOfStockProducts.length} SKU Habis (0 Unit)
+            </div>
+          </div>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+            <span className="text-amber-700 font-bold">Buka Inventori</span>
+            <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
           </div>
         </div>
       </div>
@@ -418,7 +439,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
           {/* Section: Grafik Tren 7 Hari & Pangsa Merek */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Tren Omzet vs HPP 7 Hari (2 Kolom) */}
-            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-lg p-5 shadow-xs flex flex-col justify-between">
+            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div>
                   <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
@@ -579,7 +600,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
             </div>
 
             {/* Donut Chart: Pangsa Penjualan Merek Ban */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
               <div>
                 <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                   <PieChart className="w-4 h-4 text-blue-600" />
@@ -657,7 +678,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
           {/* Section: Fast Moving & Low Stock Tables */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Fast Moving Tires Table */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-3">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-blue-600" />
@@ -698,7 +719,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
             </div>
 
             {/* Low Stock Warning Table */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-3">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600" />
@@ -760,7 +781,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Payment Method Breakdown Card */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
               <div>
                 <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-blue-600" />
@@ -799,7 +820,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
             </div>
 
             {/* Service vs Product Revenue Card */}
-            <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
               <div>
                 <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                   <Wrench className="w-4 h-4 text-cyan-600" />
@@ -839,7 +860,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
           </div>
 
           {/* Recent Transactions Table */}
-          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-3">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-sm text-slate-900">Riwayat Transaksi Terkini</h3>
               <span className="text-xs text-slate-500 font-semibold">{transactions.length} Nota Kasir</span>
@@ -903,7 +924,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         <div className="space-y-6">
           {/* Inventory Category Breakdown Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
               <div className="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
                 <span>Katalog Ban Baru</span>
                 <span className="text-blue-700">Kategori Utama</span>
@@ -916,7 +937,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
               </p>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
               <div className="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
                 <span>Katalog Velg Mobil</span>
                 <span className="text-amber-700">Aksesoris Roda</span>
@@ -929,7 +950,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
               </p>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
               <div className="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
                 <span>Ban Dalam & Flap</span>
                 <span className="text-emerald-700">Komponen Ban</span>
@@ -944,7 +965,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
           </div>
 
           {/* Detailed Reorder & Stock Health List */}
-          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-xs space-y-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">

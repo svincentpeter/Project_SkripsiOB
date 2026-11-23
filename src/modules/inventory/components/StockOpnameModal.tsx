@@ -116,20 +116,20 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
   const brands = Array.from(new Set(products.map((p) => p.brand)));
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
-      <div className="bg-white border border-slate-200 rounded-lg w-full max-w-5xl max-h-[92vh] overflow-hidden shadow-md flex flex-col text-slate-900">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in">
+      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-5xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col text-slate-900">
         {/* Modal Header */}
         <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-md bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shadow-2xs">
-              <ClipboardList className="w-4 h-4" />
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+              <ClipboardList className="w-5 h-5" />
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-bold text-base text-slate-900 tracking-tight">
+                <h3 className="font-black text-lg text-slate-900 tracking-tight">
                   Stock Opname Fisik Cabang 3
                 </h3>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
                   {docNumber}
                 </span>
               </div>
@@ -347,7 +347,7 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
             >
               Batal
             </button>
@@ -355,7 +355,7 @@ export const StockOpnameModal: React.FC<StockOpnameModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={isSaving}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs flex items-center gap-1.5"
             >
               <PackageCheck className="w-4 h-4" />
               <span>Posting Hasil Opname Fisik</span>

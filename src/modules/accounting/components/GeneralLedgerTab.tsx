@@ -65,7 +65,7 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({ accounts, re
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select aria-label="Pilih akun" value={accountCode} onChange={(e) => setAccountCode(e.target.value)}
-            className="px-2 py-1.5 text-xs border border-slate-300 rounded-lg bg-white max-w-[280px]">
+            className="px-2.5 py-1.5 text-xs font-semibold text-slate-800 border border-slate-300 rounded-lg bg-white min-w-[240px] sm:min-w-[320px] max-w-full">
             {GROUPS.map((g) => {
               const items = options.filter((a) => a.account_code.startsWith(g.prefix));
               return items.length === 0 ? null : (

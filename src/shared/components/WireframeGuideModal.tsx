@@ -49,16 +49,16 @@ interface GuideTabItem {
 }
 
 const GUIDE_TABS: GuideTabItem[] = [
-  { id: 'sop', label: '1. SOP Harian Toko', badge: 'Wajib Staf', icon: Clock },
-  { id: 'pos', label: '2. Terminal Kasir (POS)', badge: 'Penjualan', icon: ShoppingCart },
-  { id: 'receipt', label: '3. Struk & Batal Nota', badge: 'Kasir & VOID', icon: Receipt },
-  { id: 'inventory', label: '4. Stok Ban & FIFO', badge: 'Gudang Ban', icon: Package },
-  { id: 'expenses', label: '5. Biaya & Kas Kecil', badge: 'Operasional', icon: Wallet },
-  { id: 'dashboard', label: '6. Dashboard Owner', badge: 'Pantau Bisnis', icon: LayoutDashboard },
-  { id: 'ledger', label: '7. Hutang Tempo Supplier', badge: 'Hutang Dagang', icon: FileText },
-  { id: 'financials', label: '8. Laporan Keuangan', badge: 'SAK EMKM IAI', icon: DollarSign },
-  { id: 'settings', label: '9. Hak Akses & Toko', badge: 'Keamanan', icon: Settings },
-  { id: 'faq', label: '10. Tanya Jawab (FAQ)', badge: 'Solusi Kendala', icon: HelpCircle },
+  { id: 'sop', label: 'SOP Harian Toko', badge: 'Wajib Staf', icon: Clock },
+  { id: 'pos', label: 'Terminal Kasir (POS)', badge: 'Penjualan', icon: ShoppingCart },
+  { id: 'receipt', label: 'Struk & Batal Nota', badge: 'Kasir & VOID', icon: Receipt },
+  { id: 'inventory', label: 'Stok Ban & FIFO', badge: 'Gudang Ban', icon: Package },
+  { id: 'expenses', label: 'Biaya & Kas Kecil', badge: 'Operasional', icon: Wallet },
+  { id: 'dashboard', label: 'Dashboard Owner', badge: 'Pantau Bisnis', icon: LayoutDashboard },
+  { id: 'ledger', label: 'Hutang Tempo Supplier', badge: 'Hutang Dagang', icon: FileText },
+  { id: 'financials', label: 'Laporan Keuangan', badge: 'SAK EMKM IAI', icon: DollarSign },
+  { id: 'settings', label: 'Hak Akses & Toko', badge: 'Keamanan', icon: Settings },
+  { id: 'faq', label: 'Tanya Jawab (FAQ)', badge: 'Solusi Kendala', icon: HelpCircle },
 ];
 
 export const WireframeGuideModal: React.FC<WireframeGuideModalProps> = ({

@@ -266,15 +266,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       : BRANDS_BAN;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-      <div className="bg-white border border-slate-200 rounded-lg w-full max-w-3xl shadow-md overflow-hidden my-8 animate-in fade-in duration-150">
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-slate-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto font-['Plus_Jakarta_Sans',sans-serif]">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-md ${mode === 'CREATE' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-700 border border-amber-200'} shadow-2xs`}>
-              {mode === 'CREATE' ? <Plus className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+            <div className={`p-2.5 rounded-xl ${mode === 'CREATE' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-amber-50 text-amber-600 border border-amber-100'} shadow-2xs`}>
+              {mode === 'CREATE' ? <Plus className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">
+              <h2 className="text-lg font-bold text-slate-900">
                 {mode === 'CREATE' ? 'Tambah Master Produk Baru' : 'Edit Data Master Produk'}
               </h2>
               <p className="text-xs text-slate-500">
@@ -282,15 +282,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
-            <X className="w-4 h-4" />
+          <button onClick={onClose} className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-5 max-h-[80vh] overflow-y-auto bg-white">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto bg-white">
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2.5 text-red-700 text-xs">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700 text-sm">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
@@ -314,18 +314,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         else if (categoryKind(cat.category_code, cat.category_name) === 'BAN_DALAM') setBrand('GTRadial');
                         else if (categoryKind(cat.category_code, cat.category_name) === 'OLI_PELUMAS') setBrand('Shell');
                       }}
-                      className={`flex items-center gap-2 py-1.5 px-3 rounded-md border text-xs font-medium transition-colors cursor-pointer ${
+                      className={`flex items-center gap-2 py-2 px-3.5 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-2xs font-bold ring-1 ring-blue-500/20'
+                          ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-xs font-bold ring-2 ring-blue-500/20'
                           : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                       }`}
                     >
                       {categoryKind(cat.category_code, cat.category_name) === 'BAN_BARU' ? (
-                        <Disc className="w-3.5 h-3.5 text-blue-600" />
+                        <Disc className="w-4 h-4 text-blue-600" />
                       ) : categoryKind(cat.category_code, cat.category_name) === 'VELG' ? (
-                        <CircleDot className="w-3.5 h-3.5 text-amber-600" />
+                        <CircleDot className="w-4 h-4 text-amber-600" />
                       ) : (
-                        <Package className="w-3.5 h-3.5 text-emerald-600" />
+                        <Package className="w-4 h-4 text-emerald-600" />
                       )}
                       <span>{cat.category_name}</span>
                     </button>
@@ -610,19 +610,19 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+              className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold shadow-2xs"
             >
               Batal
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 flex items-center gap-2"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-4 h-4" />
               {mode === 'CREATE' ? 'Simpan Master Produk' : 'Perbarui Produk'}
             </button>
           </div>

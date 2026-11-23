@@ -29,28 +29,28 @@ export const ProductFifoBatchList: React.FC<ProductFifoBatchListProps> = ({
   }
 
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+    <div className="bg-gradient-to-br from-indigo-50/70 to-slate-50 border border-indigo-200/80 rounded-2xl p-4 space-y-3">
       {/* Header Info */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-blue-600 text-white flex items-center justify-center shadow-2xs">
+          <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
             <Layers className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+            <h4 className="text-xs font-extrabold text-indigo-950 flex items-center gap-1.5">
               <span>Lapisan Batch Pembelian FIFO (First-In, First-Out)</span>
             </h4>
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-indigo-700">
               Kasir secara otomatis memotong stok dari batch terlama terlebih dahulu.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-xs">
-          <span className="bg-white border border-slate-200 text-slate-800 font-semibold px-2.5 py-1 rounded-md font-mono text-[11px] shadow-2xs tabular-nums">
+          <span className="bg-white border border-indigo-200 text-indigo-800 font-bold px-2.5 py-1 rounded-lg font-mono text-[11px] shadow-2xs">
             {activeBatches.length} Batch Aktif ({totalRemainingPcs} pcs)
           </span>
-          <span className="bg-blue-600 text-white font-bold px-2.5 py-1 rounded-md font-mono text-[11px] shadow-2xs tabular-nums">
+          <span className="bg-indigo-600 text-white font-extrabold px-2.5 py-1 rounded-lg font-mono text-[11px] shadow-xs">
             HPP: {formatRupiah(totalValuationHpp)}
           </span>
         </div>

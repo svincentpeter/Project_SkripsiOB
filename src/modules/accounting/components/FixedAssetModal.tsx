@@ -124,18 +124,18 @@ export const FixedAssetModal: React.FC<FixedAssetModalProps> = ({ isOpen, onClos
               <span className="block font-bold text-slate-700 mb-1">Nilai residu</span>
               <MoneyInput value={form.residual_value} onChange={(v) => set({ residual_value: v })} prefix="Rp" className={field} />
             </label>
-            <label className="block">
-              <span className="block font-bold text-slate-700 mb-1">{opening ? 'Sisa umur manfaat (bulan)' : 'Umur manfaat (bulan)'}</span>
-              <input type="number" min={1} max={600} required value={form.useful_life_months || ''}
-                onChange={(e) => set({ useful_life_months: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} className={`${field} font-mono`} />
-            </label>
-            <label className="block">
+            <label className="block sm:col-span-2">
               <span className="block font-bold text-slate-700 mb-1">Sumber dana</span>
               <select value={form.funding} onChange={(e) => set({ funding: e.target.value as FixedAssetFunding })} className={field}>
                 {(Object.keys(FUNDING_LABEL) as FixedAssetFunding[]).map((f) => (
                   <option key={f} value={f}>{FUNDING_LABEL[f]}</option>
                 ))}
               </select>
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="block font-bold text-slate-700 mb-1">{opening ? 'Sisa umur manfaat (bulan)' : 'Umur manfaat (bulan)'}</span>
+              <input type="number" min={1} max={600} required value={form.useful_life_months || ''}
+                onChange={(e) => set({ useful_life_months: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} className={`${field} font-mono`} />
             </label>
             {opening && (
               <>

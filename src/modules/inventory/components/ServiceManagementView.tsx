@@ -121,12 +121,12 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
   return (
     <div className="w-full animate-in fade-in duration-200">
       {/* Main Unified Table Card ("Terbungkus Rapi") */}
-      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 shadow-2xs space-y-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
         {/* Table Top Controls & Action CTA */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
-            <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-blue-700" />
+            <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+              <Wrench className="w-4 h-4 text-cyan-700" />
               <span>Daftar Master Layanan & Jasa Bengkel</span>
             </h3>
             <p className="text-[11px] text-slate-500 mt-0.5">
@@ -142,15 +142,15 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                 setCategoryError(null);
                 setIsCategoryModalOpen(true);
               }}
-              className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+              className="px-3 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
             >
-              <Tag className="w-3.5 h-3.5 text-slate-500" />
+              <Tag className="w-4 h-4 text-slate-500" />
               <span>Kategori Jasa ({serviceCategories.length})</span>
             </button>
             <button
               type="button"
               onClick={handleOpenCreateService}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Tambah Jasa Baru</span>
@@ -165,9 +165,9 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full scrollbar-none">
             <button
               onClick={() => setSelectedCategoryFilter('ALL')}
-              className={`shrink-0 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 selectedCategoryFilter === 'ALL'
-                  ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                  ? 'bg-blue-700 text-white shadow-xs'
                   : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
               }`}
             >
@@ -179,9 +179,9 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                 <button
                   key={sc.id || sc.code}
                   onClick={() => setSelectedCategoryFilter(sc.code)}
-                  className={`shrink-0 px-3 py-1 rounded-md text-xs font-semibold transition-colors cursor-pointer ${
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     selectedCategoryFilter.toUpperCase() === sc.code.toUpperCase()
-                      ? 'bg-blue-600 text-white shadow-2xs font-bold'
+                      ? 'bg-cyan-700 text-white shadow-xs'
                       : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                   }`}
                 >
@@ -293,7 +293,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                           <button
                             onClick={() => onToggleService(srv.id)}
                             disabled={readOnly}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                               srv.is_active
                                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
                                 : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
@@ -368,11 +368,11 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
 
       {/* Service Category Manager Modal */}
       {isCategoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in duration-150">
-          <div className="bg-white rounded-lg shadow-md border border-slate-200 w-full max-w-lg overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-md bg-blue-100 flex items-center justify-center text-blue-700">
+                <div className="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center text-cyan-700">
                   <Tag className="w-4 h-4" />
                 </div>
                 <div>
@@ -384,9 +384,9 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
               </div>
               <button
                 onClick={() => setIsCategoryModalOpen(false)}
-                className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -512,10 +512,10 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
 
       {/* Delete Service Confirmation Modal */}
       {serviceToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in duration-150">
-          <div className="bg-white rounded-lg shadow-md border border-slate-200 w-full max-w-sm overflow-hidden p-6 space-y-4 text-center">
-            <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-              <AlertCircle className="w-5 h-5" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm overflow-hidden p-6 space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
             </div>
 
             <div>
@@ -529,7 +529,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
               <button
                 type="button"
                 onClick={() => setServiceToDelete(null)}
-                className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-xl cursor-pointer"
               >
                 Batal
               </button>
@@ -541,7 +541,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                   }
                   setServiceToDelete(null);
                 }}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
               >
                 Ya, Hapus Jasa
               </button>

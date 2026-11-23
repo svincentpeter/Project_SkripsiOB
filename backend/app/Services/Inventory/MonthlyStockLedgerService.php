@@ -33,14 +33,19 @@ class MonthlyStockLedgerService
         $daysInMonth = $startDate->daysInMonth;
         $endDate = $startDate->copy()->endOfMonth();
 
+        $isPgsql = DB::connection()->getDriverName() === 'pgsql';
+        $ringOrderExpr = $isPgsql
+            ? "CASE WHEN ring IS NULL OR ring = '' THEN 999 ELSE COALESCE(NULLIF(REGEXP_REPLACE(ring, '[^0-9]', '', 'g'), ''), '999')::int END ASC"
+            : "CASE WHEN ring IS NULL OR ring = '' THEN 999 ELSE CAST(REPLACE(ring, 'R', '') AS UNSIGNED) END ASC";
+
         // Query active tire products
         $productsQuery = Product::query()
             ->whereNull('deleted_at')
             ->where('is_active', true)
             ->orderBy('brand')
-            ->orderByRaw('CASE WHEN ring IS NULL OR ring = "" THEN 999 ELSE CAST(REPLACE(ring, "R", "") AS UNSIGNED) END ASC')
+            ->orderByRaw($ringOrderExpr)
             ->orderBy('product_size')
-            ->orderByRaw('COALESCE(motif, product_name, "") ASC')
+            ->orderByRaw("COALESCE(motif, product_name, '') ASC")
             ->orderBy('product_cost', 'asc');
 
         if (!empty($brand) && $brand !== 'ALL') {
@@ -115,6 +120,7 @@ class MonthlyStockLedgerService
             ->keyBy('product_id');
 
         // 3. Daily Sales per product (day 1..31)
+        $dayExpr = $isPgsql ? 'EXTRACT(DAY FROM sales.date)' : 'DAY(sales.date)';
         $dailySalesRaw = DB::table('sale_details')
             ->join('sales', 'sale_details.sale_id', '=', 'sales.id')
             ->whereYear('sales.date', $year)
@@ -128,8 +134,8 @@ class MonthlyStockLedgerService
                     $q->where('sales.status', '!=', 'VOID');
                 }
             })
-            ->select('sale_details.product_id', DB::raw('DAY(sales.date) as day'), DB::raw('SUM(sale_details.quantity) as qty'))
-            ->groupBy('sale_details.product_id', DB::raw('DAY(sales.date)'))
+            ->select('sale_details.product_id', DB::raw("{$dayExpr} as day"), DB::raw('SUM(sale_details.quantity) as qty'))
+            ->groupBy('sale_details.product_id', DB::raw($dayExpr))
             ->get();
 
         $dailySales = [];
