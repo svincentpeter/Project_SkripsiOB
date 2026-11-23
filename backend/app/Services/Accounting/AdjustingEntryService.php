@@ -54,6 +54,9 @@ class AdjustingEntryService
 
             $amount = round((float) $data['amount'], 2);
             $accrual = $data['kind'] === 'ACCRUAL';
+            if (! $accrual) {
+                self::assertPrepaidCovers($amount, $end);
+            }
             $reference = DocumentNumber::next(JournalEntry::class, 'reference_id', 'AJP', $end);
 
             $entry = (new JournalDraft())
@@ -77,5 +80,39 @@ class AdjustingEntryService
 
             return [$entry, $reversal];
         }, self::ATTEMPTS);
+    }
+
+    /**
+     * Beban dibayar di muka yang terpakai tidak boleh melebihi saldo 1-1100: per $end maupun per tanggal sesudahnya
+     * (pemakaian bulan berikutnya yang sudah dibukukan). Bacaan berkunci, seperti pengaman saldo kas.
+     */
+    private static function assertPrepaidCovers(float $amount, string $end): void
+    {
+        $accountId = Account::where('account_code', self::PREPAID)->value('id');
+        $daily = DB::table('journal_items as i')
+            ->join('journal_entries as e', 'e.id', '=', 'i.journal_entry_id')
+            ->where('i.account_id', $accountId)
+            ->where('e.status', 'POSTED')
+            ->groupBy('e.entry_date')
+            ->orderBy('e.entry_date')
+            ->selectRaw('e.entry_date as d, SUM(i.debit - i.credit) as net')
+            ->sharedLock()
+            ->get();
+
+        $atEnd = round((float) $daily->filter(fn ($r) => Carbon::parse($r->d)->toDateString() <= $end)->sum('net'), 2);
+        $lowest = $atEnd;
+        $running = $atEnd;
+        foreach ($daily->filter(fn ($r) => Carbon::parse($r->d)->toDateString() > $end) as $row) {
+            $running = round($running + (float) $row->net, 2);
+            $lowest = min($lowest, $running);
+        }
+
+        if (round($lowest - $amount, 2) < 0) {
+            throw new PosRuleException(sprintf(
+                'Saldo Beban Dibayar di Muka (1-1100) hanya Rp %s; pemakaian Rp %s akan membuatnya negatif. Catat dulu pembayaran di mukanya.',
+                number_format(max(0, $lowest), 0, ',', '.'),
+                number_format($amount, 0, ',', '.'),
+            ));
+        }
     }
 }

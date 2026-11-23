@@ -98,11 +98,30 @@ class CashSessionService
         return round(self::ledgerBalance() + self::pendingAdjustment(), 2);
     }
 
-    /** Selisih shift yang menunggu persetujuan OWNER (belum dijurnal ke 1-1000). */
+    /**
+     * Selisih shift yang menunggu persetujuan OWNER (belum dijurnal ke 1-1000). Current read (sharedLock): snapshot
+     * transaksi pemanggil bisa lebih tua dari close/approve yang baru di-commit, sedangkan saldo jurnal dibaca terkini.
+     */
     public static function pendingAdjustment(): float
     {
-        return round(CashSession::where('status', CashSession::PENDING)->get()
-            ->sum(fn (CashSession $s) => (float) $s->adjustment()), 2);
+        return round(array_sum(self::pendingAdjustmentsByDate()), 2);
+    }
+
+    /**
+     * Selisih shift PENDING per tanggal tutup shift (Y-m-d => nominal): kas fisik baru berbeda dari buku sejak shift
+     * itu ditutup, jadi pengaman saldo hanya menambahkannya mulai tanggal itu. Current read, seperti pendingAdjustment().
+     *
+     * @return array<string, float>
+     */
+    public static function pendingAdjustmentsByDate(): array
+    {
+        $byDate = [];
+        foreach (CashSession::where('status', CashSession::PENDING)->sharedLock()->get() as $session) {
+            $day = $session->closed_at->toDateString();
+            $byDate[$day] = round(($byDate[$day] ?? 0) + (float) $session->adjustment(), 2);
+        }
+
+        return $byDate;
     }
 
     /**
@@ -214,8 +233,9 @@ class CashSessionService
             if ($session->status !== CashSession::PENDING) {
                 throw new PosRuleException('Hanya shift yang menunggu persetujuan yang dapat disetujui.');
             }
-            if ($approver->role !== 'OWNER' && (int) $session->user_id === (int) $approver->id) {
-                throw new PosRuleException('Shift yang Anda buka sendiri harus disetujui pemilik.');
+            // Pembuka dan penutup (yang menghitung kas fisik) tidak boleh menyetujui selisihnya sendiri.
+            if ($approver->role !== 'OWNER' && in_array((int) $approver->id, [(int) $session->user_id, (int) $session->closed_by], true)) {
+                throw new PosRuleException('Shift yang Anda buka atau tutup sendiri harus disetujui pemilik.');
             }
 
             $amount = (float) $session->adjustment();

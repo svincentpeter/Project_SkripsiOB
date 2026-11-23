@@ -31,6 +31,9 @@ import {
   INITIAL_STORE_SETTINGS,
   INITIAL_SUPPLIERS,
   INITIAL_STOCK_MUTATIONS,
+  INITIAL_PRODUCTS,
+  INITIAL_SERVICES,
+  INITIAL_TRANSACTIONS,
 } from './shared/data/mockData';
 import { LoginScreen } from './modules/auth';
 import { formatRupiah } from './shared/utils/formatters';
@@ -376,12 +379,22 @@ function MainAppContent() {
       expenseApi.categories().then(setExpenseCategories).catch(() => {});
     }
     if (allowed('expenses', 'accounting_hub', 'financial_reports', 'cash_session')) refreshCashBalances();
-    if (apiProducts) setProducts(apiProducts);
-    if (apiServices) setServices(apiServices);
+    if (apiProducts) {
+      setProducts(apiProducts);
+    } else {
+      setProducts((prev) => (prev.length > 0 ? prev : INITIAL_PRODUCTS));
+    }
+    if (apiServices) {
+      setServices(apiServices);
+    } else {
+      setServices((prev) => (prev.length > 0 ? prev : INITIAL_SERVICES));
+    }
     if (apiSales) {
       const txs = apiSales.map(mapSaleToTransaction);
       setTransactions(txs);
       setCurrentReceiptTx((prev) => prev ?? txs[0] ?? null);
+    } else {
+      setTransactions((prev) => (prev.length > 0 ? prev : INITIAL_TRANSACTIONS));
     }
   };
 
@@ -551,10 +564,13 @@ function MainAppContent() {
       const tx = mapSaleToTransaction(res.sale);
       setTransactions((prev) => prev.map((t) => (t.id === txId ? tx : t)));
       if (currentReceiptTx?.id === txId) setCurrentReceiptTx(tx);
-      toast.success(
-        'Retur Penjualan Dibukukan',
-        `${res.sales_return.reference}: serahkan refund tunai ${formatRupiah(res.sales_return.refund_amount)} dari laci.`
-      );
+      // Refund mengikuti cara bayar nota (dihitung server): tunai dari laci, QRIS/transfer dari Bank BCA.
+      const { refund_cash: cash, refund_bank: bank } = res.sales_return;
+      const parts = [
+        cash > 0 ? `serahkan tunai ${formatRupiah(cash)} dari laci` : '',
+        bank > 0 ? `transfer balik ${formatRupiah(bank)} dari Bank BCA` : '',
+      ].filter(Boolean);
+      toast.success('Retur Penjualan Dibukukan', `${res.sales_return.reference}${parts.length ? `: ${parts.join(' dan ')}` : ''}.`);
     });
     return true;
   };
@@ -1145,6 +1161,30 @@ function MainAppContent() {
               />
             )}
           </main>
+
+          {/* Operational Bottom Telemetry Strip (Non-Sidebar Workstation Footer) */}
+          <footer className="h-7 bg-slate-900 border-t border-slate-800 text-slate-400 px-3 sm:px-5 flex items-center justify-between text-[11px] font-mono select-none shrink-0 z-30">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1.5 text-slate-300 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                <span>OB3 MAGELANG</span>
+              </span>
+              <span className="text-slate-700 hidden sm:inline">|</span>
+              <span className="hidden sm:inline text-slate-400">SAK EMKM FIFO</span>
+            </div>
+
+            <div className="hidden md:flex items-center gap-3 text-slate-400 text-[10px]">
+              <span><kbd className="px-1 py-0.2 bg-slate-800 border border-slate-700 rounded text-slate-300">F1</kbd> Kasir POS</span>
+              <span><kbd className="px-1 py-0.2 bg-slate-800 border border-slate-700 rounded text-slate-300">1-8</kbd> Pindah Modul</span>
+              <span>Shift: <strong className="text-slate-300">{currentUser.name}</strong></span>
+            </div>
+
+            <div className="flex items-center gap-2 text-slate-400">
+              <span className="text-emerald-400/90 hidden sm:inline">{backendStatus === 'connected' ? 'MySQL Live' : backendStatus === 'supabase' ? 'Supabase' : 'Offline'}</span>
+              <span className="text-slate-700 hidden sm:inline">•</span>
+              <span className="text-slate-300 tabular-nums">{timeString}</span>
+            </div>
+          </footer>
         </div>
       )}
 

@@ -24,8 +24,8 @@ class FixedAssetRequest extends FormRequest
             'residual_value' => 'nullable|numeric|min:0|max:10000000000',
             'useful_life_months' => 'required|integer|min:1|max:600',
             'funding' => ['required', Rule::in(FixedAsset::FUNDING)],
-            'depreciation_start' => 'nullable|required_if:funding,OPENING|prohibited_unless:funding,OPENING|date_format:Y-m',
-            'opening_accumulated_depreciation' => 'nullable|prohibited_unless:funding,OPENING|numeric|min:0|max:10000000000',
+            'depreciation_start' => 'nullable|required_if:funding,OPENING,MODAL|prohibited_unless:funding,OPENING,MODAL|date_format:Y-m',
+            'opening_accumulated_depreciation' => 'nullable|prohibited_unless:funding,OPENING,MODAL|numeric|min:0|max:10000000000',
             'notes' => 'nullable|string|max:255',
         ];
     }
@@ -34,11 +34,11 @@ class FixedAssetRequest extends FormRequest
     {
         return [
             'acquisition_date.before_or_equal' => 'Tanggal perolehan tidak boleh melebihi hari ini.',
-            'depreciation_start.required_if' => 'Aset dari saldo awal wajib diisi bulan mulai disusutkan sistem.',
-            'depreciation_start.prohibited_unless' => 'Bulan mulai penyusutan hanya diisi untuk aset dari saldo awal; aset yang dibeli mulai disusutkan pada bulan perolehan.',
-            'opening_accumulated_depreciation.prohibited_unless' => 'Akumulasi penyusutan awal hanya untuk aset dari saldo awal.',
+            'depreciation_start.required_if' => 'Aset dari saldo awal atau setoran modal wajib diisi bulan mulai disusutkan sistem.',
+            'depreciation_start.prohibited_unless' => 'Bulan mulai penyusutan hanya diisi untuk aset dari saldo awal atau setoran modal; aset yang dibeli mulai disusutkan pada bulan perolehan.',
+            'opening_accumulated_depreciation.prohibited_unless' => 'Akumulasi penyusutan awal hanya untuk aset dari saldo awal atau setoran modal.',
             'category.in' => 'Kategori aset tidak dikenal.',
-            'funding.in' => 'Sumber dana harus Tunai, Transfer, atau Saldo awal.',
+            'funding.in' => 'Sumber dana harus Tunai, Transfer, Saldo awal, atau Setoran modal.',
             'acquisition_date.date_format' => 'Tanggal perolehan harus berformat YYYY-MM-DD.',
             'depreciation_start.date_format' => 'Bulan mulai penyusutan harus berformat YYYY-MM.',
             'name.max' => 'Nama aset maksimal :max karakter.',

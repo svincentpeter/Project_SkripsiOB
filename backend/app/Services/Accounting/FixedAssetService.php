@@ -14,7 +14,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Register aset tetap: perolehan (Dr 1-3000 / Cr kas atau bank), aset dari saldo awal (tanpa jurnal),
+ * Register aset tetap: perolehan (Dr 1-3000 / Cr kas atau bank), aset dari saldo awal (tanpa jurnal), aset setoran
+ * modal pemilik atau yang terlewat dari saldo awal (Dr 1-3000 / Cr 1-3999 akumulasi awal / Cr 3-1000 nilai buku),
  * dan pembatalan aset salah input (jurnal cermin perolehan + pembalikan penyusutannya per bulan penyusutan).
  */
 class FixedAssetService
@@ -58,7 +59,7 @@ class FixedAssetService
         return DB::transaction(function () use ($data, $user) {
             self::lockDrawer($data['funding']);
             self::lockRegister();
-            $opening = $data['funding'] === 'OPENING';
+            $opening = in_array($data['funding'], FixedAsset::CARRIED_OVER, true);
             $code = DocumentNumber::next(FixedAsset::class, 'code', 'AT', $data['acquisition_date']);
 
             $asset = FixedAsset::create([
@@ -79,12 +80,25 @@ class FixedAssetService
             ]);
 
             $journal = null;
-            if (! $opening) {
-                $cost = (float) $asset->acquisition_cost;
+            $cost = (float) $asset->acquisition_cost;
+            if ($data['funding'] === 'MODAL') {
+                // Tanpa uang keluar: nilai buku aset menambah modal pemilik (akun penyeimbang saldo awal).
+                $accumulated = (float) $asset->opening_accumulated_depreciation;
+                $draft = (new JournalDraft())->debit(self::ASSET_ACCOUNT, $cost, "Perolehan {$code} {$asset->name}");
+                if ($accumulated > 0) {
+                    $draft->credit(self::ACCUMULATED_ACCOUNT, $accumulated, "Akumulasi penyusutan awal {$code}");
+                }
+                if (round($cost - $accumulated, 2) > 0) {
+                    $draft->credit(OpeningBalanceService::CAPITAL, round($cost - $accumulated, 2), "Setoran aset {$code} oleh pemilik");
+                }
+                $journal = $draft->post($this->engine, self::ACQUISITION, $code, "Setoran modal aset tetap {$code}: {$asset->name}", $data['acquisition_date']);
+            } elseif (! $opening) {
                 $journal = (new JournalDraft())
                     ->debit(self::ASSET_ACCOUNT, $cost, "Perolehan {$code} {$asset->name}")
                     ->credit($data['funding'] === 'TUNAI' ? '1-1000' : '1-1001', $cost, "Pembayaran aset {$code}")
                     ->post($this->engine, self::ACQUISITION, $code, "Perolehan aset tetap {$code}: {$asset->name}", $data['acquisition_date']);
+            }
+            if ($journal !== null) {
                 $asset->update(['journal_entry_number' => $journal->entry_number]);
             }
 
@@ -99,11 +113,15 @@ class FixedAssetService
      * register & penyusutan tertunda hanya membaca aset ACTIVE, dan CALK menghitung akumulasi aset VOID dari saldo
      * awalnya saja, sehingga keduanya tetap cocok dengan buku besar di setiap tanggal.
      *
+     * Aset saldo awal tidak punya jurnal perolehan. Dengan $correctLedger nilainya juga dikeluarkan dari buku besar hari
+     * ini (Dr 3-1000 nilai buku / Dr 1-3999 akumulasi awal / Cr 1-3000 harga perolehan): saldo awalnya terlalu besar.
+     * Tanpa itu hanya statusnya yang berubah (entri register ganda).
+     *
      * @return array{asset: FixedAsset, journals: list<JournalEntry>}
      */
-    public function void(int $id, string $reason, User $user): array
+    public function void(int $id, string $reason, User $user, bool $correctLedger = false): array
     {
-        return DB::transaction(function () use ($id, $reason, $user) {
+        return DB::transaction(function () use ($id, $reason, $user, $correctLedger) {
             // funding tidak pernah berubah, jadi dibaca tanpa kunci untuk menentukan kunci laci lebih dulu.
             // Bacaan ini menetapkan snapshot REPEATABLE READ sebelum kunci diperoleh: setiap keputusan di bawah kunci
             // wajib bacaan berkunci (current read), agar penyusutan yang commit selama menunggu kunci tetap terlihat.
@@ -113,6 +131,9 @@ class FixedAssetService
 
             if ($asset->status === 'VOID') {
                 throw new PosRuleException("Aset {$asset->code} sudah dibatalkan.");
+            }
+            if ($correctLedger && $asset->funding !== 'OPENING') {
+                throw new PosRuleException('Koreksi buku besar hanya untuk aset dari saldo awal; aset lain dibatalkan lewat jurnal cermin perolehannya.');
             }
             // Kunci baris penyusutan & tanggal kunci periode (bacaan berkunci): penutupan bulan mengambil X 1-3999 tepat
             // sesudah X 3-2000, jadi lockRegister() di atas sudah menyerialkan pembatalan ini dengan tutup buku.
@@ -146,6 +167,20 @@ class FixedAssetService
                     3,
                     $original->id
                 );
+            }
+
+            if ($correctLedger) {
+                $cost = (float) $asset->acquisition_cost;
+                $accumulated = (float) $asset->opening_accumulated_depreciation;
+                $draft = new JournalDraft();
+                if (round($cost - $accumulated, 2) > 0) {
+                    $draft->debit(OpeningBalanceService::CAPITAL, round($cost - $accumulated, 2), "[KOREKSI] Saldo awal aset {$asset->code}");
+                }
+                if ($accumulated > 0) {
+                    $draft->debit(self::ACCUMULATED_ACCOUNT, $accumulated, "[KOREKSI] Akumulasi penyusutan awal {$asset->code}");
+                }
+                $journals[] = $draft->credit(self::ASSET_ACCOUNT, $cost, "[KOREKSI] Harga perolehan {$asset->code}")
+                    ->post($this->engine, self::VOID, $asset->code, "Koreksi saldo awal aset tetap {$asset->code} {$asset->name}: {$reason}", now()->toDateString());
             }
 
             $asset->update(['status' => 'VOID', 'void_reason' => $reason, 'voided_by' => $user->id, 'voided_at' => now()]);

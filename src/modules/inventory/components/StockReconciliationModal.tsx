@@ -467,9 +467,9 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
               />
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-blue-300 hover:border-blue-500 hover:bg-blue-50/50 rounded-xl p-4 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 bg-white shadow-xs"
+                className="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/30 rounded-lg p-4 text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-1.5 bg-white shadow-2xs"
               >
-                <Upload className="w-6 h-6 text-blue-600 animate-bounce" />
+                <Upload className="w-5 h-5 text-blue-600" />
                 <div className="text-xs font-bold text-slate-800">
                   {selectedFile ? (
                     <span className="text-blue-700 font-black">{selectedFile.name}</span>
@@ -1168,7 +1168,7 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
               <button
                 type="button"
                 onClick={() => setShowBulkModal(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors"
+                className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Batal
               </button>
@@ -1176,10 +1176,10 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
                 type="button"
                 disabled={isBulkUpdating || bulkSummary.matched === 0}
                 onClick={handleExecuteBulkUpdate}
-                className={`px-5 py-2 rounded-xl text-xs font-black text-white shadow-xs transition-all flex items-center gap-1.5 ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold text-white shadow-2xs transition-colors cursor-pointer flex items-center gap-1.5 ${
                   isBulkUpdating || bulkSummary.matched === 0
                     ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'
+                    : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
                 {isBulkUpdating ? (
@@ -1201,14 +1201,14 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
 
       {/* Result Breakdown Dialog */}
       {commitResult && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-7 h-7" />
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/70">
+          <div className="bg-white rounded-lg shadow-md border border-slate-200 w-full max-w-md p-6 space-y-4 animate-in fade-in duration-150">
+            <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-6 h-6" />
             </div>
 
             <div className="text-center">
-              <h3 className="text-lg font-black text-slate-900">Sinkronisasi Stok Berhasil!</h3>
+              <h3 className="text-base font-bold text-slate-900">Sinkronisasi Stok Berhasil!</h3>
               <p className="text-xs text-slate-500 mt-1">
                 Data inventori produk ban dan kartu stok berhasil disinkronkan ke database Omah Ban.
               </p>

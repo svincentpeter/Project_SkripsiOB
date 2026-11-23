@@ -89,6 +89,8 @@ class DailyReportTest extends TestCase
         $this->postJournal('2020-02-11', [['1-2000', 60000, 0], ['5-1000', 0, 60000]], 'SALES_RETURN');
         // 12 Feb: setor kas laci ke bank.
         $this->postJournal('2020-02-12', [['1-1001', 50000, 0], ['1-1000', 0, 50000]], 'CASH_DEPOSIT');
+        // 12 Feb: bunga bank, pendapatan lain-lain (bukan pendapatan usaha).
+        $this->postJournal('2020-02-12', [['1-1001', 3000, 0], ['4-3000', 0, 3000]], 'BANK_RECON_ADJUSTMENT');
 
         $recap = app(DailyReportService::class)->recap('2020-02-10', '2020-02-12');
 
@@ -115,16 +117,19 @@ class DailyReportTest extends TestCase
         $this->assertEquals(-60000, $d11['net_income']);
         $this->assertEquals(120000, $d11['cash_out']);
 
-        $this->assertEquals(50000, $d12['cash_in']);
+        $this->assertEquals(53000, $d12['cash_in']);
         $this->assertEquals(50000, $d12['cash_out']);
-        $this->assertEquals(0, $d12['net_cash']);
-        $this->assertEquals(0, $d12['net_income']);
+        $this->assertEquals(3000, $d12['net_cash']);
+        $this->assertEquals(0, $d12['revenue']);
+        $this->assertEquals(3000, $d12['other_income']);
+        $this->assertEquals(3000, $d12['net_income']);
 
         // Jumlah rekap = Laba Rugi periode yang sama (klasifikasi & pengecualian tutup buku sama).
         $income = app(FinancialReportService::class)->incomeStatement('2020-02-10', '2020-02-12');
         $this->assertEqualsWithDelta($income['net_revenue'], $recap['totals']['net_revenue'], 0.001);
         $this->assertEqualsWithDelta($income['cost_of_sales']['total'], $recap['totals']['cost_of_sales'], 0.001);
         $this->assertEqualsWithDelta($income['operating_expenses']['total'], $recap['totals']['operating_expenses'], 0.001);
+        $this->assertEqualsWithDelta($income['other_income']['total'], $recap['totals']['other_income'], 0.001);
         $this->assertEqualsWithDelta($income['net_income'], $recap['totals']['net_income'], 0.001);
 
         // Mutasi kas = perubahan saldo 1-1000 + 1-1001.
@@ -359,6 +364,24 @@ class DailyReportTest extends TestCase
             'name' => $name, 'username' => 'dr-'.$tag, 'email' => 'dr-'.$tag.'@omahban.test',
             'role' => $role, 'password' => 'secret-test', 'is_active' => true,
         ]);
+    }
+
+    public function test_backfill_links_old_notas_only_to_a_unique_cashier_name(): void
+    {
+        $tag = uniqid();
+        $solo = $this->makeUser('KASIR', "Kasir Tunggal {$tag}");
+        $this->makeUser('KASIR', "Kasir Kembar {$tag}");
+        $this->makeUser('KASIR', "Kasir Kembar {$tag}");
+        $old = $this->makeSale('2020-03-01', "Kasir Tunggal {$tag}", [['TUNAI', 100000]]);
+        $ambiguous = $this->makeSale('2020-03-01', "Kasir Kembar {$tag}", [['TUNAI', 100000]]);
+        $other = $this->makeUser('KASIR', "Kasir Lain {$tag}");
+        $recorded = $this->makeSale('2020-03-01', "Kasir Tunggal {$tag}", [['TUNAI', 100000]], user: $other);
+
+        (require database_path('migrations/2026_10_05_000005_backfill_sales_user_id.php'))->up();
+
+        $this->assertSame($solo->id, $old->fresh()->user_id);
+        $this->assertNull($ambiguous->fresh()->user_id);
+        $this->assertSame($other->id, $recorded->fresh()->user_id);
     }
 
     public function test_kasir_scope_matches_the_user_not_the_display_name(): void

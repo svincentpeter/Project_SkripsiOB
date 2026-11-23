@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { reusableSettledQris, settledQrisWarning, SettledQris } from '../settledQris';
+import { CartItem } from '../../../shared/types';
+import { qrisCartKey, reusableSettledQris, settledQrisWarning, SettledQris } from '../settledQris';
 
-const paid: SettledQris = { orderId: 'POS-1727650000000', amount: 350000 };
-const dynamicQris = { isSplitMode: false, paymentMethod: 'QRIS' as const, qrisFlowType: 'DYNAMIC' as const, netPayable: 350000 };
+const line = (id: string, qty: number) => ({ product: { id }, qty, discount_per_item: 0 }) as unknown as CartItem;
+const cartA = qrisCartKey([line('p1', 2)], 'Budi', 'AA 1234 BC');
+
+const paid: SettledQris = { orderId: 'POS-1727650000000', amount: 350000, cartKey: cartA };
+const dynamicQris = { isSplitMode: false, paymentMethod: 'QRIS' as const, qrisFlowType: 'DYNAMIC' as const, netPayable: 350000, cartKey: cartA };
 
 describe('settled dynamic QRIS reuse', () => {
   it('reuses the paid order when the cashier retries dynamic QRIS with the same total', () => {
@@ -30,5 +34,23 @@ describe('settled dynamic QRIS reuse', () => {
       expect(reusableSettledQris(paid, sel)).toBeNull();
       expect(settledQrisWarning(paid, sel)).toMatch(/sudah dibayar.*manual/);
     }
+  });
+
+  it('does not reuse for another cart or customer with the same total', () => {
+    for (const cartKey of [
+      qrisCartKey([line('p2', 2)], 'Budi', 'AA 1234 BC'),
+      qrisCartKey([line('p1', 1)], 'Budi', 'AA 1234 BC'),
+      qrisCartKey([line('p1', 2)], 'Sari', 'AA 9999 ZZ'),
+      qrisCartKey([], '', ''),
+    ]) {
+      const sel = { ...dynamicQris, cartKey };
+      expect(reusableSettledQris(paid, sel)).toBeNull();
+      expect(settledQrisWarning(paid, sel)).toContain('keranjang/pelanggan lain');
+    }
+  });
+
+  it('ignores letter case and spacing in the customer and plate', () => {
+    const sel = { ...dynamicQris, cartKey: qrisCartKey([line('p1', 2)], ' budi ', 'aa 1234 bc') };
+    expect(reusableSettledQris(paid, sel)).toEqual(paid);
   });
 });

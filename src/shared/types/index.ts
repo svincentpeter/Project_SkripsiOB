@@ -585,6 +585,8 @@ export interface IncomeStatement {
   cost_of_sales: StatementSection;
   gross_profit: number;
   operating_expenses: StatementSection;
+  /** Pendapatan di luar usaha (4-3xxx, mis. bunga bank), sesudah beban operasional. */
+  other_income: StatementSection;
   net_income: number;
 }
 
@@ -681,6 +683,7 @@ export interface DailyRecapRow {
   cost_of_sales: number;
   gross_profit: number;
   operating_expenses: number;
+  other_income: number;
   net_income: number;
   payment_mix: Record<PaymentGroup, number>;
   cash_in: number;

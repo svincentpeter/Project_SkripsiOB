@@ -1,38 +1,127 @@
 @import "tailwindcss";
 
+/**
+ * Anti-Slop Industrial Precision Design Tokens
+ * Omah Ban Cabang 3 — Point of Sale & SIA SAK EMKM
+ */
+:root {
+  color-scheme: light;
+  --surface-canvas: #f8fafc;
+  --surface-panel: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-subtle: #f1f5f9;
+  --surface-hover: #e2e8f0;
+  
+  --ink-primary: #0f172a;
+  --ink-secondary: #475569;
+  --ink-muted: #64748b;
+  --ink-faint: #94a3b8;
+  
+  --border-hairline: #e2e8f0;
+  --border-strong: #cbd5e1;
+  
+  --brand-accent: #1d4ed8;
+  --brand-accent-hover: #1e40af;
+  --brand-accent-subtle: #eff6ff;
+  
+  --status-success: #15803d;
+  --status-success-bg: #f0fdf4;
+  --status-success-border: #bbf7d0;
+  
+  --status-danger: #b91c1c;
+  --status-danger-bg: #fef2f2;
+  --status-danger-border: #fecaca;
+  
+  --status-warning: #b45309;
+  --status-warning-bg: #fffbeb;
+  --status-warning-border: #fde68a;
+}
+
+.dark {
+  color-scheme: dark;
+  --surface-canvas: #090d16;
+  --surface-panel: #0f172a;
+  --surface-elevated: #1e293b;
+  --surface-subtle: #1e293b;
+  --surface-hover: #334155;
+  
+  --ink-primary: #f8fafc;
+  --ink-secondary: #cbd5e1;
+  --ink-muted: #94a3b8;
+  --ink-faint: #64748b;
+  
+  --border-hairline: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  
+  --brand-accent: #3b82f6;
+  --brand-accent-hover: #60a5fa;
+  --brand-accent-subtle: rgba(59, 130, 246, 0.12);
+}
+
+@layer base {
+  body {
+    background-color: var(--surface-canvas);
+    color: var(--ink-primary);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
 @layer utilities {
-  /* Custom scrollbar for POS item lists */
+  /* Tabular figures for POS prices, stock numbers, & accounting journals */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* High-contrast focus rings for fast keyboard navigation */
+  .focus-ring {
+    transition-property: box-shadow, border-color;
+    transition-duration: 120ms;
+    transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--surface-panel), 0 0 0 4px var(--brand-accent);
+  }
+
+  /* Technical Hairline Borders */
+  .border-hairline {
+    border-width: 1px;
+    border-color: var(--border-hairline);
+  }
+
+  /* Subtle workstation scrollbars */
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #cbd5e1;
-    border-radius: 9999px;
+    border-radius: 4px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
   }
 
-  /* Enterprise focus visible rings */
-  .focus-ring {
-    outline: none;
-    transition: box-shadow 0.15s ease-in-out, border-color 0.15s ease-in-out;
-  }
-  .focus-ring:focus-visible {
-    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #2563eb;
-  }
-
-  /* Cross-browser scrollbar-none */
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
   .scrollbar-none {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

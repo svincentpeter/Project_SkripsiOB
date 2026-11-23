@@ -5,6 +5,7 @@ import { buildExportDoc, REPORT_FORMATS, REPORT_MAPPERS } from '../registry';
 import type { CashFlowReport, DailyCashReport, DashboardSummary, FinancialStatements, StatementLine } from '../../types';
 import { emptyRecapRow, sumRecapRows } from '../../../services/dailyReports';
 import { formatDateIndo } from '../../utils/formatters';
+import { lowStockProducts } from '../../utils/stockAlert';
 import type { BankReconciliationReport, CalkReport } from '../../types/sakEmkm';
 
 setExportConfig(null, null);
@@ -100,6 +101,7 @@ describe('registry financial statements', () => {
       cost_of_sales: section([{ code: '5-1000', name: 'HPP Ban Baru', amount: 600000 }]),
       gross_profit: 350000,
       operating_expenses: section([{ code: '6-1000', name: 'Beban Gaji', amount: 100000 }]),
+      other_income: section([]),
       net_income: 250000,
     },
     balance_sheet: {
@@ -219,7 +221,7 @@ describe('registry bank_reconciliation', () => {
     statement_ending_balance: 1193500, book_balance: 1500000,
     lines: [],
     outstanding_ledger: [{ journal_item_id: 9, entry_number: 'JRN-202609-0009', entry_date: '2026-09-30', reference_type: 'POS_SALE', description: 'Transfer pelanggan', debit: 300000, credit: 0 }],
-    unrecorded_bank: [{ id: 3, statement_date: '2026-09-30', description: 'BIAYA ADM', amount: -6500, source: 'CSV', journal_item_id: null, matched_entry_number: null, matched_reference_type: null, matched_entry_date: null }],
+    unrecorded_bank: [{ id: 3, statement_date: '2026-09-30', description: 'BIAYA ADM', amount: -6500, source: 'CSV', journal_item_id: null, parent_id: null, parent_amount: null, matched_entry_number: null, matched_reference_type: null, matched_entry_date: null }],
     deposits_in_transit: 300000, outstanding_payments: 0, unrecorded_credits: 0, unrecorded_debits: 6500,
     adjusted_bank_balance: 1493500, adjusted_book_balance: 1493500, difference: 0, is_reconciled: true,
   };
@@ -254,6 +256,15 @@ describe('registry dashboard_summary', () => {
   });
 
   it('tren memakai tanggal rekap server', () => expect(doc.sections[1].rows[0].tgl).toBe('2026-10-03'));
+
+  it('stok kritis sama dengan layar: produk aktif di bawah ambang saja', () => {
+    const p = (id: string, qty: number, active = true) =>
+      ({ id, product_name: id, product_quantity: qty, product_stock_alert: 4, is_active: active }) as unknown as ProductItem;
+    const products = [p('kurang', 3), p('pas-ambang', 4), p('nonaktif', 0, false)];
+    const kritis = buildExportDoc('dashboard_summary', { summary, products, fifoValue: null }, ctx).sections[2].rows;
+    expect(kritis).toHaveLength(1);
+    expect(lowStockProducts(products).map((x) => x.id)).toEqual(['kurang']);
+  });
 });
 
 describe('registry daily reports', () => {
@@ -287,6 +298,17 @@ describe('registry daily reports', () => {
     expect(labels).toEqual(expect.arrayContaining(['Uang Tunai', 'Transfer Bank', 'QRIS']));
     expect(doc.sections[0].rows[0]).toMatchObject({ TUNAI: 300, TRANSFER: 200, QRIS: 0 });
     expect(doc.sections[0].totals).toMatchObject({ TUNAI: 300, TRANSFER: 200 });
+  });
+
+  it('rekap harian: hari terbaru di atas seperti di layar', () => {
+    const older = emptyRecapRow('2026-09-30');
+    const doc = buildExportDoc('daily_recap', { from: '2026-09-30', to: '2026-10-01', rows: [older, row], totals: sumRecapRows([older, row]) }, ctx);
+    expect(doc.sections[0].rows.map((r) => r.date)).toEqual(['2026-10-01', '2026-09-30']);
+  });
+
+  it('kas harian: jumlah dan nilai nota VOID per kasir', () => {
+    const doc = buildExportDoc('daily_cash', { ...cashierReport, cashiers: [{ ...cashierReport.cashiers[0], void_count: 2, void_total: 300 }] }, ctx);
+    expect(doc.sections[0].rows[0]).toMatchObject({ void_count: 2, void: 300 });
   });
 
   it('kas harian lingkup kasir tanpa bagian buku besar dan tanpa HPP', () => {

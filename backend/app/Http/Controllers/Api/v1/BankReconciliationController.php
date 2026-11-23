@@ -25,8 +25,10 @@ class BankReconciliationController extends Controller
         $request->merge(['period' => $period]);
         $data = $request->validate([
             'period' => 'date_format:Y-m',
-            'statement_ending_balance' => 'required|numeric|min:-100000000000|max:100000000000',
-        ]);
+            // Rekening tanpa fasilitas cerukan (keputusan 2026-10-05): saldo rekening koran tidak pernah negatif,
+            // sama dengan buku besar yang menolak 1-1001 negatif.
+            'statement_ending_balance' => 'required|numeric|min:0|max:100000000000',
+        ], ['statement_ending_balance.min' => 'Saldo rekening koran tidak boleh negatif: rekening Bank BCA toko tidak memiliki fasilitas cerukan.']);
         $this->bank->setStatementBalance($period, (float) $data['statement_ending_balance'], $request->user());
 
         return response()->json([
@@ -41,8 +43,13 @@ class BankReconciliationController extends Controller
         $data = $request->validate([
             'statement_date' => 'required|date_format:Y-m-d|before_or_equal:today',
             'description' => 'required|string|max:255',
-            'amount' => 'required|numeric|not_in:0|min:-10000000000|max:10000000000',
-        ], ['amount.not_in' => 'Nominal mutasi tidak boleh nol.']);
+            // Dibandingkan setelah dibulatkan ke sen: not_in:0 membandingkan teks, sehingga "0.00" atau "0.004" lolos.
+            'amount' => ['required', 'numeric', 'min:-10000000000', 'max:10000000000', function (string $attribute, mixed $value, \Closure $fail) {
+                if (is_numeric($value) && round((float) $value, 2) == 0.0) {
+                    $fail('Nominal mutasi tidak boleh nol.');
+                }
+            }],
+        ]);
 
         return response()->json([
             'success' => true,
@@ -80,9 +87,15 @@ class BankReconciliationController extends Controller
 
     public function match(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate(['journal_item_id' => 'required|integer']);
+        // journal_item_ids: satu mutasi gabungan (mis. setoran QRIS harian) untuk beberapa baris jurnal.
+        $data = $request->validate([
+            'journal_item_id' => 'required_without:journal_item_ids|integer',
+            'journal_item_ids' => 'required_without:journal_item_id|array|min:1|max:200',
+            'journal_item_ids.*' => 'integer|distinct',
+        ]);
+        $ids = $data['journal_item_ids'] ?? [(int) $data['journal_item_id']];
 
-        return response()->json(['success' => true, 'data' => $this->bank->match($id, (int) $data['journal_item_id'])->toApiArray()]);
+        return response()->json(['success' => true, 'data' => $this->bank->match($id, $ids)->toApiArray()]);
     }
 
     public function unmatch(int $id): JsonResponse

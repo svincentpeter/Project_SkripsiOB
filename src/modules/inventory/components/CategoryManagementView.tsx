@@ -176,11 +176,11 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
   return (
     <div className="w-full animate-in fade-in duration-200">
       {/* Main Unified Table Card ("Terbungkus Rapi") */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 shadow-2xs space-y-4">
         {/* Table Top Controls & Action CTA */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+            <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
               <Tag className="w-4 h-4 text-blue-700" />
               <span>Daftar Master Kategori Produk</span>
             </h3>
@@ -194,7 +194,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
             <button
               type="button"
               onClick={handleOpenCreate}
-              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Tambah Kategori Baru</span>
@@ -212,33 +212,33 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
               placeholder="Cari kode atau nama kategori..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <span className="text-xs text-slate-500 font-semibold hidden sm:inline">Status:</span>
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold w-full sm:w-auto justify-between">
+            <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-semibold w-full sm:w-auto justify-between">
               <button
                 onClick={() => setStatusFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  statusFilter === 'ALL' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                  statusFilter === 'ALL' ? 'bg-white text-blue-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Semua ({categories.length})
               </button>
               <button
                 onClick={() => setStatusFilter('ACTIVE')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  statusFilter === 'ACTIVE' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                  statusFilter === 'ACTIVE' ? 'bg-white text-emerald-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Aktif ({categories.filter((c) => c.is_active).length})
               </button>
               <button
                 onClick={() => setStatusFilter('INACTIVE')}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                  statusFilter === 'INACTIVE' ? 'bg-white text-rose-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                  statusFilter === 'INACTIVE' ? 'bg-white text-rose-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Nonaktif ({categories.filter((c) => !c.is_active).length})
@@ -300,7 +300,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                         <button
                           onClick={() => onToggleCategoryStatus(cat.id)}
                           disabled={readOnly}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors cursor-pointer ${
                             cat.is_active
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
                               : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
@@ -357,11 +357,11 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
 
       {/* Modal Form: Tambah / Edit Kategori */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in duration-150">
+          <div className="bg-white rounded-lg shadow-md border border-slate-200 w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-700">
+                <div className="w-8 h-8 rounded-md bg-blue-100 flex items-center justify-center text-blue-700">
                   <Layers className="w-4 h-4" />
                 </div>
                 <div>
@@ -375,15 +375,15 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               {formError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-700 text-xs">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-2.5 text-rose-700 text-xs">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{formError}</span>
                 </div>
@@ -399,7 +399,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                   placeholder="Contoh: Ban Mobil Baru, Oli Mesin, dsb."
                   value={name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                 />
               </div>
 
@@ -413,7 +413,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                   placeholder="Contoh: BAN_BARU, OLI, VELG"
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '_'))}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-mono uppercase focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono uppercase focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
                   Digunakan sebagai kode sistem unik (otomatis huruf besar & underscore).
@@ -429,7 +429,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                   placeholder="Catatan klasifikasi produk..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                 />
               </div>
 
@@ -442,7 +442,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                     onChange={(e) => setIsActive(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:bg-blue-600"></div>
                 </label>
               </div>
 
@@ -450,13 +450,13 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-xl cursor-pointer"
+                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
                 >
                   {modalMode === 'CREATE' ? 'Simpan Kategori' : 'Perbarui Kategori'}
                 </button>
@@ -468,10 +468,10 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
 
       {/* Delete Confirmation Modal with Safety Check */}
       {categoryToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm overflow-hidden p-6 space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-              <AlertCircle className="w-6 h-6" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 animate-in fade-in duration-150">
+          <div className="bg-white rounded-lg shadow-md border border-slate-200 w-full max-w-sm overflow-hidden p-6 space-y-4 text-center">
+            <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-5 h-5" />
             </div>
 
             <div>
@@ -482,7 +482,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
             </div>
 
             {deleteError ? (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-left text-amber-800 text-xs space-y-1">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-left text-amber-800 text-xs space-y-1">
                 <div className="font-bold flex items-center gap-1.5 text-amber-900">
                   <AlertCircle className="w-4 h-4 text-amber-700" />
                   <span>Penghapusan Diblokir</span>
@@ -495,7 +495,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
               <button
                 type="button"
                 onClick={() => setCategoryToDelete(null)}
-                className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-xl cursor-pointer"
+                className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
               >
                 {deleteError ? 'Tutup' : 'Batal'}
               </button>
@@ -503,7 +503,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                 <button
                   type="button"
                   onClick={executeDelete}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
                 >
                   Ya, Hapus Kategori
                 </button>

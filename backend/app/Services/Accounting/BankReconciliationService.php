@@ -11,12 +11,14 @@ use App\Models\JournalItem;
 use App\Models\User;
 use App\Services\AccountingEngine;
 use App\Services\JournalDraft;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Rekonsiliasi Bank BCA (1-1001): mutasi rekening koran dicocokkan 1:1 dengan baris jurnal bank.
+ * Rekonsiliasi Bank BCA (1-1001): mutasi rekening koran dicocokkan 1:1 dengan baris jurnal bank (mutasi gabungan
+ * dipecah menjadi baris anak, lihat match()).
  * Saldo rekening koran + setoran dalam perjalanan − pembayaran belum dikliring
  *   = saldo buku + penerimaan bank belum dicatat − pengeluaran bank belum dicatat.
  * Baris jurnal sebelum bulan mutasi rekening koran pertama dianggap sudah cocok (cut-over).
@@ -69,7 +71,8 @@ class BankReconciliationService
 
         return DB::transaction(function () use ($rows, $dates, $user) {
             // Bacaan mengunci: dua impor berkas yang sama bersamaan saling menunggu, yang kedua melihat baris yang pertama.
-            $existing = BankStatementLine::whereBetween('statement_date', [min($dates), max($dates)])->lockForUpdate()->get()
+            // Baris anak gabungan bukan mutasi berkas: yang dihitung induknya.
+            $existing = BankStatementLine::whereNull('parent_id')->whereBetween('statement_date', [min($dates), max($dates)])->lockForUpdate()->get()
                 ->countBy(fn (BankStatementLine $l) => self::key($l->statement_date->toDateString(), $l->description, (float) $l->amount))
                 ->all();
 
@@ -151,38 +154,100 @@ class BankReconciliationService
         return $rows;
     }
 
-    public function match(int $lineId, int $journalItemId): BankStatementLine
+    /**
+     * Cocokkan satu mutasi dengan satu atau beberapa baris jurnal bank. Dengan beberapa baris (mis. setoran QRIS
+     * harian untuk banyak nota) mutasi dipecah: induk ditandai is_split dan tiap baris jurnal mendapat baris anak
+     * senilai baris jurnalnya, sehingga semua aturan 1:1 (termasuk status per akhir bulan) berlaku per anak.
+     *
+     * @param  list<int>  $journalItemIds
+     */
+    public function match(int $lineId, array $journalItemIds): BankStatementLine
     {
-        return DB::transaction(function () use ($lineId, $journalItemId) {
+        $ids = array_values(array_unique(array_map('intval', $journalItemIds)));
+        sort($ids);
+
+        return DB::transaction(function () use ($lineId, $ids) {
             $line = BankStatementLine::lockForUpdate()->findOrFail($lineId);
-            if ($line->journal_item_id !== null) {
+            if ($line->journal_item_id !== null || $line->is_split) {
                 throw new PosRuleException('Mutasi rekening koran ini sudah dicocokkan.');
             }
 
-            // Kunci baris jurnal: pencocokan lain ke baris yang sama menunggu, lalu melihatnya sudah terpakai.
-            $item = JournalItem::with(['account', 'journalEntry'])->lockForUpdate()->findOrFail($journalItemId);
-            if ($item->account?->account_code !== self::BANK || $item->journalEntry?->status !== 'POSTED') {
-                throw new PosRuleException('Hanya baris jurnal akun Bank BCA (1-1001) yang dapat dicocokkan.');
+            // Kunci baris jurnal urut id: pencocokan lain ke baris yang sama menunggu, lalu melihatnya sudah terpakai.
+            $items = JournalItem::with(['account', 'journalEntry'])->whereIn('id', $ids)->orderBy('id')->lockForUpdate()->get();
+            if ($items->count() !== count($ids)) {
+                throw (new ModelNotFoundException())->setModel(JournalItem::class, array_values(array_diff($ids, $items->pluck('id')->all())));
             }
-            if ($item->journalEntry->reference_type === OpeningBalanceService::REFERENCE_TYPE) {
-                throw new PosRuleException('Jurnal saldo awal akun bukan mutasi bank dan tidak dapat dicocokkan.');
-            }
-            if ($this->itemTaken($item->id)) {
-                throw new PosRuleException('Baris jurnal ini sudah dicocokkan dengan mutasi lain.');
-            }
-            if (abs(round((float) $item->debit - (float) $item->credit, 2) - (float) $line->amount) >= 0.005) {
-                throw new PosRuleException('Nominal dan arah mutasi harus sama dengan baris jurnal (uang masuk = debit, uang keluar = kredit).');
+            foreach ($items as $item) {
+                $this->assertMatchable($item);
             }
 
-            $line->update(['journal_item_id' => $item->id]);
+            $net = fn (JournalItem $i) => round((float) $i->debit - (float) $i->credit, 2);
+            $amount = (float) $line->amount;
+            if ($items->count() === 1) {
+                if (abs($net($items->first()) - $amount) >= 0.005) {
+                    throw new PosRuleException('Nominal dan arah mutasi harus sama dengan baris jurnal (uang masuk = debit, uang keluar = kredit).');
+                }
+                $line->update(['journal_item_id' => $items->first()->id]);
+
+                return $line->fresh();
+            }
+
+            $total = round($items->sum($net), 2);
+            if ($items->contains(fn (JournalItem $i) => $net($i) * $amount <= 0) || abs($total - $amount) >= 0.005) {
+                throw new PosRuleException(sprintf(
+                    'Semua baris jurnal harus searah dengan mutasi dan totalnya sama: total jurnal Rp %s, mutasi Rp %s.',
+                    number_format($total, 2, ',', '.'),
+                    number_format($amount, 2, ',', '.'),
+                ));
+            }
+
+            $line->update(['is_split' => true]);
+            foreach ($items as $item) {
+                BankStatementLine::create([
+                    'statement_date' => $line->statement_date->toDateString(),
+                    'description' => $line->description,
+                    'amount' => $net($item),
+                    'source' => $line->source,
+                    'parent_id' => $line->id,
+                    'journal_item_id' => $item->id,
+                    'created_by' => $line->created_by,
+                    'branch_id' => $line->branch_id,
+                ]);
+            }
 
             return $line->fresh();
         }, self::ATTEMPTS);
     }
 
+    /** Baris jurnal (sudah dikunci pemanggil) boleh dicocokkan: akun 1-1001, POSTED, bukan saldo awal, belum terpakai. */
+    private function assertMatchable(JournalItem $item): void
+    {
+        if ($item->account?->account_code !== self::BANK || $item->journalEntry?->status !== 'POSTED') {
+            throw new PosRuleException('Hanya baris jurnal akun Bank BCA (1-1001) yang dapat dicocokkan.');
+        }
+        if ($item->journalEntry->reference_type === OpeningBalanceService::REFERENCE_TYPE) {
+            throw new PosRuleException('Jurnal saldo awal akun bukan mutasi bank dan tidak dapat dicocokkan.');
+        }
+        if ($this->itemTaken($item->id)) {
+            throw new PosRuleException("Baris jurnal {$item->journalEntry->entry_number} sudah dicocokkan dengan mutasi lain.");
+        }
+    }
+
+    /** Lepas pencocokan. Baris anak gabungan melepas seluruh gabungannya: anak dihapus, induk kembali belum cocok. */
     public function unmatch(int $lineId): BankStatementLine
     {
         return DB::transaction(function () use ($lineId) {
+            // parent_id tidak pernah berubah: induk dikunci lebih dulu, sama dengan urutan kunci match().
+            $parentId = BankStatementLine::whereKey($lineId)->value('parent_id');
+            if ($parentId !== null) {
+                $parent = BankStatementLine::lockForUpdate()->findOrFail($parentId);
+                BankStatementLine::where('parent_id', $parent->id)->lockForUpdate()->get();
+                BankStatementLine::where('parent_id', $parent->id)->delete();
+                $parent->update(['is_split' => false]);
+
+                return $parent->fresh();
+            }
+
             $line = BankStatementLine::with('journalItem.journalEntry')->lockForUpdate()->findOrFail($lineId);
             if ($line->journal_item_id === null) {
                 throw new PosRuleException('Mutasi ini belum dicocokkan.');
@@ -194,14 +259,14 @@ class BankReconciliationService
             $line->update(['journal_item_id' => null]);
 
             return $line->fresh();
-        });
+        }, self::ATTEMPTS);
     }
 
     public function deleteLine(int $lineId): void
     {
         DB::transaction(function () use ($lineId) {
             $line = BankStatementLine::lockForUpdate()->findOrFail($lineId);
-            if ($line->journal_item_id !== null) {
+            if ($line->journal_item_id !== null || $line->is_split) {
                 throw new PosRuleException('Lepas pencocokan mutasi ini sebelum menghapusnya.');
             }
             $line->delete();
@@ -217,7 +282,7 @@ class BankReconciliationService
             Account::where('account_code', PeriodClosingService::RETAINED_EARNINGS)->sharedLock()->first();
             $lock = PeriodLock::lockDate(locking: true);
             $line = BankStatementLine::lockForUpdate()->findOrFail($lineId);
-            if ($line->journal_item_id !== null) {
+            if ($line->journal_item_id !== null || $line->is_split) {
                 throw new PosRuleException('Mutasi ini sudah dicocokkan dengan jurnal.');
             }
             $date = $line->statement_date->toDateString();
@@ -249,7 +314,7 @@ class BankReconciliationService
         $end = self::endOf($period);
 
         return DB::transaction(function () use ($end) {
-            $lines = BankStatementLine::whereNull('journal_item_id')->where('statement_date', '<=', $end)
+            $lines = BankStatementLine::visible()->whereNull('journal_item_id')->where('statement_date', '<=', $end)
                 ->orderBy('statement_date')->orderBy('id')->lockForUpdate()->get();
             $candidates = $this->unmatchedLedgerItems(self::cutover() ?? $end, $end);
             $used = [];
@@ -294,12 +359,12 @@ class BankReconciliationService
         $end = self::endOf($period);
         $from = self::cutover() ?? $start;
 
-        $lines = BankStatementLine::with('journalItem.journalEntry')
+        $lines = BankStatementLine::visible()->with(['journalItem.journalEntry', 'parent'])
             ->whereBetween('statement_date', [$start, $end])
             ->orderBy('statement_date')->orderBy('id')->get();
         // Status per akhir bulan: pencocokan dengan sisi yang bertanggal setelah $end belum berlaku di bulan ini,
         // jadi laporan bulan lalu tidak berubah ketika setoran/biayanya baru dicocokkan bulan berikutnya.
-        $unrecorded = BankStatementLine::with('journalItem.journalEntry')->where('statement_date', '<=', $end)
+        $unrecorded = BankStatementLine::visible()->with(['journalItem.journalEntry', 'parent'])->where('statement_date', '<=', $end)
             ->where(fn ($q) => $q->whereNull('journal_item_id')
                 ->orWhereHas('journalItem.journalEntry', fn ($e) => $e->where('entry_date', '>', $end)))
             ->orderBy('statement_date')->orderBy('id')->get();

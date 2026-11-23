@@ -65,11 +65,11 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
   return (
     <div className="w-full space-y-4 animate-in fade-in duration-200">
       {/* Main Unified Card ("Terbungkus Rapi") */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+      <div className="bg-white border border-slate-200 rounded-lg p-4 sm:p-5 shadow-2xs space-y-4">
         {/* Table Top Controls & Action CTA */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
-            <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+            <h3 className="font-bold text-sm text-slate-900 flex items-center gap-2">
               <Boxes className="w-4 h-4 text-blue-700" />
               <span>Operasional Stok & Mutasi FIFO</span>
             </h3>
@@ -84,7 +84,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
             <button
               type="button"
               onClick={onOpenRestock}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
               <Truck className="w-4 h-4" />
               <span>Penerimaan Barang</span>
@@ -94,7 +94,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
             <button
               type="button"
               onClick={onOpenOpname}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
               <ClipboardList className="w-4 h-4" />
               <span>Stock Opname</span>
@@ -104,7 +104,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
             <button
               type="button"
               onClick={onOpenPurchaseReturn}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 text-xs font-extrabold rounded-xl shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-amber-50 text-amber-800 border border-amber-300 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Retur / Batal Penerimaan</span>
@@ -122,16 +122,16 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
               placeholder="Cari produk, no ref, atau operator..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs sm:text-sm text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:bg-white transition-colors"
             />
           </div>
 
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold w-full sm:w-auto justify-between gap-1">
+          <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-semibold w-full sm:w-auto justify-between gap-1">
             <button
               type="button"
               onClick={() => setTypeFilter('ALL')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                typeFilter === 'ALL' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                typeFilter === 'ALL' ? 'bg-white text-blue-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Semua Mutasi ({mutations.length})
@@ -139,8 +139,8 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
             <button
               type="button"
               onClick={() => setTypeFilter('MASUK')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                typeFilter === 'MASUK' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                typeFilter === 'MASUK' ? 'bg-white text-emerald-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Masuk ({countMasuk})
@@ -148,8 +148,8 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
             <button
               type="button"
               onClick={() => setTypeFilter('KELUAR')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                typeFilter === 'KELUAR' ? 'bg-white text-rose-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                typeFilter === 'KELUAR' ? 'bg-white text-rose-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Keluar ({countKeluar})
@@ -157,8 +157,8 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
             <button
               type="button"
               onClick={() => setTypeFilter('PENYESUAIAN')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                typeFilter === 'PENYESUAIAN' ? 'bg-white text-amber-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1 rounded-md transition-colors cursor-pointer ${
+                typeFilter === 'PENYESUAIAN' ? 'bg-white text-amber-700 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Penyesuaian ({countOpname})
@@ -167,7 +167,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
         </div>
 
         {/* Mutations Table */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+        <div className="border border-slate-200 rounded-lg overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>

@@ -100,6 +100,9 @@ export interface ApiSalesReturn {
   return_date: string;
   reason: string;
   refund_amount: number;
+  /** Bagian refund tunai dari laci (1-1000) dan dari Bank BCA (1-1001), mengikuti cara bayar nota. */
+  refund_cash: number;
+  refund_bank: number;
   cost_amount: number;
   journal_entry_number?: string | null;
   operator_name?: string | null;

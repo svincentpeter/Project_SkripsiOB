@@ -27,8 +27,9 @@ export const sakEmkmApi = {
   fixedAssets: () => data(apiClient.get<Envelope<FixedAssetRegister>>('/accounting/fixed-assets')),
   createFixedAsset: (input: FixedAssetInput) =>
     data(apiClient.post<Envelope<{ asset: FixedAsset } & Journals>>('/accounting/fixed-assets', input)),
-  voidFixedAsset: (id: number, reason: string) =>
-    data(apiClient.post<Envelope<{ asset: FixedAsset } & Journals>>(`/accounting/fixed-assets/${id}/void`, { reason })),
+  /** correctLedger: aset saldo awal juga dikeluarkan dari buku besar (Dr 3-1000, Dr 1-3999 / Cr 1-3000). */
+  voidFixedAsset: (id: number, reason: string, correctLedger = false) =>
+    data(apiClient.post<Envelope<{ asset: FixedAsset } & Journals>>(`/accounting/fixed-assets/${id}/void`, { reason, correct_ledger: correctLedger })),
   depreciationPreview: (period: string) =>
     data(apiClient.get<Envelope<DepreciationPreview>>('/accounting/fixed-assets/depreciation', { period })),
   /** Amplop lengkap: pesan server membedakan "dibukukan" dan "tidak ada penyusutan". */
@@ -46,8 +47,9 @@ export const sakEmkmApi = {
     return data(apiClient.upload<Envelope<{ imported: number; skipped: number }>>(`${BANK}/import`, form));
   },
   deleteStatementLine: (id: number) => apiClient.delete<Envelope<null>>(`${BANK}/lines/${id}`),
-  matchStatementLine: (id: number, journalItemId: number) =>
-    data(apiClient.post<Envelope<BankStatementLine>>(`${BANK}/lines/${id}/match`, { journal_item_id: journalItemId })),
+  /** Beberapa id: mutasi gabungan (mis. setoran QRIS harian) dipecah per baris jurnal. */
+  matchStatementLine: (id: number, journalItemIds: number[]) =>
+    data(apiClient.post<Envelope<BankStatementLine>>(`${BANK}/lines/${id}/match`, { journal_item_ids: journalItemIds })),
   unmatchStatementLine: (id: number) => data(apiClient.post<Envelope<BankStatementLine>>(`${BANK}/lines/${id}/unmatch`)),
   postBankAdjustment: (id: number) => data(apiClient.post<Envelope<Journals>>(`${BANK}/lines/${id}/post-adjustment`)),
   autoMatch: (period: string) => data(apiClient.post<Envelope<{ matched: number }>>(`${BANK}/auto-match`, { period })),

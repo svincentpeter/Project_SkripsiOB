@@ -110,11 +110,21 @@ class AccountingEngine
                 ->sharedLock()
                 ->get();
 
-            // ponytail: selisih PENDING ditambahkan ke semua hari; cukup selama shift disetujui tak lama setelah ditutup.
-            $balance = $account->account_code === CashSessionService::CASH ? CashSessionService::pendingAdjustment() : 0;
+            // Mutasi per hari; selisih shift PENDING (kas laci) ikut dihitung mulai tanggal shift itu ditutup.
+            $nets = [];
             foreach ($daily as $row) {
-                $balance = round($balance + (float) $row->net, 2);
-                $day = Carbon::parse($row->d)->toDateString();
+                $nets[Carbon::parse($row->d)->toDateString()] = (float) $row->net;
+            }
+            if ($account->account_code === CashSessionService::CASH) {
+                foreach (CashSessionService::pendingAdjustmentsByDate() as $day => $amount) {
+                    $nets[$day] = ($nets[$day] ?? 0) + $amount;
+                }
+            }
+            ksort($nets);
+
+            $balance = 0.0;
+            foreach ($nets as $day => $net) {
+                $balance = round($balance + $net, 2);
                 if ($day >= $date && self::cents($balance) < 0) {
                     throw new PosRuleException(sprintf(
                         'Saldo %s %s tidak cukup: transaksi ini membuat saldo per %s menjadi Rp %s. Catat dulu uang masuknya atau kurangi nominal.',

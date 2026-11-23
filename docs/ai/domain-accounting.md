@@ -74,7 +74,8 @@ The README's 21-account table is outdated.
   current read (`sharedLock`, after the JRN number lock and its own inserts) and rejects (`PosRuleException`, 422)
   if the cumulative balance on the entry date or any later date is below zero, so a backdated outflow cannot turn a
   later day negative either. Inflows are never checked. For 1-1000 the balance includes the adjustments of shifts
-  still `PENDING_APPROVAL` (`CashSessionService::pendingAdjustment()`, same as `bookBalance`); the shift approval
+  still `PENDING_APPROVAL`, each from the day its shift closed (`CashSessionService::pendingAdjustmentsByDate()`, read
+  with a shared lock so a close/approval committed after the transaction snapshot is seen); the shift approval
   itself (`CASH_SESSION_VARIANCE`) is exempt because it sets 1-1000 to the counted cash. Every outflow path is
   covered (expenses, cash/transfer receipts and payable payments, refunds, voids, deposits, Prive, asset purchases,
   bank adjustments, manual journals). The S locks on `journal_items`/`journal_entries` can deadlock two outflows in
@@ -116,7 +117,7 @@ journal screen has no filter group for them; they show under "Semua".
 | Period closing | every REVENUE/EXPENSE account's cumulative balance ≤ month end (credit accounts) | 3-2000, or the reverse if the account is net-debit; dated the month's last day, then locked | `Accounting/PeriodClosingService::close`. Reopen posts the mirrored `PERIOD_REOPEN` entry (OWNER only) and unlocks. Close and reopen `lockForUpdate()` the 3-2000 account row (`PeriodClosingService::serialize()`) so two closes/reopens can't run at once. Refuses a month while `DepreciationService::pendingTotal(period) > 0` (depreciation not run) |
 | Account opening | 1-1000, 1-1001, 1-3000, 1-3999, 3-2000 as submitted | 3-1000, for the balancing difference | `Accounting/OpeningBalanceService::post`. Posted once (`ACCOUNT_OPENING`). Later changes to 1-1000, 1-1001 or 3-2000 go through a manual journal; 1-3000/1-3999 are control accounts that a manual journal cannot post to (fixed asset corrections: see the fixed asset register below). Posting `lockForUpdate()`s the 3-1000 account row before checking whether an opening entry already exists, so two concurrent posts can't both pass |
 | Cashier shift approved | 6-1010 (shortage) or 1-1000 (overage) | 1-1000 (shortage) or 6-1010 (overage), amount = counted − book | `Accounting/CashSessionService::approve` (`CASH_SESSION_VARIANCE`, `SHIFT-{id}`, dated the approval day; no journal when 0) |
-| Fixed asset bought | 1-3000 | 1-1000 (TUNAI) or 1-1001 (TRANSFER); `OPENING` assets post nothing (already in the account opening balance) | `Accounting/FixedAssetService::create` (`FIXED_ASSET_ACQUISITION`, reference = asset code `AT-YYYYMM-####`, dated the acquisition date). Void (also after depreciation, while every depreciation month is open): one `FIXED_ASSET_VOID` per depreciation month (Dr 1-3999 / Cr 6-1011, dated the month end), then the acquisition mirror `FIXED_ASSET_VOID` dated today, `reversal_of_id` (none for `OPENING`); see the register below |
+| Fixed asset bought | 1-3000 | 1-1000 (TUNAI) or 1-1001 (TRANSFER); `MODAL` (owner contribution in kind / asset missing from the opening balance): 1-3999 opening accumulation + 3-1000 net book value; `OPENING` assets post nothing (already in the account opening balance) | `Accounting/FixedAssetService::create` (`FIXED_ASSET_ACQUISITION`, reference = asset code `AT-YYYYMM-####`, dated the acquisition date). Void (also after depreciation, while every depreciation month is open): one `FIXED_ASSET_VOID` per depreciation month (Dr 1-3999 / Cr 6-1011, dated the month end), then the acquisition mirror `FIXED_ASSET_VOID` dated today, `reversal_of_id` (none for `OPENING`); see the register below |
 | Monthly depreciation | 6-1011 per asset | 1-3999 total; dated the month's last day, reference `SUSUT-YYYY-MM` | `Accounting/DepreciationService::run`. Straight line on cost − residual − opening accumulated, over `useful_life_months`, full month from `depreciation_start`; cumulative in cents so reruns post nothing and locked months are caught up; the previous open month must run first; `fixed_asset_depreciations` keeps one row per asset per run |
 | Adjusting entry (AJP) | 6-xxxx expense (not 6-1011) | 2-1100 (`ACCRUAL`) or 1-1100 (`PREPAID`); dated the month's last day, reference `AJP-YYYYMM-####` | `Accounting/AdjustingEntryService::create` (`ADJUSTING_ENTRY`). `auto_reverse` (accruals only) posts the mirror `ADJUSTING_REVERSAL` immediately, dated day 1 of the next month |
 | Bank charge / interest from the statement | 6-1012, or 1-1001 | 1-1001, or 4-3000; dated the statement date, reference `REKON-{lineId}` | `Accounting/BankReconciliationService::postAdjustment` (`BANK_RECON_ADJUSTMENT`); the statement line is matched to the new 1-1001 line |
@@ -200,6 +201,12 @@ nothing: its cost and prior depreciation are already in the account opening bala
 `depreciation_start` (the form asks for "Sisa umur manfaat"), and the base is cost − residual − opening accumulated
 depreciation; the CALK policy text says the same. There is no disposal.
 
+A `MODAL` asset (spec `2026-10-05-bank-group-match-and-asset-capital-design.md`) takes the same fields as `OPENING`
+but books itself: Dr 1-3000 cost / Cr 1-3999 opening accumulation / Cr 3-1000 net book value
+(`FIXED_ASSET_ACQUISITION`, no cash line, so the cash flow ignores it and the equity statement shows a contribution).
+It is the only way to add to 1-3000/1-3999 without paying: an asset the owner brings in, or one left out of the
+account opening balance. Its void mirrors that journal like a bought asset.
+
 **Correcting a wrongly entered asset (void).** `POST /accounting/fixed-assets/{id}/void {reason}`
 (`FixedAssetService::void`) works before and after depreciation (user decision SP4, 2026-10-05). It is allowed only
 while every month holding one of the asset's `fixed_asset_depreciations` rows is still open; if any is on or before
@@ -207,7 +214,10 @@ the lock date it is 422 and nothing is posted (reopen that month first). The voi
 - one `FIXED_ASSET_VOID` entry per depreciation month, ascending: Dr 1-3999 / Cr 6-1011 for that month's amount,
   dated the month end, so each month's depreciation expense nets to zero (months with a zero amount are skipped);
 - then the acquisition mirror (`FIXED_ASSET_VOID`, `reversal_of_id` = the acquisition, dated today). An `OPENING`
-  asset has no acquisition journal, so only the depreciation reversals (if any) are posted.
+  asset has no acquisition journal, so only the depreciation reversals (if any) are posted, unless the request sends
+  `correct_ledger: true` (OPENING only, else 422): the opening balance itself was wrong, and a `FIXED_ASSET_VOID`
+  dated today posts Dr 3-1000 net book value / Dr 1-3999 opening accumulation / Cr 1-3000 cost. The UI asks this
+  after the reason ("OK" = also correct the ledger, "Batal" = duplicate register entry only).
 
 The depreciation rows stay as history (the asset turns `VOID`). Every consumer ignores VOID assets: the register
 summary and pending depreciation read ACTIVE only; the CALK lists a VOID asset only for month ends before its void
@@ -238,7 +248,14 @@ journal Dr 2-1100 / Cr 1-1001), which the cash-flow report puts under expenses.
 
 **Bank reconciliation semantics** (`BankReconciliationService`, account 1-1001 only):
 - Statement lines (`bank_statement_lines`, + money in, − money out) are matched **1:1** to 1-1001 journal lines
-  (`journal_item_id` is unique): same amount and direction (in = debit, out = credit). `ACCOUNT_OPENING` lines cannot be
+  (`journal_item_id` is unique): same amount and direction (in = debit, out = credit).
+- Group match (`journal_item_ids`, e.g. one Midtrans settlement credit for a day's QRIS sales): every journal line has
+  the line's direction and they sum to the statement amount to the cent. The statement line becomes a hidden parent
+  (`is_split`) and one child line per journal line (`parent_id`, amount = that line's debit − credit) is matched 1:1,
+  so every rule below holds per child. Parents are left out of the report, auto-match, matching, adjustment posting
+  and deletion; children are left out of the CSV duplicate check. Unmatching any child deletes all children and
+  restores the parent. "Bukukan bunga bank / biaya admin" asks for confirmation first, because a settlement booked as
+  interest would count the sales twice. `ACCOUNT_OPENING` lines cannot be
   matched and are never outstanding; ledger lines dated before the month of the first statement line (the cut-over)
   are treated as already cleared.
 - Auto-match (`POST …/auto-match`): an unmatched statement line dated ≤ the month end is matched only when exactly
@@ -256,8 +273,8 @@ journal Dr 2-1100 / Cr 1-1001), which the cash-flow report puts under expenses.
   differs from the header is rejected). Blank lines are skipped; max 1000 rows. All-or-nothing: one bad row rejects the
   whole file. Rows identical (date, description, amount) to lines already stored are skipped once per stored copy,
   so re-importing a file is safe and only surplus duplicates inside the file are added.
-- Status: "Terekonsiliasi" when the statement ending balance (`bank_reconciliations`, one per month, may be negative
-  and carry cents) is entered and the difference is 0.
+- Status: "Terekonsiliasi" when the statement ending balance (`bank_reconciliations`, one per month, may carry cents;
+  never negative: the BCA account has no overdraft facility, owner decision 2026-10-05) is entered and the difference is 0.
 
 **CALK.** Built on the server (`CalkReport`) from the same journals as the balance sheet. The entity details are
 constants in `CalkReport::ENTITY` (`backend/app/Services/Accounting/CalkReport.php`); the legal form and address are
@@ -295,7 +312,8 @@ COA rather than hard-coded account lists, in `app/Services/Accounting/`:
 - **`FinancialReportService`** builds the trial balance, general ledger (with the opening balance before
   `$from`), income statement, balance sheet, and statement of changes in equity. Sections are classified from
   `account_type` and `normal_balance`/code prefix (current vs fixed assets, cost of sales `5-…` vs operating
-  expenses `6-…`, revenue vs contra-revenue), so a new account shows up without a code change. The income
+  expenses `6-…`, revenue vs contra-revenue, other income `4-3…` such as bank interest, shown after operating
+  expenses and outside gross profit), so a new account shows up without a code change. The income
   statement excludes `PERIOD_CLOSING`/`PERIOD_REOPEN` entries so closing never hides a month's result; the
   balance sheet as of a date includes everything, showing unclosed earnings as an equity line so it always
   balances.

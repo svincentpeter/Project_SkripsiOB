@@ -2,6 +2,7 @@
 
 namespace App\Services\Inventory;
 
+use App\Models\JournalEntry;
 use App\Models\Product;
 use App\Models\ProductBatch;
 use App\Models\StockMovement;
@@ -35,7 +36,12 @@ class StockOpnameService
             if ($missing->isNotEmpty()) {
                 throw (new ModelNotFoundException())->setModel(Product::class, $missing->all());
             }
-            $reference = DocumentNumber::next(StockMovement::class, 'reference_id', 'OPN');
+            // Opname yang hanya memperbaiki lapisan FIFO tidak menulis mutasi stok; nomornya tetap terpakai di jurnal/batch.
+            $reference = max(
+                DocumentNumber::next(StockMovement::class, 'reference_id', 'OPN'),
+                DocumentNumber::next(JournalEntry::class, 'reference_id', 'OPN'),
+                DocumentNumber::next(ProductBatch::class, 'batch_code', 'OPN'),
+            );
 
             $out = $this->valueJournal->record(
                 fn () => $this->applyCounts($items, $products, $notes, $user, $reference),

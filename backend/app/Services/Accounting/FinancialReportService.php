@@ -108,7 +108,7 @@ class FinancialReportService
 
     public function incomeStatement(?string $from, string $to): array
     {
-        $sections = ['revenue' => [], 'contra_revenue' => [], 'cost_of_sales' => [], 'operating_expenses' => []];
+        $sections = ['revenue' => [], 'contra_revenue' => [], 'cost_of_sales' => [], 'operating_expenses' => [], 'other_income' => []];
         foreach (LedgerBalances::forRange($from, $to, excludeClosing: true) as $b) {
             $key = self::incomeSection($b->account);
             if ($key !== null && $b->net() != 0.0) {
@@ -120,6 +120,7 @@ class FinancialReportService
         $contra = self::section($sections['contra_revenue']);
         $cost = self::section($sections['cost_of_sales']);
         $opex = self::section($sections['operating_expenses']);
+        $other = self::section($sections['other_income']);
         $netRevenue = round($revenue['total'] - $contra['total'], 2);
         $grossProfit = round($netRevenue - $cost['total'], 2);
 
@@ -130,7 +131,8 @@ class FinancialReportService
             'cost_of_sales' => $cost,
             'gross_profit' => $grossProfit,
             'operating_expenses' => $opex,
-            'net_income' => round($grossProfit - $opex['total'], 2),
+            'other_income' => $other,
+            'net_income' => round($grossProfit - $opex['total'] + $other['total'], 2),
         ];
     }
 
@@ -227,11 +229,18 @@ class FinancialReportService
             ->where('e.status', 'POSTED');
     }
 
-    /** Bagian laba rugi sebuah akun; dipakai juga oleh rekap harian agar angkanya sama dengan Laba Rugi. */
+    /**
+     * Bagian laba rugi sebuah akun; dipakai juga oleh rekap harian agar angkanya sama dengan Laba Rugi.
+     * 4-3xxx (bunga/jasa giro) bukan pendapatan usaha: disajikan sesudah beban operasional, di luar laba kotor.
+     */
     public static function incomeSection(Account $account): ?string
     {
         return match ($account->account_type) {
-            'REVENUE' => $account->normal_balance === 'CREDIT' ? 'revenue' : 'contra_revenue',
+            'REVENUE' => match (true) {
+                $account->normal_balance !== 'CREDIT' => 'contra_revenue',
+                str_starts_with($account->account_code, '4-3') => 'other_income',
+                default => 'revenue',
+            },
             'EXPENSE' => str_starts_with($account->account_code, '5-') ? 'cost_of_sales' : 'operating_expenses',
             default => null,
         };

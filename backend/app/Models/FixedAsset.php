@@ -18,7 +18,10 @@ class FixedAsset extends Model
         'KENDARAAN' => 'Kendaraan',
     ];
 
-    public const FUNDING = ['TUNAI', 'TRANSFER', 'OPENING'];
+    public const FUNDING = ['TUNAI', 'TRANSFER', 'OPENING', 'MODAL'];
+
+    /** Sumber dana yang membawa bulan mulai penyusutan & akumulasi awal sendiri (aset tidak dibeli sekarang). */
+    public const CARRIED_OVER = ['OPENING', 'MODAL'];
 
     protected $fillable = [
         'code', 'name', 'category', 'acquisition_date', 'acquisition_cost', 'residual_value', 'useful_life_months',
@@ -73,9 +76,15 @@ class FixedAsset extends Model
             : intdiv($this->baseCents() * $months, $this->useful_life_months);
     }
 
-    /** Akumulasi penyusutan: saldo awal + seluruh penyusutan yang dibukukan sistem. */
+    /**
+     * Akumulasi penyusutan: saldo awal + seluruh penyusutan yang dibukukan sistem. Aset VOID: penyusutan sistemnya
+     * sudah dibalik saat dibatalkan, jadi tinggal saldo awalnya (sama dengan catatan aset tetap CALK).
+     */
     public function accumulatedDepreciation(): float
     {
+        if ($this->status === 'VOID') {
+            return round((float) $this->opening_accumulated_depreciation, 2);
+        }
         if (! array_key_exists('depreciations_sum_amount', $this->getAttributes())) {
             $this->loadSum('depreciations', 'amount');
         }

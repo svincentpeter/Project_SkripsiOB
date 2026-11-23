@@ -4,6 +4,7 @@ namespace App\Services\Payment;
 
 use App\Exceptions\PosRuleException;
 use App\Models\QrisTransaction;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -108,21 +109,26 @@ class MidtransQrisService
      */
     public function markSettled(string $orderId, float $grossAmount, string $source): QrisTransaction
     {
-        $tx = QrisTransaction::firstOrCreate(
-            ['order_id' => $orderId],
-            ['gross_amount' => $grossAmount, 'transaction_status' => 'pending']
-        );
+        // insertOrIgnore lalu baca berkunci: webhook dan polling bersamaan untuk order tanpa baris tidak bentrok di
+        // indeks unik order_id, dan yang kedua menunggu lalu melihat pelunasan yang pertama.
+        return DB::transaction(function () use ($orderId, $grossAmount, $source) {
+            QrisTransaction::insertOrIgnore([[
+                'order_id' => $orderId, 'gross_amount' => $grossAmount, 'transaction_status' => 'pending',
+                'created_at' => now(), 'updated_at' => now(),
+            ]]);
+            $tx = QrisTransaction::where('order_id', $orderId)->lockForUpdate()->firstOrFail();
 
-        if (! $tx->isSettled()) {
-            $tx->update([
-                'gross_amount' => $grossAmount,
-                'transaction_status' => 'settlement',
-                'settlement_source' => $source,
-                'settled_at' => now(),
-            ]);
-        }
+            if (! $tx->isSettled()) {
+                $tx->update([
+                    'gross_amount' => $grossAmount,
+                    'transaction_status' => 'settlement',
+                    'settlement_source' => $source,
+                    'settled_at' => now(),
+                ]);
+            }
 
-        return $tx;
+            return $tx;
+        }, 3);
     }
 
     protected function requestCharge(string $orderId, int $grossAmount, array $customerDetails): array

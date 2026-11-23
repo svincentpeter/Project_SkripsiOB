@@ -11,7 +11,7 @@ export const PAYMENT_GROUP_LABELS: Record<PaymentGroup, string> = {
 
 const NUMERIC_KEYS = [
   'sales_count', 'product_qty', 'revenue', 'goods_revenue', 'service_revenue', 'contra_revenue', 'returns',
-  'net_revenue', 'cost_of_sales', 'gross_profit', 'operating_expenses', 'net_income', 'cash_in', 'cash_out', 'net_cash',
+  'net_revenue', 'cost_of_sales', 'gross_profit', 'operating_expenses', 'other_income', 'net_income', 'cash_in', 'cash_out', 'net_cash',
 ] as const;
 
 /** Geser tanggal YYYY-MM-DD sejumlah hari menurut kalender lokal. */
@@ -41,6 +41,7 @@ export const dailySummaryKpis = (summary: DailyRecapTotals): [string, number][] 
   ['HPP', summary.cost_of_sales],
   ['Laba Kotor', summary.gross_profit],
   ['Beban Operasional', summary.operating_expenses],
+  ...(summary.other_income !== 0 ? [['Pendapatan Lain-lain', summary.other_income] as [string, number]] : []),
   ['Laba Bersih', summary.net_income],
 ];
 

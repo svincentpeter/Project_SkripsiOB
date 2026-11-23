@@ -41,6 +41,14 @@ class SaleVoidService
             if (SalesReturn::where('sale_id', $sale->id)->sharedLock()->exists()) {
                 throw new PosRuleException("Nota {$sale->reference} sudah punya retur; kembalikan sisa barangnya lewat retur penjualan.");
             }
+            // Nota lama BON/DP (sebelum 2026-09-30): pembalik jurnalnya mengkredit piutang 1-1002 penuh atau
+            // memunculkan lagi uang muka 2-1004, padahal pelunasan/booking-nya sudah tidak bisa diurus dari POS.
+            if (DB::table('receivable_payments')->where('sale_id', $sale->id)->sharedLock()->exists()) {
+                throw new PosRuleException("Nota BON {$sale->reference} sudah menerima pelunasan dan tidak dapat dibatalkan. Koreksi lewat jurnal manual.");
+            }
+            if ($sale->booking_id !== null || (float) $sale->dp_applied > 0) {
+                throw new PosRuleException("Nota {$sale->reference} memakai uang muka booking (fitur lama) dan tidak dapat dibatalkan. Koreksi lewat jurnal manual.");
+            }
 
             $this->restoreStock($sale, $products, $user);
             $this->postReversal($sale, $reason);

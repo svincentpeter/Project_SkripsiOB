@@ -6,7 +6,7 @@ describe('validateProviderInput', () => {
   it('accepts a valid provider and treats missing fee fields as zero', () => {
     expect(validateProviderInput({ provider_name: 'BCA' })).toBeNull();
     expect(validateProviderInput({ provider_name: 'GoPay', fee_percentage: 0.3, fee_threshold_amount: 500000 })).toBeNull();
-    expect(validateProviderInput({ provider_name: 'X', fee_percentage: 100 })).toBeNull();
+    expect(validateProviderInput({ provider_name: 'X', fee_percentage: 10 })).toBeNull();
   });
 
   it('rejects a blank name', () => {
@@ -14,8 +14,9 @@ describe('validateProviderInput', () => {
     expect(validateProviderInput({})).toMatch(/Nama/);
   });
 
-  it('rejects fee outside 0-100 and negative thresholds', () => {
-    expect(validateProviderInput({ provider_name: 'X', fee_percentage: 100.1 })).toMatch(/fee/);
+  it('rejects fee outside 0-10 and negative thresholds', () => {
+    expect(validateProviderInput({ provider_name: 'X', fee_percentage: 10.01 })).toMatch(/fee/);
+    expect(validateProviderInput({ provider_name: 'X', fee_percentage: 30 })).toMatch(/fee/);
     expect(validateProviderInput({ provider_name: 'X', fee_percentage: -1 })).toMatch(/fee/);
     expect(validateProviderInput({ provider_name: 'X', fee_percentage: NaN })).toMatch(/fee/);
     expect(validateProviderInput({ provider_name: 'X', fee_threshold_amount: -1 })).toMatch(/negatif/);

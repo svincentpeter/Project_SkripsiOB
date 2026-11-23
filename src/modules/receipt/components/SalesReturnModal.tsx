@@ -16,7 +16,8 @@ interface SalesReturnModalProps {
 
 /**
  * Retur sebagian nota: kasir memilih jumlah per baris. Nilai refund dihitung server (termasuk bagian diskon nota)
- * dan diserahkan tunai dari laci; shift kasir harus sedang dibuka.
+ * dan mengikuti cara bayar nota: bagian tunai dari laci (shift harus dibuka), bagian QRIS/transfer dari Bank BCA.
+ * Selain pemilik hanya nota berumur ≤ 30 hari.
  */
 export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({ transaction, onClose, onSubmit }) => {
   const lines = (transaction.return_lines ?? []).filter((l) => l.quantity > l.returned_qty);
@@ -61,7 +62,8 @@ export const SalesReturnModal: React.FC<SalesReturnModalProps> = ({ transaction,
               Retur Penjualan {transaction.invoice_number}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Refund dibayar tunai dari laci kasir; ban kembali ke batch FIFO asalnya dengan modal aslinya.
+              Refund mengikuti cara bayar nota: bagian tunai dari laci kasir, bagian QRIS/transfer dari Bank BCA. Ban kembali ke
+              batch FIFO asalnya dengan modal aslinya. Selain pemilik hanya nota berumur paling lama 30 hari.
             </p>
           </div>
           <button type="button" onClick={onClose} aria-label="Tutup" className="text-slate-400 hover:text-slate-600">

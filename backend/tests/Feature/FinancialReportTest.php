@@ -62,6 +62,21 @@ class FinancialReportTest extends TestCase
         $this->assertEquals(230000, $is['net_income']);
     }
 
+    public function test_bank_interest_is_other_income_below_operating_expenses(): void
+    {
+        $this->postMarchActivity();
+        $this->postJournal('2021-03-31', [['1-1001', 12500, 0], ['4-3000', 0, 12500]], 'BANK_RECON_ADJUSTMENT');
+
+        $is = app(FinancialReportService::class)->incomeStatement('2021-03-01', '2021-03-31');
+
+        // Bunga tidak menambah pendapatan usaha maupun laba kotor, hanya laba bersih.
+        $this->assertEquals(1007000, $is['revenue']['total']);
+        $this->assertEquals(337000, $is['gross_profit']);
+        $this->assertEquals(12500, $this->amount($is['other_income'], '4-3000'));
+        $this->assertEquals(242500, $is['net_income']);
+        $this->assertEquals(0, app(FinancialReportService::class)->equityChanges('2021-03-01', '2021-03-31')['difference']);
+    }
+
     public function test_balance_sheet_balances_and_shows_dp_liability_and_unclosed_earnings(): void
     {
         $reports = app(FinancialReportService::class);

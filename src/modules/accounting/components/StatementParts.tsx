@@ -51,6 +51,7 @@ export const IncomeStatementTable: React.FC<{ statement: IncomeStatement }> = ({
       <SectionRows title="Beban Pokok Penjualan" section={statement.cost_of_sales} subtract />
       <TotalRow label="LABA KOTOR" value={statement.gross_profit} />
       <SectionRows title="Beban Operasional" section={statement.operating_expenses} subtract />
+      {statement.other_income.lines.length > 0 && <SectionRows title="Pendapatan Lain-lain" section={statement.other_income} />}
       <TotalRow label="LABA (RUGI) BERSIH" value={statement.net_income} />
     </tbody>
   </table>

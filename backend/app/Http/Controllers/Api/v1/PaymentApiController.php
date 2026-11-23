@@ -36,10 +36,13 @@ class PaymentApiController extends Controller
             );
         } catch (\Throwable $e) {
             Log::error('Gagal membuat QRIS charge', ['exception' => $e]);
+            // Hanya pesan yang ditulis untuk kasir (penolakan Midtrans, aturan bisnis); galat lain (SQL, jaringan) disamarkan.
+            $known = $e instanceof \App\Exceptions\PosRuleException
+                || ($e instanceof \RuntimeException && ! $e instanceof \Illuminate\Database\QueryException);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal membuat QRIS: '.$e->getMessage(),
+                'message' => 'Gagal membuat QRIS: '.($known ? $e->getMessage() : 'terjadi kesalahan pada server, coba lagi.'),
             ], 422);
         }
 

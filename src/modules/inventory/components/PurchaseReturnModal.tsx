@@ -92,12 +92,12 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
   const maxQty = pending?.purchase.returnable_qty ?? 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-3 sm:p-6 animate-in fade-in duration-150">
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="purchase-return-title"
-        className="w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl border border-slate-200 shadow-2xl p-5 space-y-4"
+        className="w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white rounded-lg border border-slate-200 shadow-md p-5 space-y-4"
       >
         <div className="flex items-start justify-between gap-3">
           <div>

@@ -96,6 +96,36 @@ class MidtransQrisApiTest extends TestCase
         $this->assertDatabaseMissing('qris_transactions', ['order_id' => $orderId]);
     }
 
+    public function test_charge_failure_keeps_the_midtrans_reason(): void
+    {
+        Http::fake(['https://api.sandbox.midtrans.com/v2/charge' => Http::response(['status_code' => '401', 'status_message' => 'Unknown Merchant server_key/id'], 401)]);
+        $this->postJson('/api/v1/payment/qris/charge', ['order_id' => 'POS-ERR-'.uniqid(), 'gross_amount' => 100000])
+            ->assertStatus(422)->assertJsonPath('message', fn (string $m) => str_contains($m, 'Unknown Merchant'));
+    }
+
+    public function test_charge_failure_hides_internal_errors(): void
+    {
+        // Galat internal (mis. SQL) tidak boleh sampai ke layar kasir.
+        $this->mock(\App\Services\Payment\MidtransQrisService::class)
+            ->shouldReceive('createCharge')->andThrow(new \Illuminate\Database\QueryException('mysql', 'insert into `qris_transactions` …', [], new \Exception('Duplicate entry')));
+        $this->postJson('/api/v1/payment/qris/charge', ['order_id' => 'POS-ERR-'.uniqid(), 'gross_amount' => 100000])
+            ->assertStatus(422)
+            ->assertJsonPath('message', fn (string $m) => ! str_contains($m, 'insert') && str_contains($m, 'kesalahan pada server'));
+    }
+
+    public function test_settling_an_order_without_a_row_creates_it_once(): void
+    {
+        $service = app(\App\Services\Payment\MidtransQrisService::class);
+        $orderId = 'POS-NOROW-'.uniqid();
+
+        $service->markSettled($orderId, 150000, \App\Models\QrisTransaction::SOURCE_WEBHOOK);
+        $again = $service->markSettled($orderId, 999999, \App\Models\QrisTransaction::SOURCE_STATUS_API);
+
+        $this->assertSame(1, \App\Models\QrisTransaction::where('order_id', $orderId)->count());
+        $this->assertEquals(150000, (float) $again->gross_amount);
+        $this->assertTrue($again->isSettled());
+    }
+
     public function test_status_check_records_the_settlement_reported_by_midtrans_once(): void
     {
         $orderId = 'POS-ST-'.uniqid();

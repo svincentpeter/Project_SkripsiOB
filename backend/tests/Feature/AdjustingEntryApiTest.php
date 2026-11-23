@@ -2,7 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\JournalItem;
+use App\Services\AccountingEngine;
+use App\Services\JournalDraft;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AdjustingEntryApiTest extends TestCase
@@ -48,8 +52,22 @@ class AdjustingEntryApiTest extends TestCase
         $this->assertEquals(450000, $this->line($reversal, '6-1001')['credit']);
     }
 
+    /** Sewa dibayar di muka: Dr 1-1100 / Cr 3-1000 sehingga saldo 1-1100 = $amount + sisa data lain. */
+    private function prepay(float $amount, string $date = '2019-03-01'): void
+    {
+        (new JournalDraft())->debit('1-1100', $amount, 'uji')->credit('3-1000', $amount, 'uji')
+            ->post(app(AccountingEngine::class), 'TEST', 'PRE-'.uniqid(), 'Uji sewa dibayar di muka', $date);
+    }
+
+    private function prepaidBalance(): float
+    {
+        return round((float) JournalItem::whereHas('account', fn ($q) => $q->where('account_code', '1-1100'))
+            ->whereHas('journalEntry', fn ($q) => $q->where('status', 'POSTED'))->sum(DB::raw('debit - credit')), 2);
+    }
+
     public function test_prepayment_used_up_credits_prepaid_expenses_without_reversal(): void
     {
+        $this->prepay(2000000);
         $res = $this->postJson(self::URL, $this->payload([
             'kind' => 'PREPAID', 'account_code' => '6-1003', 'amount' => 2000000,
             'description' => 'Sewa toko Maret dari sewa dibayar di muka', 'auto_reverse' => false,
@@ -58,6 +76,25 @@ class AdjustingEntryApiTest extends TestCase
         $entry = $res->json('data.journals.0');
         $this->assertEquals(2000000, $this->line($entry, '6-1003')['debit']);
         $this->assertEquals(2000000, $this->line($entry, '1-1100')['credit']);
+    }
+
+    public function test_prepayment_usage_cannot_exceed_the_prepaid_balance(): void
+    {
+        // Saldo 1-1100 di DB uji bisa berisi sisa data lain: buat tepat Rp 1.000.000 per 1 Maret 2019.
+        $gap = round(1000000 - $this->prepaidBalance(), 2);
+        $gap > 0 ? $this->prepay($gap, '2019-03-01') : null;
+        $this->assertGreaterThanOrEqual(1000000, $this->prepaidBalance());
+        $prepaid = fn (float $amount, string $period = '2019-03') => $this->postJson(self::URL, $this->payload([
+            'period' => $period, 'kind' => 'PREPAID', 'account_code' => '6-1003', 'amount' => $amount, 'auto_reverse' => false,
+        ]));
+
+        $balance = $this->prepaidBalance();
+        $prepaid($balance + 1)->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, '1-1100'));
+        $prepaid(600000, '2019-04')->assertCreated();
+        // Maret masih cukup sendiri, tetapi pemakaian April yang sudah dibukukan akan membuat saldo April negatif.
+        $prepaid($balance - 600000 + 1)->assertStatus(422);
+        $prepaid($balance - 600000)->assertCreated();
+        $this->assertEquals(0.0, $this->prepaidBalance());
     }
 
     public function test_auto_reversal_is_only_for_accruals(): void

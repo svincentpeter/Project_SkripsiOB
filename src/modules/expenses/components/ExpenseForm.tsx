@@ -137,16 +137,8 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
       return;
     }
 
-    // Sama dengan aturan server (saldo kas/bank tidak boleh negatif); server tetap yang memutuskan.
-    if (isCash && numericAmount > cashInDrawer) {
-      setFormError(`Saldo Kas Laci tidak mencukupi (${formatRupiah(cashInDrawer)}). Silakan pilih rekening Bank BCA atau sesuaikan nominal.`);
-      return;
-    }
-
-    if (!isCash && numericAmount > bankBalance) {
-      setFormError(`Saldo Rekening Bank BCA tidak mencukupi (${formatRupiah(bankBalance)}).`);
-      return;
-    }
+    // Saldo cukup atau tidak diputuskan server (saldo buku + selisih shift tertunda, per tanggal); saldo di layar bisa
+    // belum termuat atau tidak memuat selisih shift, jadi di sini hanya peringatan di bawah pilihan sumber dana.
 
     if (!paidTo.trim()) {
       setFormError('Nama pihak penerima pembayaran / toko wajib diisi!');
@@ -313,10 +305,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
                 <span className="text-[10px] text-slate-500 mt-1 block">
                   Sisa saldo tersedia: <strong className="text-slate-700 font-mono">{formatRupiah(currentSourceBalance)}</strong>
                 </span>
-                {isCash && cashInDrawer > 0 && numericAmount > cashInDrawer && (
-                  <div className="mt-2 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] text-rose-700 flex items-center gap-1.5 font-bold animate-in fade-in">
-                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span>Perhatian: Nominal pengeluaran melebihi uang fisik di laci kasir!</span>
+                {numericAmount > currentSourceBalance && (
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5 font-bold animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>Nominal melebihi saldo {isCash ? 'Kas Laci' : 'Bank BCA'} yang tampil; server akan menolak bila saldonya memang tidak cukup.</span>
                   </div>
                 )}
               </div>

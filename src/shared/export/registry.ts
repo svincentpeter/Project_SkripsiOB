@@ -13,6 +13,7 @@ import type { DailyCashReport, DailyCashSale, DailyRecap, DailyRecapTotals, Dash
 import { cashMovementLabel, dailySummaryKpis, PAYMENT_GROUP_LABELS, PAYMENT_GROUPS } from '../../services/dailyReports';
 import type { BankReconciliationReport, CalkReport } from '../types/sakEmkm';
 import { EXPENSE_CATEGORY_CONFIG, formatDateIndo, formatRupiah } from '../utils/formatters';
+import { lowStockProducts, stockOf } from '../utils/stockAlert';
 import { buildKop } from './kop';
 import type { ExportCtx, ExportDoc, ExportFormat, ExportSection } from './types';
 
@@ -141,7 +142,6 @@ const mapExpenses = (list: ExpenseRecord[], ctx: ExportCtx): ExportDoc => {
   }]);
 };
 
-const stockOf = (p: ProductItem): number => p.product_quantity ?? p.stock ?? 0;
 const costOf = (p: ProductItem): number => p.product_cost ?? p.cost_price ?? 0;
 const priceOf = (p: ProductItem): number => p.product_price ?? p.price ?? 0;
 
@@ -307,9 +307,7 @@ export interface DashboardInput {
 const mapDashboard = (d: DashboardInput, ctx: ExportCtx): ExportDoc => {
   const { today, week, month } = d.summary;
   const tren = week.map((r) => ({ tgl: r.date, omzet: r.net_revenue, hpp: r.cost_of_sales, qty: r.product_qty }));
-  const kritis = d.products
-    .filter((p) => stockOf(p) <= (p.product_stock_alert ?? p.min_stock ?? 5))
-    .slice(0, 20);
+  const kritis = lowStockProducts(d.products).slice(0, 20);
   return makeDoc('dashboard_summary', 'Ringkasan Dashboard', 'portrait', ctx, [
     {
       title: 'KPI Utama (jurnal server)',
@@ -331,7 +329,7 @@ const mapDashboard = (d: DashboardInput, ctx: ExportCtx): ExportDoc => {
         { key: 'tgl', label: 'Tanggal', type: 'date', width: 12 },
         { key: 'omzet', label: 'Pendapatan Bersih (Rp)', type: 'currency' },
         { key: 'hpp', label: 'HPP (Rp)', type: 'currency' },
-        { key: 'qty', label: 'Unit Ban', type: 'number' },
+        { key: 'qty', label: 'Unit Barang', type: 'number' },
       ],
       rows: tren,
       totals: { omzet: sum(tren, (t) => t.omzet), hpp: sum(tren, (t) => t.hpp), qty: sum(tren, (t) => t.qty) },
@@ -348,7 +346,7 @@ const mapDashboard = (d: DashboardInput, ctx: ExportCtx): ExportDoc => {
   ]);
 };
 
-const RECAP_KEYS = ['sales_count', 'net_revenue', 'returns', 'cost_of_sales', 'gross_profit', 'operating_expenses', 'net_income', 'cash_in', 'cash_out'] as const;
+const RECAP_KEYS = ['sales_count', 'net_revenue', 'returns', 'cost_of_sales', 'gross_profit', 'operating_expenses', 'other_income', 'net_income', 'cash_in', 'cash_out'] as const;
 const pickRecap = (r: DailyRecapTotals): Record<string, number> => ({
   ...Object.fromEntries(RECAP_KEYS.map((k) => [k, r[k]])),
   ...Object.fromEntries(PAYMENT_GROUPS.map((g) => [g, r.payment_mix[g]])),
@@ -364,12 +362,14 @@ const mapDailyRecap = (r: DailyRecap, ctx: ExportCtx): ExportDoc =>
       { key: 'cost_of_sales', label: 'HPP', type: 'currency' },
       { key: 'gross_profit', label: 'Laba Kotor', type: 'currency' },
       { key: 'operating_expenses', label: 'Beban', type: 'currency' },
+      { key: 'other_income', label: 'Pendapatan Lain', type: 'currency' },
       { key: 'net_income', label: 'Laba Bersih', type: 'currency' },
       { key: 'cash_in', label: 'Kas Masuk', type: 'currency' },
       { key: 'cash_out', label: 'Kas Keluar', type: 'currency' },
       ...PAYMENT_GROUPS.map((g) => ({ key: g, label: PAYMENT_GROUP_LABELS[g], type: 'currency' as const })),
     ],
-    rows: r.rows.map((row) => ({ date: row.date, ...pickRecap(row) })),
+    // Terbaru di atas, sama dengan layar.
+    rows: [...r.rows].reverse().map((row) => ({ date: row.date, ...pickRecap(row) })),
     totals: pickRecap(r.totals),
   }]);
 
@@ -391,13 +391,17 @@ const mapDailyCash = (r: DailyCashReport, ctx: ExportCtx): ExportDoc => {
         { key: 'transfer', label: 'Transfer', type: 'currency' },
         { key: 'qris', label: 'QRIS', type: 'currency' },
         { key: 'total', label: 'Total Nota', type: 'currency' },
-        { key: 'void', label: 'Nota VOID', type: 'currency' },
+        { key: 'void_count', label: 'Nota VOID', type: 'number', width: 8 },
+        { key: 'void', label: 'Nilai VOID', type: 'currency' },
       ],
       rows: r.cashiers.map((c) => ({
         kasir: c.cashier_name, nota: c.sales_count, tunai: c.by_method.TUNAI, transfer: c.by_method.TRANSFER,
-        qris: c.by_method.QRIS, total: c.sales_total, void: c.void_total,
+        qris: c.by_method.QRIS, total: c.sales_total, void_count: c.void_count, void: c.void_total,
       })),
-      totals: { nota: sum(r.cashiers, (c) => c.sales_count), total: sum(r.cashiers, (c) => c.sales_total), void: sum(r.cashiers, (c) => c.void_total) },
+      totals: {
+        nota: sum(r.cashiers, (c) => c.sales_count), total: sum(r.cashiers, (c) => c.sales_total),
+        void_count: sum(r.cashiers, (c) => c.void_count), void: sum(r.cashiers, (c) => c.void_total),
+      },
     },
     {
       title: 'Daftar Nota',
@@ -499,6 +503,7 @@ const incomeSection = (fs: FinancialStatements): ExportSection => {
     ...sectionRows('Beban Pokok: ', is.cost_of_sales, -1),
     { label: 'LABA KOTOR', value: is.gross_profit },
     ...sectionRows('Beban Operasional: ', is.operating_expenses, -1),
+    ...sectionRows('Pendapatan Lain-lain: ', is.other_income),
     { label: 'LABA (RUGI) BERSIH', value: is.net_income },
   ]);
 };
