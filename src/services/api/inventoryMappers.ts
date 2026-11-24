@@ -214,6 +214,7 @@ export interface ProductPayload {
   product_year?: string;
   product_cost: number;
   product_price: number;
+  price_change_reason?: string;
   product_stock_alert: number;
   is_active?: boolean;
   initial_batch?: { source_name: string; batch_cost: number; initial_qty: number };
@@ -250,6 +251,7 @@ export const productPayload = (
     product_year: input.product_year !== undefined ? String(input.product_year) : undefined,
     product_cost: input.product_cost ?? existing?.product_cost ?? 0,
     product_price: input.product_price ?? existing?.product_price ?? 0,
+    price_change_reason: input.price_change_reason?.trim() || undefined,
     product_stock_alert: input.product_stock_alert ?? existing?.product_stock_alert ?? 5,
   };
   if ('is_active' in input && input.is_active !== undefined) payload.is_active = input.is_active;
@@ -279,6 +281,8 @@ export interface RestockPayload {
   payment_method: 'TUNAI' | 'TRANSFER_BCA' | 'TEMPO';
   due_date?: string;
   notes?: string;
+  selling_price?: number;
+  price_change_reason?: string;
 }
 
 const PAYMENT_TERMS: Record<string, RestockPayload['payment_method']> = {
@@ -307,6 +311,8 @@ export const restockPayload = (input: GoodsReceiptInput, suppliers: SupplierItem
     payment_method: method,
     due_date: method === 'TEMPO' ? input.due_date || undefined : undefined,
     notes: input.notes || undefined,
+    selling_price: input.selling_price && input.selling_price > 0 ? input.selling_price : undefined,
+    price_change_reason: input.price_change_reason?.trim() || undefined,
   };
 };
 

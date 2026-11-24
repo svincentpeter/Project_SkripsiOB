@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\PosCheckoutRequest;
+use App\Models\JournalEntry;
 use App\Models\Sale;
 use App\Services\Pos\CheckoutService;
 use App\Services\Pos\SalesReturnService;
@@ -15,11 +16,22 @@ class PosController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        return response()->json([
+            'success' => true,
+            'data' => self::listPayload($request),
+        ]);
+    }
+
+    /**
+     * Daftar transaksi POS beserta jurnal yang di-preload sekaligus agar bebas N+1 query.
+     */
+    public static function listPayload(?Request $request = null): array
+    {
         $query = Sale::with(['details.product', 'payments', 'returns.items'])
             ->orderBy('date', 'desc')
             ->orderBy('id', 'desc');
 
-        if ($request->filled('search')) {
+        if ($request?->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('reference', 'like', "%{$s}%")
@@ -28,16 +40,32 @@ class PosController extends Controller
             });
         }
 
-        if ($request->filled('date')) {
+        if ($request?->filled('date')) {
             $query->where('date', $request->date);
         }
 
-        $sales = $query->limit(min((int) $request->input('limit', 200), 500))->get();
+        $limit = min((int) ($request?->input('limit', 200) ?? 200), 500);
+        $sales = $query->limit($limit)->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => $sales->map(fn (Sale $sale) => $sale->toReceiptArray())->values(),
-        ]);
+        // Batch-load semua jurnal POS_SALE, POS_SALE_VOID, dan SALES_RETURN dalam satu query (anti N+1).
+        $saleRefs = $sales->pluck('reference')->filter()->values();
+        $returnRefs = $sales->flatMap(fn (Sale $s) => $s->returns->pluck('reference'))->filter()->values();
+        $preloadedJournals = ($saleRefs->isNotEmpty() || $returnRefs->isNotEmpty())
+            ? JournalEntry::with(['items.account', 'reversal', 'reversalOf', 'creator'])
+                ->where(function ($q) use ($saleRefs, $returnRefs) {
+                    if ($saleRefs->isNotEmpty()) {
+                        $q->where(fn ($sq) => $sq->whereIn('reference_id', $saleRefs)->whereIn('reference_type', ['POS_SALE', 'POS_SALE_VOID']));
+                    }
+                    if ($returnRefs->isNotEmpty()) {
+                        $method = $saleRefs->isNotEmpty() ? 'orWhere' : 'where';
+                        $q->{$method}(fn ($rq) => $rq->where('reference_type', 'SALES_RETURN')->whereIn('reference_id', $returnRefs));
+                    }
+                })
+                ->orderBy('id')
+                ->get()
+            : collect();
+
+        return $sales->map(fn (Sale $sale) => $sale->toReceiptArray($preloadedJournals))->values()->all();
     }
 
     public function show(int $id): JsonResponse

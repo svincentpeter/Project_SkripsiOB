@@ -86,8 +86,34 @@ class Product extends Model
         return $this->hasMany(StockMovement::class);
     }
 
+    public const MIN_MARKUP_RATE = 0.15;
+
     public function saleDetails(): HasMany
     {
         return $this->hasMany(SaleDetail::class);
+    }
+
+    /**
+     * HPP patokan penentuan harga jual: nilai tertinggi antara modal terbaru (product_cost)
+     * dan modal seluruh batch FIFO aktif (remaining_qty > 0). Menjamin toko tidak kecolongan
+     * saat harga beli antar-batch dari supplier berubah.
+     */
+    public function referenceHpp(): float
+    {
+        $baseCost = (float) ($this->product_cost ?? 0);
+        $batches = $this->relationLoaded('activeBatches')
+            ? $this->activeBatches
+            : $this->activeBatches()->get();
+        $maxBatchCost = (float) ($batches->max('batch_cost') ?? 0);
+
+        return round(max($baseCost, $maxBatchCost), 2);
+    }
+
+    /**
+     * Standar harga jual minimal: HPP patokan + 15% keuntungan (Markup 1,15 × HPP).
+     */
+    public function minimumSellingPrice(): float
+    {
+        return round($this->referenceHpp() * (1 + self::MIN_MARKUP_RATE), 2);
     }
 }

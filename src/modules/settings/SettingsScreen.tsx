@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MoneyInput } from '../../shared/components/MoneyInput';
 import { 
   Settings as SettingsIcon, 
   Store, 
@@ -617,25 +618,23 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Saldo Awal Kas Laci / Kasir (Rp)
+                    Modal Kas Laci Per Hari (Rp)
                   </label>
-                  <input
-                    type="number"
-                    value={formData.initial_cash_drawer ?? 1500000}
-                    onChange={(e) => handleChange('initial_cash_drawer', Number(e.target.value))}
+                  <MoneyInput
+                    value={formData.initial_cash_drawer ?? 350000}
+                    onChange={(v) => handleChange('initial_cash_drawer', v)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-mono font-bold shadow-2xs"
                   />
-                  <span className="text-[10px] text-slate-400 mt-1 block">Petty cash uang kembalian kasir di laci</span>
+                  <span className="text-[10px] text-slate-400 mt-1 block">Modal receh kasir tiap buka shift (default kolom Kas Awal saat Buka Shift)</span>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Saldo Awal Rekening Bank Operasional (Rp)
                   </label>
-                  <input
-                    type="number"
-                    value={formData.initial_bank_balance ?? 85000000}
-                    onChange={(e) => handleChange('initial_bank_balance', Number(e.target.value))}
+                  <MoneyInput
+                    value={formData.initial_bank_balance ?? 25000000}
+                    onChange={(v) => handleChange('initial_bank_balance', v)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-slate-900 text-xs font-mono font-bold shadow-2xs"
                   />
                   <span className="text-[10px] text-slate-400 mt-1 block">Saldo rekening Bank BCA operasional</span>

@@ -4,6 +4,7 @@ namespace App\Services\Inventory;
 
 use App\Exceptions\PosRuleException;
 use App\Models\Product;
+use App\Models\ProductPriceAudit;
 use App\Models\Purchase;
 use App\Models\Supplier;
 use App\Models\User;
@@ -34,7 +35,9 @@ class GoodsReceiptService
     public function receive(array $data, ?User $user): array
     {
         return DB::transaction(function () use ($data, $user) {
-            $product = Product::findOrFail($data['product_id']);
+            $product = Product::with('activeBatches')->findOrFail($data['product_id']);
+            $oldCost = (float) ($product->product_cost ?? 0);
+            $oldPrice = (float) ($product->product_price ?? 0);
             $supplier = ! empty($data['supplier_id']) ? Supplier::findOrFail($data['supplier_id']) : null;
             $supplierName = $supplier?->supplier_name ?? $data['source_name'];
             $date = $data['purchase_date'] ?? now()->toDateString();
@@ -86,6 +89,75 @@ class GoodsReceiptService
             if (! $draft->isEmpty()) {
                 $journal = $draft->post($this->engine, 'PURCHASE', $purchase->purchase_number, "Penerimaan barang {$purchase->purchase_number} dari {$supplierName}", $date);
                 $purchase->update(['journal_entry_number' => $journal->entry_number]);
+            }
+
+            $product->refresh()->load('activeBatches');
+            $newCost = (float) ($product->product_cost ?? 0);
+            $refHpp = $product->referenceHpp();
+            $minSellingPrice = $product->minimumSellingPrice();
+            $requestedSellPrice = isset($data['selling_price']) && $data['selling_price'] !== null
+                ? round((float) $data['selling_price'], 2)
+                : null;
+            $priceReason = trim((string) ($data['price_change_reason'] ?? ''));
+            $isOwner = ($user?->role ?? '') === 'OWNER';
+
+            if ($requestedSellPrice !== null && $requestedSellPrice > 0) {
+                if ($refHpp > 0 && $requestedSellPrice + 0.01 < $minSellingPrice) {
+                    throw new PosRuleException(
+                        'Harga jual baru saat penerimaan barang minimal harus +15% dari HPP patokan Rp '
+                        .number_format($refHpp, 0, ',', '.').' (minimal Rp '.number_format($minSellingPrice, 0, ',', '.').').'
+                    );
+                }
+                if (abs($requestedSellPrice - $oldPrice) > 0.01 || abs($newCost - $oldCost) > 0.01) {
+                    $product->update(['product_price' => $requestedSellPrice]);
+                    ProductPriceAudit::create([
+                        'product_id' => $product->id,
+                        'old_cost' => $oldCost,
+                        'new_cost' => $newCost,
+                        'reference_hpp' => $refHpp,
+                        'old_price' => $oldPrice,
+                        'new_price' => $requestedSellPrice,
+                        'cost_change_percent' => $oldCost > 0 ? round((($newCost - $oldCost) / $oldCost) * 100, 2) : null,
+                        'price_change_percent' => $oldPrice > 0 ? round((($requestedSellPrice - $oldPrice) / $oldPrice) * 100, 2) : 100.0,
+                        'markup_percent' => $refHpp > 0 ? round((($requestedSellPrice - $refHpp) / $refHpp) * 100, 2) : null,
+                        'change_source' => 'goods_receipt_restock',
+                        'changed_field' => abs($requestedSellPrice - $oldPrice) > 0.01 ? 'both' : 'cost',
+                        'context_month' => substr($date, 0, 7),
+                        'changed_by' => $user?->id,
+                        'actor_name' => $user?->name ?? 'Petugas Gudang',
+                        'actor_role' => $user?->role ?? 'GUDANG',
+                        'applies_to' => 'CATALOG',
+                        'reason' => $priceReason !== '' ? $priceReason : "Penyesuaian harga jual saat restock {$purchase->purchase_number}",
+                        'is_read_by_owner' => $isOwner,
+                        'is_reviewed_by_owner' => $isOwner,
+                        'reviewed_at' => $isOwner ? now() : null,
+                        'reviewed_by' => $isOwner ? $user?->id : null,
+                    ]);
+                }
+            } elseif (abs($newCost - $oldCost) > 0.01 && ($oldPrice <= 0 || $oldPrice + 0.01 < $minSellingPrice)) {
+                // HPP batch baru naik sehingga harga jual lama di bawah +15% (atau masih Rp 0): beri notifikasi ke Owner.
+                ProductPriceAudit::create([
+                    'product_id' => $product->id,
+                    'old_cost' => $oldCost,
+                    'new_cost' => $newCost,
+                    'reference_hpp' => $refHpp,
+                    'old_price' => $oldPrice,
+                    'new_price' => $oldPrice,
+                    'cost_change_percent' => $oldCost > 0 ? round((($newCost - $oldCost) / $oldCost) * 100, 2) : null,
+                    'price_change_percent' => 0,
+                    'markup_percent' => $refHpp > 0 && $oldPrice > 0 ? round((($oldPrice - $refHpp) / $refHpp) * 100, 2) : 0,
+                    'change_source' => 'goods_receipt_margin_warning',
+                    'changed_field' => 'cost',
+                    'context_month' => substr($date, 0, 7),
+                    'changed_by' => $user?->id,
+                    'actor_name' => $user?->name ?? 'Petugas Gudang',
+                    'actor_role' => $user?->role ?? 'GUDANG',
+                    'applies_to' => 'CATALOG',
+                    'reason' => "HPP batch baru ({$purchase->purchase_number}) menjadi Rp ".number_format($newCost, 0, ',', '.')
+                        .'; harga jual katalog perlu disesuaikan ke minimal +15% (Rp '.number_format($minSellingPrice, 0, ',', '.').').',
+                    'is_read_by_owner' => false,
+                    'is_reviewed_by_owner' => false,
+                ]);
             }
 
             return ['purchase' => $purchase->fresh(), 'batch' => $batch, 'journal' => $journal];

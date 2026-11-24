@@ -64,6 +64,9 @@ rejects `bon`, `booking_id` and card-terminal methods with 422 (see [domain-pos.
 | POST | `/purchases/{id}/returns` (`{quantity, reason, refund_account_code?}`) → 201 `{purchase, purchase_return, journal}` | `purchase_return` |
 | POST | `/purchases/{id}/cancel` (`{reason}`; only an untouched receipt) → 200 `{purchase, purchase_return, journal}` | `purchase_return` |
 | GET | `/inventory/stock-movements`, `/inventory/valuation` (includes `opening_posted`) | `inventory_view` |
+| GET | `/price-audits` (`actor_role`, `applies_to`, `change_source`, `unreviewed_only`, `unread_only`, `search`, `limit`) | `inventory_view`, `accounting_hub`, `dashboard` |
+| POST | `/price-audits/mark-read` (`{id?}`) | `inventory_view`, `accounting_hub`, `dashboard` |
+| POST | `/price-audits/{id}/review` (`{review_notes?, new_catalog_price?}`) | `inventory_manage` |
 | POST | `/inventory/opening-balance` (one-shot: 422 once posted) | `accounting_hub` |
 | POST | `/inventory/stock-opname` | `stock_opname` |
 | POST | `/stock/import-preview` (multipart `excel_file`, `qty_column` G or H), `/stock/resolve-brand`, `/stock/resolve-name`, `/stock/ignore-unresolved`, `/stock/commit`, `/stock/bulk-update` (alias `/stock/reconciliation/bulk-update`) | `stock_opname` |

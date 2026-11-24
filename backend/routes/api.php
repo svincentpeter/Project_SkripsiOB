@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\v1\OpeningBalanceController;
 use App\Http\Controllers\Api\v1\PaymentApiController;
 use App\Http\Controllers\Api\v1\PaymentMethodSettingController;
 use App\Http\Controllers\Api\v1\PosController;
+use App\Http\Controllers\Api\v1\PriceAuditController;
 use App\Http\Controllers\Api\v1\ProductCategoryController;
 use App\Http\Controllers\Api\v1\ProductController;
 use App\Http\Controllers\Api\v1\PurchaseController;
@@ -137,6 +138,11 @@ Route::prefix('v1')->group(function () {
         Route::get('inventory/valuation', [InventoryController::class, 'valuation'])->middleware('permission:inventory_view');
         Route::post('inventory/opening-balance', [InventoryController::class, 'openingBalance'])->middleware('permission:accounting_hub');
         Route::post('inventory/stock-opname', [InventoryController::class, 'stockOpname'])->middleware('permission:stock_opname');
+
+        // Audit Log Penentuan & Perubahan Harga Jual (Kasir/Owner/Restock) & Notifikasi Owner
+        Route::get('price-audits', [PriceAuditController::class, 'index'])->middleware('permission:inventory_view,accounting_hub,dashboard');
+        Route::post('price-audits/mark-read', [PriceAuditController::class, 'markRead'])->middleware('permission:inventory_view,accounting_hub,dashboard');
+        Route::post('price-audits/{id}/review', [PriceAuditController::class, 'review'])->whereNumber('id')->middleware('permission:inventory_manage');
 
         // Stock Excel Import & Reconciliation (Paritas ProjectOmahBan)
         Route::prefix('stock')->middleware('permission:stock_opname')->group(function () {

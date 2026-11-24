@@ -14,7 +14,7 @@ There are no credit sales, no customer down payments and no card-terminal paymen
 **Request** (`PosCheckoutRequest`):
 - Customer and vehicle fields, all optional.
 - `items[]`, each with `type` (PRODUCT/SERVICE), `product_id` / `service_id`, `name`, `quantity` (a whole number of
-  at least 1), `unit_price`, `discount_per_item`, `is_manual`, `cost_price`. `cost_price` is ignored: manual lines
+  at least 1), `unit_price`, `discount_per_item`, `override_reason`, `is_manual`, `cost_price`. `cost_price` is ignored: manual lines
   are services only and have no cost of sales.
 - `discount_amount` (a discount on the whole receipt).
 - `payments[]`, each with `method`, `amount`, `tendered`, `provider_id` (id in `payment_provider_settings`),
@@ -33,8 +33,18 @@ order in [domain-accounting.md](domain-accounting.md#cash-drawer-and-shifts)):
    - All catalogue products are locked first, sorted by id, and must be active. Their summed quantity must not exceed
      `products.product_quantity`; otherwise the server returns 422 "Stok X tidak cukup".
    - The item name is replaced with the catalogue name.
-   - A catalogue PRODUCT line priced Rp 0 or less is rejected (422, "Harga jual … masih Rp 0"); the POS card shows
-     "Harga belum diisi" and the catalogue filter "Harga Jual Belum Diisi" lists them. Zero-priced services stay allowed.
+   - A catalogue PRODUCT line priced Rp 0 or less is rejected (422, "Harga jual … masih Rp 0"). When a product's catalog
+     `product_price` is Rp 0, the POS allows the Cashier to open the line-edit modal (`CartLineEditModal`), view the
+     benchmark HPP (`reference_hpp` = max of active FIFO batch costs and `product_cost`), and set the selling price
+     at or above `reference_hpp × 1.15` (+15% minimum markup) with a mandatory `override_reason` (min 5 chars). Upon
+     checkout, the emergency price is saved to `products.product_price` (`applies_to = CATALOG_AND_NOTA`) and logged in
+     `product_price_audits` for Owner notification/review.
+   - When a product already has a catalog `product_price > 0`, the effective unit price after line discount
+     (`unit_price - discount_per_item`) must be `>= reference_hpp × 1.15`, and for role `KASIR` cannot be lowered below
+     the catalog `product_price`. A cashier price increase (e.g., customer reimbursement request) requires
+     `override_reason` (min 5 chars), applies only to that receipt (`applies_to = NOTA_ONLY`), and is logged in
+     `product_price_audits` and `sale_details` (`catalog_price`, `reference_hpp`, `price_override_type`,
+     `price_override_reason`). Zero-priced services stay allowed.
    - Manual lines (`is_manual`) are services only: a manual PRODUCT line is rejected (422, "…belum terdaftar di
      katalog…"), because goods need a catalogue entry and a goods receipt to have FIFO cost. A manual SERVICE line
      books 4-1001 with HPP 0. The POS "Input Manual" form (`ManualItemForm`) offers only services.

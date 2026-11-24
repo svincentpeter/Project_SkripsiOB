@@ -11,7 +11,9 @@ import {
   AlertTriangle,
   Building2,
   Disc,
-  CircleDot
+  CircleDot,
+  TrendingUp,
+  ShieldCheck,
 } from 'lucide-react';
 import { 
   CreateProductInput, 
@@ -26,6 +28,12 @@ import {
   formatRupiah, 
   parseRupiahInput 
 } from '../../../shared/utils/formatters';
+import { MarkupPercentStepper } from '../../../shared/components';
+import {
+  calculateMarkupPercent,
+  getMinSellingPrice,
+  getProductReferenceHpp,
+} from '../../../shared/utils/pricingStandard';
 import { 
   generateBarcodeEan13, 
   generateProductSku 
@@ -111,7 +119,11 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setValveType(productToEdit.valve_type || 'TR13 Karet Lurus');
       setProductCode(productToEdit.product_code);
       setBarcode(productToEdit.barcode || '');
-      setCostPrice(productToEdit.product_cost || productToEdit.cost_price || 0);
+      const activeBatchesList = (productToEdit.batches || []).filter((b) => (b.remaining_qty ?? 0) > 0);
+      const initialCost = activeBatchesList.length > 0
+        ? getProductReferenceHpp(productToEdit)
+        : (productToEdit.product_cost || productToEdit.cost_price || 0);
+      setCostPrice(initialCost);
       setSellingPrice(productToEdit.product_price || productToEdit.price || 0);
       setStockAlert(productToEdit.product_stock_alert ?? productToEdit.min_stock ?? 5);
       setHasInitialStock(false);
@@ -177,6 +189,18 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   if (!isOpen) return null;
 
+  const activeBatches =
+    mode === 'EDIT' && productToEdit && Array.isArray(productToEdit.batches)
+      ? productToEdit.batches.filter((b) => (b.remaining_qty ?? 0) > 0)
+      : [];
+  const hasActiveBatches = activeBatches.length > 0;
+
+  const referenceHpp = getProductReferenceHpp(mode === 'EDIT' ? productToEdit : null, costPrice);
+  const minSellingPrice = getMinSellingPrice(referenceHpp);
+  const currentMarkupPct = calculateMarkupPercent(sellingPrice, referenceHpp);
+  const profitPerUnit = sellingPrice - referenceHpp;
+  const isBelowMinMarkup = referenceHpp > 0 && sellingPrice > 0 && sellingPrice + 0.01 < minSellingPrice;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -191,8 +215,10 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       return;
     }
 
-    if (sellingPrice < costPrice) {
-      setErrorMsg('Peringatan: Harga jual tidak boleh lebih rendah dari harga modal HPP.');
+    if (sellingPrice + 0.01 < minSellingPrice) {
+      setErrorMsg(
+        `Standar Harga Jual: Harga jual (${formatRupiah(sellingPrice)}) tidak boleh kurang dari minimal +15% dari HPP patokan ${formatRupiah(referenceHpp)} (minimal ${formatRupiah(minSellingPrice)}).`
+      );
       return;
     }
 
@@ -543,13 +569,35 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Harga Modal / HPP (Rp)</label>
+              <label className="flex items-center justify-between text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+                <span>Harga Modal / HPP (Rp)</span>
+                {hasActiveBatches && (
+                  <span className="text-[10px] font-bold normal-case px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                    Terkunci (Batch FIFO)
+                  </span>
+                )}
+              </label>
               <input
                 type="text"
+                readOnly={hasActiveBatches}
+                disabled={hasActiveBatches}
                 value={formatRupiah(costPrice)}
-                onChange={(e) => setCostPrice(parseRupiahInput(e.target.value))}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-semibold shadow-2xs"
+                onChange={(e) => {
+                  if (!hasActiveBatches) {
+                    setCostPrice(parseRupiahInput(e.target.value));
+                  }
+                }}
+                className={`w-full border rounded-xl px-4 py-2.5 text-sm font-semibold shadow-2xs ${
+                  hasActiveBatches
+                    ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed'
+                    : 'bg-white border-slate-200 text-slate-800'
+                }`}
               />
+              {hasActiveBatches && (
+                <p className="text-[10.5px] text-amber-700 mt-1 leading-snug">
+                  Mengikuti layer Batch FIFO aktif ({formatRupiah(referenceHpp)}) agar saldo Persediaan 1-2000 tetap akurat.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Harga Jual Retail (Rp)</label>
@@ -570,6 +618,56 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               />
             </div>
           </div>
+
+          {/* Kalkulator Standar Penentuan Harga Penjualan (Min. +15% HPP Batch FIFO & Input Manual Tren/Jeep) */}
+          {referenceHpp > 0 && (
+            <div className={`p-4 rounded-xl border space-y-3 ${
+              isBelowMinMarkup
+                ? 'bg-rose-50/70 border-rose-300'
+                : 'bg-emerald-50/50 border-emerald-200'
+            }`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-900">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Standar Penentuan Harga Jual (Minimal +15% dari HPP Patokan)</span>
+                </div>
+                <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-md font-mono ${
+                  isBelowMinMarkup
+                    ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                    : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                }`}>
+                  Keuntungan: {currentMarkupPct >= 0 ? `+${currentMarkupPct}%` : `${currentMarkupPct}%`} ({profitPerUnit >= 0 ? `+${formatRupiah(profitPerUnit)}` : formatRupiah(profitPerUnit)} / unit)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-semibold text-slate-500 block">HPP Patokan (Modal Tertinggi Batch)</span>
+                  <strong className="font-mono text-slate-900 text-sm">{formatRupiah(referenceHpp)}</strong>
+                </div>
+                <div className="bg-white border border-emerald-200 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-semibold text-emerald-700 block">Batas Minimal Wajib (+15% HPP)</span>
+                  <strong className="font-mono text-emerald-800 text-sm">{formatRupiah(minSellingPrice)}</strong>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-semibold text-slate-500 block">Status Margin Harga Jual</span>
+                  <strong className={`text-[11px] ${isBelowMinMarkup ? 'text-rose-700' : 'text-emerald-700'}`}>
+                    {isBelowMinMarkup ? 'Di Bawah Standar Minimal 15%' : 'Memenuhi Standar (>= +15%)'}
+                  </strong>
+                </div>
+              </div>
+
+              <MarkupPercentStepper
+                referenceHpp={referenceHpp}
+                sellingPrice={sellingPrice}
+                onChangeSellingPrice={setSellingPrice}
+                label="Atur Persentase Keuntungan dari HPP (+/- Real-Time, Min. 15%):"
+              />
+              <p className="text-[11px] text-slate-500">
+                Gunakan tombol <strong>+/- persen</strong> atau ketik langsung angka <strong>%</strong> maupun <strong>Harga Jual Retail (Rp)</strong> — keduanya tersinkronisasi secara real-time (minimal +15% dari HPP patokan).
+              </p>
+            </div>
+          )}
 
           {mode === 'CREATE' && (
             <div className="pt-4 border-t border-slate-100">

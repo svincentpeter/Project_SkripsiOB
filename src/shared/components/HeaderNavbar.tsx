@@ -40,6 +40,7 @@ interface HeaderNavbarProps {
   notifications?: any[];
   onMarkNotificationRead?: (id: string) => void;
   onClearNotifications?: () => void;
+  onNavigateFromNotification?: (target: string) => void;
   onOpenWireframeModal: () => void;
   onResetData: () => void;
   currentTimeStr: string;
@@ -59,6 +60,7 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   notifications = [],
   onMarkNotificationRead,
   onClearNotifications,
+  onNavigateFromNotification,
   onOpenWireframeModal,
   onResetData,
   currentTimeStr,
@@ -186,7 +188,13 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
             notifications={notifications}
             onMarkAsRead={(id) => onMarkNotificationRead?.(id)}
             onClearAll={() => onClearNotifications?.()}
-            onNavigateTo={(screen) => setActiveScreen(screen as ActiveScreen)}
+            onNavigateTo={(target) => {
+              if (onNavigateFromNotification) {
+                onNavigateFromNotification(target);
+              } else {
+                setActiveScreen(target as ActiveScreen);
+              }
+            }}
           />
 
           {/* Saldo buku kas laci (akun 1-1000), hanya untuk peran yang boleh membaca saldo kas */}

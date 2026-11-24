@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { PaymentProviderSetting, StoreSettings } from '../../../shared/types';
 import { useToast } from '../../../shared/components';
+import { MoneyInput } from '../../../shared/components/MoneyInput';
 import { paymentApi } from '../../../services/api/paymentApi';
 import { providerErrorMessage, validateProviderInput } from '../paymentProviderInput';
 
@@ -541,12 +542,9 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
                   <label className="block text-[11px] font-bold text-emerald-950 mb-1">
                     Batas Minimal Nominal (Rp)
                   </label>
-                  <input
-                    type="number"
-                    step="10000"
-                    min="0"
+                  <MoneyInput
                     value={newQrisThreshold}
-                    onChange={(e) => setNewQrisThreshold(parseInt(e.target.value, 10) || 0)}
+                    onChange={(v) => setNewQrisThreshold(v)}
                     className="w-full bg-white border border-emerald-300 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-slate-900 focus:border-emerald-600 focus:outline-none"
                   />
                   <p className="text-[10px] text-emerald-800 mt-1">
@@ -644,12 +642,9 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            step="10000"
-                            min="0"
+                          <MoneyInput
                             value={q.fee_threshold_amount ?? 0}
-                            onChange={(e) => handleUpdateQrisField(q.id, 'fee_threshold_amount', parseInt(e.target.value, 10) || 0)}
+                            onChange={(v) => handleUpdateQrisField(q.id, 'fee_threshold_amount', v)}
                             onBlur={() => handleSaveRow(q)}
                             className="bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-lg px-2 py-1 font-mono font-semibold text-slate-800 text-xs w-28"
                           />

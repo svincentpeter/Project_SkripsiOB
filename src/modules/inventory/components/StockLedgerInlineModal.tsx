@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MoneyInput } from '../../../shared/components/MoneyInput';
 import { X, Check, AlertCircle, Edit3, Tag, Layers } from 'lucide-react';
 import { formatRupiah } from '../../../shared/utils/formatters';
 
@@ -150,12 +151,9 @@ export const StockLedgerInlineModal: React.FC<StockLedgerInlineModalProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Nilai Modal Baru (Rp):
                 </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1000"
+                <MoneyInput
                   value={numValue}
-                  onChange={(e) => setNumValue(Math.max(0, parseFloat(e.target.value) || 0))}
+                  onChange={(v) => setNumValue(v)}
                   className="w-full px-3 py-2.5 bg-white border-2 border-indigo-200 focus:border-indigo-600 rounded-xl text-sm font-bold font-mono outline-hidden"
                   required
                   autoFocus
@@ -190,13 +188,10 @@ export const StockLedgerInlineModal: React.FC<StockLedgerInlineModalProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Harga Normal Acuan / Coret (Rp):
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="5000"
-                    placeholder="Contoh: 1250000"
-                    value={refPrice || ''}
-                    onChange={(e) => setRefPrice(Math.max(0, parseFloat(e.target.value) || 0))}
+                  <MoneyInput
+                    placeholder="Contoh: 1.250.000"
+                    value={refPrice || 0}
+                    onChange={(v) => setRefPrice(v)}
                     className="w-full px-3 py-2 bg-white border border-slate-300 focus:border-rose-500 rounded-xl text-sm font-bold font-mono outline-hidden"
                   />
                   <p className="text-[10px] text-slate-500 mt-1">

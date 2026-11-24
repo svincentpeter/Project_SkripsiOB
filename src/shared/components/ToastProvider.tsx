@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { 
   CheckCircle2, 
   AlertTriangle, 
@@ -55,9 +55,13 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const warning = useCallback((title: string, message?: string) => notify('warning', title, message), [notify]);
   const info = useCallback((title: string, message?: string) => notify('info', title, message), [notify]);
   const error = useCallback((title: string, message?: string) => notify('error', title, message), [notify]);
+  const contextValue = useMemo(
+    () => ({ notify, success, warning, info, error }),
+    [notify, success, warning, info, error]
+  );
 
   return (
-    <ToastContext.Provider value={{ notify, success, warning, info, error }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
 
       {/* Floating Minimalist Toast Notification Container */}

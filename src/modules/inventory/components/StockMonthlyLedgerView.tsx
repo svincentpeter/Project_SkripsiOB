@@ -99,7 +99,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
 
   useEffect(() => {
     loadLedgerData();
-  }, [selectedMonth, selectedBrand, products, transactions, mutations]);
+  }, [selectedMonth, selectedBrand]);
 
   const ringOptions = useMemo(() => {
     if (!reportData) return [];

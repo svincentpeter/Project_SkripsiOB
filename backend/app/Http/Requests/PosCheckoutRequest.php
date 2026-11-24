@@ -33,6 +33,7 @@ class PosCheckoutRequest extends FormRequest
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.discount_per_item' => 'nullable|numeric|min:0',
+            'items.*.override_reason' => 'nullable|string|max:255',
             'items.*.is_manual' => 'nullable|boolean',
             'items.*.cost_price' => 'nullable|numeric|min:0',
             'discount_amount' => 'nullable|numeric|min:0',

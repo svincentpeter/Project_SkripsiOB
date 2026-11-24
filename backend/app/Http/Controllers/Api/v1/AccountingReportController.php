@@ -151,8 +151,13 @@ class AccountingReportController extends Controller
             ->groupBy('supplier_id', 'supplier_name')
             ->get();
 
-        $debts = $rows->map(function ($row) {
-            $supplier = $row->supplier_id ? Supplier::find($row->supplier_id) : null;
+        $supplierIds = $rows->pluck('supplier_id')->filter()->unique()->values();
+        $suppliersById = $supplierIds->isNotEmpty()
+            ? Supplier::whereIn('id', $supplierIds)->get()->keyBy('id')
+            : collect();
+
+        $debts = $rows->map(function ($row) use ($suppliersById) {
+            $supplier = $row->supplier_id ? $suppliersById->get($row->supplier_id) : null;
             $remaining = round((float) $row->purchased - (float) $row->paid, 2);
 
             return [

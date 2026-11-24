@@ -1030,8 +1030,8 @@ export const INITIAL_STORE_SETTINGS: StoreSettings = {
   coa_equity_account: '3-1000',
   coa_sales_account: '4-1000',
   coa_cogs_account: '5-1000',
-  initial_cash_drawer: 1500000,
-  initial_bank_balance: 85000000,
+  initial_cash_drawer: 350000,
+  initial_bank_balance: 25000000,
   active_fiscal_month: 'September',
   active_fiscal_year: 2026,
 };

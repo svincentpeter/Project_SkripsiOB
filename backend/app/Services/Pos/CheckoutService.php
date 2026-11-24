@@ -4,6 +4,7 @@ namespace App\Services\Pos;
 
 use App\Exceptions\PosRuleException;
 use App\Models\PaymentProviderSetting;
+use App\Models\ProductPriceAudit;
 use App\Models\QrisTransaction;
 use App\Models\Sale;
 use App\Models\SaleDetail;
@@ -37,7 +38,7 @@ class CheckoutService
             if (collect($data['payments'] ?? [])->contains('method', 'TUNAI')) {
                 CashSessionService::requireOpen();
             }
-            $lines = CartLines::build($data['items']);
+            $lines = CartLines::build($data['items'], $user);
 
             $subtotal = round(array_sum(array_column($lines, 'net')), 2);
             $notaDiscount = round((float) ($data['discount_amount'] ?? 0), 2);
@@ -81,7 +82,7 @@ class CheckoutService
             ]);
 
             // HPP hanya dari FIFO: jasa (termasuk jasa manual) tidak punya harga pokok, jadi total_hpp = jurnal 5-1000.
-            $fifoCogs = $this->storeLines($sale, $lines);
+            $fifoCogs = $this->storeLines($sale, $lines, $user);
             $sale->update([
                 'total_hpp' => $fifoCogs,
                 'total_profit' => round($grandTotal - $fifoCogs, 2),
@@ -211,9 +212,10 @@ class CheckoutService
     }
 
     /**
-     * Simpan baris nota; baris produk katalog memotong stok FIFO. Mengembalikan total HPP FIFO.
+     * Simpan baris nota; baris produk katalog memotong stok FIFO dan mencatat Audit Log jika terjadi
+     * penentuan harga baru (katalog Rp 0) atau override/kenaikan harga nota oleh kasir.
      */
-    private function storeLines(Sale $sale, array $lines): float
+    private function storeLines(Sale $sale, array $lines, ?User $user): float
     {
         $fifoCogs = 0.0;
 
@@ -227,21 +229,69 @@ class CheckoutService
                 'is_manual' => $line['is_manual'],
                 'quantity' => $line['quantity'],
                 'unit_price' => $line['unit_price'],
+                'catalog_price' => $line['catalog_price'] ?? $line['unit_price'],
+                'reference_hpp' => $line['reference_hpp'] ?? 0,
                 'sub_total' => $line['net'],
                 'discount_amount' => $line['discount'],
+                'price_override_type' => $line['price_override_type'] ?? null,
+                'price_override_reason' => $line['price_override_reason'] ?? null,
                 'unit_cost_hpp' => 0,
                 'total_cost_hpp' => 0,
                 'profit_amount' => $line['net'],
             ]);
 
             if ($line['product']) {
-                $cogs = $this->fifo->allocateFifo($line['product']->id, $line['quantity'], $detail->id, $sale->reference)['total_cogs'];
+                $product = $line['product'];
+                $cogs = $this->fifo->allocateFifo($product->id, $line['quantity'], $detail->id, $sale->reference)['total_cogs'];
                 $fifoCogs += $cogs;
                 $detail->update([
                     'unit_cost_hpp' => round($cogs / $line['quantity'], 2),
                     'total_cost_hpp' => $cogs,
                     'profit_amount' => round($line['net'] - $cogs, 2),
                 ]);
+
+                if (! empty($line['price_override_type'])) {
+                    $isInitial = $line['price_override_type'] === 'INITIAL_CASHIER_PRICE';
+                    $oldPrice = (float) ($line['catalog_price'] ?? 0);
+                    $newPrice = (float) $line['unit_price'];
+                    $refHpp = (float) ($line['reference_hpp'] ?: $product->referenceHpp());
+
+                    // Jika awalnya harga katalog Rp 0 (Owner lupa isi), simpan harga kasir sebagai harga katalog sementara
+                    // agar transaksi berikutnya tidak Rp 0 lagi. Jika awalnya > Rp 0 (kasus reimburse), katalog tidak diubah.
+                    if ($isInitial) {
+                        $product->update(['product_price' => $newPrice]);
+                    }
+
+                    $priceChangePct = $oldPrice > 0 ? round((($newPrice - $oldPrice) / $oldPrice) * 100, 2) : 100.0;
+                    $markupPct = $refHpp > 0 ? round((($newPrice - $refHpp) / $refHpp) * 100, 2) : null;
+                    $isOwner = $user?->role === 'OWNER';
+
+                    ProductPriceAudit::create([
+                        'product_id' => $product->id,
+                        'sale_id' => $sale->id,
+                        'sale_detail_id' => $detail->id,
+                        'old_cost' => (float) ($product->product_cost ?? 0),
+                        'new_cost' => (float) ($product->product_cost ?? 0),
+                        'reference_hpp' => $refHpp,
+                        'old_price' => $oldPrice,
+                        'new_price' => $newPrice,
+                        'cost_change_percent' => 0,
+                        'price_change_percent' => $priceChangePct,
+                        'markup_percent' => $markupPct,
+                        'change_source' => $isInitial ? 'pos_cashier_initial' : 'pos_cashier_override',
+                        'changed_field' => $isInitial ? 'price' : 'nota_only_override',
+                        'context_month' => $sale->date->format('Y-m'),
+                        'changed_by' => $user?->id,
+                        'actor_name' => $user?->name ?? $sale->cashier_name,
+                        'actor_role' => $user?->role ?? 'KASIR',
+                        'applies_to' => $isInitial ? 'CATALOG_AND_NOTA' : 'NOTA_ONLY',
+                        'reason' => $line['price_override_reason'],
+                        'is_read_by_owner' => $isOwner,
+                        'is_reviewed_by_owner' => $isOwner,
+                        'reviewed_at' => $isOwner ? now() : null,
+                        'reviewed_by' => $isOwner ? $user?->id : null,
+                    ]);
+                }
             }
         }
 

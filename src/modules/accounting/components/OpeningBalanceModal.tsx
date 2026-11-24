@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { MoneyInput } from '../../../shared/components/MoneyInput';
 import { Landmark, X } from 'lucide-react';
 import type { OpeningBalanceAccount, OpeningBalanceInput } from '../../../shared/types';
 import { localDate } from '../../../services/accountingPeriod';
@@ -83,9 +84,15 @@ export const OpeningBalanceModal: React.FC<OpeningBalanceModalProps> = ({ isOpen
           {FIELDS.map((f) => (
             <label key={f.code} className="block">
               <span className="block font-bold text-slate-700 mb-1">{f.code} — {f.label}</span>
-              <input type="number" step="1" min={f.code === '3-2000' ? undefined : 0} value={values[f.code] ?? ''}
-                onChange={(e) => setValues((prev) => ({ ...prev, [f.code]: e.target.value === '' ? undefined : Number(e.target.value) }))}
-                className={field} />
+              {f.code === '3-2000' ? (
+                <input type="number" step="1" value={values[f.code] ?? ''}
+                  onChange={(e) => setValues((prev) => ({ ...prev, [f.code]: e.target.value === '' ? undefined : Number(e.target.value) }))}
+                  className={field} />
+              ) : (
+                <MoneyInput value={values[f.code] ?? 0}
+                  onChange={(v) => setValues((prev) => ({ ...prev, [f.code]: v === 0 ? undefined : v }))}
+                  className={field} />
+              )}
               <span className="block text-[10px] text-slate-500 mt-0.5">{f.hint}</span>
             </label>
           ))}

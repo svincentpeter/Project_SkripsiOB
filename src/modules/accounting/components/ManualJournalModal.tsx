@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { MoneyInput } from '../../../shared/components/MoneyInput';
 import { AlertTriangle, Plus, Scale, Trash2, X } from 'lucide-react';
 import { ChartOfAccount, ManualJournalPayload } from '../../../shared/types';
 import { localDate } from '../../../services/accountingPeriod';
@@ -21,7 +22,6 @@ const emptyLines = (): Line[] => [
   { account_code: '', debit: 0, credit: 0, note: '' },
 ];
 
-const toAmount = (value: string): number => Math.max(0, Number(value) || 0);
 
 export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({ isOpen, onClose, accounts, onSubmit }) => {
   const [date, setDate] = useState(localDate());
@@ -133,12 +133,12 @@ export const ManualJournalModal: React.FC<ManualJournalModalProps> = ({ isOpen, 
                     </select>
                   </td>
                   <td className="p-1.5">
-                    <input type="number" min={0} step="1" aria-label={`Debit baris ${i + 1}`} value={line.debit || ''}
-                      onChange={(e) => update(i, { debit: toAmount(e.target.value) })} className={`${field} text-right font-mono`} />
+                    <MoneyInput aria-label={`Debit baris ${i + 1}`} value={line.debit || 0}
+                      onChange={(v) => update(i, { debit: v })} className={`${field} text-right font-mono`} />
                   </td>
                   <td className="p-1.5">
-                    <input type="number" min={0} step="1" aria-label={`Kredit baris ${i + 1}`} value={line.credit || ''}
-                      onChange={(e) => update(i, { credit: toAmount(e.target.value) })} className={`${field} text-right font-mono`} />
+                    <MoneyInput aria-label={`Kredit baris ${i + 1}`} value={line.credit || 0}
+                      onChange={(v) => update(i, { credit: v })} className={`${field} text-right font-mono`} />
                   </td>
                   <td className="p-1.5">
                     <input type="text" aria-label={`Catatan baris ${i + 1}`} value={line.note} onChange={(e) => update(i, { note: e.target.value })} className={field} />

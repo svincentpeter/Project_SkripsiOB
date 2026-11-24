@@ -28,6 +28,8 @@ class InventoryController extends Controller
             'payment_method' => 'required|string|in:TUNAI,TRANSFER_BCA,TEMPO',
             'due_date' => 'nullable|date',
             'notes' => 'nullable|string|max:255',
+            'selling_price' => 'nullable|numeric|min:0',
+            'price_change_reason' => 'nullable|string|max:255',
         ], ['purchase_date.before_or_equal' => 'Tanggal penerimaan barang tidak boleh melebihi hari ini.']);
 
         $out = $receipts->receive($validated, $request->user());
@@ -50,7 +52,7 @@ class InventoryController extends Controller
     }
 
     /** Nilai FIFO vs buku 1-2000, plus apakah saldo awal persediaan (go-live) sudah dibukukan. */
-    private static function valuationData(): array
+    public static function valuationData(): array
     {
         return InventoryValueJournal::summary() + ['opening_posted' => InventoryValueJournal::openingEntry() !== null];
     }

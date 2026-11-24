@@ -38,10 +38,14 @@ export interface ApiSaleItem {
   is_manual: boolean;
   quantity: number;
   unit_price: number;
+  catalog_price?: number;
+  reference_hpp?: number;
   discount_per_item: number;
   sub_total: number;
   unit_cost_hpp: number;
   total_cost_hpp: number;
+  price_override_type?: string | null;
+  price_override_reason?: string | null;
   returned_qty?: number;
   product: { id: number; product_name: string; brand?: string; product_size?: string; motif?: string } | null;
 }
@@ -121,6 +125,7 @@ export interface CartLinePayload {
   quantity: number;
   unit_price: number;
   discount_per_item: number;
+  override_reason?: string;
   is_manual: boolean;
   cost_price?: number;
 }
@@ -195,6 +200,7 @@ export const cartLineToPayload = (item: CartItem): CartLinePayload => {
     quantity: item.qty,
     unit_price: unitPrice,
     discount_per_item: item.discount_per_item ?? 0,
+    override_reason: item.override_reason?.trim() ? item.override_reason.trim() : undefined,
     is_manual: isManual,
     cost_price: isManual ? item.custom_hpp ?? 0 : undefined,
   };
@@ -310,6 +316,7 @@ const saleItemToCart = (it: ApiSaleItem): CartItem => {
     custom_price: num(it.unit_price),
     custom_hpp: num(it.unit_cost_hpp),
     custom_name_override: it.item_name,
+    override_reason: it.price_override_reason ?? undefined,
     is_manual: it.is_manual,
   };
 };

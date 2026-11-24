@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useDeferredValue } from 'react';
 import { 
   Search, 
   Plus, 
@@ -70,6 +70,11 @@ import {
 import { useToast } from '../../shared/components';
 import { localDate } from '../../services/accountingPeriod';
 import { categoryKind } from '../../shared/utils/categoryKind';
+import {
+  CASHIER_INITIAL_PRICE_REASONS,
+  getProductReferenceHpp,
+  getRecommendedPriceByMarkup,
+} from '../../shared/utils/pricingStandard';
 import logoOmahBan from '../../assets/brand/logo-omah-ban.png';
 
 interface PosScreenProps {
@@ -181,16 +186,30 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     setTimeout(() => setIsCartBouncing(false), 500);
   };
 
+  const { activeProductsCount, categoryCountByCode, categoryCountById } = useMemo(() => {
+    const byCode = new Map<string, number>();
+    const byId = new Map<string, number>();
+    let activeTotal = 0;
+    for (const p of products) {
+      if (p.is_active === false) continue;
+      activeTotal += 1;
+      const code = (p.category || '').toUpperCase().trim();
+      if (code) byCode.set(code, (byCode.get(code) ?? 0) + 1);
+      if (p.category_id) {
+        const cid = String(p.category_id);
+        byId.set(cid, (byId.get(cid) ?? 0) + 1);
+      }
+    }
+    return { activeProductsCount: activeTotal, categoryCountByCode: byCode, categoryCountById: byId };
+  }, [products]);
+
   const getCategoryProductCount = (categoryCode: string, categoryId?: string) => {
     const code = categoryCode.toUpperCase().trim();
-    return products.filter((p) => {
-      const pCat = (p.category || '').toUpperCase().trim();
-      const matches = pCat === code || (p.category_id && String(p.category_id) === categoryId);
-      return matches && p.is_active !== false;
-    }).length;
+    return categoryCountByCode.get(code) ?? (categoryId ? categoryCountById.get(categoryId) ?? 0 : 0);
   };
 
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [selectedRing, setSelectedRing] = useState<string>('ALL');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
   const [stockFilter, setStockFilter] = useState<'ALL' | 'AVAILABLE' | 'LOW' | 'OUT'>('ALL');
@@ -243,6 +262,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [manualDiscount, setManualDiscount] = useState<number>(0);
 
   const [editLineIndex, setEditLineIndex] = useState<number | null>(null);
+  const [pendingZeroPriceItem, setPendingZeroPriceItem] = useState<CartItem | null>(null);
   const [showParkedDrawer, setShowParkedDrawer] = useState<boolean>(false);
   const [printTransaction, setPrintTransaction] = useState<PosTransaction | null>(null);
   const [completedSaleTx, setCompletedSaleTx] = useState<PosTransaction | null>(null);
@@ -265,17 +285,19 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const filteredProducts = isEmptyState || catalogTab === 'SERVICES' || catalogTab === 'MANUAL'
-    ? []
-    : products.filter((prod) => {
-        const pCat = (prod.category || '').toUpperCase().trim();
-        const tabCode = catalogTab.toUpperCase().trim();
-        const matchesCategory = tabCode === 'ALL' || pCat === tabCode || (prod.category_id && String(prod.category_id) === catalogTab);
-        if (!matchesCategory) return false;
+  const filteredProducts = useMemo(() => {
+    if (isEmptyState || catalogTab === 'SERVICES' || catalogTab === 'MANUAL') return [];
+    const tabCode = catalogTab.toUpperCase().trim();
+    const q = deferredSearchQuery.toLowerCase().trim();
 
-        const q = searchQuery.toLowerCase().trim();
+    return products.filter((prod) => {
+      if (prod.is_active === false) return false;
+      const pCat = (prod.category || '').toUpperCase().trim();
+      const matchesCategory = tabCode === 'ALL' || pCat === tabCode || (prod.category_id && String(prod.category_id) === catalogTab);
+      if (!matchesCategory) return false;
+
+      if (q) {
         const matchesQuery =
-          !q ||
           (prod.name && prod.name.toLowerCase().includes(q)) ||
           (prod.product_name && prod.product_name.toLowerCase().includes(q)) ||
           (prod.brand && prod.brand.toLowerCase().includes(q)) ||
@@ -284,36 +306,38 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           (prod.barcode && prod.barcode.toLowerCase().includes(q)) ||
           (prod.pcd && prod.pcd.toLowerCase().includes(q)) ||
           (prod.product_code && prod.product_code.toLowerCase().includes(q));
+        if (!matchesQuery) return false;
+      }
 
-        const matchesRing = selectedRing === 'ALL' || prod.ring === selectedRing;
-        const matchesBrand = selectedBrand === 'ALL' || prod.brand === selectedBrand;
+      if (selectedRing !== 'ALL' && prod.ring !== selectedRing) return false;
+      if (selectedBrand !== 'ALL' && prod.brand !== selectedBrand) return false;
 
-        const stockQty = prod.stock || prod.product_quantity || 0;
-        const lowThreshold = prod.product_stock_alert ?? prod.min_stock ?? 3;
-        const matchesStock =
-          stockFilter === 'ALL' ||
-          (stockFilter === 'AVAILABLE' && stockQty > 0) ||
-          (stockFilter === 'LOW' && stockQty > 0 && stockQty <= lowThreshold) ||
-          (stockFilter === 'OUT' && stockQty <= 0);
+      const stockQty = prod.stock || prod.product_quantity || 0;
+      const lowThreshold = prod.product_stock_alert ?? prod.min_stock ?? 3;
+      if (stockFilter === 'AVAILABLE' && stockQty <= 0) return false;
+      if (stockFilter === 'LOW' && (stockQty <= 0 || stockQty > lowThreshold)) return false;
+      if (stockFilter === 'OUT' && stockQty > 0) return false;
 
-        return matchesQuery && matchesRing && matchesBrand && matchesStock && prod.is_active !== false;
-      });
+      return true;
+    });
+  }, [isEmptyState, catalogTab, products, deferredSearchQuery, selectedRing, selectedBrand, stockFilter]);
 
-  const filteredServices = isEmptyState || catalogTab !== 'SERVICES'
-    ? []
-    : services.filter((srv) => {
-        const matchesSrvCat =
-          selectedServiceCategory === 'ALL' ||
-          srv.category.toUpperCase() === selectedServiceCategory.toUpperCase();
-        const q = searchQuery.toLowerCase().trim();
-        const matchesQuery =
-          !q ||
-          srv.service_name.toLowerCase().includes(q) ||
-          srv.service_code.toLowerCase().includes(q) ||
-          srv.category.toLowerCase().includes(q);
+  const filteredServices = useMemo(() => {
+    if (isEmptyState || catalogTab !== 'SERVICES') return [];
+    const q = deferredSearchQuery.toLowerCase().trim();
+    const selCat = selectedServiceCategory.toUpperCase();
 
-        return matchesSrvCat && matchesQuery && srv.is_active !== false;
-      });
+    return services.filter((srv) => {
+      if (srv.is_active === false) return false;
+      if (selectedServiceCategory !== 'ALL' && srv.category.toUpperCase() !== selCat) return false;
+      if (!q) return true;
+      return (
+        srv.service_name.toLowerCase().includes(q) ||
+        srv.service_code.toLowerCase().includes(q) ||
+        srv.category.toLowerCase().includes(q)
+      );
+    });
+  }, [isEmptyState, catalogTab, services, selectedServiceCategory, deferredSearchQuery]);
 
   const handleAddToCartManual = (item: CartItem) => {
     setCart((prevCart) => [...prevCart, item]);
@@ -323,25 +347,49 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const handleAddToCart = (product: ProductItem) => {
     const stockAvailable = product.stock || product.product_quantity || 0;
     if (stockAvailable <= 0) return;
-    // Server menolak barang katalog berharga Rp 0; beri tahu sebelum masuk keranjang.
+
+    const existingIndex = cart.findIndex(
+      (it) => it.item_type === 'PRODUCT' && it.product.id === product.id
+    );
+
+    // Case "Kecolongan": Harga jual lupa ditentukan oleh Owner (masih Rp 0).
+    // Kasir diberi akses melihat HPP dan menentukan harga jual (minimal +15% dari HPP) beserta alasannya.
     if ((product.product_price || product.price || 0) <= 0) {
-      toast.warning('Harga Jual Belum Diisi', `${product.product_name} masih Rp 0. Minta admin mengisi harga jualnya di katalog.`);
+      if (existingIndex > -1) {
+        setEditLineIndex(existingIndex);
+        return;
+      }
+      const refHpp = getProductReferenceHpp(product);
+      const suggestedMinPrice = getRecommendedPriceByMarkup(refHpp, 15);
+      setPendingZeroPriceItem({
+        item_type: 'PRODUCT',
+        product,
+        qty: 1,
+        discount_per_item: 0,
+        custom_price: suggestedMinPrice > 0 ? suggestedMinPrice : 100000,
+        override_reason: CASHIER_INITIAL_PRICE_REASONS[0],
+        adjusted_by: cashierName,
+      });
+      toast.info(
+        'Penentuan Harga Jual Kasir',
+        `${product.product_name} belum memiliki harga katalog. Silakan cek HPP & tentukan harga jual (min. +15%).`
+      );
       return;
     }
 
     triggerCartBounce();
     setCart((prevCart) => {
-      const existingIndex = prevCart.findIndex(
+      const idx = prevCart.findIndex(
         (it) => it.item_type === 'PRODUCT' && it.product.id === product.id
       );
 
-      if (existingIndex > -1) {
-        const existing = prevCart[existingIndex];
+      if (idx > -1) {
+        const existing = prevCart[idx];
         if (existing.qty + 1 > stockAvailable) {
           return prevCart;
         }
         const updated = [...prevCart];
-        updated[existingIndex] = { ...existing, qty: existing.qty + 1 };
+        updated[idx] = { ...existing, qty: existing.qty + 1 };
         return updated;
       } else {
         return [
@@ -410,6 +458,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   };
 
   const handleSaveLineItem = (index: number, updatedItem: CartItem) => {
+    if (pendingZeroPriceItem && index === -1) {
+      setCart((prevCart) => [...prevCart, updatedItem]);
+      setPendingZeroPriceItem(null);
+      triggerCartBounce();
+      toast.success(
+        'Harga Jual Kasir Ditetapkan',
+        `${updatedItem.product.product_name} ditambahkan dengan harga ${formatRupiah(updatedItem.custom_price || 0)} (tercatat ke Audit Log Owner).`
+      );
+      return;
+    }
     setCart((prevCart) => {
       const copy = [...prevCart];
       copy[index] = updatedItem;
@@ -775,7 +833,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
               catalogTab === 'ALL' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
             }`}>
-              {products.filter((p) => p.is_active !== false).length}
+              {activeProductsCount}
             </span>
           </button>
 
@@ -1017,6 +1075,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                   <div
                     key={p.id}
                     onClick={() => !isOutOfStock && handleAddToCart(p)}
+                    style={{ contentVisibility: 'auto', containIntrinsicSize: '150px' }}
                     className={`bg-white border rounded-2xl p-3.5 flex flex-col justify-between transition-all group shadow-2xs relative ${
                       isOutOfStock
                         ? 'opacity-45 bg-slate-100/60 border-slate-200 cursor-not-allowed'
@@ -1085,7 +1144,9 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                             {formatRupiah(p.product_price || p.price || 0)}
                           </span>
                         ) : (
-                          <span className="text-xs font-bold text-rose-600">Harga belum diisi</span>
+                          <span className="text-[11px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md">
+                            Set Harga (Min. +15%)
+                          </span>
                         )}
                       </div>
                       <span className="p-1.5 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-700 group-hover:text-white transition-all shadow-2xs">
@@ -1355,9 +1416,21 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                           <span className="text-amber-700 font-bold font-mono">Disc: -{formatRupiah(item.discount_per_item)}/unit</span>
                         )}
                         {item.custom_price !== undefined && item.custom_price !== standardPrice && (
-                          <span className="text-blue-700 text-[10px] font-bold">(Harga Custom)</span>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                            standardPrice <= 0
+                              ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}>
+                            {standardPrice <= 0 ? 'Harga Darurat Kasir' : 'Ubah Harga Nota'}
+                          </span>
                         )}
                       </div>
+
+                      {item.override_reason && item.custom_price !== undefined && item.custom_price !== standardPrice && (
+                        <div className="text-[10.5px] text-amber-800 font-medium mt-0.5 truncate">
+                          Alasan: {item.override_reason}
+                        </div>
+                      )}
 
                       {item.note && (
                         <div className="text-[11px] text-slate-500 italic mt-0.5">Catatan: {item.note}</div>
@@ -1456,12 +1529,24 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     </div>
 
       <CartLineEditModal
-        isOpen={editLineIndex !== null}
-        item={editLineIndex !== null ? cart[editLineIndex] : null}
-        itemIndex={editLineIndex}
-        onClose={() => setEditLineIndex(null)}
+        isOpen={editLineIndex !== null || pendingZeroPriceItem !== null}
+        item={pendingZeroPriceItem ?? (editLineIndex !== null ? cart[editLineIndex] : null)}
+        itemIndex={pendingZeroPriceItem ? -1 : editLineIndex}
+        userRole={currentUser?.role || 'KASIR'}
+        cashierName={cashierName}
+        isInitialPricing={pendingZeroPriceItem !== null}
+        onClose={() => {
+          setEditLineIndex(null);
+          setPendingZeroPriceItem(null);
+        }}
         onSave={handleSaveLineItem}
-        onRemoveItem={handleRemoveFromCart}
+        onRemoveItem={(idx) => {
+          if (idx === -1) {
+            setPendingZeroPriceItem(null);
+          } else {
+            handleRemoveFromCart(idx);
+          }
+        }}
       />
 
       <ParkedOrdersDrawer

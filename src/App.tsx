@@ -13,6 +13,7 @@ import {
   PayableInvoice,
   PermissionKey,
   PosTransaction, 
+  PriceAuditItem,
   ProductCategory,
   ProductItem, 
   ParkedTransaction,
@@ -66,7 +67,7 @@ import { PosScreen } from './modules/pos';
 import { ThermalReceiptScreen } from './modules/receipt';
 import { ExecutiveDashboardScreen } from './modules/dashboard';
 import { DailyReportsScreen } from './modules/reports';
-import { InventoryScreen } from './modules/inventory';
+import { InventoryScreen, InventorySubView } from './modules/inventory';
 import { ExpensesScreen } from './modules/expenses';
 import { GeneralLedgerScreen } from './modules/accounting';
 import { FinancialStatementsScreen } from './modules/accounting';
@@ -88,6 +89,7 @@ import {
   mapMovement,
   mapProductCategory,
   mapPurchaseToPayable,
+  priceAuditApi,
   payablesFromPurchases,
   mapServiceCategory,
   mapSupplier,
@@ -275,6 +277,9 @@ function MainAppContent() {
   // Selected transaction for receipt view
   const [currentReceiptTx, setCurrentReceiptTx] = useState<PosTransaction | null>(null);
   const [inventoryValuation, setInventoryValuation] = useState<InventoryValuation | null>(null);
+  const [priceAudits, setPriceAudits] = useState<PriceAuditItem[]>([]);
+  const [unreviewedPriceAuditCount, setUnreviewedPriceAuditCount] = useState<number>(0);
+  const [inventoryInitialSubView, setInventoryInitialSubView] = useState<InventorySubView | undefined>(undefined);
 
   // Simulation & Modal states
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -308,6 +313,37 @@ function MainAppContent() {
   // 100% Dynamic Notifications derived directly from database records
   const notifications: AppNotification[] = React.useMemo(() => {
     const list: AppNotification[] = [];
+
+    // 0. Penentuan / Perubahan Harga Jual oleh Role Kasir & Peringatan HPP Batch Baru (Prioritas Utama Owner)
+    priceAudits
+      .filter((a) =>
+        ['pos_cashier_initial', 'pos_cashier_override', 'goods_receipt_margin_warning'].includes(a.change_source)
+      )
+      .slice(0, 8)
+      .forEach((a) => {
+        const id = `notif-price-${a.id}`;
+        if (dismissedNotifIds.includes(id)) return;
+        const isInitial = a.change_source === 'pos_cashier_initial';
+        const isRestockWarn = a.change_source === 'goods_receipt_margin_warning';
+        const title = isInitial
+          ? `Harga Darurat Kasir: ${a.product_name}`
+          : isRestockWarn
+          ? `Peringatan HPP Batch Baru: ${a.product_name}`
+          : `Ubah Harga Nota (Reimburse): ${a.product_name}`;
+        const description = isRestockWarn
+          ? a.reason || `HPP batch baru naik ke ${formatRupiah(a.reference_hpp)}; sesuaikan harga jual minimal +15%.`
+          : `${a.actor_name} (${a.actor_role}) menentukan harga ${formatRupiah(a.new_price)} (+${a.markup_percent}% dari HPP ${formatRupiah(a.reference_hpp)})${a.sale_reference ? ` pada nota ${a.sale_reference}` : ''}. Alasan: "${a.reason || '-'}"`;
+
+        list.push({
+          id,
+          type: 'PRICE_OVERRIDE',
+          title,
+          description,
+          timestamp: a.sale_reference || 'Audit Harga',
+          isRead: a.is_read_by_owner || readNotifIds.includes(id),
+          auditId: a.id,
+        });
+      });
 
     // 1. Stok Kritis (Produk di bawah ambang batas)
     products
@@ -349,40 +385,70 @@ function MainAppContent() {
       });
 
     return list;
-  }, [products, payableInvoices, readNotifIds, dismissedNotifIds]);
+  }, [priceAudits, products, payableInvoices, readNotifIds, dismissedNotifIds]);
+
+  const refreshPriceAudits = () => {
+    priceAuditApi
+      .list({ limit: 30 })
+      .then((res) => {
+        setPriceAudits(res.items || []);
+        setUnreviewedPriceAuditCount(res.summary?.unreviewed_owner_count ?? 0);
+      })
+      .catch(() => {});
+  };
 
   // Data POS (katalog & nota) selalu dari server Laravel sesuai izin peran.
+  // Tahap 1 memuat data inti layar aktif (katalog, jasa, saldo kas, notifikasi harga) lebih dulu secara paralel,
+  // lalu Tahap 2 memuat data pendukung (riwayat transaksi, mutasi stok, hutang, COA, beban) tanpa memblokir interaksi.
   const loadPosData = async (user: UserSession, permissions: RolePermissionsConfig) => {
     const allowed = (...keys: PermissionKey[]) => keys.some((k) => hasPermission(user, permissions, k));
     const catalog = allowed('pos', 'inventory_view');
-    const [apiProducts, apiServices, apiSales, apiProductCats, apiServiceCats, apiSuppliers] = await Promise.all([
+
+    const [apiProducts, apiServices, apiProductCats, apiServiceCats] = await Promise.all([
       catalog ? productApi.list().catch(() => null) : null,
       catalog ? posApi.listServices().catch(() => null) : null,
-      allowed('pos', 'receipt') ? posApi.listTransactions().catch(() => null) : null,
       catalog ? inventoryApi.listProductCategories().catch(() => null) : null,
       catalog ? inventoryApi.listServiceCategories().catch(() => null) : null,
-      catalog ? inventoryApi.listSuppliers().catch(() => null) : null,
     ]);
-    if (apiProductCats) setProductCategories(apiProductCats.map(mapProductCategory));
-    if (apiServiceCats) setServiceCategories(apiServiceCats.map(mapServiceCategory));
-    if (apiSuppliers) setSuppliers(apiSuppliers.map(mapSupplier));
-    if (allowed('goods_receipt', 'accounts_payable')) refreshPayables();
-    if (allowed('inventory_view')) refreshStockLedger();
-    if (allowed('accounting_hub', 'financial_reports', 'expenses')) {
-      accountingApi.accounts().then((rows) => setAccounts(rows.map(mapAccount))).catch(() => {});
-    }
-    if (allowed('expenses')) {
-      expenseApi.list().then((rows) => setExpenses(rows.map(mapExpense))).catch(() => {});
-      expenseApi.categories().then(setExpenseCategories).catch(() => {});
-    }
-    if (allowed('expenses', 'accounting_hub', 'financial_reports', 'cash_session')) refreshCashBalances();
     if (apiProducts) setProducts(apiProducts);
     if (apiServices) setServices(apiServices);
-    if (apiSales) {
-      const txs = apiSales.map(mapSaleToTransaction);
-      setTransactions(txs);
-      setCurrentReceiptTx((prev) => prev ?? txs[0] ?? null);
-    }
+    if (apiProductCats) setProductCategories(apiProductCats.map(mapProductCategory));
+    if (apiServiceCats) setServiceCategories(apiServiceCats.map(mapServiceCategory));
+
+    if (allowed('expenses', 'accounting_hub', 'financial_reports', 'cash_session')) refreshCashBalances();
+    if (allowed('inventory_view', 'accounting_hub', 'dashboard')) refreshPriceAudits();
+
+    // Tahap 2: data riwayat & backoffice dimuat paralel di latar belakang agar tampilan langsung responsif
+    Promise.all([
+      allowed('pos', 'receipt')
+        ? posApi.listTransactions().then((apiSales) => {
+            const txs = apiSales.map(mapSaleToTransaction);
+            setTransactions(txs);
+            setCurrentReceiptTx((prev) => prev ?? txs[0] ?? null);
+          }).catch(() => {})
+        : Promise.resolve(),
+      catalog
+        ? inventoryApi.listSuppliers().then((rows) => setSuppliers(rows.map(mapSupplier))).catch(() => {})
+        : Promise.resolve(),
+      allowed('goods_receipt', 'accounts_payable')
+        ? inventoryApi.listPurchases('all').then((rows) => setPayableInvoices(payablesFromPurchases(rows))).catch(() => {})
+        : Promise.resolve(),
+      allowed('inventory_view')
+        ? Promise.all([
+            inventoryApi.listMovements(250).then((rows) => setMutations(rows.map(mapMovement))).catch(() => {}),
+            inventoryApi.valuation().then(setInventoryValuation).catch(() => {}),
+          ])
+        : Promise.resolve(),
+      allowed('accounting_hub', 'financial_reports', 'expenses')
+        ? accountingApi.accounts().then((rows) => setAccounts(rows.map(mapAccount))).catch(() => {})
+        : Promise.resolve(),
+      allowed('expenses')
+        ? Promise.all([
+            expenseApi.list().then((rows) => setExpenses(rows.map(mapExpense))).catch(() => {}),
+            expenseApi.categories().then(setExpenseCategories).catch(() => {}),
+          ])
+        : Promise.resolve(),
+    ]);
   };
 
   const refreshPayables = () => {
@@ -394,7 +460,7 @@ function MainAppContent() {
 
   /** Kartu stok & keselarasan nilai FIFO dengan buku besar 1-2000. */
   const refreshStockLedger = () => {
-    inventoryApi.listMovements().then((rows) => setMutations(rows.map(mapMovement))).catch(() => {});
+    inventoryApi.listMovements(250).then((rows) => setMutations(rows.map(mapMovement))).catch(() => {});
     inventoryApi.valuation().then(setInventoryValuation).catch(() => {});
   };
 
@@ -408,17 +474,19 @@ function MainAppContent() {
     if (!currentUser) return;
     let isMounted = true;
     const syncBackend = async () => {
-      try {
-        const health = await apiClient.get<{ status: string; database: string; database_status: string }>('/health');
-        if (isMounted) {
-          setBackendStatus(health.database_status === 'connected' ? 'connected' : 'offline');
-          if (health.database) setDatabaseName(health.database);
-        }
-      } catch {
-        if (isMounted) setBackendStatus('offline');
-      }
+      const healthPromise = apiClient
+        .get<{ status: string; database: string; database_status: string }>('/health')
+        .then((health) => {
+          if (isMounted) {
+            setBackendStatus(health.database_status === 'connected' ? 'connected' : 'offline');
+            if (health.database) setDatabaseName(health.database);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setBackendStatus('offline');
+        });
 
-      await loadPosData(currentUser, rolePermissions);
+      await Promise.all([healthPromise, loadPosData(currentUser, rolePermissions)]);
     };
     syncBackend();
     return () => { isMounted = false; };
@@ -629,6 +697,7 @@ function MainAppContent() {
       console.warn('[Omah Ban] Gagal memuat ulang produk dari backend:', e);
     }
     if (can('inventory_view')) refreshStockLedger();
+    if (can('inventory_view') || can('accounting_hub') || can('dashboard')) refreshPriceAudits();
   };
 
   /** Dipanggil setelah koreksi buku stok / rekonsiliasi Excel tersimpan di server. */
@@ -1003,16 +1072,33 @@ function MainAppContent() {
         <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-['Plus_Jakarta_Sans',sans-serif] overflow-x-hidden">
           <HeaderNavbar
             activeScreen={activeScreen}
-            setActiveScreen={setActiveScreen}
+            setActiveScreen={(scr) => {
+              if (scr !== 'inventory') setInventoryInitialSubView(undefined);
+              setActiveScreen(scr);
+            }}
             cashInDrawer={canReadCash ? cashBalances['1-1000'] : null}
             lowStockCount={lowStockCount}
             cartCount={cartTotalQty}
             notifications={notifications}
             onMarkNotificationRead={(id) => {
               setReadNotifIds((prev) => [...prev, id]);
+              const target = notifications.find((n) => n.id === id);
+              if (target?.auditId) {
+                priceAuditApi.markRead(target.auditId).then(() => refreshPriceAudits()).catch(() => {});
+              }
             }}
             onClearNotifications={() => {
               setDismissedNotifIds((prev) => [...prev, ...notifications.map((n) => n.id)]);
+              priceAuditApi.markRead().then(() => refreshPriceAudits()).catch(() => {});
+            }}
+            onNavigateFromNotification={(target) => {
+              if (target === 'inventory_audit_harga') {
+                setInventoryInitialSubView('audit_harga');
+                setActiveScreen('inventory');
+              } else {
+                setInventoryInitialSubView(undefined);
+                setActiveScreen(target as ActiveScreen);
+              }
             }}
             onOpenWireframeModal={() => setShowWireframeModal(true)}
             onResetData={handleResetData}
@@ -1053,6 +1139,9 @@ function MainAppContent() {
 
             {activeScreen === 'inventory' && (
               <InventoryScreen
+                initialSubView={inventoryInitialSubView}
+                unreviewedPriceAuditCount={unreviewedPriceAuditCount}
+                onPriceAuditReviewed={refreshPriceAudits}
                 permissions={{
                   manage: can('inventory_manage'),
                   goodsReceipt: can('goods_receipt'),

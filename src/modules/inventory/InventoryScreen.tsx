@@ -29,7 +29,8 @@ import {
   RotateCcw,
   ArrowDownLeft,
   X,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ShieldCheck,
 } from 'lucide-react';
 import { 
   CreateProductInput, 
@@ -76,15 +77,19 @@ import {
   StockReconciliationModal,
   StockMonthlyLedgerView,
   PurchaseReturnModal,
+  PriceAuditLogView,
 } from './components';
 import type { PurchaseReturnPayload } from './components';
 import { useToast } from '../../shared/components';
 import { ExportMenu } from '../../shared/export/ExportMenu';
 import type { ApiJournal, InventoryValuation } from '../../services/api';
 
-export type InventorySubView = 'katalog' | 'buku_fifo' | 'kategori' | 'jasa' | 'stok_mutasi' | 'supplier';
+export type InventorySubView = 'katalog' | 'buku_fifo' | 'audit_harga' | 'kategori' | 'jasa' | 'stok_mutasi' | 'supplier';
 
 interface InventoryScreenProps {
+  initialSubView?: InventorySubView;
+  unreviewedPriceAuditCount?: number;
+  onPriceAuditReviewed?: () => void;
   products: ProductItem[];
   services?: ServiceMasterItem[];
   suppliers?: SupplierItem[];
@@ -124,6 +129,9 @@ interface InventoryScreenProps {
 }
 
 export const InventoryScreen: React.FC<InventoryScreenProps> = ({
+  initialSubView,
+  unreviewedPriceAuditCount = 0,
+  onPriceAuditReviewed,
   products,
   services = [],
   suppliers = [],
@@ -158,7 +166,13 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const toast = useToast();
 
   // Sub-Navigation Tab
-  const [activeSubView, setActiveSubView] = useState<InventorySubView>('katalog');
+  const [activeSubView, setActiveSubView] = useState<InventorySubView>(initialSubView || 'katalog');
+
+  useEffect(() => {
+    if (initialSubView) {
+      setActiveSubView(initialSubView);
+    }
+  }, [initialSubView]);
 
   // Internal category state fallback
   const [internalCategories, setInternalCategories] = useState<ProductCategory[]>(() =>
@@ -524,6 +538,26 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
           <button
             type="button"
+            onClick={() => setActiveSubView('audit_harga')}
+            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              activeSubView === 'audit_harga'
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
+            }`}
+          >
+            <ShieldCheck className={`w-4 h-4 ${activeSubView === 'audit_harga' ? 'text-white' : 'text-amber-600'}`} />
+            <span>Audit Harga &amp; Notifikasi Kasir</span>
+            {unreviewedPriceAuditCount > 0 && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-extrabold ${
+                activeSubView === 'audit_harga' ? 'bg-white text-rose-700' : 'bg-rose-600 text-white'
+              }`}>
+                {unreviewedPriceAuditCount} Baru
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveSubView('kategori')}
             className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
               activeSubView === 'kategori'
@@ -597,6 +631,19 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
       </div>
 
       {/* 3. Render Konten Sub-View Terpilih */}
+
+      {/* SUB-VIEW: AUDIT HARGA & NOTIFIKASI KASIR */}
+      {activeSubView === 'audit_harga' && (
+        <div className="w-full space-y-4 animate-in fade-in duration-200">
+          <PriceAuditLogView
+            canManageCatalog={permissions.manage}
+            onCatalogPriceUpdated={() => {
+              onRefreshProducts?.();
+              onPriceAuditReviewed?.();
+            }}
+          />
+        </div>
+      )}
 
       {/* SUB-VIEW: BUKU STOK FIFO SPREADSHEET (PARITAS PROJECTOMAHBAN) */}
       {activeSubView === 'buku_fifo' && (

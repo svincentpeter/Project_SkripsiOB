@@ -12,10 +12,18 @@ import {
   CheckCircle2, 
   TrendingUp,
   UserCheck,
-  Clock
+  Clock,
+  ShieldCheck,
 } from 'lucide-react';
 import { GoodsReceiptInput, PaymentTerms, StockMutation, TireProduct, SupplierItem } from '../../../shared/types';
-import { formatRupiah } from '../../../shared/utils/formatters';
+import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
+import { MarkupPercentStepper } from '../../../shared/components';
+import {
+  calculateMarkupPercent,
+  getMinSellingPrice,
+  getProductReferenceHpp,
+  getRecommendedPriceByMarkup,
+} from '../../../shared/utils/pricingStandard';
 import { localDate } from '../../../services/accountingPeriod';
 import {
   PpnMode,
@@ -62,6 +70,8 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   const [dueDate, setDueDate] = useState<string>('');
   const [notes, setNotes] = useState<string>('Restock pengiriman distributor resmi Cabang 3');
   const [operator, setOperator] = useState<string>('Gudang - Bambang');
+  const [updateSellingPriceNow, setUpdateSellingPriceNow] = useState<boolean>(false);
+  const [newSellingPrice, setNewSellingPrice] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const activeProducts = products.filter((p) => p.is_active !== false);
@@ -126,6 +136,27 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   const previousCost = currentProduct ? lastBatchCost(currentProduct) : 0;
   const delta = costDelta(unitCost, previousCost);
 
+  const currentCatalogPrice = Number(currentProduct?.product_price ?? currentProduct?.price ?? 0);
+  const newReferenceHpp = getProductReferenceHpp(currentProduct, unitCost > 0 ? unitCost : undefined);
+  const minSellingPrice = getMinSellingPrice(newReferenceHpp);
+  const isCatalogMarginUnsafe =
+    newReferenceHpp > 0 && (currentCatalogPrice <= 0 || currentCatalogPrice + 0.01 < minSellingPrice);
+  const effectivePreviewPrice = updateSellingPriceNow ? newSellingPrice : currentCatalogPrice;
+  const previewMarkupPct = calculateMarkupPercent(effectivePreviewPrice, newReferenceHpp);
+
+  useEffect(() => {
+    if (!currentProduct) return;
+    const catPrice = Number(currentProduct.product_price ?? currentProduct.price ?? 0);
+    const refHpp = getProductReferenceHpp(currentProduct, unitCost > 0 ? unitCost : undefined);
+    const minP = getMinSellingPrice(refHpp);
+    if (catPrice <= 0 || (refHpp > 0 && catPrice + 0.01 < minP)) {
+      setNewSellingPrice(getRecommendedPriceByMarkup(refHpp, 15));
+    } else {
+      setNewSellingPrice(catPrice);
+    }
+    setUpdateSellingPriceNow(false);
+  }, [selectedProductId, unitCost]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -150,6 +181,13 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
       return;
     }
 
+    if (updateSellingPriceNow && newSellingPrice + 0.01 < minSellingPrice) {
+      setErrorMsg(
+        `Harga jual katalog baru (${formatRupiah(newSellingPrice)}) minimal harus +15% dari HPP patokan ${formatRupiah(newReferenceHpp)} (minimal ${formatRupiah(minSellingPrice)}).`
+      );
+      return;
+    }
+
     const input: GoodsReceiptInput = {
       product_id: selectedProductId,
       incoming_qty: incomingQty,
@@ -157,6 +195,11 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
       invoice_total: summary.total,
       dpp_amount: summary.dpp,
       ppn_amount: summary.ppn,
+      selling_price: updateSellingPriceNow && newSellingPrice > 0 ? newSellingPrice : undefined,
+      price_change_reason:
+        updateSellingPriceNow && newSellingPrice > 0
+          ? `Penyesuaian harga jual batch baru (${supplierName.trim()})`
+          : undefined,
       supplier_name: supplierName.trim(),
       supplier_invoice: supplierInvoice.trim() || undefined,
       receipt_date: receiptDate,
@@ -379,6 +422,89 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
               hutang / pembayaran dibukukan persis sebesar total faktur.
             </p>
           </div>
+
+          {/* Evaluasi Harga Jual Antar-Batch (Batch Lama vs Batch Baru, Standar Minimal +15% HPP) */}
+          {newReferenceHpp > 0 && (
+            <div className={`p-4 rounded-xl border space-y-3 ${
+              isCatalogMarginUnsafe && !updateSellingPriceNow
+                ? 'bg-amber-50 border-amber-300'
+                : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-900">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Standar Harga Jual Antar-Batch (Min. +15% dari HPP Tertinggi)</span>
+                </div>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md font-mono ${
+                  effectivePreviewPrice + 0.01 < minSellingPrice
+                    ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                    : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                }`}>
+                  Margin Katalog: {previewMarkupPct >= 0 ? `+${previewMarkupPct}%` : `${previewMarkupPct}%`}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-semibold text-slate-500 block">Harga Jual Katalog Saat Ini</span>
+                  <strong className={`font-mono text-sm ${currentCatalogPrice <= 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                    {currentCatalogPrice > 0 ? formatRupiah(currentCatalogPrice) : 'Rp 0 (Belum Diisi)'}
+                  </strong>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-semibold text-slate-500 block">HPP Patokan (Termasuk Batch Baru)</span>
+                  <strong className="font-mono text-slate-900 text-sm">{formatRupiah(newReferenceHpp)}</strong>
+                </div>
+                <div className="bg-white border border-emerald-200 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-semibold text-emerald-700 block">Standar Harga Jual Minimal (+15%)</span>
+                  <strong className="font-mono text-emerald-800 text-sm">{formatRupiah(minSellingPrice)}</strong>
+                </div>
+              </div>
+
+              {isCatalogMarginUnsafe && (
+                <div className="p-2.5 rounded-lg bg-amber-100/80 border border-amber-300 text-amber-900 text-xs flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Perhatian Fluktuasi Harga Batch:</strong> Harga jual katalog saat ini ({formatRupiah(currentCatalogPrice)}) berada di bawah standar minimal +15% terhadap HPP batch baru ({formatRupiah(minSellingPrice)}). Anda dapat menyesuaikan harga jual sekarang atau sistem akan mengirim notifikasi peringatan ke Owner.
+                  </span>
+                </div>
+              )}
+
+              <label className="flex items-center gap-2.5 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={updateSellingPriceNow}
+                  onChange={(e) => setUpdateSellingPriceNow(e.target.checked)}
+                  className="w-4 h-4 rounded-sm border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="text-xs font-bold text-slate-800">
+                  Sekaligus Sesuaikan Harga Jual Katalog untuk Batch Baru Ini
+                </span>
+              </label>
+
+              {updateSellingPriceNow && (
+                <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2.5">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Harga Jual Katalog Baru (Rp) — Minimal {formatRupiah(minSellingPrice)}
+                    </label>
+                    <input
+                      type="text"
+                      value={formatRupiah(newSellingPrice)}
+                      onChange={(e) => setNewSellingPrice(parseRupiahInput(e.target.value))}
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-emerald-700 text-sm font-extrabold font-mono focus:border-emerald-600 focus:outline-none"
+                    />
+                  </div>
+                  <MarkupPercentStepper
+                    referenceHpp={newReferenceHpp}
+                    sellingPrice={newSellingPrice}
+                    onChangeSellingPrice={setNewSellingPrice}
+                    label="Atur Persentase Keuntungan Batch Baru (+/- Real-Time, Min. 15%):"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
             <div className="flex items-center justify-between">

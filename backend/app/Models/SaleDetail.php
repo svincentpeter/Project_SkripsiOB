@@ -22,10 +22,14 @@ class SaleDetail extends Model
         'is_manual',
         'quantity',
         'unit_price',
+        'catalog_price',
+        'reference_hpp',
         'sub_total',
         'unit_cost_hpp',
         'total_cost_hpp',
         'discount_amount',
+        'price_override_type',
+        'price_override_reason',
         'profit_amount',
     ];
 
@@ -33,6 +37,8 @@ class SaleDetail extends Model
         'quantity' => 'integer',
         'is_manual' => 'boolean',
         'unit_price' => 'decimal:2',
+        'catalog_price' => 'decimal:2',
+        'reference_hpp' => 'decimal:2',
         'sub_total' => 'decimal:2',
         'unit_cost_hpp' => 'decimal:2',
         'total_cost_hpp' => 'decimal:2',

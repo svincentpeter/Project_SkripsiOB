@@ -34,6 +34,7 @@ class ProductRequest extends FormRequest
             'product_year' => 'nullable|string|max:10',
             'product_cost' => 'required|numeric|min:0',
             'product_price' => 'required|numeric|min:0',
+            'price_change_reason' => 'nullable|string|max:255',
             'product_stock_alert' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
             'initial_batch' => 'nullable|array',

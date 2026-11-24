@@ -13,15 +13,30 @@ import {
   Droplets,
   Sparkles,
   Info,
+  AlertTriangle,
+  ShieldCheck,
+  TrendingUp,
 } from 'lucide-react';
-import { CartItem } from '../../../shared/types';
+import { CartItem, UserRole } from '../../../shared/types';
 import { categoryKind, CategoryKind } from '../../../shared/utils/categoryKind';
 import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
+import { MarkupPercentStepper } from '../../../shared/components';
+import {
+  CASHIER_INITIAL_PRICE_REASONS,
+  CASHIER_REIMBURSE_REASONS,
+  calculateMarkupPercent,
+  getMinSellingPrice,
+  getProductReferenceHpp,
+  getRecommendedPriceByMarkup,
+} from '../../../shared/utils/pricingStandard';
 
 interface CartLineEditModalProps {
   isOpen: boolean;
   item: CartItem | null;
   itemIndex: number | null;
+  userRole?: UserRole;
+  cashierName?: string;
+  isInitialPricing?: boolean;
   onClose: () => void;
   onSave: (index: number, updatedItem: CartItem) => void;
   onRemoveItem: (index: number) => void;
@@ -94,6 +109,9 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
   isOpen,
   item,
   itemIndex,
+  userRole = 'KASIR',
+  cashierName = 'Kasir OB3',
+  isInitialPricing = false,
   onClose,
   onSave,
   onRemoveItem,
@@ -104,7 +122,8 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
   const [packageTotalPrice, setPackageTotalPrice] = useState<number>(0);
   const [discountType, setDiscountType] = useState<'NOMINAL' | 'PERCENT'>('NOMINAL');
   const [discountValue, setDiscountValue] = useState<number>(0);
-  const [overrideReason, setOverrideReason] = useState<string>('Penyesuaian kasir');
+  const [overrideReason, setOverrideReason] = useState<string>('');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const [customName, setCustomName] = useState<string>('');
   const [note, setNote] = useState<string>('');
@@ -129,13 +148,25 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
         ? item.service.standard_price
         : item.product?.product_price || item.product?.price || 0;
 
-    const initialUnitP = item.custom_price ?? standardPrice;
+    const refHpp = item.item_type === 'SERVICE' ? 0 : getProductReferenceHpp(item.product);
+    const defaultMinPrice = refHpp > 0 ? getRecommendedPriceByMarkup(refHpp, 15) : 0;
+    const initialUnitP =
+      item.custom_price && item.custom_price > 0
+        ? item.custom_price
+        : standardPrice > 0
+        ? standardPrice
+        : defaultMinPrice;
+
     setUnitPrice(initialUnitP);
     setPackageTotalPrice(initialUnitP * initialQty);
     setDiscountType('NOMINAL');
     setDiscountValue(item.discount_per_item ?? 0);
     setPricingMode('unit');
-    setOverrideReason(item.override_reason || 'Penyesuaian kasir');
+    setValidationError(null);
+    setOverrideReason(
+      item.override_reason ||
+        (standardPrice <= 0 ? CASHIER_INITIAL_PRICE_REASONS[0] : CASHIER_REIMBURSE_REASONS[0])
+    );
 
     setCustomName(item.custom_name_override ?? '');
     setNote(item.note ?? '');
@@ -195,7 +226,19 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
   const totalLineDiscount = discountNominalPerUnit * qty;
   const effectiveTotalLine = Math.max(0, effectiveUnitPrice * qty);
 
-  const isPriceOverridden = unitPrice !== standardPrice;
+  const isZeroCatalogPrice = !isService && standardPrice <= 0;
+  const isPriceOverridden = isZeroCatalogPrice || unitPrice !== standardPrice;
+  const referenceHpp = isService ? (item.service?.cost_price || 0) : getProductReferenceHpp(item.product);
+  const minSellingPrice = isService ? 0 : getMinSellingPrice(referenceHpp);
+  const effectiveMarkupPct = calculateMarkupPercent(effectiveUnitPrice, referenceHpp);
+  const profitPerUnit = effectiveUnitPrice - referenceHpp;
+  const activeBatches = !isService && Array.isArray(item.product?.batches)
+    ? item.product.batches.filter((b) => (b.remaining_qty ?? 0) > 0)
+    : [];
+
+  const isBelowMinMarkup = !isService && referenceHpp > 0 && effectiveUnitPrice + 0.01 < minSellingPrice;
+  const isBelowCatalogForCashier =
+    !isService && standardPrice > 0 && userRole === 'KASIR' && effectiveUnitPrice + 0.01 < standardPrice;
 
   const handleUnitPriceChange = (val: number) => {
     const clean = Math.max(0, val);
@@ -258,9 +301,37 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
+
     if (qty <= 0) {
       onRemoveItem(itemIndex);
       onClose();
+      return;
+    }
+
+    if (!isService && effectiveUnitPrice <= 0) {
+      setValidationError('Harga jual produk wajib lebih besar dari Rp 0.');
+      return;
+    }
+
+    if (isBelowMinMarkup) {
+      setValidationError(
+        `Harga jual bersih (${formatRupiah(effectiveUnitPrice)}) kurang dari standar minimal +15% dari HPP ${formatRupiah(referenceHpp)} (minimal ${formatRupiah(minSellingPrice)}).`
+      );
+      return;
+    }
+
+    if (isBelowCatalogForCashier) {
+      setValidationError(
+        `Role Kasir tidak diizinkan menurunkan harga bersih (${formatRupiah(effectiveUnitPrice)}) di bawah harga standar katalog (${formatRupiah(standardPrice)}).`
+      );
+      return;
+    }
+
+    if (!isService && isPriceOverridden && overrideReason.trim().length < 5) {
+      setValidationError(
+        'Alasan penentuan / perubahan harga wajib diisi (minimal 5 karakter) agar tercatat di Audit Log & Notifikasi Owner.'
+      );
       return;
     }
 
@@ -271,8 +342,8 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
       discount_per_item: discountNominalPerUnit,
       custom_name_override: customName.trim() ? customName.trim() : undefined,
       note: note.trim() ? note.trim() : undefined,
-      override_reason: isPriceOverridden ? (overrideReason.trim() || 'Penyesuaian kasir') : undefined,
-      adjusted_by: isPriceOverridden ? 'Kasir OB3' : undefined,
+      override_reason: isPriceOverridden ? overrideReason.trim() : undefined,
+      adjusted_by: isPriceOverridden ? cashierName : undefined,
     };
 
     onSave(itemIndex, updatedItem);
@@ -400,9 +471,13 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-blue-100 text-[11px]">
               <span className="text-slate-600">
                 Harga Standar Katalog:{' '}
-                <strong className="font-mono text-slate-900">{formatRupiah(standardPrice)}</strong>
+                {standardPrice > 0 ? (
+                  <strong className="font-mono text-slate-900">{formatRupiah(standardPrice)}</strong>
+                ) : (
+                  <strong className="font-mono text-rose-600">Rp 0 (Belum Diisi Owner — Mode Penentuan Harga Kasir)</strong>
+                )}
               </span>
-              {isPriceOverridden && (
+              {!isZeroCatalogPrice && isPriceOverridden && (
                 <button
                   type="button"
                   onClick={handleResetToCatalogPrice}
@@ -414,6 +489,83 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
               )}
             </div>
           </div>
+
+          {validationError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-700 text-xs font-semibold">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
+              <span>{validationError}</span>
+            </div>
+          )}
+
+          {/* Panel Informasi HPP Batch FIFO & Standar Minimal +15% untuk Kasir/Owner */}
+          {!isService && referenceHpp > 0 && (
+            <div className={`p-3.5 rounded-xl border space-y-2.5 ${
+              isZeroCatalogPrice
+                ? 'bg-amber-50/80 border-amber-300'
+                : isBelowMinMarkup || isBelowCatalogForCashier
+                ? 'bg-rose-50/80 border-rose-300'
+                : 'bg-emerald-50/50 border-emerald-200'
+            }`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-900">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    {isZeroCatalogPrice
+                      ? 'Standar Penentuan Harga Jual Kasir (Harga Katalog Belum Diisi Owner)'
+                      : 'Informasi HPP & Standar Margin Penjualan (Min. +15%)'}
+                  </span>
+                </div>
+                <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md font-mono ${
+                  isBelowMinMarkup || isBelowCatalogForCashier
+                    ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                    : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                }`}>
+                  Margin Bersih: {effectiveMarkupPct >= 0 ? `+${effectiveMarkupPct}%` : `${effectiveMarkupPct}%`} ({profitPerUnit >= 0 ? `+${formatRupiah(profitPerUnit)}` : formatRupiah(profitPerUnit)}/unit)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div className="bg-white/90 border border-slate-200 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-semibold text-slate-500 block">HPP Patokan (Modal Tertinggi)</span>
+                  <strong className="font-mono text-slate-900 text-sm">{formatRupiah(referenceHpp)}</strong>
+                </div>
+                <div className="bg-white/90 border border-emerald-200 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-semibold text-emerald-700 block">Harga Jual Minimal (+15% HPP)</span>
+                  <strong className="font-mono text-emerald-800 text-sm">{formatRupiah(minSellingPrice)}</strong>
+                </div>
+                <div className="bg-white/90 border border-slate-200 rounded-lg px-3 py-2">
+                  <span className="text-[10px] font-semibold text-slate-500 block">Dampak Perubahan</span>
+                  <strong className="text-[11px] text-slate-800">
+                    {isZeroCatalogPrice
+                      ? 'Simpan ke Katalog & Nota + Notif Owner'
+                      : isPriceOverridden
+                      ? 'Khusus Nota Ini (Reimburse) + Notif Owner'
+                      : 'Sesuai Standar Katalog'}
+                  </strong>
+                </div>
+              </div>
+
+              {activeBatches.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] text-slate-600 pt-0.5">
+                  <span className="font-bold text-slate-500">Layer Batch FIFO Aktif:</span>
+                  {activeBatches.map((b, idx) => (
+                    <span key={b.id || idx} className="px-2 py-0.5 rounded bg-white border border-slate-200 font-mono">
+                      Batch #{idx + 1}: {b.remaining_qty} pcs @ {formatRupiah(b.batch_cost)}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Kontrol Real-Time Penambahan / Pengurangan Persen (+/-) dari HPP */}
+              <MarkupPercentStepper
+                referenceHpp={referenceHpp}
+                sellingPrice={unitPrice}
+                onChangeSellingPrice={handleUnitPriceChange}
+                minPriceFloor={!isZeroCatalogPrice && userRole === 'KASIR' ? standardPrice : 0}
+                label="Atur Persentase Keuntungan dari HPP (+/- Real-Time, Min. 15%):"
+              />
+            </div>
+          )}
 
           {/* Section 1: Jumlah & Harga Jual */}
           <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
@@ -516,16 +668,41 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
             </div>
 
             {isPriceOverridden && (
-              <div className="pt-1">
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Alasan Penyesuaian Harga (Harga berubah dari {formatRupiah(standardPrice)})
-                </label>
+              <div className="pt-2 border-t border-slate-200/80 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-1">
+                  <label className="block text-[11px] font-bold text-amber-900">
+                    {isZeroCatalogPrice
+                      ? 'Alasan Penentuan Harga Jual Baru oleh Kasir (Wajib — Masuk Audit Log & Notifikasi Owner)'
+                      : `Alasan Perubahan Harga Nota dari ${formatRupiah(standardPrice)} (Wajib — Masuk Audit Log & Notifikasi Owner)`}
+                  </label>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                    Kasir: {cashierName} ({userRole})
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {(isZeroCatalogPrice ? CASHIER_INITIAL_PRICE_REASONS : CASHIER_REIMBURSE_REASONS).map((presetReason) => (
+                    <button
+                      key={presetReason}
+                      type="button"
+                      onClick={() => setOverrideReason(presetReason)}
+                      className={`px-2 py-1 rounded-lg text-[10.5px] font-semibold border transition-colors cursor-pointer ${
+                        overrideReason === presetReason
+                          ? 'bg-amber-600 text-white border-amber-600'
+                          : 'bg-white hover:bg-amber-50 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {presetReason}
+                    </button>
+                  ))}
+                </div>
+
                 <input
                   type="text"
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
-                  placeholder="Contoh: Harga nego langganan / promo paket 4 ban"
-                  className="w-full bg-white border border-amber-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 focus:border-blue-500 focus:outline-none"
+                  placeholder="Contoh: Permintaan pembeli menaikkan harga nota untuk reimburse ke atasannya"
+                  className="w-full bg-white border border-amber-300 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-semibold focus:border-blue-500 focus:outline-none"
                 />
               </div>
             )}
@@ -865,10 +1042,11 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer"
+                disabled={isBelowMinMarkup || isBelowCatalogForCashier}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-45 disabled:cursor-not-allowed text-white text-xs font-bold shadow-md shadow-blue-500/20 flex items-center gap-1.5 cursor-pointer"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>Terapkan Perubahan</span>
+                <span>{isInitialPricing ? 'Simpan Harga & Masukkan Keranjang' : 'Terapkan Perubahan'}</span>
               </button>
             </div>
           </div>

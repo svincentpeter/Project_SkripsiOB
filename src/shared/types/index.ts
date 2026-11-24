@@ -75,6 +75,10 @@ export interface ProductItem {
   is_active?: boolean;
   is_old_stock?: boolean;
   reference_price?: number;
+  /** HPP patokan tertinggi antara product_cost dan seluruh batch FIFO aktif. */
+  reference_hpp?: number;
+  /** Standar harga jual minimal wajib (+15% dari reference_hpp). */
+  min_selling_price?: number;
   stok_awal?: number;
   image_placeholder_color?: string;
   batches?: ProductBatch[];
@@ -201,6 +205,8 @@ export interface PosTransaction {
   mechanic_name?: string;
   /** Total refund retur penjualan (tunai dari laci). */
   returned_amount?: number;
+  /** Daftar dokumen retur penjualan (jika ada). */
+  returns?: unknown[];
   /** Baris nota dengan id baris server, untuk retur sebagian. */
   return_lines?: SaleReturnLine[];
 }
@@ -394,6 +400,7 @@ export interface CreateProductInput {
   
   product_cost: number;
   product_price: number;
+  price_change_reason?: string;
   product_stock_alert: number;
   initial_stock?: number;
   supplier_name?: string;
@@ -421,6 +428,7 @@ export interface UpdateProductInput {
   
   product_cost?: number;
   product_price?: number;
+  price_change_reason?: string;
   product_stock_alert?: number;
   is_active?: boolean;
 }
@@ -435,6 +443,9 @@ export interface GoodsReceiptInput {
   invoice_total?: number;
   dpp_amount?: number;
   ppn_amount?: number;
+  /** Harga jual katalog baru (opsional saat restock jika HPP batch baru naik atau harga lama Rp 0). */
+  selling_price?: number;
+  price_change_reason?: string;
   supplier_name: string;
   supplier_invoice?: string;
   receipt_date?: string;
@@ -780,4 +791,54 @@ export interface DashboardSummary {
   week: DailyRecapRow[];
   month: DailyRecapTotals;
 }
+
+/** Baris Audit Log Penentuan & Perubahan Harga Jual (Kasir POS / Owner / Restock Batch). */
+export interface PriceAuditItem {
+  id: number;
+  product_id: number;
+  product_code?: string | null;
+  product_name: string;
+  brand?: string | null;
+  product_size?: string | null;
+  ring?: string | null;
+  current_catalog_price: number;
+  sale_id?: number | null;
+  sale_reference?: string | null;
+  customer_name?: string | null;
+  vehicle_plate?: string | null;
+  old_cost: number;
+  new_cost: number;
+  reference_hpp: number;
+  min_allowed_price: number;
+  old_price: number;
+  new_price: number;
+  cost_change_percent?: number | null;
+  price_change_percent?: number | null;
+  markup_percent: number;
+  profit_per_unit: number;
+  change_source: string;
+  changed_field?: string | null;
+  context_month?: string | null;
+  changed_by?: number | null;
+  actor_name: string;
+  actor_role: 'KASIR' | 'OWNER' | 'GUDANG' | string;
+  applies_to: 'CATALOG' | 'CATALOG_AND_NOTA' | 'NOTA_ONLY' | string;
+  reason?: string | null;
+  is_read_by_owner: boolean;
+  is_reviewed_by_owner: boolean;
+  reviewed_at?: string | null;
+  reviewed_by_name?: string | null;
+  review_notes?: string | null;
+  created_at?: string | null;
+}
+
+export interface PriceAuditSummary {
+  total_logs: number;
+  cashier_total_count: number;
+  initial_price_count: number;
+  reimburse_override_count: number;
+  unread_owner_count: number;
+  unreviewed_owner_count: number;
+}
+
 

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 
 /**
  * Kolom lama booking_id, dp_applied, due_date, edc_bank, edc_type dan surcharge_amount tetap ada di tabel
@@ -94,15 +95,28 @@ class Sale extends Model
 
     /**
      * Satu bentuk nota untuk seluruh respons POS (checkout, riwayat, void).
+     *
+     * @param  Collection<int, JournalEntry>|null  $preloadedJournals  jurnal yang sudah di-batch-load oleh PosController::index
      */
-    public function toReceiptArray(): array
+    public function toReceiptArray(?Collection $preloadedJournals = null): array
     {
         $this->loadMissing(['details.product', 'payments', 'returns.items']);
-        $journal = JournalEntry::with('items.account')
-            ->where(fn ($q) => $q->where('reference_id', $this->reference)->whereIn('reference_type', ['POS_SALE', 'POS_SALE_VOID']))
-            ->orWhere(fn ($q) => $q->where('reference_type', 'SALES_RETURN')->whereIn('reference_id', $this->returns->pluck('reference')))
-            ->orderBy('id')
-            ->get();
+        if ($preloadedJournals !== null) {
+            $returnRefs = $this->returns->pluck('reference')->all();
+            $journal = $preloadedJournals->filter(function (JournalEntry $j) use ($returnRefs) {
+                if ($j->reference_id === $this->reference && in_array($j->reference_type, ['POS_SALE', 'POS_SALE_VOID'], true)) {
+                    return true;
+                }
+
+                return $j->reference_type === 'SALES_RETURN' && in_array($j->reference_id, $returnRefs, true);
+            })->sortBy('id')->values();
+        } else {
+            $journal = JournalEntry::with(['items.account', 'reversal', 'reversalOf', 'creator'])
+                ->where(fn ($q) => $q->where('reference_id', $this->reference)->whereIn('reference_type', ['POS_SALE', 'POS_SALE_VOID']))
+                ->orWhere(fn ($q) => $q->where('reference_type', 'SALES_RETURN')->whereIn('reference_id', $this->returns->pluck('reference')))
+                ->orderBy('id')
+                ->get();
+        }
         $returnedQty = $this->returns->flatMap(fn (SalesReturn $r) => $r->items)
             ->groupBy('sale_detail_id')
             ->map(fn ($rows) => (int) $rows->sum('quantity'));
@@ -144,10 +158,14 @@ class Sale extends Model
                 'is_manual' => $d->is_manual,
                 'quantity' => $d->quantity,
                 'unit_price' => (float) $d->unit_price,
+                'catalog_price' => (float) ($d->catalog_price ?? $d->unit_price),
+                'reference_hpp' => (float) ($d->reference_hpp ?? 0),
                 'discount_per_item' => $d->quantity > 0 ? round((float) $d->discount_amount / $d->quantity, 2) : 0.0,
                 'sub_total' => (float) $d->sub_total,
                 'unit_cost_hpp' => (float) $d->unit_cost_hpp,
                 'total_cost_hpp' => (float) $d->total_cost_hpp,
+                'price_override_type' => $d->price_override_type,
+                'price_override_reason' => $d->price_override_reason,
                 'returned_qty' => (int) ($returnedQty[$d->id] ?? 0),
                 'product' => $d->product ? [
                     'id' => $d->product->id,

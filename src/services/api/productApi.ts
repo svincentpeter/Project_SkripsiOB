@@ -42,6 +42,11 @@ export const productApi = {
         stok_awal: p.stok_awal !== undefined ? Number(p.stok_awal) : undefined,
         is_old_stock: !!p.is_old_stock,
         reference_price: p.reference_price !== null && p.reference_price !== undefined ? Number(p.reference_price) : undefined,
+        reference_hpp: p.reference_hpp !== null && p.reference_hpp !== undefined ? Number(p.reference_hpp) : cost,
+        min_selling_price:
+          p.min_selling_price !== null && p.min_selling_price !== undefined
+            ? Number(p.min_selling_price)
+            : Math.round(cost * 1.15),
         batches: (p.active_batches || []).map((b: any) => ({
           id: String(b.id),
           product_id: String(p.id),

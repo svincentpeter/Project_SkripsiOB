@@ -8,17 +8,19 @@ import {
   CreditCard, 
   Clock, 
   X, 
-  Trash2 
+  Trash2,
+  ShieldCheck,
 } from 'lucide-react';
 import { formatDateIndo, formatRupiah } from '../utils/formatters';
 
 export interface AppNotification {
   id: string;
-  type: 'STOCK_LOW' | 'DEBT_DUE' | 'TRANSACTION';
+  type: 'STOCK_LOW' | 'DEBT_DUE' | 'TRANSACTION' | 'PRICE_OVERRIDE';
   title: string;
   description: string;
   timestamp: string;
   isRead: boolean;
+  auditId?: number;
 }
 
 interface NotificationBellDropdownProps {
@@ -99,6 +101,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                     if (n.type === 'STOCK_LOW') onNavigateTo('inventory');
                     if (n.type === 'DEBT_DUE') onNavigateTo('ledger');
                     if (n.type === 'TRANSACTION') onNavigateTo('receipt');
+                    if (n.type === 'PRICE_OVERRIDE') onNavigateTo('inventory_audit_harga');
                     setIsOpen(false);
                   }}
                   className={`p-3.5 hover:bg-slate-50 flex items-start gap-3 cursor-pointer transition-colors ${
@@ -106,12 +109,15 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                   }`}
                 >
                   <div className={`p-2 rounded-xl shrink-0 ${
-                    n.type === 'STOCK_LOW'
+                    n.type === 'PRICE_OVERRIDE'
+                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                      : n.type === 'STOCK_LOW'
                       ? 'bg-amber-50 text-amber-600'
                       : n.type === 'DEBT_DUE'
                       ? 'bg-rose-50 text-rose-600'
                       : 'bg-emerald-50 text-emerald-600'
                   }`}>
+                    {n.type === 'PRICE_OVERRIDE' && <ShieldCheck className="w-4 h-4" />}
                     {n.type === 'STOCK_LOW' && <Package className="w-4 h-4" />}
                     {n.type === 'DEBT_DUE' && <Clock className="w-4 h-4" />}
                     {n.type === 'TRANSACTION' && <DollarSign className="w-4 h-4" />}
