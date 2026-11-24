@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BookMarked, Printer } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { BookMarked, Printer, Search } from 'lucide-react';
 import { ChartOfAccount } from '../../../shared/types';
 import { accountingApi, mapLedger } from '../../../services/api';
 import { PeriodSelection, currentMonth, resolvePeriod } from '../../../services/accountingPeriod';
@@ -28,12 +28,32 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({ accounts, re
   const [accountCode, setAccountCode] = useState('1-1000');
   const [period, setPeriod] = useState<PeriodSelection>({ kind: 'month', month: currentMonth() });
   const [isPrintOpen, setIsPrintOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [directionFilter, setDirectionFilter] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
   const range = resolvePeriod(period);
 
   const { data, loading, error, reload } = useServerData(
     () => accountingApi.generalLedger({ account_code: accountCode, start_date: range.start_date, end_date: range.end_date }).then(mapLedger),
     [accountCode, range.start_date, range.end_date, refreshKey],
   );
+
+  const filteredTransactions = useMemo(() => {
+    if (!data) return [];
+    const q = searchQuery.toLowerCase().trim();
+    return data.transactions.filter((t) => {
+      if (directionFilter === 'DEBIT' && !(t.debit > 0)) return false;
+      if (directionFilter === 'CREDIT' && !(t.credit > 0)) return false;
+      if (q) {
+        return (
+          (t.journal_number || '').toLowerCase().includes(q) ||
+          (t.ref_doc || '').toLowerCase().includes(q) ||
+          (t.description || '').toLowerCase().includes(q) ||
+          (t.note || '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [data, searchQuery, directionFilter]);
 
   const accountMeta: ChartOfAccount = accounts.find((a) => a.account_code === accountCode) ?? {
     account_code: accountCode,
@@ -104,6 +124,41 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({ accounts, re
             ))}
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari no. jurnal, referensi, atau keterangan..."
+                className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-500 outline-none"
+              />
+            </div>
+            <select
+              aria-label="Filter arah mutasi buku besar"
+              value={directionFilter}
+              onChange={(e) => setDirectionFilter(e.target.value as 'ALL' | 'DEBIT' | 'CREDIT')}
+              className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+            >
+              <option value="ALL">Mutasi: Semua ({data.transactions.length})</option>
+              <option value="DEBIT">Debit Saja</option>
+              <option value="CREDIT">Kredit Saja</option>
+            </select>
+            {(searchQuery || directionFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setDirectionFilter('ALL');
+                }}
+                className="px-2.5 py-1.5 font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
           <div className="border border-slate-200 rounded-xl overflow-x-auto">
             <table className="w-full min-w-[760px] text-xs">
               <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
@@ -122,10 +177,10 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({ accounts, re
                   <td colSpan={6} className="py-1.5 px-3">Saldo awal {range.start_date ? `per ${formatDateIndo(range.start_date)}` : ''}</td>
                   <td className="py-1.5 px-3 text-right font-mono">{formatRupiah(data.initial_balance)}</td>
                 </tr>
-                {data.transactions.length === 0 ? (
-                  <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic">Tidak ada mutasi pada periode ini.</td></tr>
+                {filteredTransactions.length === 0 ? (
+                  <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic">Tidak ada mutasi yang cocok pada periode ini.</td></tr>
                 ) : (
-                  data.transactions.map((t) => (
+                  filteredTransactions.map((t) => (
                     <tr key={t.id} className="text-slate-800">
                       <td className="py-1.5 px-3">{formatDateIndo(t.date)}</td>
                       <td className="py-1.5 px-3 font-mono">{t.journal_number}</td>

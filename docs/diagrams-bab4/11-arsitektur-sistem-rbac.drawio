@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="drawio" version="26.0.0">
+  <diagram id="d1" name="Arsitektur Sistem dan Pengendalian Internal RBAC">
+    <mxGraphModel dx="1450" dy="770" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" background="#ffffff">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="arch_title" value="Arsitektur Sistem Point of Sale &amp; SIA SAK EMKM serta Lapisan Pengendalian Internal (RBAC) — Omah Ban Cabang 3" style="rounded=0;whiteSpace=wrap;html=1;fontSize=15;fontStyle=1;fontFamily=Arial;fillColor=#f5f5f5;strokeColor=#000000;strokeWidth=1.5;" vertex="1" parent="1">
+          <mxGeometry x="20" y="20" width="1390" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="T_USR" value="1. Pengguna (Pemisahan Tugas / RBAC)" style="swimlane;html=1;startSize=34;horizontal=1;collapsible=0;fontSize=12;fontStyle=1;fontFamily=Arial;fillColor=#e1d5e7;strokeColor=#7b52ab;strokeWidth=1.5;swimlaneFillColor=#ffffff;container=1;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="20" y="80" width="240" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="u_kasir" value="Kasir (KASIR)&#xa;• Point of Sale &amp; Shift Kasir&#xa;• Retur Penjualan &amp; Struk&#xa;• Laporan Kas Harian (sendiri)" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#faf5ff;strokeColor=#7b52ab;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_USR">
+          <mxGeometry x="20" y="60" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="u_gudang" value="Staf Gudang (GUDANG)&#xa;• Master Produk, Jasa, Supplier&#xa;• Penerimaan Barang (GR FIFO)&#xa;• Stock Opname &amp; Retur Beli" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#faf5ff;strokeColor=#7b52ab;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_USR">
+          <mxGeometry x="20" y="225" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="u_owner" value="Owner (OWNER)&#xa;• Akses Penuh Semua Modul&#xa;• Pengeluaran, Utang, Void&#xa;• Laporan SAK EMKM &amp; Tutup Buku&#xa;• Kelola Matriks RBAC" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#faf5ff;strokeColor=#7b52ab;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_USR">
+          <mxGeometry x="20" y="390" width="200" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="T_FE" value="2. Frontend SPA (React 19 + TypeScript)" style="swimlane;html=1;startSize=34;horizontal=1;collapsible=0;fontSize=12;fontStyle=1;fontFamily=Arial;fillColor=#dae8fc;strokeColor=#3a6ea5;strokeWidth=1.5;swimlaneFillColor=#ffffff;container=1;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="305" y="80" width="265" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_pos" value="Modul Point of Sale &amp; Struk&#xa;• Katalog, Keranjang, Diskon&#xa;• Struk Thermal 80mm / A4&#xa;• Modal QRIS Dinamis &amp; Shift" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f4f8ff;strokeColor=#3a6ea5;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_FE">
+          <mxGeometry x="22" y="60" width="220" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_inv" value="Modul Inventori &amp; Pengadaan&#xa;• Katalog Ban/Velg &amp; Jasa&#xa;• Buku Stok Bulanan FIFO&#xa;• Goods Receipt &amp; Opname" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f4f8ff;strokeColor=#3a6ea5;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_FE">
+          <mxGeometry x="22" y="205" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_acc" value="Modul Pusat Akuntansi &amp; Laporan&#xa;• Jurnal, Buku Besar, Neraca Saldo&#xa;• Laba Rugi, Neraca, Arus Kas, CALK&#xa;• Aset Tetap, AJP &amp; Rekon Bank" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f4f8ff;strokeColor=#3a6ea5;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_FE">
+          <mxGeometry x="22" y="345" width="220" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_exp" value="Export Engine &amp; API Client&#xa;• Ekspor PDF, Excel, DOCX, CSV&#xa;• Bearer Token Auth Client" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f4f8ff;strokeColor=#3a6ea5;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_FE">
+          <mxGeometry x="22" y="500" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="T_BE" value="3. Backend REST API (Laravel 13 — /api/v1)" style="swimlane;html=1;startSize=34;horizontal=1;collapsible=0;fontSize=12;fontStyle=1;fontFamily=Arial;fillColor=#d5e8d4;strokeColor=#3d8b40;strokeWidth=1.5;swimlaneFillColor=#ffffff;container=1;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="665" y="80" width="370" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="be_sec" value="Gerbang Keamanan &amp; Pengendalian Internal&#xa;• Sanctum Bearer Auth (720 menit, throttle 5/mnt)&#xa;• Middleware RBAC (permission:* — deny-by-default)&#xa;• Audit Trail (created_by, timestamp, void_reason)" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f8cecc;strokeColor=#a83834;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_BE">
+          <mxGeometry x="20" y="52" width="330" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="be_pos" value="Layanan Point of Sale &amp; Pembayaran&#xa;• CheckoutService, SaleVoidService, SalesReturnService&#xa;• MidtransQrisService (Charge + SHA512 Webhook)" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f3faf3;strokeColor=#3d8b40;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_BE">
+          <mxGeometry x="20" y="178" width="330" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="be_fifo" value="Mesin Inventori FIFO&#xa;• FifoCostingService (alokasi batch tertua)&#xa;• GoodsReceipt, Payable, StockOpname, InventoryValueJournal" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f3faf3;strokeColor=#3d8b40;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_BE">
+          <mxGeometry x="20" y="292" width="330" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="be_acc" value="Mesin Akuntansi SAK EMKM (AccountingEngine)&#xa;• Validasi ΣDebit = ΣKredit (to the cent)&#xa;• PeriodLock Guard &amp; Saldo Kas/Bank Non-Negatif&#xa;• Depreciation, AJP, BankReconciliation, PeriodClosing" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#fff2cc;strokeColor=#b38b00;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_BE">
+          <mxGeometry x="20" y="406" width="330" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="be_rep" value="Layanan Pelaporan Real-Time&#xa;• FinancialReportService, CashFlowReport, CalkReport&#xa;• DailyReportService (Kas Harian &amp; Rekap Harian)" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f3faf3;strokeColor=#3d8b40;strokeWidth=1.3;spacing=5;" vertex="1" parent="T_BE">
+          <mxGeometry x="20" y="534" width="330" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="T_DAT" value="4. Basis Data &amp; Layanan Eksternal" style="swimlane;html=1;startSize=34;horizontal=1;collapsible=0;fontSize=12;fontStyle=1;fontFamily=Arial;fillColor=#ffe6cc;strokeColor=#c97a00;strokeWidth=1.5;swimlaneFillColor=#ffffff;container=1;pointerEvents=0;" vertex="1" parent="1">
+          <mxGeometry x="1125" y="80" width="285" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_midtrans" value="«External Payment Gateway»&#xa;Midtrans QRIS API&#xa;• POST /v2/charge (QR Dinamis)&#xa;• Webhook Settlement Notification&#xa;• Verifikasi Signature SHA512" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f5f5f5;strokeColor=#555555;strokeWidth=1.3;dashed=1;spacing=5;" vertex="1" parent="T_DAT">
+          <mxGeometry x="22" y="130" width="240" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="db_mysql" value="MySQL 8 (RDBMS)&#xa;&#xa;• 33 Akun COA SAK EMKM&#xa;• Tabel POS, Batch FIFO, Utang&#xa;• Tabel Jurnal &amp; Buku Besar&#xa;• Tabel Shift, Aset &amp; Rekon&#xa;• ACID Transactions &amp; Row Locks" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=14;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#fff8eb;strokeColor=#c97a00;strokeWidth=1.5;spacing=6;" vertex="1" parent="T_DAT">
+          <mxGeometry x="27" y="290" width="230" height="195" as="geometry" />
+        </mxCell>
+        <mxCell id="ext_printer" value="«Perangkat Toko»&#xa;Printer Thermal 80mm&#xa;&amp; Ekspor Laporan (PDF/XLSX)" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fontSize=11;fontStyle=1;fontFamily=Arial;fillColor=#f5f5f5;strokeColor=#555555;strokeWidth=1.3;dashed=1;spacing=5;" vertex="1" parent="T_DAT">
+          <mxGeometry x="22" y="515" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=7;strokeColor=#222222;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="u_kasir" target="fe_pos">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=7;strokeColor=#222222;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="u_gudang" target="fe_inv">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=7;strokeColor=#222222;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="u_owner" target="fe_acc">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a4" value="HTTPS / JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;endSize=6;strokeColor=#333333;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.25;" edge="1" parent="1" source="fe_pos" target="be_sec">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="617" y="197" />
+              <mxPoint x="617" y="157" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a5" value="Bearer Token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;endSize=6;strokeColor=#333333;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="fe_inv" target="be_sec">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="617" y="340" />
+              <mxPoint x="617" y="182" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a6" value="API Request" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;endSize=6;strokeColor=#333333;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.75;" edge="1" parent="1" source="fe_acc" target="be_sec">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="617" y="487" />
+              <mxPoint x="617" y="207" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="a7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=7;strokeColor=#222222;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="be_sec" target="be_pos">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a8" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=7;strokeColor=#222222;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="be_pos" target="be_fifo">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=7;strokeColor=#222222;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="be_fifo" target="be_acc">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=7;strokeColor=#222222;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="be_acc" target="be_rep">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a13" value="Charge &amp;&#xa;Webhook" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;endSize=6;strokeColor=#333333;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="be_pos" target="ext_midtrans">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a11" value="SQL /&#xa;ACID" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;endSize=6;strokeColor=#333333;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.25;" edge="1" parent="1" source="be_fifo" target="db_mysql">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a12" value="POSTED&#xa;Journals" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=block;startFill=1;endArrow=block;endFill=1;endSize=6;strokeColor=#333333;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=1;exitY=0.5;entryX=0;entryY=0.75;" edge="1" parent="1" source="be_acc" target="db_mysql">
+          <mxGeometry relative="1" as="geometry"></mxGeometry>
+        </mxCell>
+        <mxCell id="a14" value="Print / Download" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;endSize=7;strokeColor=#222222;strokeWidth=1.4;fontFamily=Arial;fontSize=10;fontStyle=1;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;entryX=0.5;entryY=1;" edge="1" parent="1" source="fe_exp" target="ext_printer">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="437" y="725" />
+              <mxPoint x="1267" y="725" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

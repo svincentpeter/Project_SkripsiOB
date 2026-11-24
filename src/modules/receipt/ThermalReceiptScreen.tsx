@@ -46,8 +46,8 @@ interface ThermalReceiptScreenProps {
 }
 
 type PreviewMode = 'THERMAL_80MM' | 'FAKTUR_A4';
-type StatusFilter = 'ALL' | 'LUNAS' | 'VOID';
-type DateFilter = 'ALL' | 'TODAY' | '7_DAYS' | 'THIS_MONTH';
+type StatusFilter = 'ALL' | 'LUNAS' | 'RETURNED' | 'VOID';
+type DateFilter = 'ALL' | 'TODAY' | '7_DAYS' | 'THIS_MONTH' | 'CUSTOM';
 
 export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
   currentTransaction,
@@ -71,7 +71,18 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [dateFilter, setDateFilter] = useState<DateFilter>('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [paymentFilter, setPaymentFilter] = useState<string>('ALL');
+  const [cashierFilter, setCashierFilter] = useState<string>('ALL');
+
+  const uniqueCashiers = useMemo(() => {
+    const set = new Set<string>();
+    transactionsHistory.forEach((tx) => {
+      if (tx.cashier_name) set.add(tx.cashier_name);
+    });
+    return Array.from(set).sort();
+  }, [transactionsHistory]);
 
   // Modals State
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
@@ -113,26 +124,41 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
 
       // 2. Status Filter
       const isVoid = tx.status === 'VOID' || !!tx.is_voided;
+      const hasReturn = (tx.returned_amount ?? 0) > 0 || (tx.returns && tx.returns.length > 0);
       if (statusFilter === 'VOID' && !isVoid) return false;
+      if (statusFilter === 'RETURNED' && (isVoid || !hasReturn)) return false;
       if (statusFilter === 'LUNAS') {
         if (isVoid) return false;
         if (tx.status !== 'LUNAS' && tx.status !== 'Completed') return false;
       }
 
       // 3. Date Filter
-      const txDate = tx.date || (tx.timestamp ? tx.timestamp.substring(0, 10) : '');
+      const txDate = (tx.date || (tx.timestamp ? tx.timestamp.substring(0, 10) : '')).slice(0, 10);
       if (dateFilter === 'TODAY' && txDate !== todayStr) return false;
       if (dateFilter === '7_DAYS' && txDate < sevenDaysStr) return false;
       if (dateFilter === 'THIS_MONTH' && !txDate.startsWith(currentMonthPrefix)) return false;
+      if (dateFilter === 'CUSTOM') {
+        if (dateFrom && txDate < dateFrom) return false;
+        if (dateTo && txDate > dateTo) return false;
+      }
 
       // 4. Payment Method Filter
-      if (paymentFilter !== 'ALL' && tx.payment_method !== paymentFilter) {
+      if (paymentFilter !== 'ALL') {
+        if (paymentFilter === 'TRANSFER') {
+          if (tx.payment_method !== 'TRANSFER' && tx.payment_method !== 'TRANSFER_BCA') return false;
+        } else if (tx.payment_method !== paymentFilter) {
+          return false;
+        }
+      }
+
+      // 5. Cashier Filter
+      if (cashierFilter !== 'ALL' && tx.cashier_name !== cashierFilter) {
         return false;
       }
 
       return true;
     });
-  }, [transactionsHistory, searchQuery, statusFilter, dateFilter, paymentFilter]);
+  }, [transactionsHistory, searchQuery, statusFilter, dateFilter, dateFrom, dateTo, paymentFilter, cashierFilter]);
 
   // Mini summary metrics
   const summaryMetrics = useMemo(() => {
@@ -345,23 +371,25 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
             <div className="flex items-center justify-between gap-1.5 pt-0.5">
               {/* Status Chips */}
               <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-0.5">
-                {(['ALL', 'LUNAS', 'VOID'] as StatusFilter[]).map((st) => (
+                {(['ALL', 'LUNAS', 'RETURNED', 'VOID'] as StatusFilter[]).map((st) => (
                   <button
                     key={st}
+                    type="button"
                     onClick={() => setStatusFilter(st)}
-                    className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap cursor-pointer ${
                       statusFilter === st
                         ? 'bg-blue-700 text-white shadow-2xs'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
-                    {st === 'ALL' ? 'Semua' : st}
+                    {st === 'ALL' ? 'Semua' : st === 'RETURNED' ? 'Ada Retur' : st}
                   </button>
                 ))}
               </div>
 
               {/* Date Filter Dropdown */}
               <select
+                aria-label="Filter rentang waktu nota"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value as DateFilter)}
                 className="text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0"
@@ -370,7 +398,74 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                 <option value="TODAY">Hari Ini</option>
                 <option value="7_DAYS">7 Hari Terakhir</option>
                 <option value="THIS_MONTH">Bulan Ini</option>
+                <option value="CUSTOM">Pilih Tanggal...</option>
               </select>
+            </div>
+
+            {dateFilter === 'CUSTOM' && (
+              <div className="grid grid-cols-2 gap-1.5">
+                <input
+                  type="date"
+                  aria-label="Dari tanggal nota"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1"
+                />
+                <input
+                  type="date"
+                  aria-label="Sampai tanggal nota"
+                  value={dateTo}
+                  min={dateFrom || undefined}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1"
+                />
+              </div>
+            )}
+
+            {/* Payment Method, Cashier & Reset */}
+            <div className="flex items-center gap-1.5">
+              <select
+                aria-label="Filter metode pembayaran nota"
+                value={paymentFilter}
+                onChange={(e) => setPaymentFilter(e.target.value)}
+                className="flex-1 text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600"
+              >
+                <option value="ALL">Metode: Semua</option>
+                <option value="TUNAI">Tunai</option>
+                <option value="TRANSFER">Transfer Bank</option>
+                <option value="QRIS">QRIS</option>
+                <option value="SPLIT">Split (Campuran)</option>
+              </select>
+              {uniqueCashiers.length > 1 && (
+                <select
+                  aria-label="Filter kasir nota"
+                  value={cashierFilter}
+                  onChange={(e) => setCashierFilter(e.target.value)}
+                  className="flex-1 text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                >
+                  <option value="ALL">Kasir: Semua</option>
+                  {uniqueCashiers.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              )}
+              {(searchQuery || statusFilter !== 'ALL' || dateFilter !== 'ALL' || paymentFilter !== 'ALL' || cashierFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setStatusFilter('ALL');
+                    setDateFilter('ALL');
+                    setDateFrom('');
+                    setDateTo('');
+                    setPaymentFilter('ALL');
+                    setCashierFilter('ALL');
+                  }}
+                  className="px-2 py-1 text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-md cursor-pointer shrink-0"
+                >
+                  Reset
+                </button>
+              )}
             </div>
           </div>
 
@@ -382,11 +477,15 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                 <p className="text-xs font-semibold text-slate-600">Tidak ada nota yang cocok</p>
                 <p className="text-[11px] text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian atau reset filter.</p>
                 <button
+                  type="button"
                   onClick={() => {
                     setSearchQuery('');
                     setStatusFilter('ALL');
                     setDateFilter('ALL');
+                    setDateFrom('');
+                    setDateTo('');
                     setPaymentFilter('ALL');
+                    setCashierFilter('ALL');
                   }}
                   className="mt-3 text-[11px] text-blue-700 font-bold hover:underline"
                 >

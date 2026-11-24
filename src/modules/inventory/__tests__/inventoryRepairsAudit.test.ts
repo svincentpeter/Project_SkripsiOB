@@ -88,4 +88,34 @@ describe('Inventory Module Repairs & Regression Audit', () => {
       expect(['MASUK', 'KELUAR', 'PENYESUAIAN']).toContain(mutationSample.type);
     });
   });
+
+  describe('Task 5: Product availability filtering (Tersedia vs Tidak Tersedia)', () => {
+    const sampleProducts = [
+      { id: '1', stock: 4, is_active: true, min_stock: 5 },
+      { id: '2', stock: 10, is_active: true, min_stock: 5 },
+      { id: '3', stock: 0, is_active: true, min_stock: 5 },
+      { id: '4', stock: 6, is_active: false, min_stock: 5 },
+    ];
+
+    const matchesFilter = (
+      p: { stock: number; is_active: boolean; min_stock: number },
+      filter: 'ALL' | 'AVAILABLE' | 'UNAVAILABLE' | 'SAFE' | 'LOW' | 'OUT' | 'INACTIVE',
+    ) => {
+      if (filter === 'AVAILABLE') return p.is_active && p.stock > 0;
+      if (filter === 'UNAVAILABLE') return !p.is_active || p.stock <= 0;
+      if (filter === 'SAFE') return p.is_active && p.stock >= p.min_stock;
+      if (filter === 'LOW') return p.is_active && p.stock > 0 && p.stock < p.min_stock;
+      if (filter === 'OUT') return p.stock <= 0;
+      if (filter === 'INACTIVE') return !p.is_active;
+      return true;
+    };
+
+    it('separates available and unavailable products accurately', () => {
+      expect(sampleProducts.filter((p) => matchesFilter(p, 'AVAILABLE')).map((p) => p.id)).toEqual(['1', '2']);
+      expect(sampleProducts.filter((p) => matchesFilter(p, 'UNAVAILABLE')).map((p) => p.id)).toEqual(['3', '4']);
+      expect(sampleProducts.filter((p) => matchesFilter(p, 'LOW')).map((p) => p.id)).toEqual(['1']);
+      expect(sampleProducts.filter((p) => matchesFilter(p, 'OUT')).map((p) => p.id)).toEqual(['3']);
+      expect(sampleProducts.filter((p) => matchesFilter(p, 'INACTIVE')).map((p) => p.id)).toEqual(['4']);
+    });
+  });
 });

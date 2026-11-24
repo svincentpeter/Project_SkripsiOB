@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile>
+  <diagram id="seqlayout" name="Sequence Diagram Pelaporan Keuangan SAK EMKM dan Tutup Buku">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0" background="#ffffff">
+      <root>
+        <mxCell id="0" style="" />
+        <mxCell id="1" parent="0" style="" />
+        <mxCell id="owner" value="Owner" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=48;participant=umlActor;verticalAlign=bottom;spacingBottom=-18;labelBackgroundColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="68.0" y="40" width="44" height="880" as="geometry" />
+        </mxCell>
+        <mxCell id="fe" value="Frontend React&#10;(Laporan SAK EMKM)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="374.0" y="40" width="152" height="880" as="geometry" />
+        </mxCell>
+        <mxCell id="dep" value="DepreciationService&#10;&amp; FinancialReport" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="734.0" y="40" width="152" height="880" as="geometry" />
+        </mxCell>
+        <mxCell id="cls" value="PeriodClosingService&#10;&amp; AccountingEngine" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1094.0" y="40" width="152" height="880" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="Database&#10;MySQL" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1454.0" y="40" width="152" height="880" as="geometry" />
+        </mxCell>
+        <mxCell id="act0" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="dep">
+          <mxGeometry x="71.0" y="140" width="10" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="act1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="db">
+          <mxGeometry x="71.0" y="190" width="10" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="act2" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="dep">
+          <mxGeometry x="71.0" y="340" width="10" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="act3" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="cls">
+          <mxGeometry x="71.0" y="590" width="10" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="act4" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="fe">
+          <mxGeometry x="71.0" y="90" width="10" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="act5" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="db">
+          <mxGeometry x="71.0" y="640" width="10" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="m0" value="1. Pilih periode bulan &amp; jalankan penyusutan aset tetap" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=0.5;exitY=0.1023;entryX=0;entryY=0.0;" edge="1" parent="1" source="owner" target="act4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m1" value="2. POST /accounting/fixed-assets/depreciation" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.0714;entryX=0;entryY=0.0;" edge="1" parent="1" source="act4" target="act0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m2" value="3. Hitung garis lurus &amp; posting Dr 6-1011 / Cr 1-3999" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.5;entryX=0;entryY=0.0;" edge="1" parent="1" source="act0" target="act1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m3" value="4. 201 Created {journal: SUSUT-YYYY-MM}" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=1;entryY=0.2143;" edge="1" parent="1" source="act0" target="act4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m4" value="5. Buka Laporan Keuangan SAK EMKM &amp; CALK" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=0.5;exitY=0.3295;entryX=0;entryY=0.2857;" edge="1" parent="1" source="owner" target="act4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m5" value="6. GET /financial-statements, /cash-flow, /reports/calk" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.3571;entryX=0;entryY=0.0;" edge="1" parent="1" source="act4" target="act2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m6" value="7. Agregasi LedgerBalances dari journal_items (POSTED)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.3333;entryX=0;entryY=0.8;" edge="1" parent="1" source="act2" target="act1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m7" value="8. Saldo akun Laba Rugi, Neraca, Arus Kas &amp; CALK" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=1;entryY=0.6667;" edge="1" parent="1" source="act1" target="act2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m8" value="9. 200 OK (Laporan siap tampil &amp; ekspor PDF/Excel)" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=1;entryY=0.5714;" edge="1" parent="1" source="act2" target="act4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m9" value="10. Konfirmasi Tutup Buku &amp; Kunci Periode" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=0.5;exitY=0.6136;entryX=0;entryY=0.6429;" edge="1" parent="1" source="owner" target="act4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m10" value="11. POST /accounting/periods/close {period, notes}" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.7143;entryX=0;entryY=0.0;" edge="1" parent="1" source="act4" target="act3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m11" value="12. Verifikasi pending penyusutan = 0 &amp; bulan selesai" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.3333;entryX=0;entryY=0.0;" edge="1" parent="1" source="act3" target="act5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m12" value="13. Posting jurnal PERIOD_CLOSING ke 3-2000 &amp; set PeriodLock" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.6667;entryX=0;entryY=0.25;" edge="1" parent="1" source="act3" target="act5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m13" value="14. 201 Created {closing, lock_date}" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=1;entryY=0.9286;" edge="1" parent="1" source="act3" target="act4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m14" value="15. Tampilkan status periode TERKUNCI" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=0.5;entryY=0.8977;" edge="1" parent="1" source="act4" target="owner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

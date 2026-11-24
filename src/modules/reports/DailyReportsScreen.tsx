@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { AlertTriangle, CalendarDays } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { AlertTriangle, CalendarDays, Search } from 'lucide-react';
 import type { DailyRecapTotals } from '../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
@@ -39,9 +39,12 @@ const LoadState: React.FC<{ loading: boolean; error: string | null; onRetry: () 
   return loading ? <p className="text-xs text-slate-500">Memuat data dari server…</p> : null;
 };
 
-const Section: React.FC<{ title: string; head: React.ReactNode; children: React.ReactNode }> = ({ title, head, children }) => (
+const Section: React.FC<{ title: string; head: React.ReactNode; controls?: React.ReactNode; children: React.ReactNode }> = ({ title, head, controls, children }) => (
   <section className={`${card} space-y-3`}>
-    <h3 className="font-extrabold text-sm text-slate-900">{title}</h3>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <h3 className="font-extrabold text-sm text-slate-900">{title}</h3>
+      {controls}
+    </div>
     <div className="overflow-x-auto rounded-xl border border-slate-200">
       <table className="w-full min-w-[560px] text-xs border-collapse">
         <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-700 border-b border-slate-200">{head}</thead>
@@ -57,11 +60,38 @@ const Empty: React.FC<{ cols: number }> = ({ cols }) => (
 
 const DailyCashTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) => {
   const [date, setDate] = useState(localDate());
+  const [saleSearch, setSaleSearch] = useState('');
+  const [saleStatusFilter, setSaleStatusFilter] = useState<'ALL' | 'LUNAS' | 'VOID'>('ALL');
+  const [saleMethodFilter, setSaleMethodFilter] = useState<string>('ALL');
   const report = useServerData(() => reportsApi.dailyCash(date), [date, ledgerVersion]);
   const r = report.data;
   // HPP per nota hanya dikirim server untuk lingkup toko; lingkup kasir menerima null.
   const showHpp = r?.scope === 'all';
   const kpis = r?.summary ? dailySummaryKpis(r.summary) : [];
+
+  const filteredSales = useMemo(() => {
+    const sales = r?.sales ?? [];
+    const q = saleSearch.toLowerCase().trim();
+    return sales.filter((s) => {
+      if (saleStatusFilter !== 'ALL' && s.status !== saleStatusFilter) return false;
+      if (saleMethodFilter !== 'ALL') {
+        const hasMethod = s.payments.some((p) =>
+          saleMethodFilter === 'TRANSFER'
+            ? p.method === 'TRANSFER' || p.method === 'TRANSFER_BCA'
+            : p.method === saleMethodFilter,
+        );
+        if (!hasMethod) return false;
+      }
+      if (q) {
+        return (
+          s.reference.toLowerCase().includes(q) ||
+          (s.cashier_name ?? '').toLowerCase().includes(q) ||
+          (s.customer_name ?? '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [r?.sales, saleSearch, saleStatusFilter, saleMethodFilter]);
 
   return (
     <div className="space-y-4">
@@ -181,6 +211,54 @@ const DailyCashTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =>
 
           <Section
             title="Daftar Nota"
+            controls={
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="relative min-w-[180px]">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={saleSearch}
+                    onChange={(e) => setSaleSearch(e.target.value)}
+                    placeholder="Cari no nota, kasir, pelanggan..."
+                    className="pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <select
+                  aria-label="Filter metode bayar nota harian"
+                  value={saleMethodFilter}
+                  onChange={(e) => setSaleMethodFilter(e.target.value)}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+                >
+                  <option value="ALL">Metode: Semua</option>
+                  <option value="TUNAI">Tunai</option>
+                  <option value="TRANSFER">Transfer</option>
+                  <option value="QRIS">QRIS</option>
+                </select>
+                <select
+                  aria-label="Filter status nota harian"
+                  value={saleStatusFilter}
+                  onChange={(e) => setSaleStatusFilter(e.target.value as 'ALL' | 'LUNAS' | 'VOID')}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+                >
+                  <option value="ALL">Status: Semua ({r.sales.length})</option>
+                  <option value="LUNAS">LUNAS</option>
+                  <option value="VOID">VOID</option>
+                </select>
+                {(saleSearch || saleMethodFilter !== 'ALL' || saleStatusFilter !== 'ALL') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSaleSearch('');
+                      setSaleMethodFilter('ALL');
+                      setSaleStatusFilter('ALL');
+                    }}
+                    className="px-2.5 py-1.5 font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            }
             head={
               <tr>
                 <th className={th}>Jam</th><th className={th}>No Nota</th><th className={th}>Kasir</th>
@@ -190,8 +268,8 @@ const DailyCashTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =>
               </tr>
             }
           >
-            {r.sales.length === 0 && <Empty cols={showHpp ? 8 : 7} />}
-            {r.sales.map((s) => (
+            {filteredSales.length === 0 && <Empty cols={showHpp ? 8 : 7} />}
+            {filteredSales.map((s) => (
               <tr key={s.id} className={s.status === 'VOID' ? 'bg-rose-50/60 text-slate-500' : ''}>
                 <td className={td}>{s.time ?? '-'}</td>
                 <td className={`${td} font-mono font-bold text-blue-700`}>{s.reference}</td>

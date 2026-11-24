@@ -43,6 +43,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
   // Service form modal
   const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
@@ -66,6 +67,11 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
         selectedCategoryFilter === 'ALL' ||
         srv.category.toUpperCase() === selectedCategoryFilter.toUpperCase();
 
+      const matchesStatus =
+        statusFilter === 'ALL' ||
+        (statusFilter === 'ACTIVE' && srv.is_active !== false) ||
+        (statusFilter === 'INACTIVE' && srv.is_active === false);
+
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -73,9 +79,9 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
         srv.service_code.toLowerCase().includes(q) ||
         srv.category.toLowerCase().includes(q);
 
-      return matchesCat && matchesSearch;
+      return matchesCat && matchesStatus && matchesSearch;
     });
-  }, [services, selectedCategoryFilter, searchQuery]);
+  }, [services, selectedCategoryFilter, statusFilter, searchQuery]);
 
   const handleOpenCreateService = () => {
     setServiceModalMode('CREATE');
@@ -191,16 +197,42 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
             })}
           </div>
 
-          {/* Search */}
-          <div className="relative w-full md:w-72 shrink-0">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari kode atau nama jasa..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-            />
+          {/* Search & Status Filter */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <select
+              aria-label="Filter status layanan jasa"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'INACTIVE')}
+              className="py-1.5 px-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="ALL">Status: Semua ({services.length})</option>
+              <option value="ACTIVE">Tersedia / Aktif ({services.filter((s) => s.is_active !== false).length})</option>
+              <option value="INACTIVE">Nonaktif ({services.filter((s) => s.is_active === false).length})</option>
+            </select>
+            <div className="relative w-full md:w-64 shrink-0">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Cari kode atau nama jasa..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            {(searchQuery || selectedCategoryFilter !== 'ALL' || statusFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategoryFilter('ALL');
+                  setStatusFilter('ALL');
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -232,12 +264,13 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                             ? 'Filter atau kata kunci pencarian aktif tidak cocok dengan layanan jasa manapun.'
                             : 'Klik tombol "+ Tambah Jasa Baru" untuk membuat layanan baru.'}
                         </p>
-                        {(searchQuery || selectedCategoryFilter !== 'ALL') && (
+                        {(searchQuery || selectedCategoryFilter !== 'ALL' || statusFilter !== 'ALL') && (
                           <button
                             type="button"
                             onClick={() => {
                               setSearchQuery('');
                               setSelectedCategoryFilter('ALL');
+                              setStatusFilter('ALL');
                             }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-lg border border-blue-200 transition-colors cursor-pointer"
                           >

@@ -32,6 +32,8 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
 }) => {
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'MASUK' | 'KELUAR' | 'PENYESUAIAN'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -50,6 +52,9 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
 
   const filteredMutations = productMutations.filter((m) => {
     const matchesType = typeFilter === 'ALL' || mutationKind(m) === typeFilter;
+    const rawDate = (m.date || '').slice(0, 10);
+    const matchesDateFrom = !dateFrom || (rawDate !== '' && rawDate >= dateFrom);
+    const matchesDateTo = !dateTo || (rawDate !== '' && rawDate <= dateTo);
     const q = searchQuery.toLowerCase().trim();
     const matchesQuery = 
       !q || 
@@ -58,7 +63,7 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
       (m.description && m.description.toLowerCase().includes(q)) ||
       (m.operator && m.operator.toLowerCase().includes(q));
 
-    return matchesType && matchesQuery;
+    return matchesType && matchesDateFrom && matchesDateTo && matchesQuery;
   });
 
   const totalMasuk = productMutations
@@ -208,15 +213,46 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
               </button>
             </div>
 
-            <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="flex flex-wrap items-center gap-2 flex-1 sm:justify-end">
               <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari no. dokumen, keterangan..."
-                className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                type="date"
+                aria-label="Dari tanggal kartu stok"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700"
               />
+              <input
+                type="date"
+                aria-label="Sampai tanggal kartu stok"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700"
+              />
+              <div className="relative min-w-[180px] flex-1 sm:max-w-xs">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari no. dokumen, keterangan..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+              {(typeFilter !== 'ALL' || searchQuery || dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTypeFilter('ALL');
+                    setSearchQuery('');
+                    setDateFrom('');
+                    setDateTo('');
+                  }}
+                  className="px-2.5 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer"
+                >
+                  Reset
+                </button>
+              )}
             </div>
           </div>
 
@@ -240,12 +276,14 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
                       <td colSpan={6} className="py-8 text-center text-slate-400">
                         <div className="space-y-2">
                           <p>Tidak ada riwayat mutasi yang sesuai filter.</p>
-                          {(typeFilter !== 'ALL' || searchQuery) && (
+                          {(typeFilter !== 'ALL' || searchQuery || dateFrom || dateTo) && (
                             <button
                               type="button"
                               onClick={() => {
                                 setTypeFilter('ALL');
                                 setSearchQuery('');
+                                setDateFrom('');
+                                setDateTo('');
                               }}
                               className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold underline cursor-pointer"
                             >

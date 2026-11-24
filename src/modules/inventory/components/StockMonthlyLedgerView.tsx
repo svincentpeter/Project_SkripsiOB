@@ -48,6 +48,8 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
 
   const [selectedMonth, setSelectedMonth] = useState<string>(currentMonthStr);
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
+  const [selectedRing, setSelectedRing] = useState<string>('ALL');
+  const [stockFilter, setStockFilter] = useState<'ALL' | 'AVAILABLE' | 'LOW' | 'OUT' | 'MOVED'>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [showBatchDetails, setShowBatchDetails] = useState<boolean>(true);
@@ -99,21 +101,37 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
     loadLedgerData();
   }, [selectedMonth, selectedBrand, products, transactions, mutations]);
 
-  // Filter rows by search query
+  const ringOptions = useMemo(() => {
+    if (!reportData) return [];
+    const rings = new Set<string>();
+    reportData.rows.forEach((r) => {
+      if (r.ring) rings.add(r.ring);
+    });
+    return Array.from(rings).sort();
+  }, [reportData]);
+
+  // Filter rows by ring, availability status & search query
   const displayRows = useMemo(() => {
     if (!reportData) return [];
-    if (!searchQuery.trim()) return reportData.rows;
-
-    const q = searchQuery.toLowerCase();
-    return reportData.rows.filter(
-      (r) =>
-        r.product_name.toLowerCase().includes(q) ||
-        r.product_code.toLowerCase().includes(q) ||
-        r.product_size.toLowerCase().includes(q) ||
-        r.brand_name.toLowerCase().includes(q) ||
-        r.motif.toLowerCase().includes(q)
-    );
-  }, [reportData, searchQuery]);
+    const q = searchQuery.toLowerCase().trim();
+    return reportData.rows.filter((r) => {
+      if (selectedRing !== 'ALL' && r.ring !== selectedRing) return false;
+      if (stockFilter === 'AVAILABLE' && r.remaining <= 0) return false;
+      if (stockFilter === 'LOW' && (r.remaining <= 0 || r.remaining > 2)) return false;
+      if (stockFilter === 'OUT' && r.remaining > 0) return false;
+      if (stockFilter === 'MOVED' && r.sold <= 0 && r.restock === 0) return false;
+      if (q) {
+        return (
+          r.product_name.toLowerCase().includes(q) ||
+          r.product_code.toLowerCase().includes(q) ||
+          r.product_size.toLowerCase().includes(q) ||
+          r.brand_name.toLowerCase().includes(q) ||
+          r.motif.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [reportData, selectedRing, stockFilter, searchQuery]);
 
   const daysInMonth = reportData?.meta?.days_in_month || 30;
   const dayColumns = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
@@ -258,6 +276,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs">
             <Filter className="w-3.5 h-3.5 text-slate-500" />
             <select
+              aria-label="Filter merk ban"
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
               className="bg-transparent font-bold text-slate-800 outline-hidden cursor-pointer"
@@ -271,6 +290,35 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
             </select>
           </div>
 
+          {/* Ring Selector */}
+          <select
+            aria-label="Filter ring buku stok"
+            value={selectedRing}
+            onChange={(e) => setSelectedRing(e.target.value)}
+            className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-800 outline-hidden cursor-pointer"
+          >
+            <option value="ALL">Semua Ring</option>
+            {ringOptions.map((r) => (
+              <option key={r} value={r}>
+                {/^R/i.test(r) ? r : `R${r}`}
+              </option>
+            ))}
+          </select>
+
+          {/* Availability Status Selector */}
+          <select
+            aria-label="Filter ketersediaan stok buku FIFO"
+            value={stockFilter}
+            onChange={(e) => setStockFilter(e.target.value as any)}
+            className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-800 outline-hidden cursor-pointer"
+          >
+            <option value="ALL">Status: Semua</option>
+            <option value="AVAILABLE">Tersedia (&gt; 0 pcs)</option>
+            <option value="LOW">Kritis (1–2 pcs)</option>
+            <option value="OUT">Kosong (0 pcs)</option>
+            <option value="MOVED">Ada Mutasi Bulan Ini</option>
+          </select>
+
           {/* Search Input */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -279,9 +327,24 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
               placeholder="Cari motif / ukuran / nama..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium w-48 sm:w-64 focus:bg-white focus:border-indigo-500 outline-hidden"
+              className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium w-48 sm:w-56 focus:bg-white focus:border-indigo-500 outline-hidden"
             />
           </div>
+
+          {(selectedBrand !== 'ALL' || selectedRing !== 'ALL' || stockFilter !== 'ALL' || searchQuery !== '') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedBrand('ALL');
+                setSelectedRing('ALL');
+                setStockFilter('ALL');
+                setSearchQuery('');
+              }}
+              className="px-2.5 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

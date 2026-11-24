@@ -28,6 +28,7 @@ import { DEFAULT_ROLE_PERMISSIONS } from '../data/mockData';
 import { formatRupiah } from '../utils/formatters';
 import { NotificationBellDropdown } from './NotificationBellDropdown';
 import { isScreenPermittedForRole } from '../../services/authNavigationService';
+import logoOmahBan from '../../assets/brand/logo-omah-ban.png';
 
 interface HeaderNavbarProps {
   activeScreen: ActiveScreen;
@@ -155,25 +156,26 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
       {/* TIER 1: TOP BAR (Logo + User + Live Telemetry Actions) */}
       <div className="h-14 px-3 sm:px-4 lg:px-8 flex items-center justify-between gap-2 sm:gap-4 border-b border-slate-100 bg-white">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div 
-            className="flex items-center gap-2 sm:gap-2.5 cursor-pointer min-w-0" 
+          <div
+            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer min-w-0"
             onClick={() => {
               if (isScreenAllowed('dashboard')) setActiveScreen('dashboard');
               else if (visibleNavTabs.length > 0) setActiveScreen(visibleNavTabs[0].id);
             }}
           >
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-xs tracking-tight transition-colors shrink-0">
-              OB
-            </div>
-            <div className="leading-tight min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-xs sm:text-base text-slate-900 tracking-tight shrink-0">Omah Ban</span>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-md shrink-0">
-                  <span className="hidden sm:inline">Cabang 3 Magelang</span>
-                  <span className="sm:hidden">Cabang 3</span>
-                </span>
-              </div>
-              <span className="text-[11px] text-slate-500 font-semibold hidden sm:block">POS & SAK EMKM Terpadu</span>
+            <img
+              src={logoOmahBan}
+              alt="Omah Ban"
+              className="h-7 sm:h-8 w-auto object-contain shrink-0"
+            />
+            <div className="h-6 w-px bg-slate-200 hidden sm:block shrink-0" />
+            <div className="leading-tight min-w-0 hidden sm:block">
+              <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-md inline-block">
+                Cabang 3 Magelang
+              </span>
+              <span className="text-[11px] text-slate-500 font-semibold block mt-0.5">
+                POS &amp; SAK EMKM Terpadu
+              </span>
             </div>
           </div>
         </div>

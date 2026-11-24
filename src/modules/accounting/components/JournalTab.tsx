@@ -150,11 +150,31 @@ export const JournalTab: React.FC<JournalTabProps> = ({ refreshKey = 0, onOpenMa
         <div className="flex flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-2">
             <PeriodPicker value={period} onChange={changePeriod} />
-            <form onSubmit={submitSearch} className="relative flex-1 min-w-[220px]">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="search" value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
-                aria-label="Cari jurnal" placeholder="Cari no. jurnal, referensi, atau keterangan lalu Enter…"
-                className="w-full pl-9 pr-3 py-2 text-xs text-slate-800 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+            <form onSubmit={submitSearch} className="relative flex-1 min-w-[220px] flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="search" value={searchInput} onChange={(e) => setSearchInput(e.target.value)}
+                  aria-label="Cari jurnal" placeholder="Cari no. jurnal, referensi, atau keterangan lalu Enter…"
+                  className="w-full pl-9 pr-3 py-2 text-xs text-slate-800 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+              <button type="submit" className="px-3 py-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl cursor-pointer">
+                Cari
+              </button>
+              {(groupId !== 'ALL' || search !== '' || searchInput !== '') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGroupId('ALL');
+                    setSearch('');
+                    setSearchInput('');
+                    setPage(1);
+                  }}
+                  className="px-3 py-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl flex items-center gap-1 cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
             </form>
           </div>
           <div className="flex items-center gap-1 overflow-x-auto text-xs" aria-label="Filter jenis jurnal">

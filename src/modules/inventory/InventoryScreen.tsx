@@ -25,6 +25,7 @@ import {
   Eye,
   Edit3,
   Power,
+  Trash2,
   RotateCcw,
   ArrowDownLeft,
   X,
@@ -180,7 +181,14 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
   const [selectedRing, setSelectedRing] = useState<string>('ALL');
-  const [stockFilter, setStockFilter] = useState<'ALL' | 'LOW' | 'OUT' | 'INACTIVE' | 'NO_PRICE'>('ALL');
+  const [stockFilter, setStockFilter] = useState<
+    'ALL' | 'AVAILABLE' | 'UNAVAILABLE' | 'SAFE' | 'LOW' | 'OUT' | 'ACTIVE' | 'INACTIVE' | 'NO_PRICE'
+  >('ALL');
+
+  // Supplier Tab Filters
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [supplierStatusFilter, setSupplierStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [supplierTermFilter, setSupplierTermFilter] = useState<'ALL' | 'CASH' | 'TEMPO'>('ALL');
 
   // Modals & Drawers
   const [selectedTireForCard, setSelectedTireForCard] = useState<ProductItem | null>(null);
@@ -219,6 +227,48 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
     return Array.from(rings).sort();
   }, [products]);
 
+  const stockStatusCounts = useMemo(() => {
+    if (isEmptyState) {
+      return { all: 0, available: 0, unavailable: 0, low: 0, out: 0, inactive: 0 };
+    }
+    let available = 0;
+    let unavailable = 0;
+    let low = 0;
+    let out = 0;
+    let inactive = 0;
+    products.forEach((p) => {
+      const stock = p.stock || p.product_quantity || 0;
+      const minAlert = p.product_stock_alert ?? p.min_stock ?? 5;
+      const isActive = p.is_active !== false;
+      if (isActive && stock > 0) available += 1;
+      if (!isActive || stock <= 0) unavailable += 1;
+      if (isActive && stock > 0 && stock < minAlert) low += 1;
+      if (stock <= 0) out += 1;
+      if (!isActive) inactive += 1;
+    });
+    return { all: products.length, available, unavailable, low, out, inactive };
+  }, [products, isEmptyState]);
+
+  const filteredSuppliers = useMemo(() => {
+    const q = supplierSearch.toLowerCase().trim();
+    return suppliers.filter((sup) => {
+      const isActive = sup.is_active !== false;
+      if (supplierStatusFilter === 'ACTIVE' && !isActive) return false;
+      if (supplierStatusFilter === 'INACTIVE' && isActive) return false;
+      if (supplierTermFilter === 'CASH' && (sup.payment_terms_days || 0) > 0) return false;
+      if (supplierTermFilter === 'TEMPO' && (sup.payment_terms_days || 0) <= 0) return false;
+      if (q) {
+        const matchCode = (sup.supplier_code || '').toLowerCase().includes(q);
+        const matchName = (sup.supplier_name || '').toLowerCase().includes(q);
+        const matchPic = (sup.contact_person || '').toLowerCase().includes(q);
+        const matchPhone = (sup.phone || '').toLowerCase().includes(q);
+        const matchAddr = (sup.address || '').toLowerCase().includes(q);
+        if (!matchCode && !matchName && !matchPic && !matchPhone && !matchAddr) return false;
+      }
+      return true;
+    });
+  }, [suppliers, supplierSearch, supplierStatusFilter, supplierTermFilter]);
+
   // Filtered products for catalog
   const filteredProducts = useMemo(() => {
     if (isEmptyState) return [];
@@ -236,23 +286,31 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
       // Ring filter
       if (selectedRing !== 'ALL' && p.ring !== selectedRing) return false;
 
-      // Stock status filter
+      // Stock & availability status filter
       const stock = p.stock || p.product_quantity || 0;
       const minAlert = p.product_stock_alert ?? p.min_stock ?? 5;
-      if (stockFilter === 'LOW' && (stock <= 0 || stock >= minAlert)) return false;
+      const isActive = p.is_active !== false;
+      if (stockFilter === 'AVAILABLE' && (!isActive || stock <= 0)) return false;
+      if (stockFilter === 'UNAVAILABLE' && (isActive && stock > 0)) return false;
+      if (stockFilter === 'SAFE' && (!isActive || stock < minAlert)) return false;
+      if (stockFilter === 'LOW' && (!isActive || stock <= 0 || stock >= minAlert)) return false;
       if (stockFilter === 'OUT' && stock > 0) return false;
-      if (stockFilter === 'INACTIVE' && p.is_active !== false) return false;
-      if (stockFilter === 'NO_PRICE' && (p.is_active === false || (p.product_price || p.price || 0) > 0)) return false;
+      if (stockFilter === 'ACTIVE' && !isActive) return false;
+      if (stockFilter === 'INACTIVE' && isActive) return false;
+      if (stockFilter === 'NO_PRICE' && (!isActive || (p.product_price || p.price || 0) > 0)) return false;
 
       // Search query
       const q = searchQuery.toLowerCase().trim();
       if (q) {
         const matchName = p.product_name && p.product_name.toLowerCase().includes(q);
+        const matchAltName = p.name && p.name.toLowerCase().includes(q);
         const matchCode = p.product_code && p.product_code.toLowerCase().includes(q);
         const matchBarcode = p.barcode && p.barcode.toLowerCase().includes(q);
+        const matchBrand = p.brand && p.brand.toLowerCase().includes(q);
+        const matchSize = p.product_size && p.product_size.toLowerCase().includes(q);
         const matchMotif = p.motif && p.motif.toLowerCase().includes(q);
         const matchPcd = p.pcd && p.pcd.toLowerCase().includes(q);
-        if (!matchName && !matchCode && !matchBarcode && !matchMotif && !matchPcd) {
+        if (!matchName && !matchAltName && !matchCode && !matchBarcode && !matchBrand && !matchSize && !matchMotif && !matchPcd) {
           return false;
         }
       }
@@ -664,14 +722,103 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
               </div>
             </div>
 
-            {/* Filter Bar Terpadu (Dinamis dari Master Kategori) */}
+            {/* Quick Availability Filter Pills (Tersedia vs Tidak Tersedia) */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setStockFilter('ALL')}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    stockFilter === 'ALL'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Semua ({stockStatusCounts.all})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStockFilter('AVAILABLE')}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    stockFilter === 'AVAILABLE'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                      : 'bg-emerald-50/70 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                  }`}
+                >
+                  Produk Tersedia ({stockStatusCounts.available})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStockFilter('UNAVAILABLE')}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    stockFilter === 'UNAVAILABLE'
+                      ? 'bg-rose-600 text-white border-rose-700 shadow-2xs'
+                      : 'bg-rose-50/70 text-rose-800 border-rose-200 hover:bg-rose-100'
+                  }`}
+                >
+                  Tidak Tersedia ({stockStatusCounts.unavailable})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStockFilter('LOW')}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    stockFilter === 'LOW'
+                      ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
+                      : 'bg-amber-50/70 text-amber-800 border-amber-200 hover:bg-amber-100'
+                  }`}
+                >
+                  Stok Menipis ({stockStatusCounts.low})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStockFilter('OUT')}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    stockFilter === 'OUT'
+                      ? 'bg-rose-700 text-white border-rose-800 shadow-2xs'
+                      : 'bg-white text-rose-700 border-slate-200 hover:bg-rose-50'
+                  }`}
+                >
+                  Stok Habis ({stockStatusCounts.out})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStockFilter('INACTIVE')}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    stockFilter === 'INACTIVE'
+                      ? 'bg-slate-700 text-white border-slate-800 shadow-2xs'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Nonaktif ({stockStatusCounts.inactive})
+                </button>
+              </div>
+
+              {(searchQuery || selectedCategoryFilter !== 'ALL' || selectedBrand !== 'ALL' || selectedRing !== 'ALL' || stockFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategoryFilter('ALL');
+                    setSelectedBrand('ALL');
+                    setSelectedRing('ALL');
+                    setStockFilter('ALL');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-lg border border-blue-200 transition-colors cursor-pointer shrink-0"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset Filter</span>
+                </button>
+              )}
+            </div>
+
+            {/* Filter Bar Terpadu (Dinamis dari Master Kategori, Merek, Ring, Status) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5">
               {/* Search */}
               <div className="relative sm:col-span-2 lg:col-span-4">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Cari nama ban, kode produk, motif, atau barcode..."
+                  placeholder="Cari nama, kode SKU, merek, ukuran, motif, barcode..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
@@ -679,13 +826,14 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
               </div>
 
               {/* Filter Kategori Dinamis */}
-              <div className="lg:col-span-3">
+              <div className="lg:col-span-2">
                 <select
+                  aria-label="Filter kategori produk"
                   value={selectedCategoryFilter}
                   onChange={(e) => setSelectedCategoryFilter(e.target.value)}
                   className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="ALL">Semua Kategori Produk</option>
+                  <option value="ALL">Semua Kategori</option>
                   {categories.map((c) => (
                     <option key={c.id || c.category_code} value={c.category_code}>
                       {c.category_name}
@@ -697,6 +845,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
               {/* Filter Merek */}
               <div className="lg:col-span-2">
                 <select
+                  aria-label="Filter merek produk"
                   value={selectedBrand}
                   onChange={(e) => setSelectedBrand(e.target.value)}
                   className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
@@ -710,17 +859,39 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 </select>
               </div>
 
-              {/* Filter Status Stok */}
-              <div className="sm:col-span-2 lg:col-span-3">
+              {/* Filter Ring */}
+              <div className="lg:col-span-2">
                 <select
+                  aria-label="Filter ukuran ring"
+                  value={selectedRing}
+                  onChange={(e) => setSelectedRing(e.target.value)}
+                  className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ALL">Semua Ring ({uniqueRings.length})</option>
+                  {uniqueRings.map((r) => (
+                    <option key={r} value={r}>
+                      {/^R/i.test(r) ? r : `R${r}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filter Status Ketersediaan & Stok */}
+              <div className="lg:col-span-2">
+                <select
+                  aria-label="Filter status ketersediaan dan stok"
                   value={stockFilter}
                   onChange={(e) => setStockFilter(e.target.value as any)}
                   className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="ALL">Status Stok: Semua</option>
+                  <option value="ALL">Status: Semua</option>
+                  <option value="AVAILABLE">Tersedia (Aktif &amp; Stok &gt; 0)</option>
+                  <option value="UNAVAILABLE">Tidak Tersedia (Habis / Nonaktif)</option>
+                  <option value="SAFE">Stok Aman (&ge; Batas Alert)</option>
                   <option value="LOW">Stok Menipis (&lt; Batas Alert)</option>
                   <option value="OUT">Stok Habis (0 Unit)</option>
-                  <option value="INACTIVE">Nonaktif Saja</option>
+                  <option value="ACTIVE">Produk Aktif Saja</option>
+                  <option value="INACTIVE">Produk Nonaktif Saja</option>
                   <option value="NO_PRICE">Harga Jual Belum Diisi (Rp 0)</option>
                 </select>
               </div>
@@ -862,13 +1033,28 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                               </button>
                               )}
                               {permissions.manage && onDeleteOrDeactivateProduct && (
-                                <button
-                                  onClick={() => onDeleteOrDeactivateProduct(p.id)}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
-                                  title="Nonaktifkan / Hapus Produk"
-                                >
-                                  <Power className="w-4 h-4" />
-                                </button>
+                                p.is_active === false ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => onDeleteOrDeactivateProduct(p.id)}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[11px] font-bold transition-colors cursor-pointer"
+                                    title="Aktifkan Kembali Produk"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Aktifkan</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => onDeleteOrDeactivateProduct(p.id)}
+                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-rose-600 bg-rose-50/80 hover:text-rose-700 hover:bg-rose-100 border border-rose-200 text-[11px] font-bold transition-colors cursor-pointer"
+                                    title="Hapus Produk"
+                                    aria-label={`Hapus produk ${p.product_name || p.name}`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Hapus</span>
+                                  </button>
+                                )
                               )}
                             </div>
                           </td>
@@ -1026,7 +1212,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <ExportMenu reportId="inventory_suppliers" data={suppliers} ctx={{ periodLabel: 'Seluruh Rekanan' }} />
+                <ExportMenu reportId="inventory_suppliers" data={filteredSuppliers} ctx={{ periodLabel: 'Filter Rekanan' }} />
                 {permissions.manage && (
                 <button
                   type="button"
@@ -1040,6 +1226,61 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                   <Plus className="w-4 h-4" />
                   <span>Tambah Supplier</span>
                 </button>
+                )}
+              </div>
+            </div>
+
+            {/* Supplier Filter Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5">
+              <div className="relative sm:col-span-2 lg:col-span-5">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Cari kode, nama supplier, PIC, telepon, alamat..."
+                  value={supplierSearch}
+                  onChange={(e) => setSupplierSearch(e.target.value)}
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <select
+                  aria-label="Filter status supplier"
+                  value={supplierStatusFilter}
+                  onChange={(e) => setSupplierStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'INACTIVE')}
+                  className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ALL">Status: Semua ({suppliers.length})</option>
+                  <option value="ACTIVE">Aktif ({suppliers.filter((s) => s.is_active !== false).length})</option>
+                  <option value="INACTIVE">Nonaktif ({suppliers.filter((s) => s.is_active === false).length})</option>
+                </select>
+              </div>
+              <div className="lg:col-span-3">
+                <select
+                  aria-label="Filter termin hutang supplier"
+                  value={supplierTermFilter}
+                  onChange={(e) => setSupplierTermFilter(e.target.value as 'ALL' | 'CASH' | 'TEMPO')}
+                  className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 font-semibold focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="ALL">Termin: Semua</option>
+                  <option value="CASH">Tunai (0 Hari)</option>
+                  <option value="TEMPO">Tempo (&gt; 0 Hari)</option>
+                </select>
+              </div>
+              <div className="lg:col-span-1 flex items-center justify-end">
+                {(supplierSearch || supplierStatusFilter !== 'ALL' || supplierTermFilter !== 'ALL') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSupplierSearch('');
+                      setSupplierStatusFilter('ALL');
+                      setSupplierTermFilter('ALL');
+                    }}
+                    className="w-full py-2 px-2.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer"
+                    title="Reset Filter Supplier"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span className="lg:hidden">Reset</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -1061,20 +1302,24 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {suppliers.length === 0 ? (
+                    {filteredSuppliers.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="py-12 text-center text-slate-500">
                           <div className="max-w-sm mx-auto space-y-2">
                             <Truck className="w-10 h-10 text-slate-300 mx-auto" />
-                            <p className="font-semibold text-slate-700">Belum ada rekanan distributor</p>
+                            <p className="font-semibold text-slate-700">
+                              {suppliers.length === 0 ? 'Belum ada rekanan distributor' : 'Tidak ada supplier yang cocok'}
+                            </p>
                             <p className="text-xs text-slate-400">
-                              Klik tombol "+ Tambah Supplier" untuk menambahkan mitra pemasok.
+                              {suppliers.length === 0
+                                ? 'Klik tombol "+ Tambah Supplier" untuk menambahkan mitra pemasok.'
+                                : 'Sesuaikan kata kunci pencarian atau reset filter aktif.'}
                             </p>
                           </div>
                         </td>
                       </tr>
                     ) : (
-                      suppliers.map((sup, idx) => (
+                      filteredSuppliers.map((sup, idx) => (
                         <tr key={sup.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
                           <td className="py-3 px-4">
@@ -1143,7 +1388,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
             {/* Footer Summary Strip */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
-              <span>Menampilkan {suppliers.length} rekanan pemasok aktif</span>
+              <span>Menampilkan {filteredSuppliers.length} dari {suppliers.length} rekanan pemasok</span>
               <span className="font-semibold">Manajemen Hutang Dagang (Accounts Payable) • SAK EMKM</span>
             </div>
           </div>

@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile>
+  <diagram id="seqlayout" name="Sequence Diagram Penerimaan Barang FIFO dan Pembayaran Utang">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0" background="#ffffff">
+      <root>
+        <mxCell id="0" style="" />
+        <mxCell id="1" parent="0" style="" />
+        <mxCell id="gudang" value="Staf Gudang" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=48;participant=umlActor;verticalAlign=bottom;spacingBottom=-18;labelBackgroundColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="68.0" y="40" width="44" height="890" as="geometry" />
+        </mxCell>
+        <mxCell id="owner" value="Owner" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=48;participant=umlActor;verticalAlign=bottom;spacingBottom=-18;labelBackgroundColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="408.0" y="40" width="44" height="890" as="geometry" />
+        </mxCell>
+        <mxCell id="fe" value="Frontend React&#10;(Inventori &amp; Utang)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="694.0" y="40" width="152" height="890" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="Laravel API&#10;(GoodsReceipt / Payable)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1034.0" y="40" width="152" height="890" as="geometry" />
+        </mxCell>
+        <mxCell id="acc" value="FifoCosting &amp;&#10;AccountingEngine" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1374.0" y="40" width="152" height="890" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="Database&#10;MySQL" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1714.0" y="40" width="152" height="890" as="geometry" />
+        </mxCell>
+        <mxCell id="act0" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="api">
+          <mxGeometry x="71.0" y="140" width="10" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="act1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="fe">
+          <mxGeometry x="71.0" y="90" width="10" height="350" as="geometry" />
+        </mxCell>
+        <mxCell id="act2" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="api">
+          <mxGeometry x="71.0" y="600" width="10" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="act3" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="fe">
+          <mxGeometry x="71.0" y="550" width="10" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="act4" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="acc">
+          <mxGeometry x="71.0" y="190" width="10" height="660" as="geometry" />
+        </mxCell>
+        <mxCell id="act5" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="db">
+          <mxGeometry x="71.0" y="240" width="10" height="610" as="geometry" />
+        </mxCell>
+        <mxCell id="m0" value="1. Input penerimaan ban/velg (faktur, qty, harga, termin)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=0.5;exitY=0.1011;entryX=0;entryY=0.0;" edge="1" parent="1" source="gudang" target="act1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m1" value="2. POST /inventory/restock (permission: goods_receipt)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.1429;entryX=0;entryY=0.0;" edge="1" parent="1" source="act1" target="act0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m2" value="3. addBatch() buat lapisan batch FIFO baru" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.2;entryX=0;entryY=0.0;" edge="1" parent="1" source="act0" target="act4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m3" value="4. Simpan purchases (GR), product_batches &amp; mutasi MASUK" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.0758;entryX=0;entryY=0.0;" edge="1" parent="1" source="act4" target="act5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m4" value="5. Jurnal PURCHASE (Dr 1-2000 / Cr Kas, Bank, atau 2-1000)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.6;entryX=0;entryY=0.1515;" edge="1" parent="1" source="act0" target="act4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m5" value="6. Simpan journal_entries &amp; journal_items" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.2273;entryX=0;entryY=0.1639;" edge="1" parent="1" source="act4" target="act5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m6" value="7. 201 Created {purchase, batch, journal}" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=1;entryY=0.8571;" edge="1" parent="1" source="act0" target="act1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m7" value="8. Tampilkan konfirmasi GR &amp; stok FIFO bertambah" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=0.5;entryY=0.4944;" edge="1" parent="1" source="act1" target="gudang">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="note8" value="Saat faktur TEMPO jatuh tempo" style="shape=note;whiteSpace=wrap;html=1;size=14;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="450" y="510" width="233" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="m9" value="9. Pilih faktur utang supplier &amp; input nominal bayar" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=0.5;exitY=0.618;entryX=0;entryY=0.0;" edge="1" parent="1" source="owner" target="act3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m10" value="10. POST /purchases/{id}/payments (accounts_payable)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.2;entryX=0;entryY=0.0;" edge="1" parent="1" source="act3" target="act2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m11" value="11. Cek saldo Kas/Bank non-negatif &amp; Jurnal DEBT_PAYMENT" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.3333;entryX=0;entryY=0.697;" edge="1" parent="1" source="act2" target="act4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m12" value="12. Simpan purchase_payments, update status &amp; jurnal Dr 2-1000" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.7727;entryX=0;entryY=0.7541;" edge="1" parent="1" source="act4" target="act5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m13" value="13. 201 Created {purchase, payment, journal}" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=1;entryY=0.8;" edge="1" parent="1" source="act2" target="act3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m14" value="14. Perbarui Buku Pembantu Utang &amp; Buku Besar" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=0.5;entryY=0.8989;" edge="1" parent="1" source="act3" target="owner">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

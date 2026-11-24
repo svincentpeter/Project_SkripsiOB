@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CheckCircle2, Loader2, Wallet } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { CheckCircle2, Loader2, Search, Wallet } from 'lucide-react';
 import { cashApi } from '../../../services/api';
 import type { ApiCashSession, ApiJournal, CashMovementType } from '../../../services/api';
 import { localDate } from '../../../services/accountingPeriod';
@@ -51,6 +51,44 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
   const [date, setDate] = useState(localDate());
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Shift & Movement Filters
+  const [shiftStatusFilter, setShiftStatusFilter] = useState<'ALL' | 'OPEN' | 'PENDING_APPROVAL' | 'CLOSED'>('ALL');
+  const [shiftSearch, setShiftSearch] = useState('');
+  const [movementTypeFilter, setMovementTypeFilter] = useState<'ALL' | 'CASH_DEPOSIT' | 'OWNER_DRAWING' | 'CAPITAL_INJECTION'>('ALL');
+  const [movementSearch, setMovementSearch] = useState('');
+
+  const filteredSessions = useMemo(() => {
+    const rows = sessions.data ?? [];
+    const q = shiftSearch.toLowerCase().trim();
+    return rows.filter((s) => {
+      if (shiftStatusFilter !== 'ALL' && s.status !== shiftStatusFilter) return false;
+      if (q) {
+        return (
+          String(s.id).includes(q) ||
+          (s.user_name ?? '').toLowerCase().includes(q) ||
+          (s.journal_entry_number ?? '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [sessions.data, shiftStatusFilter, shiftSearch]);
+
+  const filteredMovements = useMemo(() => {
+    const rows = movements.data ?? [];
+    const q = movementSearch.toLowerCase().trim();
+    return rows.filter((j) => {
+      if (movementTypeFilter !== 'ALL' && j.reference_type !== movementTypeFilter) return false;
+      if (q) {
+        return (
+          (j.entry_number ?? '').toLowerCase().includes(q) ||
+          (j.reference_id ?? '').toLowerCase().includes(q) ||
+          (j.description ?? '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [movements.data, movementTypeFilter, movementSearch]);
 
   const approve = async (session: ApiCashSession) => {
     const adjustment = session.adjustment ?? 0;
@@ -113,6 +151,42 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
           <ServerStatus loading={sessions.loading && !sessions.data} error={sessions.error} onRetry={sessions.reload} />
           {sessions.data && sessions.data.length === 0 && <p className="text-xs text-slate-500">Belum ada shift kasir.</p>}
           {sessions.data && sessions.data.length > 0 && (
+            <>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={shiftSearch}
+                  onChange={(e) => setShiftSearch(e.target.value)}
+                  placeholder="Cari nama kasir, ID shift, atau no. jurnal..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-500 outline-none"
+                />
+              </div>
+              <select
+                aria-label="Filter status shift kasir"
+                value={shiftStatusFilter}
+                onChange={(e) => setShiftStatusFilter(e.target.value as any)}
+                className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+              >
+                <option value="ALL">Status Shift: Semua ({sessions.data.length})</option>
+                <option value="OPEN">Terbuka</option>
+                <option value="PENDING_APPROVAL">Menunggu Persetujuan</option>
+                <option value="CLOSED">Disetujui</option>
+              </select>
+              {(shiftSearch || shiftStatusFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShiftSearch('');
+                    setShiftStatusFilter('ALL');
+                  }}
+                  className="px-2.5 py-1.5 font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead className="text-left text-slate-500 border-b border-slate-200">
@@ -128,7 +202,10 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
                   </tr>
                 </thead>
                 <tbody>
-                  {sessions.data.map((s) => {
+                  {filteredSessions.length === 0 ? (
+                    <tr><td colSpan={8} className="py-5 text-center text-slate-400">Tidak ada shift yang sesuai filter.</td></tr>
+                  ) : (
+                  filteredSessions.map((s) => {
                     const adj = s.adjustment ?? 0;
                     return (
                       <tr key={s.id} className="border-b border-slate-100 align-top">
@@ -170,10 +247,12 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
                         </td>
                       </tr>
                     );
-                  })}
+                  })
+                  )}
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       )}
@@ -237,6 +316,42 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
 
           <ServerStatus loading={movements.loading && !movements.data} error={movements.error} onRetry={movements.reload} />
           {movements.data && movements.data.length > 0 && (
+            <>
+            <div className="flex flex-wrap items-center gap-2 text-xs pt-2 border-t border-slate-100">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={movementSearch}
+                  onChange={(e) => setMovementSearch(e.target.value)}
+                  placeholder="Cari no. bukti atau keterangan mutasi kas..."
+                  className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-500 outline-none"
+                />
+              </div>
+              <select
+                aria-label="Filter jenis mutasi kas pemilik"
+                value={movementTypeFilter}
+                onChange={(e) => setMovementTypeFilter(e.target.value as any)}
+                className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+              >
+                <option value="ALL">Jenis: Semua ({movements.data.length})</option>
+                <option value="CASH_DEPOSIT">Setor Bank</option>
+                <option value="OWNER_DRAWING">Prive</option>
+                <option value="CAPITAL_INJECTION">Setoran Modal</option>
+              </select>
+              {(movementSearch || movementTypeFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMovementSearch('');
+                    setMovementTypeFilter('ALL');
+                  }}
+                  className="px-2.5 py-1.5 font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead className="text-left text-slate-500 border-b border-slate-200">
@@ -249,7 +364,10 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
                   </tr>
                 </thead>
                 <tbody>
-                  {movements.data.map((j) => (
+                  {filteredMovements.length === 0 ? (
+                    <tr><td colSpan={5} className="py-5 text-center text-slate-400">Tidak ada mutasi kas yang sesuai filter.</td></tr>
+                  ) : (
+                  filteredMovements.map((j) => (
                     <tr key={j.entry_number} className="border-b border-slate-100">
                       <td className="py-2 px-2">{formatDateIndo(j.entry_date)}</td>
                       <td className="py-2 px-2 font-mono">{j.reference_id}<br /><span className="text-slate-400">{j.entry_number}</span></td>
@@ -257,10 +375,12 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
                       <td className="py-2 px-2 text-slate-600">{j.description}</td>
                       <td className="py-2 px-2 text-right font-mono">{formatRupiah(j.total_debit)}</td>
                     </tr>
-                  ))}
+                  ))
+                  )}
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </section>
       )}

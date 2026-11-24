@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Banknote, Layers, Link2, Plus, Trash2, Unlink, Upload, Wand2 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Banknote, Layers, Link2, Plus, Search, Trash2, Unlink, Upload, Wand2 } from 'lucide-react';
 import type { ApiJournal } from '../../../services/api';
 import { sakEmkmApi } from '../../../services/api/sakEmkmApi';
 import { currentMonth, localDate, monthLabel } from '../../../services/accountingPeriod';
@@ -33,6 +33,9 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
   const [busy, setBusy] = useState(false);
   // Pencocokan gabungan: satu mutasi (mis. setoran QRIS harian) ke beberapa jurnal bank.
   const [group, setGroup] = useState<{ lineId: number; picked: number[] } | null>(null);
+  const [lineSearch, setLineSearch] = useState('');
+  const [matchFilter, setMatchFilter] = useState<'ALL' | 'MATCHED' | 'UNMATCHED'>('ALL');
+  const [directionFilter, setDirectionFilter] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
   const fileRef = useRef<HTMLInputElement>(null);
   const isCurrent = period === currentMonth();
   const report = useServerData(() => sakEmkmApi.bankReconciliation(period), [period, refreshKey]);
@@ -42,6 +45,25 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
   const r = report.data;
   const unmatched = (isCurrent ? r : now.data)?.outstanding_ledger ?? [];
   const unmatchedIds = new Set(unmatched.map((i) => i.journal_item_id));
+
+  const filteredStatementLines = useMemo(() => {
+    const lines = r?.lines ?? [];
+    const q = lineSearch.toLowerCase().trim();
+    return lines.filter((line) => {
+      if (matchFilter === 'MATCHED' && line.journal_item_id === null) return false;
+      if (matchFilter === 'UNMATCHED' && line.journal_item_id !== null) return false;
+      if (directionFilter === 'IN' && line.amount < 0) return false;
+      if (directionFilter === 'OUT' && line.amount >= 0) return false;
+      if (q) {
+        return (
+          line.description.toLowerCase().includes(q) ||
+          (line.matched_entry_number ?? '').toLowerCase().includes(q) ||
+          (line.source ?? '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [r?.lines, lineSearch, matchFilter, directionFilter]);
 
   useEffect(() => {
     setBalanceText(r?.statement_ending_balance == null ? '' : decimalText(r.statement_ending_balance));
@@ -238,15 +260,66 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
           </form>
 
           <section className="space-y-2">
-            <h3 className="font-black text-slate-900">Mutasi rekening koran {monthLabel(period)}</h3>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-black text-slate-900">Mutasi rekening koran {monthLabel(period)}</h3>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="relative min-w-[180px]">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={lineSearch}
+                    onChange={(e) => setLineSearch(e.target.value)}
+                    placeholder="Cari keterangan atau no. jurnal..."
+                    className="pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <select
+                  aria-label="Filter status pencocokan rekening koran"
+                  value={matchFilter}
+                  onChange={(e) => setMatchFilter(e.target.value as 'ALL' | 'MATCHED' | 'UNMATCHED')}
+                  className={field}
+                >
+                  <option value="ALL">Status: Semua ({r.lines.length})</option>
+                  <option value="MATCHED">Sudah Cocok</option>
+                  <option value="UNMATCHED">Belum Cocok</option>
+                </select>
+                <select
+                  aria-label="Filter arah mutasi rekening koran"
+                  value={directionFilter}
+                  onChange={(e) => setDirectionFilter(e.target.value as 'ALL' | 'IN' | 'OUT')}
+                  className={field}
+                >
+                  <option value="ALL">Arah: Semua</option>
+                  <option value="IN">Masuk (+)</option>
+                  <option value="OUT">Keluar (-)</option>
+                </select>
+                {(lineSearch || matchFilter !== 'ALL' || directionFilter !== 'ALL') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLineSearch('');
+                      setMatchFilter('ALL');
+                      setDirectionFilter('ALL');
+                    }}
+                    className="px-2.5 py-1.5 font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px]">
                 <thead className="bg-slate-50 text-slate-600 font-bold text-left">
                   <tr><th className="py-2 px-2">Tanggal</th><th className="py-2 px-2">Keterangan</th><th className="py-2 px-2 text-right">Jumlah</th><th className="py-2 px-2">Status</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {r.lines.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-500">Belum ada mutasi rekening koran bulan ini.</td></tr>}
-                  {r.lines.map((line) => {
+                  {filteredStatementLines.length === 0 && (
+                    <tr><td colSpan={4} className="py-6 text-center text-slate-500">
+                      {r.lines.length === 0 ? 'Belum ada mutasi rekening koran bulan ini.' : 'Tidak ada mutasi rekening koran yang cocok dengan filter.'}
+                    </td></tr>
+                  )}
+                  {filteredStatementLines.map((line) => {
                     const options = candidates(line);
                     const locked = lockDate !== null && line.statement_date <= lockDate;
                     const grouping = group?.lineId === line.id ? group : null;

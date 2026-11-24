@@ -69,6 +69,8 @@ import {
 } from './components';
 import { useToast } from '../../shared/components';
 import { localDate } from '../../services/accountingPeriod';
+import { categoryKind } from '../../shared/utils/categoryKind';
+import logoOmahBan from '../../assets/brand/logo-omah-ban.png';
 
 interface PosScreenProps {
   products: ProductItem[];
@@ -191,6 +193,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRing, setSelectedRing] = useState<string>('ALL');
   const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
+  const [stockFilter, setStockFilter] = useState<'ALL' | 'AVAILABLE' | 'LOW' | 'OUT'>('ALL');
+  const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('ALL');
+
+  const availableServiceCategories = useMemo(() => {
+    const cats = new Set<string>();
+    services.forEach((s) => {
+      if (s.is_active !== false && s.category) cats.add(s.category);
+    });
+    return Array.from(cats).sort();
+  }, [services]);
 
   const availableRings = useMemo(() => {
     const rings = new Set<string>();
@@ -266,6 +278,8 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           !q ||
           (prod.name && prod.name.toLowerCase().includes(q)) ||
           (prod.product_name && prod.product_name.toLowerCase().includes(q)) ||
+          (prod.brand && prod.brand.toLowerCase().includes(q)) ||
+          (prod.motif && prod.motif.toLowerCase().includes(q)) ||
           (prod.product_size && prod.product_size.toLowerCase().includes(q)) ||
           (prod.barcode && prod.barcode.toLowerCase().includes(q)) ||
           (prod.pcd && prod.pcd.toLowerCase().includes(q)) ||
@@ -274,12 +288,23 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         const matchesRing = selectedRing === 'ALL' || prod.ring === selectedRing;
         const matchesBrand = selectedBrand === 'ALL' || prod.brand === selectedBrand;
 
-        return matchesQuery && matchesRing && matchesBrand && prod.is_active !== false;
+        const stockQty = prod.stock || prod.product_quantity || 0;
+        const lowThreshold = prod.product_stock_alert ?? prod.min_stock ?? 3;
+        const matchesStock =
+          stockFilter === 'ALL' ||
+          (stockFilter === 'AVAILABLE' && stockQty > 0) ||
+          (stockFilter === 'LOW' && stockQty > 0 && stockQty <= lowThreshold) ||
+          (stockFilter === 'OUT' && stockQty <= 0);
+
+        return matchesQuery && matchesRing && matchesBrand && matchesStock && prod.is_active !== false;
       });
 
   const filteredServices = isEmptyState || catalogTab !== 'SERVICES'
     ? []
     : services.filter((srv) => {
+        const matchesSrvCat =
+          selectedServiceCategory === 'ALL' ||
+          srv.category.toUpperCase() === selectedServiceCategory.toUpperCase();
         const q = searchQuery.toLowerCase().trim();
         const matchesQuery =
           !q ||
@@ -287,7 +312,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           srv.service_code.toLowerCase().includes(q) ||
           srv.category.toLowerCase().includes(q);
 
-        return matchesQuery && srv.is_active !== false;
+        return matchesSrvCat && matchesQuery && srv.is_active !== false;
       });
 
   const handleAddToCartManual = (item: CartItem) => {
@@ -572,10 +597,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               <span className="text-xs font-bold hidden sm:inline">Dashboard</span>
             </button>
           ) : (
-            <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs shrink-0" title="Terminal Kasir Omah Ban Cabang 3">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-xs tracking-tight">
-                OB
-              </div>
+            <div className="flex items-center gap-2.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs shrink-0" title="Terminal Kasir Omah Ban">
+              <img
+                src={logoOmahBan}
+                alt="Omah Ban"
+                className="h-6 w-auto object-contain shrink-0"
+              />
+              <div className="h-5 w-px bg-slate-200 hidden sm:block shrink-0" />
               <div className="leading-tight hidden sm:block">
                 <div className="flex items-center gap-1">
                   <span className="font-extrabold text-xs text-slate-900 tracking-tight">Terminal Kasir</span>
@@ -828,63 +856,146 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           </button>
         </div>
 
-        {/* Quick Ring Chips & Brand Filter Bar (persis ProjectOmahBan ProductGrid) */}
-        {catalogTab !== 'SERVICES' && catalogTab !== 'MANUAL' && (availableRings.length > 0 || availableBrands.length > 1) && (
+        {/* Quick Ring Chips, Brand & Availability Filter Bar */}
+        {catalogTab !== 'MANUAL' && (
           <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shrink-0">
-            {/* Left: Quick Ring Pills (Hanya jika kategori memiliki ring) */}
-            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-              {availableRings.length > 0 && (
-                <>
+            {catalogTab === 'SERVICES' ? (
+              <>
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-0.5">
-                    Ring:
+                    Kategori Jasa:
                   </span>
                   <button
                     type="button"
-                    onClick={() => setSelectedRing('ALL')}
+                    onClick={() => setSelectedServiceCategory('ALL')}
                     className={`px-2.5 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                      selectedRing === 'ALL'
-                        ? 'bg-slate-900 text-white shadow-2xs'
+                      selectedServiceCategory === 'ALL'
+                        ? 'bg-cyan-700 text-white shadow-2xs'
                         : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
                     }`}
                   >
                     Semua
                   </button>
-                  {availableRings.map((r) => (
+                  {availableServiceCategories.map((sc) => (
                     <button
-                      key={r}
+                      key={sc}
                       type="button"
-                      onClick={() => setSelectedRing(selectedRing === r ? 'ALL' : r)}
+                      onClick={() => setSelectedServiceCategory(selectedServiceCategory === sc ? 'ALL' : sc)}
                       className={`px-2 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                        selectedRing === r
-                          ? 'bg-blue-600 text-white shadow-2xs ring-2 ring-blue-300'
+                        selectedServiceCategory === sc
+                          ? 'bg-cyan-600 text-white shadow-2xs'
                           : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
                       }`}
                     >
-                      {r.startsWith('R') ? r : `R${r}`}
+                      {sc.replace(/_/g, ' ')}
                     </button>
                   ))}
-                </>
-              )}
-            </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {(searchQuery || selectedServiceCategory !== 'ALL') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedServiceCategory('ALL');
+                      }}
+                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                  <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                    <b className="text-slate-900 font-mono font-black">{filteredServices.length}</b> Jasa
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Left: Quick Ring Pills */}
+                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+                  {availableRings.length > 0 && (
+                    <>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-0.5">
+                        Ring:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedRing('ALL')}
+                        className={`px-2.5 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                          selectedRing === 'ALL'
+                            ? 'bg-slate-900 text-white shadow-2xs'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        Semua
+                      </button>
+                      {availableRings.map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setSelectedRing(selectedRing === r ? 'ALL' : r)}
+                          className={`px-2 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                            selectedRing === r
+                              ? 'bg-blue-600 text-white shadow-2xs ring-2 ring-blue-300'
+                              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                        >
+                          {r.startsWith('R') ? r : `R${r}`}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
 
-            {/* Right: Brand Selector & Products Counter */}
-            <div className="flex items-center gap-2 shrink-0">
-              {availableBrands.length > 1 && (
-                <select
-                  value={selectedBrand}
-                  onChange={(e) => setSelectedBrand(e.target.value)}
-                  className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0 shadow-2xs"
-                >
-                  <option value="ALL">Semua Merk ({availableBrands.length})</option>
-                  {availableBrands.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              )}
-              <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
-                <b className="text-slate-900 font-mono font-black">{filteredProducts.length}</b> Produk
-              </span>
-            </div>
+                {/* Right: Brand, Availability Status & Counter */}
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  {availableBrands.length > 1 && (
+                    <select
+                      aria-label="Filter merek produk"
+                      value={selectedBrand}
+                      onChange={(e) => setSelectedBrand(e.target.value)}
+                      className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0 shadow-2xs"
+                    >
+                      <option value="ALL">Semua Merk ({availableBrands.length})</option>
+                      {availableBrands.map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  )}
+                  <select
+                    aria-label="Filter ketersediaan stok"
+                    value={stockFilter}
+                    onChange={(e) => setStockFilter(e.target.value as 'ALL' | 'AVAILABLE' | 'LOW' | 'OUT')}
+                    className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0 shadow-2xs"
+                  >
+                    <option value="ALL">Stok: Semua</option>
+                    <option value="AVAILABLE">Tersedia (&gt; 0)</option>
+                    <option value="LOW">Stok Menipis</option>
+                    <option value="OUT">Stok Habis (0)</option>
+                  </select>
+                  {(searchQuery || selectedRing !== 'ALL' || selectedBrand !== 'ALL' || stockFilter !== 'ALL' || catalogTab !== 'ALL') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedRing('ALL');
+                        setSelectedBrand('ALL');
+                        setStockFilter('ALL');
+                        setCatalogTab('ALL');
+                      }}
+                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reset</span>
+                    </button>
+                  )}
+                  <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                    <b className="text-slate-900 font-mono font-black">{filteredProducts.length}</b> Produk
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -900,6 +1011,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 const stockQty = p.stock || p.product_quantity || 0;
                 const isOutOfStock = stockQty <= 0;
                 const isLowStock = stockQty > 0 && stockQty <= 3;
+                const pKind = categoryKind(p.category);
 
                 return (
                   <div
@@ -919,19 +1031,19 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {p.ring && (
                             <span className="px-2 py-0.5 rounded-lg text-[11px] font-black tracking-tight bg-slate-900 text-amber-400 shadow-2xs">
-                              {p.ring}
+                              {/^R/i.test(p.ring) ? p.ring : `R${p.ring}`}
                             </span>
                           )}
                           <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                            p.category === 'BAN_BARU'
+                            pKind === 'BAN_BARU'
                               ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : p.category === 'VELG'
+                              : pKind === 'VELG'
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : p.category === 'OLI_PELUMAS'
+                              : pKind === 'OLI_PELUMAS'
                               ? 'bg-orange-50 text-orange-700 border border-orange-200'
                               : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           }`}>
-                            {p.category === 'OLI_PELUMAS' ? 'OLI & PELUMAS' : (p.category || 'BAN_BARU').replace('_', ' ')}
+                            {pKind === 'OLI_PELUMAS' ? 'OLI & PELUMAS' : (p.category || 'BAN_BARU').replace(/[_-]/g, ' ')}
                           </span>
                         </div>
 
@@ -954,12 +1066,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                         {p.product_name || p.name}
                       </h3>
 
-                      {/* Specs / Motip */}
+                      {/* Specs / Motif */}
                       <div className="text-[11px] text-slate-500 mt-1 font-medium line-clamp-1">
-                        {p.category === 'BAN_BARU' && `${p.product_size || ''} ${p.motif ? `• ${p.motif}` : ''}`}
-                        {p.category === 'VELG' && `${p.ring || ''} | PCD ${p.pcd || ''} | ${p.color_finish || ''}`}
-                        {p.category === 'OLI_PELUMAS' && `${p.product_size || ''} ${p.motif ? `• ${p.motif}` : ''}`}
-                        {p.category === 'BAN_DALAM' && `${p.product_size || p.size_ratio || ''} | ${p.valve_type || ''}`}
+                        {pKind === 'BAN_BARU' && `${p.brand ? `${p.brand} • ` : ''}${p.product_size || (p.size_width && p.size_ratio ? `${p.size_width}/${p.size_ratio} R${String(p.ring || '').replace(/^R/i, '')}` : '')} ${p.motif && p.motif !== '-' ? `• ${p.motif}` : ''}`.trim()}
+                        {pKind === 'VELG' && `${p.brand ? `${p.brand} • ` : ''}${p.ring || ''} ${p.pcd ? `| PCD ${p.pcd}` : ''} ${p.color_finish ? `| ${p.color_finish}` : ''}`.trim()}
+                        {pKind === 'OLI_PELUMAS' && `${p.brand ? `${p.brand} • ` : ''}${p.product_size || ''} ${p.motif && p.motif !== '-' ? `• ${p.motif}` : ''}`.trim()}
+                        {pKind === 'BAN_DALAM' && `${p.brand ? `${p.brand} • ` : ''}${p.product_size || p.size_ratio || ''} ${p.valve_type ? `| ${p.valve_type}` : ''}`.trim()}
+                        {(pKind === 'AKSESORIS' || pKind === 'LAINNYA') && `${p.brand ? `${p.brand} ` : ''}${p.motif && p.motif !== '-' ? `• ${p.motif}` : p.product_code || ''}`.trim()}
                       </div>
                     </div>
 
@@ -1030,13 +1143,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                       Tidak ada item yang cocok dengan kombinasi filter tab, ukuran Ring ({selectedRing}), merk, atau kata kunci pencarian &quot;{searchQuery}&quot;.
                     </p>
                   </div>
-                  {(searchQuery || selectedRing !== 'ALL' || selectedBrand !== 'ALL' || catalogTab !== 'ALL') && (
+                  {(searchQuery || selectedRing !== 'ALL' || selectedBrand !== 'ALL' || stockFilter !== 'ALL' || catalogTab !== 'ALL') && (
                     <button
                       type="button"
                       onClick={() => {
                         setSearchQuery('');
                         setSelectedRing('ALL');
                         setSelectedBrand('ALL');
+                        setStockFilter('ALL');
                         setCatalogTab('ALL');
                       }}
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
@@ -1200,6 +1314,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
               const activePrice = item.custom_price ?? standardPrice;
               const lineTotal = Math.max(0, (activePrice - item.discount_per_item) * item.qty);
               const displayName = item.custom_name_override || (item.item_type === 'SERVICE' && item.service ? item.service.service_name : item.product?.product_name);
+              const cartKind = item.item_type === 'SERVICE' ? 'JASA' : categoryKind(item.product?.category);
+              const cartSubSpec = item.item_type === 'SERVICE'
+                ? item.service?.service_code
+                : [item.product?.product_code, item.product?.product_size].filter(Boolean).join(' • ');
 
               return (
                 <div
@@ -1209,29 +1327,35 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md ${
-                          item.item_type === 'SERVICE'
+                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md shrink-0 ${
+                          cartKind === 'JASA'
                             ? 'bg-cyan-50 text-cyan-800 border border-cyan-200'
-                            : item.product?.category === 'VELG'
+                            : cartKind === 'VELG'
                             ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                            : item.product?.category === 'OLI_PELUMAS'
+                            : cartKind === 'OLI_PELUMAS'
                             ? 'bg-orange-50 text-orange-800 border border-orange-200'
-                            : item.product?.category === 'BAN_DALAM'
+                            : cartKind === 'BAN_DALAM'
                             ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                             : 'bg-blue-50 text-blue-800 border border-blue-200'
                         }`}>
-                          {item.item_type === 'SERVICE' ? 'JASA' : item.product?.category === 'OLI_PELUMAS' ? 'OLI' : (item.product?.category || 'BAN_BARU').replace('_', ' ')}
+                          {cartKind === 'JASA' ? 'JASA' : cartKind === 'OLI_PELUMAS' ? 'OLI' : (item.product?.category || 'BAN_BARU').replace(/[_-]/g, ' ')}
                         </span>
                         <h4 className="text-xs font-bold text-slate-900 truncate">{displayName}</h4>
                       </div>
 
-                      <div className="text-xs text-slate-600 flex items-center gap-2 mt-0.5">
+                      {cartSubSpec && (
+                        <div className="text-[10px] text-slate-500 font-mono truncate mt-0.5">
+                          {cartSubSpec}
+                        </div>
+                      )}
+
+                      <div className="text-xs text-slate-600 flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className="font-mono">{formatRupiah(activePrice)}</span>
                         {item.discount_per_item > 0 && (
-                          <span className="text-amber-700 font-bold font-mono">Disc: -{formatRupiah(item.discount_per_item)}</span>
+                          <span className="text-amber-700 font-bold font-mono">Disc: -{formatRupiah(item.discount_per_item)}/unit</span>
                         )}
-                        {item.custom_price && (
-                          <span className="text-blue-700 text-[10px] font-bold">(Custom)</span>
+                        {item.custom_price !== undefined && item.custom_price !== standardPrice && (
+                          <span className="text-blue-700 text-[10px] font-bold">(Harga Custom)</span>
                         )}
                       </div>
 
@@ -1243,10 +1367,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                     <button
                       type="button"
                       onClick={() => setEditLineIndex(idx)}
-                      title="Edit Detail Baris (Harga/Diskon/Catatan)"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 cursor-pointer transition-colors"
+                      title="Edit Detail Baris (Qty, Harga, Diskon, Nama Struk, Catatan)"
+                      className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shrink-0"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      <Edit3 className="w-3 h-3" />
+                      <span>Edit</span>
                     </button>
                   </div>
 

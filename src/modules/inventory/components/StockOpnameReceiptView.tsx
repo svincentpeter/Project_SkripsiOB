@@ -33,9 +33,19 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'MASUK' | 'KELUAR' | 'PENYESUAIAN'>('ALL');
+  const [productFilter, setProductFilter] = useState<string>('ALL');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
 
   const filteredMutations = mutations.filter((m) => {
     const matchesType = typeFilter === 'ALL' || mutationKind(m) === typeFilter;
+
+    const mutProductId = String(m.product_id || m.tire_id || '');
+    const matchesProduct = productFilter === 'ALL' || mutProductId === productFilter;
+
+    const rawDate = (m.date || (m as any).created_at || '').slice(0, 10);
+    const matchesDateFrom = !dateFrom || (rawDate !== '' && rawDate >= dateFrom);
+    const matchesDateTo = !dateTo || (rawDate !== '' && rawDate <= dateTo);
 
     const q = searchQuery.toLowerCase().trim();
     const productName = (m.product_name || m.tire_name || '').toLowerCase();
@@ -50,16 +60,21 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
       notes.includes(q) ||
       operator.includes(q);
 
-    return matchesType && matchesSearch;
+    return matchesType && matchesProduct && matchesDateFrom && matchesDateTo && matchesSearch;
   });
 
   const countMasuk = mutations.filter((m) => mutationKind(m) === 'MASUK').length;
   const countKeluar = mutations.filter((m) => mutationKind(m) === 'KELUAR').length;
   const countOpname = mutations.filter((m) => mutationKind(m) === 'PENYESUAIAN').length;
 
+  const isFiltered = searchQuery !== '' || typeFilter !== 'ALL' || productFilter !== 'ALL' || dateFrom !== '' || dateTo !== '';
+
   const handleResetFilters = () => {
     setSearchQuery('');
     setTypeFilter('ALL');
+    setProductFilter('ALL');
+    setDateFrom('');
+    setDateTo('');
   };
 
   return (
@@ -114,55 +129,109 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
         </div>
 
         {/* Filter and Search Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Cari produk, no ref, atau operator..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-            />
+        <div className="space-y-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5">
+            <div className="relative sm:col-span-2 lg:col-span-4">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Cari produk, no ref, keterangan, operator..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              />
+            </div>
+
+            <div className="lg:col-span-4">
+              <select
+                aria-label="Filter produk mutasi"
+                value={productFilter}
+                onChange={(e) => setProductFilter(e.target.value)}
+                className="w-full py-2 px-3 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="ALL">Semua Produk SKU ({products.length})</option>
+                {products.map((p) => (
+                  <option key={p.id} value={String(p.id)}>
+                    {p.product_name || p.name} ({p.product_code})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="lg:col-span-2">
+              <input
+                type="date"
+                aria-label="Dari tanggal mutasi"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                title="Dari tanggal"
+                className="w-full py-1.5 px-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="lg:col-span-2">
+              <input
+                type="date"
+                aria-label="Sampai tanggal mutasi"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                title="Sampai tanggal"
+                className="w-full py-1.5 px-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold w-full sm:w-auto justify-between gap-1">
-            <button
-              type="button"
-              onClick={() => setTypeFilter('ALL')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                typeFilter === 'ALL' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Semua Mutasi ({mutations.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('MASUK')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                typeFilter === 'MASUK' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Masuk ({countMasuk})
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('KELUAR')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                typeFilter === 'KELUAR' ? 'bg-white text-rose-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Keluar ({countKeluar})
-            </button>
-            <button
-              type="button"
-              onClick={() => setTypeFilter('PENYESUAIAN')}
-              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                typeFilter === 'PENYESUAIAN' ? 'bg-white text-amber-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Penyesuaian ({countOpname})
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold w-full sm:w-auto justify-between gap-1 overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setTypeFilter('ALL')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  typeFilter === 'ALL' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Semua Mutasi ({mutations.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTypeFilter('MASUK')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  typeFilter === 'MASUK' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Masuk ({countMasuk})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTypeFilter('KELUAR')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  typeFilter === 'KELUAR' ? 'bg-white text-rose-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Keluar ({countKeluar})
+              </button>
+              <button
+                type="button"
+                onClick={() => setTypeFilter('PENYESUAIAN')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                  typeFilter === 'PENYESUAIAN' ? 'bg-white text-amber-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Penyesuaian ({countOpname})
+              </button>
+            </div>
+
+            {isFiltered && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset Filter</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -196,7 +265,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
                             ? 'Riwayat penerimaan barang, penjualan kasir, dan penyesuaian opname fisik akan tercatat di sini.' 
                             : 'Coba ubah kata kunci pencarian atau ganti filter kategori mutasi.'}
                         </p>
-                        {(searchQuery || typeFilter !== 'ALL') && (
+                        {isFiltered && (
                           <button
                             type="button"
                             onClick={handleResetFilters}

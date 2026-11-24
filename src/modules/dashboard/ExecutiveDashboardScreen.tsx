@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { lowStockProducts as lowStockOf } from '../../shared/utils/stockAlert';
+import { categoryKind } from '../../shared/utils/categoryKind';
 import { 
   Home, 
   ChevronDown, 
@@ -26,7 +27,8 @@ import {
   QrCode,
   Building2,
   Tag,
-  Package
+  Package,
+  Search
 } from 'lucide-react';
 import { PosTransaction } from '../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../shared/utils/formatters';
@@ -58,6 +60,12 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'sales' | 'inventory'>('overview');
   const [hoveredDayIdx, setHoveredDayIdx] = useState<number | null>(null);
+  const [txSearch, setTxSearch] = useState('');
+  const [txMethodFilter, setTxMethodFilter] = useState<string>('ALL');
+  const [txStatusFilter, setTxStatusFilter] = useState<'ALL' | 'LUNAS' | 'VOID'>('ALL');
+  const [lowStockSearch, setLowStockSearch] = useState('');
+  const [lowStockBrandFilter, setLowStockBrandFilter] = useState<string>('ALL');
+  const [lowStockStatusFilter, setLowStockStatusFilter] = useState<'ALL' | 'OUT' | 'LOW'>('ALL');
 
   // Angka uang dari rekap harian server (jurnal POSTED, tanggal lokal WIB):
   // nota VOID, retur dan biaya VOID sudah dibalik di tanggal pembatalannya.
@@ -85,6 +93,57 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
   const lowStockProducts = lowStockOf(products);
 
   const outOfStockProducts = activeProducts.filter((p) => (p.product_quantity ?? p.stock ?? 0) <= 0);
+
+  const filteredRecentTx = useMemo(() => {
+    const q = txSearch.toLowerCase().trim();
+    return transactions.filter((tx) => {
+      const isVoid = tx.status === 'VOID' || !!tx.is_voided;
+      if (txStatusFilter === 'VOID' && !isVoid) return false;
+      if (txStatusFilter === 'LUNAS' && isVoid) return false;
+      if (txMethodFilter !== 'ALL') {
+        if (txMethodFilter === 'TRANSFER') {
+          if (tx.payment_method !== 'TRANSFER' && tx.payment_method !== 'TRANSFER_BCA') return false;
+        } else if (tx.payment_method !== txMethodFilter) {
+          return false;
+        }
+      }
+      if (q) {
+        return (
+          (tx.invoice_number || '').toLowerCase().includes(q) ||
+          (tx.customer_name || '').toLowerCase().includes(q) ||
+          (tx.vehicle_plate || '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [transactions, txSearch, txMethodFilter, txStatusFilter]);
+
+  const lowStockBrands = useMemo(() => {
+    const set = new Set<string>();
+    lowStockProducts.forEach((p) => {
+      if (p.brand) set.add(p.brand);
+    });
+    return Array.from(set).sort();
+  }, [lowStockProducts]);
+
+  const filteredLowStockProducts = useMemo(() => {
+    const q = lowStockSearch.toLowerCase().trim();
+    return lowStockProducts.filter((p) => {
+      const qty = p.product_quantity ?? p.stock ?? 0;
+      if (lowStockStatusFilter === 'OUT' && qty > 0) return false;
+      if (lowStockStatusFilter === 'LOW' && qty <= 0) return false;
+      if (lowStockBrandFilter !== 'ALL' && p.brand !== lowStockBrandFilter) return false;
+      if (q) {
+        return (
+          (p.product_name || p.name || '').toLowerCase().includes(q) ||
+          (p.product_code || '').toLowerCase().includes(q) ||
+          (p.brand || '').toLowerCase().includes(q) ||
+          (p.product_size || p.size || '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [lowStockProducts, lowStockSearch, lowStockBrandFilter, lowStockStatusFilter]);
 
   // 4. Nilai persediaan FIFO dari server (Σ sisa batch × harga batch), bukan stok × harga beli terakhir
   const totalInventoryValue = inventoryValuation?.fifo_value ?? null;
@@ -861,9 +920,55 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
           {/* Recent Transactions Table */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-extrabold text-sm text-slate-900">Riwayat Transaksi Terkini</h3>
-              <span className="text-xs text-slate-500 font-semibold">{transactions.length} Nota Kasir</span>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="relative min-w-[180px]">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={txSearch}
+                    onChange={(e) => setTxSearch(e.target.value)}
+                    placeholder="Cari no nota, pelanggan, plat..."
+                    className="pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <select
+                  aria-label="Filter metode bayar transaksi dashboard"
+                  value={txMethodFilter}
+                  onChange={(e) => setTxMethodFilter(e.target.value)}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+                >
+                  <option value="ALL">Metode: Semua</option>
+                  <option value="TUNAI">Tunai</option>
+                  <option value="TRANSFER">Transfer</option>
+                  <option value="QRIS">QRIS</option>
+                  <option value="SPLIT">Split</option>
+                </select>
+                <select
+                  aria-label="Filter status transaksi dashboard"
+                  value={txStatusFilter}
+                  onChange={(e) => setTxStatusFilter(e.target.value as 'ALL' | 'LUNAS' | 'VOID')}
+                  className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+                >
+                  <option value="ALL">Status: Semua ({transactions.length})</option>
+                  <option value="LUNAS">LUNAS</option>
+                  <option value="VOID">VOID</option>
+                </select>
+                {(txSearch || txMethodFilter !== 'ALL' || txStatusFilter !== 'ALL') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTxSearch('');
+                      setTxMethodFilter('ALL');
+                      setTxStatusFilter('ALL');
+                    }}
+                    className="px-2.5 py-1.5 font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="w-full overflow-hidden rounded-xl border border-slate-200">
@@ -880,7 +985,10 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {transactions.slice(0, 8).map((tx) => (
+                    {filteredRecentTx.length === 0 ? (
+                      <tr><td colSpan={6} className="py-6 text-center text-slate-400">Tidak ada transaksi yang cocok dengan filter.</td></tr>
+                    ) : (
+                    filteredRecentTx.slice(0, 12).map((tx) => (
                       <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-2 px-3 font-mono font-bold text-blue-700">{tx.invoice_number}</td>
                         <td className="py-2 px-3 text-slate-600 font-medium">{tx.date} • {tx.timestamp || '10:30'}</td>
@@ -908,7 +1016,8 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                           {formatRupiah(tx.total_amount ?? tx.grand_total)}
                         </td>
                       </tr>
-                    ))}
+                    ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -930,7 +1039,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                 <span className="text-blue-700">Kategori Utama</span>
               </div>
               <div className="text-xl font-black text-slate-900 font-mono">
-                {products.filter((p) => (p.category || 'BAN_BARU') === 'BAN_BARU').length} SKU
+                {products.filter((p) => categoryKind(p.category) === 'BAN_BARU').length} SKU
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
                 Bridgestone, Accelera, Dunlop, Forceum, GT Radial, Hankook
@@ -943,7 +1052,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                 <span className="text-amber-700">Aksesoris Roda</span>
               </div>
               <div className="text-xl font-black text-slate-900 font-mono">
-                {products.filter((p) => p.category === 'VELG').length} SKU
+                {products.filter((p) => categoryKind(p.category) === 'VELG').length} SKU
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
                 Velg Ring 14 hingga Ring 18 (PCD 4x100, 5x114.3)
@@ -952,11 +1061,11 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
               <div className="flex items-center justify-between text-xs font-bold text-slate-600 mb-1">
-                <span>Ban Dalam & Flap</span>
+                <span>Ban Dalam &amp; Flap</span>
                 <span className="text-emerald-700">Komponen Ban</span>
               </div>
               <div className="text-xl font-black text-slate-900 font-mono">
-                {products.filter((p) => p.category === 'BAN_DALAM').length} SKU
+                {products.filter((p) => categoryKind(p.category) === 'BAN_DALAM').length} SKU
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
                 Ban dalam truk/niaga dan mobil penumpang
@@ -966,7 +1075,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
 
           {/* Detailed Reorder & Stock Health List */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                   <Truck className="w-4 h-4 text-blue-600" />
@@ -986,6 +1095,53 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
               </button>
             </div>
 
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="relative flex-1 min-w-[180px]">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={lowStockSearch}
+                  onChange={(e) => setLowStockSearch(e.target.value)}
+                  placeholder="Cari produk, ukuran, kode SKU..."
+                  className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-500 outline-none"
+                />
+              </div>
+              <select
+                aria-label="Filter merek restock prioritas"
+                value={lowStockBrandFilter}
+                onChange={(e) => setLowStockBrandFilter(e.target.value)}
+                className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+              >
+                <option value="ALL">Merek: Semua ({lowStockBrands.length})</option>
+                {lowStockBrands.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+              <select
+                aria-label="Filter status stok restock prioritas"
+                value={lowStockStatusFilter}
+                onChange={(e) => setLowStockStatusFilter(e.target.value as 'ALL' | 'OUT' | 'LOW')}
+                className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+              >
+                <option value="ALL">Status: Semua ({lowStockProducts.length})</option>
+                <option value="OUT">Stok Habis (0)</option>
+                <option value="LOW">Stok Menipis (&gt; 0)</option>
+              </select>
+              {(lowStockSearch || lowStockBrandFilter !== 'ALL' || lowStockStatusFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLowStockSearch('');
+                    setLowStockBrandFilter('ALL');
+                    setLowStockStatusFilter('ALL');
+                  }}
+                  className="px-2.5 py-1.5 font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+
             <div className="w-full overflow-hidden rounded-xl border border-slate-200">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[580px] text-xs text-left border-collapse">
@@ -1000,7 +1156,10 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {lowStockProducts.map((p) => (
+                    {filteredLowStockProducts.length === 0 ? (
+                      <tr><td colSpan={6} className="py-6 text-center text-slate-400">Tidak ada produk yang cocok dengan filter.</td></tr>
+                    ) : (
+                    filteredLowStockProducts.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-2 px-3">
                           <div className="font-bold text-slate-900">{p.product_name || p.name}</div>
@@ -1031,7 +1190,8 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    ))
+                    )}
                   </tbody>
                 </table>
               </div>

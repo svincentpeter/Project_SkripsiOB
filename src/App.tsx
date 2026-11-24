@@ -788,7 +788,7 @@ function MainAppContent() {
       await handleUpdateProduct(productId, { is_active: true });
       return;
     }
-    if (!window.confirm(`Hapus atau nonaktifkan produk ${target.product_name}?`)) return;
+    if (!window.confirm(`Hapus produk ${target.product_name}? (Jika sudah memiliki riwayat stok/penjualan, produk akan dinonaktifkan agar histori tetap aman.)`)) return;
     try {
       const res = await inventoryApi.deleteProduct(productId);
       handleRefreshProducts();
@@ -935,9 +935,9 @@ function MainAppContent() {
 
   if (authChecking) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-3 text-slate-300">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
-        <span className="text-sm font-semibold">Memeriksa sesi login...</span>
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center gap-3 text-slate-600 font-['Plus_Jakarta_Sans',sans-serif]">
+        <Loader2 className="w-7 h-7 motion-safe:animate-spin text-blue-600" />
+        <span className="text-sm font-semibold text-slate-700">Memeriksa sesi login...</span>
       </div>
     );
   }

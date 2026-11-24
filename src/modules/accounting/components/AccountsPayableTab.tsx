@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   CreditCard, 
   Search, 
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { DebtPaymentInput, PayableInvoice } from '../../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
+import { localDate } from '../../../services/accountingPeriod';
 import { PayDebtModal } from './PayDebtModal';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
 
@@ -27,8 +28,21 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
   onPayDebt,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'UNPAID' | 'PAID'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'UNPAID' | 'OVERDUE' | 'PAID'>('ALL');
+  const [supplierFilter, setSupplierFilter] = useState<string>('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [selectedInvoiceForPay, setSelectedInvoiceForPay] = useState<PayableInvoice | null>(null);
+
+  const uniqueSuppliers = useMemo(() => {
+    const set = new Set<string>();
+    invoices.forEach((i) => {
+      if (i.supplier_name) set.add(i.supplier_name);
+    });
+    return Array.from(set).sort();
+  }, [invoices]);
+
+  const todayStr = localDate();
 
   const filteredInvoices = invoices.filter((inv) => {
     const q = searchQuery.toLowerCase().trim();
@@ -38,12 +52,21 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
       inv.supplier_name.toLowerCase().includes(q) ||
       (inv.notes && inv.notes.toLowerCase().includes(q));
 
+    const isOverdue = inv.status !== 'LUNAS' && !!inv.due_date && inv.due_date < todayStr;
     let matchesStatus = true;
     if (statusFilter === 'UNPAID') matchesStatus = inv.status !== 'LUNAS';
+    if (statusFilter === 'OVERDUE') matchesStatus = isOverdue;
     if (statusFilter === 'PAID') matchesStatus = inv.status === 'LUNAS';
 
-    return matchesQuery && matchesStatus;
+    const matchesSupplier = supplierFilter === 'ALL' || inv.supplier_name === supplierFilter;
+    const invDate = (inv.date || '').slice(0, 10);
+    const matchesFrom = !dateFrom || (invDate !== '' && invDate >= dateFrom);
+    const matchesTo = !dateTo || (invDate !== '' && invDate <= dateTo);
+
+    return matchesQuery && matchesStatus && matchesSupplier && matchesFrom && matchesTo;
   });
+
+  const overdueCount = invoices.filter((i) => i.status !== 'LUNAS' && !!i.due_date && i.due_date < todayStr).length;
 
   const totalInvoiced = invoices.reduce((acc, i) => acc + i.total_amount, 0);
   const totalPaid = invoices.reduce((acc, i) => acc + i.paid_amount, 0);
@@ -68,7 +91,7 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <ExportMenu reportId="accounts_payable" data={invoices} ctx={{ periodLabel: 'Seluruh Periode' }} />
+            <ExportMenu reportId="accounts_payable" data={filteredInvoices} ctx={{ periodLabel: 'Filter Periode' }} />
           </div>
         </div>
 
@@ -117,43 +140,110 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
 
 
         {/* Filter and Search Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 text-xs">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Cari distributor atau nomor faktur..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
-            />
+        <div className="space-y-2.5 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5">
+            <div className="relative sm:col-span-2 lg:col-span-4">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Cari distributor, catatan, atau nomor faktur..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 font-medium focus-ring placeholder:text-slate-400 placeholder:font-light"
+              />
+            </div>
+
+            <div className="lg:col-span-4">
+              <select
+                aria-label="Filter supplier hutang"
+                value={supplierFilter}
+                onChange={(e) => setSupplierFilter(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-slate-700 font-semibold"
+              >
+                <option value="ALL">Semua Distributor ({uniqueSuppliers.length})</option>
+                {uniqueSuppliers.map((sup) => (
+                  <option key={sup} value={sup}>{sup}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="lg:col-span-2">
+              <input
+                type="date"
+                aria-label="Dari tanggal faktur"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-slate-700 font-semibold"
+              />
+            </div>
+
+            <div className="lg:col-span-2">
+              <input
+                type="date"
+                aria-label="Sampai tanggal faktur"
+                value={dateTo}
+                min={dateFrom || undefined}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-xl text-slate-700 font-semibold"
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs">
-            <button
-              onClick={() => setStatusFilter('ALL')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                statusFilter === 'ALL' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Semua ({invoices.length})
-            </button>
-            <button
-              onClick={() => setStatusFilter('UNPAID')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                statusFilter === 'UNPAID' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Belum Lunas ({unpaidCount})
-            </button>
-            <button
-              onClick={() => setStatusFilter('PAID')}
-              className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                statusFilter === 'PAID' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Lunas ({invoices.length - unpaidCount})
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setStatusFilter('ALL')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === 'ALL' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Semua ({invoices.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('UNPAID')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === 'UNPAID' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Belum Lunas ({unpaidCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('OVERDUE')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === 'OVERDUE' ? 'bg-white text-rose-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Jatuh Tempo ({overdueCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter('PAID')}
+                className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  statusFilter === 'PAID' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Lunas ({invoices.length - unpaidCount})
+              </button>
+            </div>
+
+            {(searchQuery || statusFilter !== 'ALL' || supplierFilter !== 'ALL' || dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('ALL');
+                  setSupplierFilter('ALL');
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+                className="px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl cursor-pointer"
+              >
+                Reset Filter
+              </button>
+            )}
           </div>
         </div>
 
@@ -185,12 +275,15 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
                           ? 'Belum ada faktur hutang dagang tersimpan di database.'
                           : 'Belum ada faktur yang cocok dengan pencarian / filter ini.'}
                       </span>
-                      {(searchQuery || statusFilter !== 'ALL') && (
+                      {(searchQuery || statusFilter !== 'ALL' || supplierFilter !== 'ALL' || dateFrom || dateTo) && (
                         <button
                           type="button"
                           onClick={() => {
                             setSearchQuery('');
                             setStatusFilter('ALL');
+                            setSupplierFilter('ALL');
+                            setDateFrom('');
+                            setDateTo('');
                           }}
                           className="mt-2 px-3 py-1 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors cursor-pointer"
                         >

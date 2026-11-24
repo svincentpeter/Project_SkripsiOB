@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile>
+  <diagram id="seqlayout" name="Sequence Diagram Stock Opname dan InventoryValueJournal">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0" background="#ffffff">
+      <root>
+        <mxCell id="0" style="" />
+        <mxCell id="1" parent="0" style="" />
+        <mxCell id="gudang" value="Staf Gudang" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=48;participant=umlActor;verticalAlign=bottom;spacingBottom=-18;labelBackgroundColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="68.0" y="40" width="44" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="fe" value="Frontend React&#10;(Menu Stock Opname)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="374.0" y="40" width="152" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="api" value="Laravel API&#10;(StockOpnameService)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="734.0" y="40" width="152" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="ivj" value="InventoryValueJournal&#10;&amp; AccountingEngine" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1094.0" y="40" width="152" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="db" value="Database&#10;MySQL" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=46;spacing=4;fontStyle=1;fillColor=#fafafa;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1454.0" y="40" width="152" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="act0" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="ivj">
+          <mxGeometry x="71.0" y="240" width="10" height="270" as="geometry" />
+        </mxCell>
+        <mxCell id="act1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="api">
+          <mxGeometry x="71.0" y="140" width="10" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="act2" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="fe">
+          <mxGeometry x="71.0" y="90" width="10" height="520" as="geometry" />
+        </mxCell>
+        <mxCell id="act3" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;fillColor=#ffffff;" vertex="1" parent="db">
+          <mxGeometry x="71.0" y="190" width="10" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="m0" value="1. Input jumlah stok fisik hasil hitung gudang &amp; catatan" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=0.5;exitY=0.1286;entryX=0;entryY=0.0;" edge="1" parent="1" source="gudang" target="act2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m1" value="2. POST /inventory/stock-opname (permission: stock_opname)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.0962;entryX=0;entryY=0.0;" edge="1" parent="1" source="act2" target="act1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m2" value="3. Lock baris products &amp; product_batches (sorted by id)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.119;entryX=0;entryY=0.0;" edge="1" parent="1" source="act1" target="act3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m3" value="4. record(): hitung nilai FIFO sebelum opname" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.2381;entryX=0;entryY=0.0;" edge="1" parent="1" source="act1" target="act0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m4" value="5. Sesuaikan batch FIFO (kurang: potong tertua; lebih: batch surplus)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.3571;entryX=1;entryY=0.4286;" edge="1" parent="1" source="act1" target="act1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points"><mxPoint x="870" y="330" /><mxPoint x="870" y="360" /></Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m5" value="6. Update product_quantity, product_batches &amp; stock_movements (OPN)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.5238;entryX=0;entryY=0.3617;" edge="1" parent="1" source="act1" target="act3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m6" value="7. Hitung nilai FIFO setelah opname &amp; selisih rupiah" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.6429;entryX=0;entryY=0.6296;" edge="1" parent="1" source="act1" target="act0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m7" value="8. Jika selisih ≠ 0: posting jurnal STOCK_OPNAME (1-2000 ↔ 5-2000)" style="html=1;verticalAlign=bottom;endArrow=block;curved=0;rounded=0;exitX=1;exitY=0.8148;entryX=0;entryY=0.5745;" edge="1" parent="1" source="act0" target="act3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m8" value="9. Kembalikan jurnal penyesuaian &amp; ringkasan valuasi" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=1;entryY=0.881;" edge="1" parent="1" source="act0" target="act1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m9" value="10. 200 OK {opname_ref, adjustments, journal}" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=1;entryY=0.9038;" edge="1" parent="1" source="act1" target="act2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m10" value="11. Tampilkan bukti opname (OPN) &amp; sinkronkan 1-2000 = FIFO" style="html=1;verticalAlign=bottom;endArrow=open;dashed=1;curved=0;rounded=0;strokeColor=#555555;fontColor=#444444;exitX=0;exitY=1.0;entryX=0.5;entryY=0.8714;" edge="1" parent="1" source="act2" target="gudang">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

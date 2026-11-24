@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getShortCategoryName } from '../PosScreen';
+import { buildAutoProductName } from '../components/CartLineEditModal';
+import { categoryKind } from '../../../shared/utils/categoryKind';
 
 describe('getShortCategoryName', () => {
   it('shortens tire categories to "Ban"', () => {
@@ -30,5 +32,41 @@ describe('getShortCategoryName', () => {
 
   it('handles unknown or custom categories cleanly and concisely', () => {
     expect(getShortCategoryName('CUSTOM', 'Busi Racing & Filter')).toBe('Busi');
+  });
+});
+
+describe('buildAutoProductName for POS CartLineEditModal', () => {
+  it('detects BAN-MOBIL as BAN_BARU and builds detailed tire name without double R prefix', () => {
+    const kind = categoryKind('BAN-MOBIL');
+    expect(kind).toBe('BAN_BARU');
+    expect(
+      buildAutoProductName(kind, {
+        brand: 'Accelera',
+        motif: 'SemiSlick',
+        sizeWidth: '195',
+        sizeRatio: '50',
+        ring: '15',
+        dotYear: '2026',
+      }),
+    ).toBe('Ban Accelera SemiSlick 195/50 R15 (DOT 2026)');
+  });
+
+  it('builds detailed VELG and BAN_DALAM names', () => {
+    expect(
+      buildAutoProductName(categoryKind('VELG'), {
+        brand: 'HSR',
+        motif: 'Myth01',
+        ring: 'R17',
+        pcd: '4x100',
+      }),
+    ).toBe('Velg HSR Myth01 R17 PCD 4x100');
+
+    expect(
+      buildAutoProductName(categoryKind('BAN_DALAM'), {
+        brand: 'GTRadial',
+        sizeRatio: '14',
+        valveType: 'TR13',
+      }),
+    ).toBe('Ban Dalam GTRadial 14 (TR13)');
   });
 });

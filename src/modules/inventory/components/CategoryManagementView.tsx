@@ -38,6 +38,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [usageFilter, setUsageFilter] = useState<'ALL' | 'USED' | 'EMPTY'>('ALL');
   
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -81,9 +82,14 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
         (statusFilter === 'ACTIVE' && cat.is_active) ||
         (statusFilter === 'INACTIVE' && !cat.is_active);
 
-      return matchesSearch && matchesStatus;
+      const matchesUsage =
+        usageFilter === 'ALL' ||
+        (usageFilter === 'USED' && (cat.product_count ?? 0) > 0) ||
+        (usageFilter === 'EMPTY' && (cat.product_count ?? 0) === 0);
+
+      return matchesSearch && matchesStatus && matchesUsage;
     });
-  }, [categoriesWithCounts, searchQuery, statusFilter]);
+  }, [categoriesWithCounts, searchQuery, statusFilter, usageFilter]);
 
   const handleOpenCreate = () => {
     setModalMode('CREATE');
@@ -216,10 +222,20 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-xs text-slate-500 font-semibold hidden sm:inline">Status:</span>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <select
+              aria-label="Filter penggunaan kategori"
+              value={usageFilter}
+              onChange={(e) => setUsageFilter(e.target.value as 'ALL' | 'USED' | 'EMPTY')}
+              className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="ALL">Produk: Semua</option>
+              <option value="USED">Ada Produk (&gt; 0 SKU)</option>
+              <option value="EMPTY">Kosong (0 SKU)</option>
+            </select>
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-semibold w-full sm:w-auto justify-between">
               <button
+                type="button"
                 onClick={() => setStatusFilter('ALL')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === 'ALL' ? 'bg-white text-blue-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
@@ -228,6 +244,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                 Semua ({categories.length})
               </button>
               <button
+                type="button"
                 onClick={() => setStatusFilter('ACTIVE')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === 'ACTIVE' ? 'bg-white text-emerald-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
@@ -236,6 +253,7 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                 Aktif ({categories.filter((c) => c.is_active).length})
               </button>
               <button
+                type="button"
                 onClick={() => setStatusFilter('INACTIVE')}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === 'INACTIVE' ? 'bg-white text-rose-700 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
@@ -244,6 +262,19 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                 Nonaktif ({categories.filter((c) => !c.is_active).length})
               </button>
             </div>
+            {(searchQuery || statusFilter !== 'ALL' || usageFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('ALL');
+                  setUsageFilter('ALL');
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-xs font-bold cursor-pointer"
+              >
+                Reset
+              </button>
+            )}
           </div>
         </div>
 

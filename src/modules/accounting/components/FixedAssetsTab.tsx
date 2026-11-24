@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CalendarCheck, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { CalendarCheck, Plus, Search, Trash2 } from 'lucide-react';
 import type { ApiJournal } from '../../../services/api';
 import { sakEmkmApi } from '../../../services/api/sakEmkmApi';
 import { currentMonth, monthLabel } from '../../../services/accountingPeriod';
@@ -22,7 +22,35 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
   const [period, setPeriod] = useState(currentMonth());
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [running, setRunning] = useState(false);
+  const [assetSearch, setAssetSearch] = useState('');
+  const [assetStatusFilter, setAssetStatusFilter] = useState<'ALL' | 'ACTIVE' | 'VOID'>('ALL');
+  const [assetCategoryFilter, setAssetCategoryFilter] = useState<string>('ALL');
   const register = useServerData(() => sakEmkmApi.fixedAssets(), [refreshKey]);
+
+  const assetCategories = useMemo(() => {
+    const cats = new Set<string>();
+    register.data?.assets.forEach((a) => {
+      if (a.category_label) cats.add(a.category_label);
+    });
+    return Array.from(cats).sort();
+  }, [register.data]);
+
+  const filteredAssets = useMemo(() => {
+    const assets = register.data?.assets ?? [];
+    const q = assetSearch.toLowerCase().trim();
+    return assets.filter((a) => {
+      if (assetStatusFilter !== 'ALL' && a.status !== assetStatusFilter) return false;
+      if (assetCategoryFilter !== 'ALL' && a.category_label !== assetCategoryFilter) return false;
+      if (q) {
+        return (
+          a.code.toLowerCase().includes(q) ||
+          a.name.toLowerCase().includes(q) ||
+          (a.category_label ?? '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [register.data, assetSearch, assetStatusFilter, assetCategoryFilter]);
   const preview = useServerData(() => sakEmkmApi.depreciationPreview(period), [period, refreshKey]);
   const reloadAll = () => {
     register.reload();
@@ -177,6 +205,55 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
       </section>
 
       {register.data && (
+        <>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={assetSearch}
+              onChange={(e) => setAssetSearch(e.target.value)}
+              placeholder="Cari kode atau nama aset tetap..."
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:border-blue-500 outline-none"
+            />
+          </div>
+          {assetCategories.length > 0 && (
+            <select
+              aria-label="Filter kategori aset tetap"
+              value={assetCategoryFilter}
+              onChange={(e) => setAssetCategoryFilter(e.target.value)}
+              className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+            >
+              <option value="ALL">Kategori: Semua</option>
+              {assetCategories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          )}
+          <select
+            aria-label="Filter status aset tetap"
+            value={assetStatusFilter}
+            onChange={(e) => setAssetStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'VOID')}
+            className="px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white font-semibold text-slate-700"
+          >
+            <option value="ALL">Status: Semua ({register.data.assets.length})</option>
+            <option value="ACTIVE">Aktif</option>
+            <option value="VOID">Dibatalkan (Void)</option>
+          </select>
+          {(assetSearch || assetCategoryFilter !== 'ALL' || assetStatusFilter !== 'ALL') && (
+            <button
+              type="button"
+              onClick={() => {
+                setAssetSearch('');
+                setAssetCategoryFilter('ALL');
+                setAssetStatusFilter('ALL');
+              }}
+              className="px-2.5 py-1.5 font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg cursor-pointer"
+            >
+              Reset
+            </button>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
             <thead className="bg-slate-50 text-slate-600 font-bold text-left">
@@ -193,10 +270,12 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {register.data.assets.length === 0 && (
-                <tr><td colSpan={9} className="py-6 text-center text-slate-500">Belum ada aset tetap tercatat.</td></tr>
+              {filteredAssets.length === 0 && (
+                <tr><td colSpan={9} className="py-6 text-center text-slate-500">
+                  {register.data.assets.length === 0 ? 'Belum ada aset tetap tercatat.' : 'Tidak ada aset yang cocok dengan filter.'}
+                </td></tr>
               )}
-              {register.data.assets.map((a) => (
+              {filteredAssets.map((a) => (
                 <tr key={a.id} className={a.status === 'VOID' ? 'text-slate-400 line-through' : ''}>
                   <td className="py-2 px-2 font-mono">{a.code}</td>
                   <td className="py-2 px-2"><span className="font-bold">{a.name}</span><span className="block text-[10px] text-slate-500">{a.category_label} • {a.useful_life_months} bulan</span></td>
@@ -225,6 +304,7 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <FixedAssetModal isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} onSubmit={handleCreate} />
