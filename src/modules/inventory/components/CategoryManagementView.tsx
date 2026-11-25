@@ -13,6 +13,7 @@ import {
   Package
 } from 'lucide-react';
 import { ProductCategory, ProductItem } from '../../../shared/types';
+import { TablePagination, usePagination } from '../../../shared/components';
 import { generateCategoryCode } from '../../../services/productCategoryService';
 
 interface CategoryManagementViewProps {
@@ -90,6 +91,8 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
       return matchesSearch && matchesStatus && matchesUsage;
     });
   }, [categoriesWithCounts, searchQuery, statusFilter, usageFilter]);
+
+  const catPagination = usePagination(filteredCategories, 10, [searchQuery, statusFilter, usageFilter]);
 
   const handleOpenCreate = () => {
     setModalMode('CREATE');
@@ -307,9 +310,11 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  filteredCategories.map((cat, idx) => (
+                  catPagination.pageItems.map((cat, idx) => (
                     <tr key={cat.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
+                      <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">
+                        {(catPagination.page - 1) * catPagination.pageSize + idx + 1}
+                      </td>
                       <td className="py-3 px-4">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 font-mono font-bold text-xs">
                           {cat.category_code}
@@ -379,11 +384,16 @@ export const CategoryManagementView: React.FC<CategoryManagementViewProps> = ({
           </div>
         </div>
 
-        {/* Card Footer Summary */}
-        <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
-          <span>Menampilkan {filteredCategories.length} dari {categories.length} master kategori</span>
-          <span className="text-[11px] text-slate-400">Sistem Inventori Cabang 3 • SAK EMKM</span>
-        </div>
+        {/* Pagination Footer */}
+        <TablePagination
+          page={catPagination.page}
+          pageSize={catPagination.pageSize}
+          totalItems={filteredCategories.length}
+          unfilteredTotal={categories.length}
+          itemLabel="kategori produk"
+          onPageChange={catPagination.setPage}
+          onPageSizeChange={catPagination.setPageSize}
+        />
       </div>
 
       {/* Modal Form: Tambah / Edit Kategori */}

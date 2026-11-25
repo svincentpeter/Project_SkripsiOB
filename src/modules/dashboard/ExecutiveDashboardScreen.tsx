@@ -33,6 +33,7 @@ import {
 import { PosTransaction } from '../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
+import { TablePagination, usePagination } from '../../shared/components';
 import { reportsApi } from '../../services/api';
 import type { InventoryValuation } from '../../services/api';
 import { localDate, monthLabel } from '../../services/accountingPeriod';
@@ -118,6 +119,8 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
     });
   }, [transactions, txSearch, txMethodFilter, txStatusFilter]);
 
+  const recentTxPagination = usePagination(filteredRecentTx, 10, [txSearch, txMethodFilter, txStatusFilter]);
+
   const lowStockBrands = useMemo(() => {
     const set = new Set<string>();
     lowStockProducts.forEach((p) => {
@@ -144,6 +147,12 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
       return true;
     });
   }, [lowStockProducts, lowStockSearch, lowStockBrandFilter, lowStockStatusFilter]);
+
+  const lowStockPagination = usePagination(filteredLowStockProducts, 10, [
+    lowStockSearch,
+    lowStockBrandFilter,
+    lowStockStatusFilter,
+  ]);
 
   // 4. Nilai persediaan FIFO dari server (Σ sisa batch × harga batch), bukan stok × harga beli terakhir
   const totalInventoryValue = inventoryValuation?.fifo_value ?? null;
@@ -376,89 +385,89 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
           ======================================================================= */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 sm:gap-4">
         {/* Card 1: Omzet Hari Ini */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Omzet Hari Ini</span>
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/80">
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2 min-w-0">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 leading-tight">Omzet Hari Ini</span>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/80 shrink-0">
               <ArrowUpRight className="w-2.5 h-2.5" />
               <span>Real-time</span>
             </span>
           </div>
-          <div>
-            <div className="text-sm sm:text-lg md:text-xl font-black text-slate-900 font-mono tracking-tight truncate" title={formatRupiah(todayOmzet)}>
+          <div className="min-w-0">
+            <div className="text-[13px] sm:text-base lg:text-lg xl:text-[19px] font-black text-slate-900 font-mono tabular-nums tracking-tight break-words leading-snug" title={formatRupiah(todayOmzet)}>
               {formatRupiah(todayOmzet)}
             </div>
-            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 leading-snug">
               {todayQty} unit barang • {todayRow.sales_count} nota
             </div>
           </div>
-          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
-            <span className="text-slate-500">AOV:</span>
-            <span className="font-bold text-slate-800 font-mono">{formatRupiah(averageOrderValue)}</span>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
+            <span className="text-slate-500 shrink-0">AOV:</span>
+            <span className="font-bold text-slate-800 font-mono tabular-nums text-right break-words">{formatRupiah(averageOrderValue)}</span>
           </div>
         </div>
 
         {/* Card 2: Laba Kotor FIFO */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Laba Kotor FIFO</span>
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/80 font-mono">
-              {grossProfitMargin}% Margin
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2 min-w-0">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 leading-tight">Laba Kotor FIFO</span>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200/80 font-mono shrink-0">
+              {grossProfitMargin}%
             </span>
           </div>
-          <div>
-            <div className="text-sm sm:text-lg md:text-xl font-black text-emerald-700 font-mono tracking-tight truncate" title={formatRupiah(todayGrossProfit)}>
+          <div className="min-w-0">
+            <div className="text-[13px] sm:text-base lg:text-lg xl:text-[19px] font-black text-emerald-700 font-mono tabular-nums tracking-tight break-words leading-snug" title={formatRupiah(todayGrossProfit)}>
               {formatRupiah(todayGrossProfit)}
             </div>
-            <div className="text-[10px] sm:text-[11px] text-emerald-700 font-bold mt-0.5 truncate">
+            <div className="text-[10px] sm:text-[11px] text-emerald-700 font-bold mt-0.5 leading-snug">
               Margin Laba: {grossProfitMargin}%
             </div>
           </div>
-          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
-            <span className="text-slate-500">HPP:</span>
-            <span className="font-bold text-slate-800 font-mono">{formatRupiah(todayHpp)}</span>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
+            <span className="text-slate-500 shrink-0">HPP:</span>
+            <span className="font-bold text-slate-800 font-mono tabular-nums text-right break-words">{formatRupiah(todayHpp)}</span>
           </div>
         </div>
 
         {/* Card 3: Valuasi Persediaan */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Valuasi Stok FIFO</span>
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-200/80 font-mono">
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2 min-w-0">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 leading-tight">Valuasi Stok FIFO</span>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-200/80 font-mono shrink-0">
               {products.length} SKU
             </span>
           </div>
-          <div>
-            <div className="text-sm sm:text-lg md:text-xl font-black text-indigo-900 font-mono tracking-tight truncate" title={totalInventoryValue === null ? 'Butuh izin lihat inventori' : formatRupiah(totalInventoryValue)}>
+          <div className="min-w-0">
+            <div className="text-[13px] sm:text-base lg:text-lg xl:text-[19px] font-black text-indigo-900 font-mono tabular-nums tracking-tight break-words leading-snug" title={totalInventoryValue === null ? 'Butuh izin lihat inventori' : formatRupiah(totalInventoryValue)}>
               {totalInventoryValue === null ? '—' : formatRupiah(totalInventoryValue)}
             </div>
-            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 leading-snug">
               {totalInventoryQty} Unit Fisik
             </div>
           </div>
-          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
-            <span className="text-slate-500">SKU Aktif:</span>
-            <span className="font-bold text-slate-800 font-mono">{activeProducts.length} SKU</span>
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
+            <span className="text-slate-500 shrink-0">SKU Aktif:</span>
+            <span className="font-bold text-slate-800 font-mono tabular-nums">{activeProducts.length} SKU</span>
           </div>
         </div>
 
         {/* Card 4: Beban Toko Bulan Berjalan */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Beban Operasional</span>
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-200/80 font-mono">
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2 min-w-0">
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 leading-tight">Beban Operasional</span>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-bold border border-rose-200/80 font-mono shrink-0">
               {monthLabel(monthPrefix)}
             </span>
           </div>
-          <div>
-            <div className="text-sm sm:text-lg md:text-xl font-black text-rose-700 font-mono tracking-tight truncate" title={formatRupiah(totalExpensesMonth)}>
+          <div className="min-w-0">
+            <div className="text-[13px] sm:text-base lg:text-lg xl:text-[19px] font-black text-rose-700 font-mono tabular-nums tracking-tight break-words leading-snug" title={formatRupiah(totalExpensesMonth)}>
               {formatRupiah(totalExpensesMonth)}
             </div>
-            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 leading-snug">
               Jurnal akun beban 6-xxxx
             </div>
           </div>
-          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] sm:text-[11px]">
+          <div className="pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px]">
             <span className="text-slate-500">Operasional:</span>
             <span className="font-bold text-rose-600 font-mono">Tercatat</span>
           </div>
@@ -467,19 +476,19 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
         {/* Card 5: Peringatan Stok Kritis (Spans 2 columns on mobile) */}
         <div 
           onClick={onNavigateToInventory}
-          className="col-span-2 sm:col-span-1 bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2 cursor-pointer hover:border-amber-400 transition-colors"
+          className="col-span-2 sm:col-span-1 bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-xs flex flex-col justify-between space-y-1.5 sm:space-y-2 min-w-0 cursor-pointer hover:border-amber-400 transition-colors"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] sm:text-xs font-bold text-slate-600 truncate">Peringatan Restock</span>
-            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${lowStockProducts.length > 0 ? 'bg-amber-50 text-amber-800 border-amber-200/80' : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'}`}>
+          <div className="flex items-center justify-between gap-1.5">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-600 leading-tight">Peringatan Restock</span>
+            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold border shrink-0 ${lowStockProducts.length > 0 ? 'bg-amber-50 text-amber-800 border-amber-200/80' : 'bg-emerald-50 text-emerald-700 border-emerald-200/80'}`}>
               {lowStockProducts.length > 0 ? `${lowStockProducts.length} Kritis` : 'Aman'}
             </span>
           </div>
-          <div className="flex items-baseline justify-between sm:block">
-            <div className={`text-sm sm:text-lg md:text-xl font-black font-mono tracking-tight truncate ${lowStockProducts.length > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
+          <div className="flex items-baseline justify-between sm:block min-w-0">
+            <div className={`text-[13px] sm:text-base lg:text-lg xl:text-[19px] font-black font-mono tabular-nums tracking-tight leading-snug ${lowStockProducts.length > 0 ? 'text-amber-700' : 'text-slate-900'}`}>
               {lowStockProducts.length} Ukuran Ban
             </div>
-            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
+            <div className="text-[10px] sm:text-[11px] text-slate-500 font-semibold mt-0.5 leading-snug">
               {outOfStockProducts.length} SKU Habis (0 Unit)
             </div>
           </div>
@@ -988,7 +997,7 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                     {filteredRecentTx.length === 0 ? (
                       <tr><td colSpan={6} className="py-6 text-center text-slate-400">Tidak ada transaksi yang cocok dengan filter.</td></tr>
                     ) : (
-                    filteredRecentTx.slice(0, 12).map((tx) => (
+                    recentTxPagination.pageItems.map((tx) => (
                       <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-2 px-3 font-mono font-bold text-blue-700">{tx.invoice_number}</td>
                         <td className="py-2 px-3 text-slate-600 font-medium">{tx.date} • {tx.timestamp || '10:30'}</td>
@@ -1020,6 +1029,17 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="px-4 pb-3 border-t border-slate-100">
+                <TablePagination
+                  page={recentTxPagination.page}
+                  pageSize={recentTxPagination.pageSize}
+                  totalItems={filteredRecentTx.length}
+                  totalUnfiltered={transactions.length}
+                  itemLabel="transaksi"
+                  onPageChange={recentTxPagination.setPage}
+                  onPageSizeChange={recentTxPagination.setPageSize}
+                />
               </div>
             </div>
           </div>
@@ -1159,11 +1179,11 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                     {filteredLowStockProducts.length === 0 ? (
                       <tr><td colSpan={6} className="py-6 text-center text-slate-400">Tidak ada produk yang cocok dengan filter.</td></tr>
                     ) : (
-                    filteredLowStockProducts.map((p) => (
+                    lowStockPagination.pageItems.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-2 px-3">
                           <div className="font-bold text-slate-900">{p.product_name || p.name}</div>
-                          <div className="text-[10px] text-slate-500 font-mono">{p.product_code || p.barcode || p.size}</div>
+                          <div className="text-[10px] text-slate-500 font-mono">{p.product_code || p.size}</div>
                         </td>
                         <td className="py-2 px-3 font-semibold text-slate-700">{p.brand}</td>
                         <td className="py-2 px-3 text-center">
@@ -1194,6 +1214,17 @@ export const ExecutiveDashboardScreen: React.FC<ExecutiveDashboardScreenProps> =
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="px-4 pb-3 border-t border-slate-100">
+                <TablePagination
+                  page={lowStockPagination.page}
+                  pageSize={lowStockPagination.pageSize}
+                  totalItems={filteredLowStockProducts.length}
+                  totalUnfiltered={lowStockProducts.length}
+                  itemLabel="produk kritis"
+                  onPageChange={lowStockPagination.setPage}
+                  onPageSizeChange={lowStockPagination.setPageSize}
+                />
               </div>
             </div>
           </div>

@@ -50,7 +50,52 @@ class PaymentApiController extends Controller
             'success' => true,
             'message' => 'QRIS Dinamis berhasil dibuat.',
             // Kasir hanya menampilkan tombol simulasi bila server mengizinkannya.
-            'data' => $data + ['simulation_enabled' => (bool) config('midtrans.allow_simulation')],
+            'data' => $data + [
+                'simulation_enabled' => (bool) config('midtrans.allow_simulation'),
+                'is_production' => (bool) config('midtrans.is_production'),
+            ],
+        ]);
+    }
+
+    /**
+     * Membuat sesi Midtrans Snap (pengganti EDC fisik: Kartu Kredit/Debit, VA, E-Wallet, QRIS).
+     *
+     * POST /api/v1/payment/midtrans/snap
+     */
+    public function createSnapTransaction(Request $request): JsonResponse
+    {
+        $request->validate([
+            'order_id' => 'required|string|max:64',
+            'gross_amount' => 'required|integer|min:1',
+            'customer_name' => 'nullable|string|max:128',
+        ]);
+
+        try {
+            $data = $this->qrisService->createSnapTransaction(
+                $request->input('order_id'),
+                (int) $request->input('gross_amount'),
+                ['customer_name' => $request->input('customer_name')]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Gagal membuat sesi Midtrans Snap', ['exception' => $e]);
+            $known = $e instanceof \App\Exceptions\PosRuleException
+                || ($e instanceof \RuntimeException && ! $e instanceof \Illuminate\Database\QueryException);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal membuka Midtrans Snap: '.($known ? $e->getMessage() : 'terjadi kesalahan pada server, coba lagi.'),
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sesi pembayaran Midtrans Snap berhasil dibuat.',
+            'data' => $data + [
+                'client_key' => (string) config('midtrans.client_key'),
+                'snap_js_url' => (string) config('midtrans.snap_js_url'),
+                'simulation_enabled' => (bool) config('midtrans.allow_simulation'),
+                'is_production' => (bool) config('midtrans.is_production'),
+            ],
         ]);
     }
 
@@ -99,11 +144,25 @@ class PaymentApiController extends Controller
         $orderId = $payload['order_id'] ?? null;
         $transactionStatus = $payload['transaction_status'] ?? null;
 
-        // Sah hanya bila signature_key = sha512(order_id + status_code + gross_amount + server_key). Tanpa server key,
-        // sha512 atas string publik bisa dihitung siapa saja: tolak semua notifikasi.
-        $serverKey = (string) config('midtrans.server_key');
-        $expected = hash('sha512', ($payload['order_id'] ?? '').($payload['status_code'] ?? '').($payload['gross_amount'] ?? '').$serverKey);
-        if ($serverKey === '' || ! is_string($payload['signature_key'] ?? null) || ! hash_equals($expected, $payload['signature_key'])) {
+        // Sah hanya bila signature_key = sha512(order_id + status_code + gross_amount + signature_key/server_key).
+        // Tanpa kunci, sha512 atas string publik bisa dihitung siapa saja: tolak semua notifikasi.
+        $candidateKeys = array_values(array_unique(array_filter([
+            (string) config('midtrans.signature_key'),
+            (string) config('midtrans.server_key'),
+        ], fn (string $k) => $k !== '')));
+
+        $incomingSig = $payload['signature_key'] ?? null;
+        $validSignature = false;
+        if (is_string($incomingSig) && $candidateKeys !== []) {
+            $base = ($payload['order_id'] ?? '').($payload['status_code'] ?? '').($payload['gross_amount'] ?? '');
+            foreach ($candidateKeys as $secret) {
+                if (hash_equals(hash('sha512', $base.$secret), $incomingSig)) {
+                    $validSignature = true;
+                    break;
+                }
+            }
+        }
+        if (! $validSignature) {
             Log::warning('Midtrans webhook ditolak: signature tidak valid', ['order_id' => $orderId]);
 
             return response()->json(['success' => false, 'message' => 'Signature notifikasi tidak valid.'], 403);

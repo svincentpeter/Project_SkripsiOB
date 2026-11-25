@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+@layer base {
+  /* Skala font fluida agar seluruh tipografi tetap terbaca jelas dan tidak terpotong di HP, tablet, maupun desktop */
+  html {
+    font-size: clamp(14px, 0.84rem + 0.16vw, 16px);
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    overflow-x: clip;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  /* Angka uang, stok, dan tabel selalu sejajar */
+  .font-mono,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
 @layer utilities {
   /* Custom scrollbar for POS item lists */
   .custom-scrollbar::-webkit-scrollbar {

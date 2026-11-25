@@ -24,6 +24,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { formatRupiah } from '../../../shared/utils/formatters';
+import { useDialog, useToast } from '../../../shared/components';
 import {
   stockReconciliationApi,
   StagingData,
@@ -42,6 +43,8 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
   onClose,
   onSuccessCommit,
 }) => {
+  const toast = useToast();
+  const dialog = useDialog();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form State
@@ -262,11 +265,11 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
   const handleExecuteBulkUpdate = async () => {
     const reason = bulkReason.trim();
     if (reason.length < 3) {
-      alert('Alasan perubahan wajib diisi minimal 3 karakter.');
+      toast.warning('Alasan Wajib Diisi', 'Alasan perubahan wajib diisi minimal 3 karakter.');
       return;
     }
     if (!bulkUpdateCost && !bulkUpdatePrice && !bulkUpdateStock) {
-      alert('Pilih minimal satu aspek yang ingin diperbarui (HPP, Harga, atau Stok).');
+      toast.warning('Pilih Aspek Pembaruan', 'Pilih minimal satu aspek yang ingin diperbarui (HPP, Harga, atau Stok).');
       return;
     }
 
@@ -283,7 +286,7 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
       }));
 
     if (itemsToUpdate.length === 0) {
-      alert('Tidak ada produk dengan padanan database (matched) yang dipilih.');
+      toast.warning('Belum Ada Produk Dipilih', 'Tidak ada produk dengan padanan database (matched) yang dipilih.');
       return;
     }
 
@@ -385,7 +388,14 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
       ? `Anda akan menyinkronkan ${selectedKeysArray.length} SKU terpilih ke periode ${period}. Lanjutkan?`
       : `PERINGATAN SINKRONISASI PENUH: Seluruh produk toko untuk periode ${period} akan disinkronkan dengan Excel. Produk yang tidak ada di Excel akan dinolkan. Lanjutkan?`;
 
-    if (!window.confirm(confirmMsg)) {
+    const confirmed = await dialog.confirm({
+      title: selectedKeysArray ? `Sinkronkan ${selectedKeysArray.length} SKU Terpilih?` : 'Peringatan Sinkronisasi Penuh',
+      message: confirmMsg,
+      confirmLabel: 'Ya, Sinkronkan',
+      cancelLabel: 'Batal',
+      tone: selectedKeysArray ? 'primary' : 'warning',
+    });
+    if (!confirmed) {
       return;
     }
 

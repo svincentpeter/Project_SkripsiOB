@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { ParkedTransaction } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
+import { useDialog } from '../../../shared/components';
 
 interface ParkedOrdersDrawerProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ export const ParkedOrdersDrawer: React.FC<ParkedOrdersDrawerProps> = ({
   onDeleteOrder,
   onPrintOrder,
 }) => {
+  const dialog = useDialog();
   const [search, setSearch] = useState('');
 
   if (!isOpen) return null;
@@ -198,9 +200,17 @@ export const ParkedOrdersDrawer: React.FC<ParkedOrdersDrawerProps> = ({
 
                       {/* Hapus Antrian */}
                       <button
-                        onClick={() => {
+                        type="button"
+                        onClick={async () => {
                           const label = order.vehicle_plate ? `kendaraan ${order.vehicle_plate}` : (order.customer_name || order.reference);
-                          if (confirm(`Hapus antrian nota ${label}?`)) {
+                          const ok = await dialog.confirm({
+                            title: 'Hapus Antrian Nota?',
+                            message: `Hapus antrian nota ${label} dari daftar nota tertahan?`,
+                            confirmLabel: 'Hapus Antrian',
+                            cancelLabel: 'Batal',
+                            tone: 'danger',
+                          });
+                          if (ok) {
                             onDeleteOrder(order.id);
                           }
                         }}

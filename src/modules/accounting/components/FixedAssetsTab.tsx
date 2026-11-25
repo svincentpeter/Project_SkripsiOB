@@ -4,7 +4,7 @@ import type { ApiJournal } from '../../../services/api';
 import { sakEmkmApi } from '../../../services/api/sakEmkmApi';
 import { currentMonth, monthLabel } from '../../../services/accountingPeriod';
 import type { FixedAsset, FixedAssetInput } from '../../../shared/types/sakEmkm';
-import { useToast } from '../../../shared/components';
+import { TablePagination, useDialog, usePagination, useToast } from '../../../shared/components';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
 import { useServerData } from '../hooks/useServerData';
 import { FixedAssetModal } from './FixedAssetModal';
@@ -19,6 +19,7 @@ const errorText = (err: unknown): string => (err instanceof Error ? err.message 
 
 export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, onJournalsPosted }) => {
   const toast = useToast();
+  const dialog = useDialog();
   const [period, setPeriod] = useState(currentMonth());
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [running, setRunning] = useState(false);
@@ -52,6 +53,7 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
     });
   }, [register.data, assetSearch, assetStatusFilter, assetCategoryFilter]);
   const preview = useServerData(() => sakEmkmApi.depreciationPreview(period), [period, refreshKey]);
+  const assetPagination = usePagination(filteredAssets, 10, [assetSearch, assetStatusFilter, assetCategoryFilter]);
   const reloadAll = () => {
     register.reload();
     preview.reload();
@@ -71,28 +73,46 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
   };
 
   const handleVoid = async (asset: FixedAsset) => {
-    if (
-      asset.last_depreciated_period &&
-      !window.confirm(
-        `${asset.code} sudah disusutkan ${formatRupiah(asset.accumulated_depreciation - asset.opening_accumulated_depreciation)}. ` +
+    if (asset.last_depreciated_period) {
+      const proceed = await dialog.confirm({
+        title: `Batalkan Aset ${asset.code}?`,
+        message:
+          `${asset.code} sudah disusutkan ${formatRupiah(asset.accumulated_depreciation - asset.opening_accumulated_depreciation)}. ` +
           'Pembatalan membalik penyusutannya per bulan (Dr 1-3999 / Cr 6-1011, bertanggal akhir tiap bulan penyusutan)' +
           (asset.journal_entry_number ? ' dan jurnal perolehannya (bertanggal hari ini). ' : '. ') +
           'Hanya bisa bila semua bulan penyusutannya belum ditutup. ' +
           'Setelah itu catat ulang aset dengan data yang benar. Lanjutkan?',
-      )
-    )
-      return;
-    const reason = window.prompt(`Alasan membatalkan ${asset.code} ${asset.name}:`);
+        confirmLabel: 'Lanjutkan Pembatalan',
+        cancelLabel: 'Batal',
+        tone: 'warning',
+      });
+      if (!proceed) return;
+    }
+    const reason = await dialog.prompt({
+      title: `Alasan Membatalkan ${asset.code}`,
+      message: `Tuliskan alasan pembatalan aset ${asset.name}.`,
+      placeholder: 'Contoh: Kesalahan input nilai perolehan / entri ganda',
+      confirmLabel: 'Lanjutkan',
+      cancelLabel: 'Batal',
+      tone: 'danger',
+      required: true,
+    });
     if (!reason?.trim()) return;
     // Aset saldo awal tidak punya jurnal perolehan: tanya apakah saldo awal buku besarnya juga salah.
-    const correctLedger =
-      asset.funding === 'OPENING' &&
-      window.confirm(
-        `Apakah nilai ${asset.code} juga salah di Saldo Awal buku besar?\n\n` +
-          `OK = keluarkan juga dari buku besar hari ini (Dr 3-1000 Modal ${formatRupiah(asset.acquisition_cost - asset.opening_accumulated_depreciation)}, ` +
+    let correctLedger = false;
+    if (asset.funding === 'OPENING') {
+      correctLedger = await dialog.confirm({
+        title: `Koreksi Saldo Awal Buku Besar ${asset.code}?`,
+        message:
+          `Apakah nilai ${asset.code} juga salah di Saldo Awal buku besar?\n\n` +
+          `Ya = keluarkan juga dari buku besar hari ini (Dr 3-1000 Modal ${formatRupiah(asset.acquisition_cost - asset.opening_accumulated_depreciation)}, ` +
           `Dr 1-3999 ${formatRupiah(asset.opening_accumulated_depreciation)} / Cr 1-3000 ${formatRupiah(asset.acquisition_cost)}).\n` +
-          'Batal = hanya hapus dari register (entri register ganda, buku besar sudah benar).',
-      );
+          'Tidak = hanya hapus dari register (entri register ganda, buku besar sudah benar).',
+        confirmLabel: 'Ya, Koreksi Buku Besar',
+        cancelLabel: 'Tidak, Hanya Register',
+        tone: 'warning',
+      });
+    }
     const res = await sakEmkmApi.voidFixedAsset(asset.id, reason.trim(), correctLedger).catch((err: unknown) => {
       toast.error('Pembatalan Ditolak', errorText(err));
       return null;
@@ -275,7 +295,7 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
                   {register.data.assets.length === 0 ? 'Belum ada aset tetap tercatat.' : 'Tidak ada aset yang cocok dengan filter.'}
                 </td></tr>
               )}
-              {filteredAssets.map((a) => (
+              {assetPagination.pageItems.map((a) => (
                 <tr key={a.id} className={a.status === 'VOID' ? 'text-slate-400 line-through' : ''}>
                   <td className="py-2 px-2 font-mono">{a.code}</td>
                   <td className="py-2 px-2"><span className="font-bold">{a.name}</span><span className="block text-[10px] text-slate-500">{a.category_label} • {a.useful_life_months} bulan</span></td>
@@ -304,6 +324,16 @@ export const FixedAssetsTab: React.FC<FixedAssetsTabProps> = ({ refreshKey = 0, 
             </tbody>
           </table>
         </div>
+        <TablePagination
+          page={assetPagination.page}
+          pageSize={assetPagination.pageSize}
+          totalItems={filteredAssets.length}
+          unfilteredTotal={register.data.assets.length}
+          itemLabel="aset tetap"
+          onPageChange={assetPagination.setPage}
+          onPageSizeChange={assetPagination.setPageSize}
+          compact
+        />
         </>
       )}
 

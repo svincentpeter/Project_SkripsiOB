@@ -4,6 +4,7 @@ import { ChartOfAccount } from '../../../shared/types';
 import { accountingApi, mapLedger } from '../../../services/api';
 import { PeriodSelection, currentMonth, resolvePeriod } from '../../../services/accountingPeriod';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
+import { TablePagination, usePagination } from '../../../shared/components';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
 import { useServerData } from '../hooks/useServerData';
 import { LedgerPrintModal } from './LedgerPrintModal';
@@ -54,6 +55,8 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({ accounts, re
       return true;
     });
   }, [data, searchQuery, directionFilter]);
+
+  const txPagination = usePagination(filteredTransactions, 15, [accountCode, range.start_date, range.end_date, searchQuery, directionFilter]);
 
   const accountMeta: ChartOfAccount = accounts.find((a) => a.account_code === accountCode) ?? {
     account_code: accountCode,
@@ -180,7 +183,7 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({ accounts, re
                 {filteredTransactions.length === 0 ? (
                   <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic">Tidak ada mutasi yang cocok pada periode ini.</td></tr>
                 ) : (
-                  filteredTransactions.map((t) => (
+                  txPagination.pageItems.map((t) => (
                     <tr key={t.id} className="text-slate-800">
                       <td className="py-1.5 px-3">{formatDateIndo(t.date)}</td>
                       <td className="py-1.5 px-3 font-mono">{t.journal_number}</td>
@@ -203,6 +206,17 @@ export const GeneralLedgerTab: React.FC<GeneralLedgerTabProps> = ({ accounts, re
               </tfoot>
             </table>
           </div>
+
+          <TablePagination
+            page={txPagination.page}
+            pageSize={txPagination.pageSize}
+            totalItems={filteredTransactions.length}
+            unfilteredTotal={data.transactions.length}
+            itemLabel="mutasi buku besar"
+            pageSizeOptions={[10, 15, 25, 50, 100]}
+            onPageChange={txPagination.setPage}
+            onPageSizeChange={txPagination.setPageSize}
+          />
 
           <LedgerPrintModal isOpen={isPrintOpen} onClose={() => setIsPrintOpen(false)} ledgerData={data}
             accountMeta={accountMeta} startDate={range.start_date} endDate={range.end_date} />

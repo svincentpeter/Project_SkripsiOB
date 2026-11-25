@@ -4,6 +4,7 @@ import { accountingApi, mapTrialBalance } from '../../../services/api';
 import { localDate } from '../../../services/accountingPeriod';
 import { formatRupiah } from '../../../shared/utils/formatters';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
+import { TablePagination, usePagination } from '../../../shared/components';
 import { useServerData } from '../hooks/useServerData';
 import { ServerStatus } from './ServerStatus';
 
@@ -41,6 +42,8 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({ refreshKey = 0
       return true;
     });
   }, [data, searchQuery, typeFilter, hideZero]);
+
+  const tbPagination = usePagination(filteredRows, 15, [asOf, searchQuery, typeFilter, hideZero]);
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
@@ -135,7 +138,7 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({ refreshKey = 0
                 {filteredRows.length === 0 ? (
                   <tr><td colSpan={5} className="py-6 text-center text-slate-400">Tidak ada akun yang sesuai filter.</td></tr>
                 ) : (
-                  filteredRows.map((r) => (
+                  tbPagination.pageItems.map((r) => (
                   <tr key={r.account_code} className={r.debit_balance === 0 && r.credit_balance === 0 ? 'text-slate-400' : 'text-slate-800'}>
                     <td className="py-1.5 px-3 font-mono font-bold">{r.account_code}</td>
                     <td className="py-1.5 px-3">{r.account_name}</td>
@@ -154,6 +157,18 @@ export const TrialBalanceTab: React.FC<TrialBalanceTabProps> = ({ refreshKey = 0
                 </tr>
               </tfoot>
             </table>
+            <div className="px-4 pb-3 border-t border-slate-100">
+              <TablePagination
+                page={tbPagination.page}
+                pageSize={tbPagination.pageSize}
+                totalItems={filteredRows.length}
+                totalUnfiltered={data.rows.length}
+                itemLabel="akun"
+                pageSizeOptions={[15, 25, 50]}
+                onPageChange={tbPagination.setPage}
+                onPageSizeChange={tbPagination.setPageSize}
+              />
+            </div>
           </div>
 
           <button type="button" onClick={onNavigateToReports}

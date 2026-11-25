@@ -12,7 +12,7 @@ export interface SettledQris {
 interface CheckoutSelection {
   isSplitMode: boolean;
   paymentMethod: PaymentMethod;
-  qrisFlowType: 'DYNAMIC' | 'MANUAL';
+  qrisFlowType: 'DYNAMIC' | 'SNAP' | 'MANUAL';
   netPayable: number;
   cartKey: string;
 }
@@ -32,12 +32,12 @@ export const qrisCartKey = (cart: CartItem[], customerName: string, vehiclePlate
     ]),
   ]);
 
-/** Order lunas dipakai ulang hanya untuk QRIS dinamis tunggal pada keranjang yang sama dengan total yang sama persis. */
+/** Order lunas dipakai ulang hanya untuk pembayaran Midtrans (QRIS Dinamis / Snap) tunggal pada keranjang & total yang sama persis. */
 export const reusableSettledQris = (settled: SettledQris | null, sel: CheckoutSelection): SettledQris | null =>
   settled &&
   !sel.isSplitMode &&
   sel.paymentMethod === 'QRIS' &&
-  sel.qrisFlowType === 'DYNAMIC' &&
+  (sel.qrisFlowType === 'DYNAMIC' || sel.qrisFlowType === 'SNAP') &&
   settled.amount === sel.netPayable &&
   settled.cartKey === sel.cartKey
     ? settled

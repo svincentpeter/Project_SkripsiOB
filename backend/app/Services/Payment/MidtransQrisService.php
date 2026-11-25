@@ -18,12 +18,31 @@ class MidtransQrisService
 {
     protected string $serverKey;
     protected string $apiUrl;
+    protected string $snapUrl;
 
     public function __construct()
     {
         // Tanpa kunci bawaan: kunci demo yang tertulis di repo membuat signature webhook bisa dipalsukan.
         $this->serverKey = (string) config('midtrans.server_key');
         $this->apiUrl = rtrim((string) config('midtrans.api_url'), '/');
+        $this->snapUrl = rtrim((string) config('midtrans.snap_url'), '/');
+    }
+
+    /**
+     * Membuat transaksi Midtrans Snap (pengganti mesin EDC fisik: Kartu Kredit/Debit, VA, E-Wallet, QRIS)
+     * dan mencatat order-nya di qris_transactions (pending, nominal tagihan) agar verifikasi pelunasan
+     * dan anti-replay checkout tetap tunggal.
+     */
+    public function createSnapTransaction(string $orderId, int $grossAmount, array $customerDetails = []): array
+    {
+        $snap = $this->requestSnap($orderId, $grossAmount, $customerDetails);
+
+        QrisTransaction::firstOrCreate(
+            ['order_id' => $orderId],
+            ['gross_amount' => $grossAmount, 'transaction_status' => 'pending']
+        );
+
+        return $snap;
     }
 
     /**
@@ -205,6 +224,94 @@ class MidtransQrisService
         }
 
         return $this->generateFallbackCharge($orderId, $grossAmount);
+    }
+
+    /**
+     * Memanggil Midtrans Snap API (Kartu Kredit/Debit, QRIS, VA, E-Wallet) sebagai pengganti EDC fisik.
+     */
+    protected function requestSnap(string $orderId, int $grossAmount, array $customerDetails): array
+    {
+        if ($grossAmount <= 0) {
+            throw new RuntimeException('Nominal transaksi harus lebih besar dari Rp 0.');
+        }
+        if ($this->serverKey === '') {
+            return $this->snapFallbackOrFail($orderId, $grossAmount, 'MIDTRANS_SERVER_KEY Sandbox belum diatur.');
+        }
+
+        $payload = [
+            'transaction_details' => [
+                'order_id' => $orderId,
+                'gross_amount' => $grossAmount,
+            ],
+            'credit_card' => [
+                'secure' => true,
+            ],
+            'enabled_payments' => [
+                'credit_card',
+                'qris',
+                'gopay',
+                'shopeepay',
+                'bca_va',
+                'bni_va',
+                'bri_va',
+                'echannel',
+                'permata_va',
+            ],
+            'customer_details' => [
+                'first_name' => $customerDetails['customer_name'] ?? 'Pelanggan Omah Ban',
+            ],
+        ];
+
+        try {
+            $response = Http::withBasicAuth($this->serverKey, '')
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])
+                ->post("{$this->snapUrl}/snap/v1/transactions", $payload);
+        } catch (\Throwable $e) {
+            Log::error('Koneksi Midtrans Snap gagal', ['exception' => $e]);
+
+            return $this->snapFallbackOrFail($orderId, $grossAmount, 'koneksi ke Midtrans Snap gagal.');
+        }
+
+        $data = $response->json();
+
+        if ($response->successful() && isset($data['token'])) {
+            return [
+                'order_id' => $orderId,
+                'gross_amount' => $grossAmount,
+                'snap_token' => $data['token'],
+                'redirect_url' => $data['redirect_url'] ?? null,
+                'transaction_status' => 'pending',
+                'is_fallback' => false,
+            ];
+        }
+
+        $errMsg = is_array($data['error_messages'] ?? null)
+            ? implode('; ', $data['error_messages'])
+            : ($data['status_message'] ?? 'Midtrans Snap tidak mengembalikan token.');
+
+        Log::warning('Midtrans Snap API tidak mengembalikan token', ['response' => $data]);
+
+        return $this->snapFallbackOrFail($orderId, $grossAmount, $errMsg);
+    }
+
+    protected function snapFallbackOrFail(string $orderId, int $grossAmount, string $reason): array
+    {
+        if (! config('midtrans.allow_simulation')) {
+            throw new RuntimeException($reason);
+        }
+
+        return [
+            'order_id' => $orderId,
+            'gross_amount' => $grossAmount,
+            'snap_token' => null,
+            'redirect_url' => null,
+            'transaction_status' => 'pending',
+            'is_fallback' => true,
+            'fallback_reason' => $reason,
+        ];
     }
 
     /**

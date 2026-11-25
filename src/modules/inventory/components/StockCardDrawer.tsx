@@ -16,6 +16,7 @@ import { mutationKind } from '../../../services/api/inventoryMappers';
 import { formatDateIndo, formatDateTimeIndo, formatRupiah } from '../../../shared/utils/formatters';
 import { ProductFifoBatchList } from './ProductFifoBatchList';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
+import { TablePagination, usePagination } from '../../../shared/components';
 
 interface StockCardDrawerProps {
   product: TireProduct | null;
@@ -45,10 +46,10 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  if (!product) return null;
-
   // Filter mutations for this product
-  const productMutations = mutations.filter((m) => m.tire_id === product.id || m.product_id === product.id);
+  const productMutations = product
+    ? mutations.filter((m) => m.tire_id === product.id || m.product_id === product.id)
+    : [];
 
   const filteredMutations = productMutations.filter((m) => {
     const matchesType = typeFilter === 'ALL' || mutationKind(m) === typeFilter;
@@ -65,6 +66,16 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
 
     return matchesType && matchesDateFrom && matchesDateTo && matchesQuery;
   });
+
+  const mutPagination = usePagination(filteredMutations, 15, [
+    product?.id,
+    typeFilter,
+    searchQuery,
+    dateFrom,
+    dateTo,
+  ]);
+
+  if (!product) return null;
 
   const totalMasuk = productMutations
     .filter((m) => m.type === 'MASUK')
@@ -104,7 +115,6 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
               </div>
               <p className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span>Ukuran: <strong className="text-slate-800 font-mono">{product.product_size}</strong></span>
-                <span>Barcode: <strong className="text-slate-800 font-mono">{product.barcode}</strong></span>
                 <span>Saldo Gudang: <strong className="text-emerald-700 font-mono">{product.stock} pcs</strong></span>
               </p>
             </div>
@@ -294,7 +304,7 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
                       </td>
                     </tr>
                   ) : (
-                    filteredMutations.map((m) => (
+                    mutPagination.pageItems.map((m) => (
                       <tr key={m.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="py-2.5 px-3 text-slate-600 font-mono text-[11px] whitespace-nowrap">
                           {formatDateTimeIndo(m.date) || m.date}
@@ -334,6 +344,18 @@ export const StockCardDrawer: React.FC<StockCardDrawerProps> = ({
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="px-4 pb-3 border-t border-slate-100">
+              <TablePagination
+                page={mutPagination.page}
+                pageSize={mutPagination.pageSize}
+                totalItems={filteredMutations.length}
+                totalUnfiltered={productMutations.length}
+                itemLabel="mutasi"
+                pageSizeOptions={[10, 15, 25, 50]}
+                onPageChange={mutPagination.setPage}
+                onPageSizeChange={mutPagination.setPageSize}
+              />
             </div>
           </div>
         </div>

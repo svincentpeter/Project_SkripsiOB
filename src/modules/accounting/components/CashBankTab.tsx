@@ -5,7 +5,7 @@ import type { ApiCashSession, ApiJournal, CashMovementType } from '../../../serv
 import { localDate } from '../../../services/accountingPeriod';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
 import { MoneyInput } from '../../../shared/components/MoneyInput';
-import { useToast } from '../../../shared/components';
+import { TablePagination, useDialog, usePagination, useToast } from '../../../shared/components';
 import { useServerData } from '../hooks/useServerData';
 import { ServerStatus } from './ServerStatus';
 
@@ -42,6 +42,7 @@ const timeText = (iso: string | null) => (iso ? new Date(iso).toLocaleString('id
 /** Persetujuan shift kasir (selisih kas dijurnal ke 6-1010) dan mutasi kas pemilik: setor bank, prive, setoran modal. */
 export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove, canMove, onLedgerChanged }) => {
   const toast = useToast();
+  const dialog = useDialog();
   const sessions = useServerData(() => (canApprove ? cashApi.sessions() : Promise.resolve([] as ApiCashSession[])), [refreshKey, canApprove]);
   const movements = useServerData(() => (canMove ? cashApi.movements() : Promise.resolve([] as ApiJournal[])), [refreshKey, canMove]);
   const [approvingId, setApprovingId] = useState<number | null>(null);
@@ -90,10 +91,20 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
     });
   }, [movements.data, movementTypeFilter, movementSearch]);
 
+  const sessionPagination = usePagination(filteredSessions, 10, [shiftStatusFilter, shiftSearch]);
+  const movementPagination = usePagination(filteredMovements, 10, [movementTypeFilter, movementSearch]);
+
   const approve = async (session: ApiCashSession) => {
     const adjustment = session.adjustment ?? 0;
     const parts = `selisih kas awal ${formatRupiah(session.opening_difference)} + selisih hitung ${formatRupiah(session.variance ?? 0)}`;
-    if (!window.confirm(`Setujui shift #${session.id}? Selisih ${formatRupiah(adjustment)} (${parts}) dijurnal ke 6-1010 Selisih Kas Kasir.`)) return;
+    const ok = await dialog.confirm({
+      title: `Setujui Shift #${session.id}?`,
+      message: `Selisih ${formatRupiah(adjustment)} (${parts}) akan dijurnal ke 6-1010 Selisih Kas Kasir.`,
+      confirmLabel: 'Setujui Shift',
+      cancelLabel: 'Batal',
+      tone: 'primary',
+    });
+    if (!ok) return;
     setApprovingId(session.id);
     try {
       const res = await cashApi.approve(session.id);
@@ -205,7 +216,7 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
                   {filteredSessions.length === 0 ? (
                     <tr><td colSpan={8} className="py-5 text-center text-slate-400">Tidak ada shift yang sesuai filter.</td></tr>
                   ) : (
-                  filteredSessions.map((s) => {
+                  sessionPagination.pageItems.map((s) => {
                     const adj = s.adjustment ?? 0;
                     return (
                       <tr key={s.id} className="border-b border-slate-100 align-top">
@@ -252,6 +263,16 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
                 </tbody>
               </table>
             </div>
+            <TablePagination
+              page={sessionPagination.page}
+              pageSize={sessionPagination.pageSize}
+              totalItems={filteredSessions.length}
+              unfilteredTotal={sessions.data?.length}
+              itemLabel="shift kasir"
+              onPageChange={sessionPagination.setPage}
+              onPageSizeChange={sessionPagination.setPageSize}
+              compact
+            />
             </>
           )}
         </section>
@@ -367,7 +388,7 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
                   {filteredMovements.length === 0 ? (
                     <tr><td colSpan={5} className="py-5 text-center text-slate-400">Tidak ada mutasi kas yang sesuai filter.</td></tr>
                   ) : (
-                  filteredMovements.map((j) => (
+                  movementPagination.pageItems.map((j) => (
                     <tr key={j.entry_number} className="border-b border-slate-100">
                       <td className="py-2 px-2">{formatDateIndo(j.entry_date)}</td>
                       <td className="py-2 px-2 font-mono">{j.reference_id}<br /><span className="text-slate-400">{j.entry_number}</span></td>
@@ -380,6 +401,16 @@ export const CashBankTab: React.FC<CashBankTabProps> = ({ refreshKey, canApprove
                 </tbody>
               </table>
             </div>
+            <TablePagination
+              page={movementPagination.page}
+              pageSize={movementPagination.pageSize}
+              totalItems={filteredMovements.length}
+              unfilteredTotal={movements.data?.length}
+              itemLabel="mutasi kas"
+              onPageChange={movementPagination.setPage}
+              onPageSizeChange={movementPagination.setPageSize}
+              compact
+            />
             </>
           )}
         </section>

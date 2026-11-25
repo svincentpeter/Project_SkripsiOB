@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ProductItem, StockMutation } from '../../../shared/types';
 import { mutationKind } from '../../../services/api/inventoryMappers';
+import { TablePagination, usePagination } from '../../../shared/components';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
 
 interface StockOpnameReceiptViewProps {
@@ -62,6 +63,14 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
 
     return matchesType && matchesProduct && matchesDateFrom && matchesDateTo && matchesSearch;
   });
+
+  const mutationPagination = usePagination(filteredMutations, 15, [
+    searchQuery,
+    typeFilter,
+    productFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   const countMasuk = mutations.filter((m) => mutationKind(m) === 'MASUK').length;
   const countKeluar = mutations.filter((m) => mutationKind(m) === 'KELUAR').length;
@@ -279,7 +288,8 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  filteredMutations.map((mut, idx) => {
+                  mutationPagination.pageItems.map((mut, idx) => {
+                    const rowNum = (mutationPagination.page - 1) * mutationPagination.pageSize + idx + 1;
                     const isMasuk = mutationKind(mut) === 'MASUK';
                     const isKeluar = mutationKind(mut) === 'KELUAR';
                     const rawDate = mut.date || (mut as any).created_at;
@@ -295,7 +305,7 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
 
                     return (
                       <tr key={mut.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
+                        <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{rowNum}</td>
                         <td className="py-3 px-4 text-slate-600 font-mono text-xs whitespace-nowrap">
                           {displayDate}
                         </td>
@@ -343,11 +353,17 @@ export const StockOpnameReceiptView: React.FC<StockOpnameReceiptViewProps> = ({
           </div>
         </div>
 
-        {/* Footer Summary Strip */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
-          <span>Menampilkan {filteredMutations.length} dari {mutations.length} riwayat mutasi stok</span>
-          <span className="font-semibold">Pencatatan Berkelanjutan (Perpetual Inventory) • SAK EMKM</span>
-        </div>
+        {/* Pagination Footer */}
+        <TablePagination
+          page={mutationPagination.page}
+          pageSize={mutationPagination.pageSize}
+          totalItems={filteredMutations.length}
+          unfilteredTotal={mutations.length}
+          itemLabel="riwayat mutasi"
+          pageSizeOptions={[10, 15, 25, 50, 100]}
+          onPageChange={mutationPagination.setPage}
+          onPageSizeChange={mutationPagination.setPageSize}
+        />
       </div>
     </div>
   );

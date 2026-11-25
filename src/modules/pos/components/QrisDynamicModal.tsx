@@ -179,11 +179,15 @@ export const QrisDynamicModal: React.FC<QrisDynamicModalProps> = ({
             <div>
               <div className="flex items-center gap-1.5">
                 <h3 className="text-sm font-bold tracking-tight text-white">QRIS Dinamis Midtrans</h3>
-                <span className="px-1.5 py-0.5 bg-blue-500/30 border border-blue-400/40 text-blue-200 text-[9px] font-semibold rounded">
-                  Core API
+                <span className={`px-1.5 py-0.5 border text-[9px] font-semibold rounded ${
+                  chargeData?.is_production
+                    ? 'bg-emerald-500/25 border-emerald-400/50 text-emerald-200'
+                    : 'bg-blue-500/30 border-blue-400/40 text-blue-200'
+                }`}>
+                  {chargeData?.is_production ? 'Production Live' : 'Sandbox API'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">Verifikasi Otomatis Real-Time</p>
+              <p className="text-[11px] text-slate-400">QRIS Universal • Verifikasi Otomatis Real-Time</p>
             </div>
           </div>
           <button
@@ -345,18 +349,18 @@ export const QrisDynamicModal: React.FC<QrisDynamicModalProps> = ({
 
           {/* Sandbox & Demo Assist Bar: hanya bila server mengizinkan simulasi (MIDTRANS_ALLOW_SIMULATION) */}
           {!isLoading && !isSettled && chargeData?.simulation_enabled && (
-            <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-2.5">
+            <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-amber-600" />
-                  <span className="text-xs font-bold text-amber-900">Uji Coba Demo Sidang Skripsi</span>
+                  <span className="text-xs font-extrabold text-amber-950">Cara Bayar Dummy (Sandbox Skripsi)</span>
                 </div>
-                <span className="bg-amber-200/80 text-amber-900 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase">
+                <span className="bg-amber-200 text-amber-950 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase">
                   Sandbox
                 </span>
               </div>
-              <p className="text-[11px] text-amber-800/90 leading-tight">
-                Untuk kemudahan presentasi sidang tanpa memindai smartphone fisik:
+              <p className="text-[11px] text-amber-900/90 leading-snug">
+                Klik <strong>Simulasi Bayar Lunas</strong> untuk langsung melunasi transaksi dummy ke server &amp; jurnal SAK EMKM, atau salin QR String lalu tempel di <strong>Web Simulator Midtrans</strong>:
               </p>
 
               <div className="grid grid-cols-2 gap-2 pt-0.5">

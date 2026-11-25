@@ -9,9 +9,12 @@ const paid: SettledQris = { orderId: 'POS-1727650000000', amount: 350000, cartKe
 const dynamicQris = { isSplitMode: false, paymentMethod: 'QRIS' as const, qrisFlowType: 'DYNAMIC' as const, netPayable: 350000, cartKey: cartA };
 
 describe('settled dynamic QRIS reuse', () => {
-  it('reuses the paid order when the cashier retries dynamic QRIS with the same total', () => {
+  it('reuses the paid order when the cashier retries dynamic QRIS or Midtrans Snap with the same total', () => {
     expect(reusableSettledQris(paid, dynamicQris)).toEqual(paid);
     expect(settledQrisWarning(paid, dynamicQris)).toBe('');
+    const snapSel = { ...dynamicQris, qrisFlowType: 'SNAP' as const };
+    expect(reusableSettledQris(paid, snapSel)).toEqual(paid);
+    expect(settledQrisWarning(paid, snapSel)).toBe('');
   });
 
   it('does not reuse when nothing was paid yet', () => {

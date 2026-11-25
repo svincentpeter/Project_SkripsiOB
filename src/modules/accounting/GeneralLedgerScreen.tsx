@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Banknote, BookMarked, BookOpen, CalendarClock, CreditCard, ExternalLink, Factory, FileText, Landmark, Lock, LockOpen, Plus, Scale, ShieldCheck, Users, Wallet,
+  Banknote, BookMarked, BookOpen, CalendarClock, CreditCard, ExternalLink, Factory, FileText, Landmark, ListTree, Lock, LockOpen, Plus, Scale, ShieldCheck, Wallet,
 } from 'lucide-react';
 import {
   ChartOfAccount,
@@ -14,7 +14,7 @@ import { accountingApi } from '../../services/api';
 import type { ApiJournal } from '../../services/api';
 import { sakEmkmApi } from '../../services/api/sakEmkmApi';
 import type { AdjustingEntryInput } from '../../shared/types/sakEmkm';
-import { useToast } from '../../shared/components';
+import { useDialog, useToast } from '../../shared/components';
 import { previousMonth } from '../../services/accountingPeriod';
 import { formatDateIndo } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
@@ -24,6 +24,7 @@ import {
   AdjustingEntryModal,
   BankReconciliationTab,
   CashBankTab,
+  ChartOfAccountsTab,
   FixedAssetsTab,
   GeneralLedgerTab,
   JournalTab,
@@ -34,7 +35,7 @@ import {
   TrialBalanceTab,
 } from './components';
 
-export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'payables' | 'reports' | 'cash' | 'fixed-assets' | 'bank-recon';
+export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'accounts' | 'payables' | 'reports' | 'cash' | 'fixed-assets' | 'bank-recon';
 
 interface GeneralLedgerScreenProps {
   ledgerVersion: number;
@@ -64,12 +65,15 @@ interface GeneralLedgerScreenProps {
   canMoveCash?: boolean;
   /** Dipanggil saat tab di layar ini (Kas & Bank, Aset Tetap, Rekonsiliasi Bank) membukukan jurnal: App memuat ulang laporan dan saldo kas. */
   onLedgerChanged?: (journals: ApiJournal[]) => void;
+  /** Dipanggil setelah Owner menambah/mengubah/menghapus akun COA agar daftar akun global disegarkan. */
+  onAccountsChanged?: () => Promise<void> | void;
 }
 
 const TABS: { id: AccountingTabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'journals', label: 'Jurnal Umum', icon: BookOpen },
   { id: 'ledger', label: 'Buku Besar', icon: BookMarked },
   { id: 'trial-balance', label: 'Neraca Saldo', icon: Scale },
+  { id: 'accounts', label: 'Daftar Akun (COA)', icon: ListTree },
   { id: 'payables', label: 'Pembantu Hutang', icon: CreditCard },
   { id: 'reports', label: 'Laporan Keuangan', icon: FileText },
   { id: 'cash', label: 'Kas & Bank', icon: Wallet },
@@ -114,7 +118,8 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   initialTab = 'journals',
   canApproveCash = false,
   canMoveCash = false,
-  onLedgerChanged = () => {},
+  onLedgerChanged,
+  onAccountsChanged,
 }) => {
   const access: TabAccess = {
     hub: canUseHub,
@@ -131,6 +136,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   const [isOpeningOpen, setIsOpeningOpen] = useState(false);
   const [isAdjustingOpen, setIsAdjustingOpen] = useState(false);
   const toast = useToast();
+  const dialog = useDialog();
 
   // Hanya POST yang ditangkap: pekerjaan setelah sukses di luar catch agar galat UI tidak tampil sebagai "ditolak" untuk AJP yang sudah dibukukan.
   const handleAdjustingEntry = async (input: AdjustingEntryInput): Promise<boolean> => {
@@ -139,7 +145,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
       return null;
     });
     if (!res) return false;
-    onLedgerChanged(res.journals);
+    onLedgerChanged?.(res.journals);
     toast.success('AJP Dibukukan', `${res.journals.map((j) => j.entry_number).join(' dan pembaliknya ')} tersimpan di server.`);
     return true;
   };
@@ -156,7 +162,15 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
 
   const handleReopen = async () => {
     if (!latestClosing) return;
-    const reason = window.prompt(`Alasan membuka kembali periode ${latestClosing.period}:`);
+    const reason = await dialog.prompt({
+      title: `Buka Kembali Periode ${latestClosing.period}`,
+      message: 'Masukkan alasan membuka kembali periode tutup buku ini. Periode akan kembali menerima transaksi dan jurnal.',
+      placeholder: 'Contoh: Koreksi jurnal penyesuaian akhir bulan',
+      confirmLabel: 'Buka Periode',
+      cancelLabel: 'Batal',
+      tone: 'warning',
+      required: true,
+    });
     if (!reason?.trim()) return;
     await onReopenPeriod(latestClosing.period, reason.trim());
   };
@@ -227,24 +241,100 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
           </div>
         </div>
 
-        <div role="tablist" aria-label="Menu akuntansi" className="flex items-center gap-1.5 p-1.5 bg-slate-100 rounded-xl border border-slate-200 overflow-x-auto text-xs font-bold">
-          {visibleTabs.map(({ id, label, icon: Icon }) => (
-            <button key={id} type="button" role="tab" aria-selected={activeTab === id} onClick={() => setSelectedTab(id)}
-              className={`px-3 py-2 rounded-lg border flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer ${
-                activeTab === id
-                  ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
-                  : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300'
-              }`}>
-              <Icon className="w-4 h-4" />
-              <span>{label}</span>
-              {(badges[id] ?? 0) > 0 && (
-                <span className={`px-1.5 rounded-full text-[10px] font-mono ${
-                  activeTab === id ? 'bg-white text-blue-700' : 'bg-amber-100 text-amber-900'
-                }`}>{badges[id]}</span>
+        {(() => {
+          type GroupDef = {
+            id: string;
+            label: string;
+            icon: React.ComponentType<{ className?: string }>;
+            tabs: AccountingTabKey[];
+          };
+          const groups: GroupDef[] = [
+            { id: 'bookkeeping', label: 'Pembukuan', icon: BookOpen, tabs: ['journals', 'ledger', 'trial-balance'] },
+            { id: 'treasury', label: 'Kas & Bank', icon: Wallet, tabs: ['cash', 'bank-recon'] },
+            { id: 'payables', label: 'Hutang Supplier', icon: CreditCard, tabs: ['payables'] },
+            { id: 'master', label: 'Aset & Akun', icon: ListTree, tabs: ['accounts', 'fixed-assets'] },
+            { id: 'reports', label: 'Laporan SAK EMKM', icon: FileText, tabs: ['reports'] },
+          ];
+
+          const visibleGroups = groups
+            .map((g) => ({
+              ...g,
+              allowedTabs: g.tabs.filter((t) => visibleTabs.some((vt) => vt.id === t)),
+            }))
+            .filter((g) => g.allowedTabs.length > 0);
+
+          const activeGroup = visibleGroups.find((g) => activeTab && g.allowedTabs.includes(activeTab));
+
+          return (
+            <div className="space-y-2.5">
+              <div
+                role="tablist"
+                aria-label="Menu utama akuntansi"
+                className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold"
+              >
+                {visibleGroups.map((group) => {
+                  const Icon = group.icon;
+                  const isActive = activeGroup?.id === group.id;
+                  const groupBadge = group.allowedTabs.reduce((sum, id) => sum + (badges[id] ?? 0), 0);
+                  return (
+                    <button
+                      key={group.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      onClick={() => {
+                        if (!isActive) setSelectedTab(group.allowedTabs[0]);
+                      }}
+                      className={`px-3.5 py-2 rounded-lg border flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer ${
+                        isActive
+                          ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                          : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{group.label}</span>
+                      {groupBadge > 0 && (
+                        <span
+                          className={`px-1.5 rounded-full text-[10px] font-mono ${
+                            isActive ? 'bg-white text-blue-700' : 'bg-amber-100 text-amber-900'
+                          }`}
+                        >
+                          {groupBadge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeGroup && activeGroup.allowedTabs.length > 1 && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs">
+                  {activeGroup.allowedTabs.map((tabId) => {
+                    const meta = TABS.find((t) => t.id === tabId);
+                    if (!meta) return null;
+                    const SubIcon = meta.icon;
+                    const isSubActive = activeTab === tabId;
+                    return (
+                      <button
+                        key={tabId}
+                        type="button"
+                        onClick={() => setSelectedTab(tabId)}
+                        className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer ${
+                          isSubActive
+                            ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-semibold'
+                        }`}
+                      >
+                        <SubIcon className="w-3.5 h-3.5" />
+                        <span>{meta.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               )}
-            </button>
-          ))}
-        </div>
+            </div>
+          );
+        })()}
       </div>
 
       <div className="pt-1">
@@ -253,6 +343,9 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
         )}
         {activeTab === 'ledger' && <GeneralLedgerTab accounts={accounts} refreshKey={ledgerVersion} />}
         {activeTab === 'trial-balance' && <TrialBalanceTab refreshKey={ledgerVersion} onNavigateToReports={() => setSelectedTab('reports')} />}
+        {activeTab === 'accounts' && (
+          <ChartOfAccountsTab accounts={accounts} onAccountsChanged={onAccountsChanged ?? (() => {})} />
+        )}
         {activeTab === 'payables' && <AccountsPayableTab invoices={payableInvoices} cashInDrawer={cashInDrawer} onPayDebt={onPayDebt} />}
         {activeTab === 'reports' && <SakEmkmReportTab refreshKey={ledgerVersion} />}
         {activeTab === 'cash' && (

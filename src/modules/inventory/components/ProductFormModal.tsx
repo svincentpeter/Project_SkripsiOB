@@ -4,7 +4,6 @@ import {
   Edit3, 
   X, 
   Sparkles, 
-  Barcode, 
   Layers, 
   Package, 
   DollarSign, 
@@ -35,7 +34,6 @@ import {
   getProductReferenceHpp,
 } from '../../../shared/utils/pricingStandard';
 import { 
-  generateBarcodeEan13, 
   generateProductSku 
 } from '../../../services/inventoryService';
 
@@ -87,7 +85,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   const [valveType, setValveType] = useState<string>('TR13 Karet Lurus');
   
   const [productCode, setProductCode] = useState('');
-  const [barcode, setBarcode] = useState('');
   const [costPrice, setCostPrice] = useState<number>(750000);
   const [sellingPrice, setSellingPrice] = useState<number>(950000);
   const [stockAlert, setStockAlert] = useState<number>(5);
@@ -118,7 +115,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setColorFinish(productToEdit.color_finish || 'Glossy Black');
       setValveType(productToEdit.valve_type || 'TR13 Karet Lurus');
       setProductCode(productToEdit.product_code);
-      setBarcode(productToEdit.barcode || '');
       const activeBatchesList = (productToEdit.batches || []).filter((b) => (b.remaining_qty ?? 0) > 0);
       const initialCost = activeBatchesList.length > 0
         ? getProductReferenceHpp(productToEdit)
@@ -155,9 +151,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setSupplierName('PT Bridgestone Tire Indonesia');
       setProductName(`${initialBrand} ${initialWidth}/${initialRatio} ${initialRing}`);
       setProductCode(generateProductSku(initialBrand, initialWidth, initialRatio, initialRing, 'STD', initialCat));
-      
-      const existingBarcodes = existingProducts.map((p) => p.barcode).filter(Boolean);
-      setBarcode(generateBarcodeEan13(existingBarcodes));
     }
   }, [isOpen, mode, productToEdit, existingProducts]);
 
@@ -228,7 +221,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         brand,
         product_name: productName.trim(),
         product_code: productCode.trim(),
-        barcode: barcode.trim(),
         size_width: kind === 'BAN_BARU' ? sizeWidth : undefined,
         size_ratio: kind === 'BAN_BARU' ? sizeRatio : kind === 'BAN_DALAM' ? sizeRatio : undefined,
         ring: kind !== 'BAN_DALAM' ? ring : undefined,
@@ -252,7 +244,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         brand,
         product_name: productName.trim(),
         product_code: productCode.trim(),
-        barcode: barcode.trim(),
         size_width: kind === 'BAN_BARU' ? sizeWidth : undefined,
         size_ratio: kind === 'BAN_BARU' ? sizeRatio : kind === 'BAN_DALAM' ? sizeRatio : undefined,
         ring: kind !== 'BAN_DALAM' ? ring : undefined,
@@ -533,38 +524,14 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Kode SKU</label>
-              <input
-                type="text"
-                value={productCode}
-                onChange={(e) => setProductCode(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-mono text-xs focus:outline-none focus:border-blue-500 shadow-2xs"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Barcode EAN-13</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={barcode}
-                  onChange={(e) => setBarcode(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-mono text-xs focus:outline-none focus:border-blue-500 pr-10 shadow-2xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const existingBarcodes = existingProducts.map((p) => p.barcode).filter(Boolean);
-                    setBarcode(generateBarcodeEan13(existingBarcodes));
-                  }}
-                  title="Generate Barcode Baru"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-700"
-                >
-                  <Barcode className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Kode SKU</label>
+            <input
+              type="text"
+              value={productCode}
+              onChange={(e) => setProductCode(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 font-mono text-xs focus:outline-none focus:border-blue-500 shadow-2xs"
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

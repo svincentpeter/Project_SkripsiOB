@@ -25,6 +25,7 @@ import { paymentApi, PaymentOptions } from '../../../services/api/paymentApi';
 import { CheckoutPaymentMeta, providerIdOf } from '../../../services/api/posMappers';
 import { useServerData } from '../../accounting/hooks/useServerData';
 import { QrisDynamicModal } from './QrisDynamicModal';
+import { MidtransSnapModal } from './MidtransSnapModal';
 import { qrisCartKey, reusableSettledQris, SettledQris, settledQrisWarning } from '../settledQris';
 
 interface CheckoutModalProps {
@@ -69,11 +70,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [cashTenderedInput, setCashTenderedInput] = useState<string>('');
   const [transactionNotes, setTransactionNotes] = useState<string>('');
 
-  // Fintech QRIS Dinamis Midtrans State
-  const [qrisFlowType, setQrisFlowType] = useState<'DYNAMIC' | 'MANUAL'>('DYNAMIC');
+  // Midtrans Payment Gateway (Pengganti EDC Fisik): QRIS Dinamis vs Midtrans Snap (Kartu Kredit/Debit, VA, E-Wallet)
+  const [qrisFlowType, setQrisFlowType] = useState<'DYNAMIC' | 'SNAP'>('DYNAMIC');
   const [isQrisModalOpen, setIsQrisModalOpen] = useState<boolean>(false);
+  const [isSnapModalOpen, setIsSnapModalOpen] = useState<boolean>(false);
   const [qrisOrderId, setQrisOrderId] = useState<string>('');
-  // Order QRIS lunas yang belum tercatat di nota (checkout gagal setelah pelanggan bayar): dipakai ulang,
+  // Order Midtrans lunas yang belum tercatat di nota (checkout gagal setelah pelanggan bayar): dipakai ulang,
   // bukan ditagih lagi. Tetap disimpan saat modal ditutup; dihapus hanya setelah checkout berhasil.
   const [settledQris, setSettledQris] = useState<SettledQris | null>(null);
 
@@ -81,7 +83,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [isSplitMode, setIsSplitMode] = useState<boolean>(false);
   const [splitRows, setSplitRows] = useState<SplitPaymentLine[]>([]);
 
-  // Provider transfer & QRIS dari server: fee MDR yang tampil sama dengan yang dibukukan checkout.
+  // Provider transfer & Midtrans dari server: fee MDR yang tampil sama dengan yang dibukukan checkout.
   const paymentOptions = useServerData<PaymentOptions | null>(
     () => (isOpen ? paymentApi.getPaymentOptions() : Promise.resolve(null)),
     [isOpen]
@@ -89,7 +91,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const bankOptions = (paymentOptions.data?.bank_providers ?? []).filter((b) => b.is_active);
   const qrisOptions = (paymentOptions.data?.qris_providers ?? []).filter((q) => q.is_active);
 
-  // QRIS dinamis menagih pelanggan sebelum checkout: jangan dibuka bila provider server belum siap.
+  // Midtrans QRIS Dinamis & Midtrans Snap (Pengganti EDC) — tanpa standee QRIS manual fisik.
+  const midtransQrisProvider =
+    qrisOptions.find(
+      (q) =>
+        (q.provider_code || '').toUpperCase() === 'MIDTRANS_QRIS' ||
+        (q.provider_name.toLowerCase().includes('midtrans') && q.provider_name.toLowerCase().includes('qris'))
+    ) || qrisOptions[0];
+  const midtransSnapProvider =
+    qrisOptions.find(
+      (q) =>
+        (q.provider_code || '').toUpperCase() === 'MIDTRANS_SNAP' ||
+        q.provider_name.toLowerCase().includes('snap')
+    ) || midtransQrisProvider;
+
+  // Pembayaran Midtrans menagih pelanggan sebelum checkout: jangan dibuka bila provider server belum siap.
   const providersPending = paymentOptions.loading || !!paymentOptions.error;
   const qrisUnavailable = providersPending || qrisOptions.length === 0;
   const [submitError, setSubmitError] = useState<string>('');
@@ -106,8 +122,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }, [qrisOptions, selectedQris]);
 
-  // Dynamic fee calculations
-  const currentQrisSetting = qrisOptions.find((q) => q.provider_name === selectedQris) || qrisOptions[0];
+  // Dynamic fee calculations: tarif MDR mengikuti kanal Midtrans yang dipilih (QRIS Dinamis vs Snap EDC).
+  const currentQrisSetting =
+    qrisFlowType === 'SNAP' ? midtransSnapProvider : midtransQrisProvider;
   // Tanpa provider dari server tidak ada angka fee (jangan menebak dari nilai bawaan).
   const qrisFeePct = currentQrisSetting?.fee_percentage ?? 0;
   const qrisThreshold = currentQrisSetting?.fee_threshold_amount ?? 0;
@@ -166,15 +183,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const changeAmount =
     paymentMethod === 'TUNAI' ? Math.max(0, cashTenderedVal - netPayable) : 0;
   const isCashShort = paymentMethod === 'TUNAI' && cashTenderedVal < netPayable;
-
-  const handleFillExact = () => {
-    setCashTenderedInput(String(netPayable));
-  };
-
-  const handleAddCash = (amount: number) => {
-    const current = cashTenderedVal;
-    setCashTenderedInput(String(current + amount));
-  };
 
   // Quick split actions
   const handleSplit5050 = () => {
@@ -245,12 +253,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const submitSettledQris = (orderId: string) =>
     confirmCheckout('QRIS', netPayable, transactionNotes.trim() || undefined, {
-      provider_id: providerIdOf(qrisOptions, selectedQris, true),
+      provider_id: currentQrisSetting ? Number(currentQrisSetting.id) : providerIdOf(qrisOptions, selectedQris, true),
       reference: orderId,
     });
 
   const handleQrisPaymentSuccess = () => {
     setIsQrisModalOpen(false);
+    setIsSnapModalOpen(false);
     setSettledQris({ orderId: qrisOrderId, amount: netPayable, cartKey });
     submitSettledQris(qrisOrderId);
   };
@@ -266,7 +275,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     // Server menolak QRIS tanpa provider (422) setelah pelanggan bayar: cegah sebelum QR ditampilkan.
     const qrisProviderMissing = isSplitMode
       ? splitRows.some((r) => r.method === 'QRIS' && providerIdOf(qrisOptions, r.provider_name, true) === undefined)
-      : paymentMethod === 'QRIS' && providerIdOf(qrisOptions, selectedQris, true) === undefined;
+      : paymentMethod === 'QRIS' && !currentQrisSetting;
     if (usesQris && (providersPending || qrisProviderMissing)) {
       setSubmitError('Provider QRIS belum tersedia dari server. Muat ulang provider atau pilih metode lain.');
       return;
@@ -279,11 +288,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
-    if (!isSplitMode && paymentMethod === 'QRIS' && qrisFlowType === 'DYNAMIC') {
-      // Nomor order unik penuh: server menolak order QRIS yang sudah dipakai nota lain.
+    if (!isSplitMode && paymentMethod === 'QRIS') {
+      // Nomor order unik penuh: server menolak order Midtrans yang sudah dipakai nota lain.
       const generatedOrderId = `POS-${Date.now()}`;
       setQrisOrderId(generatedOrderId);
-      setIsQrisModalOpen(true);
+      if (qrisFlowType === 'SNAP') {
+        setIsSnapModalOpen(true);
+      } else {
+        setIsQrisModalOpen(true);
+      }
       return;
     }
 
@@ -323,7 +336,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         provider_id: isTransfer
           ? providerIdOf(bankOptions, selectedBank)
           : paymentMethod === 'QRIS'
-          ? providerIdOf(qrisOptions, selectedQris, true)
+          ? (currentQrisSetting ? Number(currentQrisSetting.id) : providerIdOf(qrisOptions, selectedQris, true))
           : undefined,
       }
     );
@@ -591,7 +604,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                           >
                             <QrCode className="w-4 h-4 text-cyan-600" />
-                            <span className="text-[11px] truncate">QRIS</span>
+                            <span className="text-[11px] truncate">Midtrans</span>
                           </button>
 
                         </div>
@@ -599,21 +612,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                       {paymentMethod === 'TUNAI' && (
                         <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold text-slate-700">
-                              Nominal Uang Tunai Diterima (Rp)
-                            </label>
-                            <button
-                              type="button"
-                              onClick={handleFillExact}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-[11px] font-bold cursor-pointer transition-colors"
-                            >
-                              Uang Pas ({formatRupiah(netPayable)})
-                            </button>
-                          </div>
+                          <label className="text-xs font-bold text-slate-700 block">
+                            Nominal Uang Tunai Diterima (Rp)
+                          </label>
 
                           <div className="relative">
-                            <span className="absolute left-3 top-2 text-slate-400 font-bold text-xs">
+                            <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-xs">
                               Rp
                             </span>
                             <input
@@ -627,20 +631,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                               placeholder="0"
                               className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono text-base font-black focus:bg-white focus:border-emerald-600 focus:outline-none"
                             />
-                          </div>
-
-                          {/* Quick Add Buttons */}
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {[20000, 50000, 100000, 200000, 500000].map((amt) => (
-                              <button
-                                key={amt}
-                                type="button"
-                                onClick={() => handleAddCash(amt)}
-                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-200 cursor-pointer font-mono"
-                              >
-                                +{formatRupiah(amt).replace('Rp ', '')}
-                              </button>
-                            ))}
                           </div>
 
                           {/* Kembalian Display */}
@@ -701,84 +691,78 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
                       {paymentMethod === 'QRIS' && (
                         <div className="rounded-xl border border-cyan-200 bg-cyan-50/70 p-3.5 text-xs space-y-3 text-cyan-950">
-                          {/* Selector: Mode Dinamis Midtrans vs Statis */}
-                          <div className="flex items-center justify-between">
+                          {/* Midtrans Payment Gateway (Pengganti EDC Fisik): QRIS Dinamis vs Snap (Kartu/VA/E-Wallet) */}
+                          <div className="flex items-center justify-between gap-2">
                             <div className="font-bold flex items-center gap-1.5">
-                              <QrCode className="w-4 h-4 text-cyan-700" />
-                              <span>Metode QRIS Kasir:</span>
+                              <Sparkles className="w-4 h-4 text-cyan-700 shrink-0" />
+                              <span>Midtrans Gateway (Pengganti EDC):</span>
                             </div>
-                            <span className="text-[10px] font-black bg-cyan-600 text-white px-2 py-0.5 rounded-md uppercase tracking-wider">
-                              {qrisFlowType === 'DYNAMIC' ? 'Midtrans Core API' : 'Manual Statis'}
+                            <span className="text-[10px] font-black bg-cyan-700 text-white px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
+                              {qrisFlowType === 'DYNAMIC' ? 'QRIS Dinamis' : 'Midtrans Snap'}
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-1.5 bg-cyan-100/60 p-1 rounded-xl">
+                          <div className="grid grid-cols-2 gap-1.5 bg-cyan-100/70 p-1 rounded-xl">
                             <button
                               type="button"
                               onClick={() => setQrisFlowType('DYNAMIC')}
-                              className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                              className={`py-2 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                                 qrisFlowType === 'DYNAMIC'
                                   ? 'bg-white text-cyan-950 shadow-xs'
                                   : 'text-cyan-800 hover:text-cyan-950'
                               }`}
                             >
-                              <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
-                              <span>Otomatis (Midtrans)</span>
+                              <QrCode className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                              <span>QRIS Dinamis</span>
                             </button>
 
                             <button
                               type="button"
-                              onClick={() => setQrisFlowType('MANUAL')}
-                              className={`py-1.5 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                                qrisFlowType === 'MANUAL'
-                                  ? 'bg-white text-cyan-950 shadow-xs'
+                              onClick={() => setQrisFlowType('SNAP')}
+                              className={`py-2 px-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                                qrisFlowType === 'SNAP'
+                                  ? 'bg-white text-indigo-950 shadow-xs'
                                   : 'text-cyan-800 hover:text-cyan-950'
                               }`}
                             >
-                              <span>Manual (QRIS Statis)</span>
+                              <CreditCard className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                              <span>Kartu / VA (Snap)</span>
                             </button>
                           </div>
 
-                          {qrisFlowType === 'DYNAMIC' && (
-                            <div className="bg-white/80 p-3 rounded-xl border border-cyan-200 space-y-2">
+                          {qrisFlowType === 'DYNAMIC' ? (
+                            <div className="bg-white/95 p-3 rounded-xl border border-cyan-200 space-y-1.5">
                               <div className="flex items-start gap-2 text-cyan-900">
                                 <div className="w-6 h-6 rounded-lg bg-cyan-100 flex items-center justify-center text-cyan-700 shrink-0 mt-0.5">
                                   <QrCode className="w-3.5 h-3.5" />
                                 </div>
                                 <div>
                                   <span className="font-extrabold text-[11px] block">
-                                    QRIS Dinamis Otomatis
+                                    QRIS Universal Otomatis (Midtrans Core API)
                                   </span>
                                   <p className="text-[10px] text-cyan-700 mt-0.5 leading-snug">
-                                    Mendukung GoPay, BCA, Livin, OVO, Dana, ShopeePay. Kasir langsung melihat status lunas tanpa cek mutasi manual.
+                                    Muncul 1 kode QRIS di layar dengan nominal terkunci pas. Pelanggan bebas scan dari m-banking (BCA, Mandiri, BRI, BNI) maupun e-wallet (GoPay, OVO, DANA, ShopeePay) — status lunas &amp; MDR terverifikasi otomatis.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-white/95 p-3 rounded-xl border border-indigo-200 space-y-1.5">
+                              <div className="flex items-start gap-2 text-indigo-950">
+                                <div className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0 mt-0.5">
+                                  <CreditCard className="w-3.5 h-3.5" />
+                                </div>
+                                <div>
+                                  <span className="font-extrabold text-[11px] block">
+                                    Midtrans Snap — Pengganti Mesin EDC Fisik
+                                  </span>
+                                  <p className="text-[10px] text-indigo-800/90 mt-0.5 leading-snug">
+                                    Menerima <strong>Kartu Kredit / Debit (Visa, Mastercard, JCB)</strong>, Virtual Account (BCA, Mandiri, BRI, BNI, Permata), GoPay, ShopeePay &amp; QRIS tanpa mesin EDC bank. Mendukung popup layar kasir maupun QR link ke HP pelanggan (mode Sandbox mendukung simulasi bayar dummy).
                                   </p>
                                 </div>
                               </div>
                             </div>
                           )}
-
-                          {/* Provider menentukan potongan MDR yang dihitung server, di mode dinamis maupun statis. */}
-                          <div className="space-y-2">
-                              <span className="text-[11px] font-semibold text-cyan-800 block">
-                                Provider QRIS (menentukan potongan MDR):
-                              </span>
-                              <div className="flex flex-wrap gap-1.5">
-                                {qrisOptions.map((qris) => (
-                                  <button
-                                    key={qris.id || qris.provider_name}
-                                    type="button"
-                                    onClick={() => setSelectedQris(qris.provider_name)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                                      selectedQris === qris.provider_name
-                                        ? 'bg-cyan-600 text-white border-cyan-600 shadow-xs'
-                                        : 'bg-white text-cyan-900 border-cyan-200 hover:bg-cyan-100/60'
-                                    }`}
-                                  >
-                                    {qris.provider_name} ({qris.fee_percentage}%)
-                                  </button>
-                                ))}
-                              </div>
-                          </div>
 
                           <div className="pt-2 border-t border-cyan-200/80 space-y-1.5 text-[11px]">
                             {!currentQrisSetting ? (
@@ -1058,6 +1042,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>
                     {isSplitMode
                       ? `Selesaikan Multi-Bayar (${formatRupiah(totalSplitPaid)})`
+                      : paymentMethod === 'QRIS'
+                      ? qrisFlowType === 'SNAP'
+                        ? `Buka Midtrans Snap / EDC (${formatRupiah(netPayable)})`
+                        : `Tampilkan QRIS Midtrans (${formatRupiah(netPayable)})`
                       : `Selesaikan Transaksi (${formatRupiah(netPayable)})`}
                   </span>
                 </button>
@@ -1071,6 +1059,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       <QrisDynamicModal
         isOpen={isQrisModalOpen}
         onClose={() => setIsQrisModalOpen(false)}
+        orderId={qrisOrderId}
+        grossAmount={netPayable}
+        customerName={customerName || vehiclePlate}
+        onSuccess={handleQrisPaymentSuccess}
+      />
+
+      {/* Midtrans Snap (Pengganti EDC: Kartu Kredit/Debit, VA, E-Wallet, QRIS) Modal */}
+      <MidtransSnapModal
+        isOpen={isSnapModalOpen}
+        onClose={() => setIsSnapModalOpen(false)}
         orderId={qrisOrderId}
         grossAmount={netPayable}
         customerName={customerName || vehiclePlate}

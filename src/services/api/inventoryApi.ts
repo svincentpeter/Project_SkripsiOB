@@ -10,6 +10,7 @@ import {
   ApiSupplier,
   InventoryValuation,
   ProductPayload,
+  RestockBatchPayload,
   RestockPayload,
 } from './inventoryMappers';
 
@@ -82,7 +83,7 @@ export const inventoryApi = {
     id ? apiClient.put<Envelope<ApiSupplier>>(`/suppliers/${id}`, supplierBody(supplier)) : apiClient.post<Envelope<ApiSupplier>>('/suppliers', supplierBody(supplier)),
 
   // Stok
-  restock: async (payload: RestockPayload) =>
+  restock: async (payload: RestockPayload | RestockBatchPayload) =>
     (await apiClient.post<Envelope<{ purchase: ApiPurchase; journal: ApiJournal | null }>>('/inventory/restock', payload)).data,
   stockOpname: async (items: { product_id: number; physical_qty: number }[], notes?: string) =>
     (
@@ -103,7 +104,10 @@ export const inventoryApi = {
     (await apiClient.post<Envelope<{ purchase: ApiPurchase; journal: ApiJournal }>>(`/purchases/${id}/payments`, payload)).data,
 
   // Retur pembelian & pembatalan penerimaan barang
-  returnPurchase: async (id: string | number, payload: { quantity: number; reason: string; refund_account_code?: '1-1000' | '1-1001' }) =>
+  returnPurchase: async (
+    id: string | number,
+    payload: { product_id?: number; quantity: number; reason: string; refund_account_code?: '1-1000' | '1-1001' }
+  ) =>
     (
       await apiClient.post<Envelope<{ purchase: ApiPurchase; purchase_return: ApiPurchaseReturn; journal: ApiJournal | null }>>(
         `/purchases/${id}/returns`,

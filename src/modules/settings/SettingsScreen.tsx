@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MoneyInput } from '../../shared/components/MoneyInput';
+import { useDialog, useToast } from '../../shared/components';
 import { 
   Settings as SettingsIcon, 
   Store, 
@@ -40,6 +41,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   currentPermissions = DEFAULT_ROLE_PERMISSIONS,
   onSavePermissions,
 }) => {
+  const toast = useToast();
+  const dialog = useDialog();
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'invoice' | 'payment' | 'accounting' | 'roles'>('profile');
   const [formData, setFormData] = useState<StoreSettings>({ ...settings });
   const [saveSuccessToast, setSaveSuccessToast] = useState(false);
@@ -55,10 +58,18 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     setTimeout(() => setSaveSuccessToast(false), 3000);
   };
 
-  const handleResetToDefault = () => {
-    if (window.confirm('Reset seluruh konfigurasi sistem ke pengaturan standar bawaan?')) {
+  const handleResetToDefault = async () => {
+    const ok = await dialog.confirm({
+      title: 'Reset Pengaturan Sistem?',
+      message: 'Seluruh konfigurasi toko lokal akan dikembalikan ke pengaturan standar bawaan.',
+      confirmLabel: 'Ya, Reset Pengaturan',
+      cancelLabel: 'Batal',
+      tone: 'warning',
+    });
+    if (ok) {
       setFormData({ ...INITIAL_STORE_SETTINGS });
       onSaveSettings({ ...INITIAL_STORE_SETTINGS });
+      toast.info('Pengaturan Direset', 'Konfigurasi sistem dikembalikan ke nilai bawaan.');
     }
   };
 
@@ -346,15 +357,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 <label className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={formData.show_barcode_on_receipt}
-                    onChange={(e) => handleChange('show_barcode_on_receipt', e.target.checked)}
-                    className="w-4 h-4 rounded-sm text-blue-600"
-                  />
-                  <span>Cetak Barcode Nomor Nota di Bawah Struk</span>
-                </label>
-                <label className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
                     checked={formData.show_vehicle_info}
                     onChange={(e) => handleChange('show_vehicle_info', e.target.checked)}
                     className="w-4 h-4 rounded-sm text-blue-600"
@@ -419,11 +421,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                   <div className="font-bold text-slate-700">★ KEBIJAKAN GARANSI ★</div>
                   <div>{formData.invoice_warranty_text}</div>
                   <div className="pt-1 font-bold text-slate-800">{formData.invoice_footer_title}</div>
-                  {formData.show_barcode_on_receipt && (
-                    <div className="pt-2 font-mono text-center tracking-widest text-slate-700 font-bold">
-                      ||| | ||||| || |||| ||||| | ||
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

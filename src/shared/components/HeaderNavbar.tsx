@@ -200,12 +200,12 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
           {/* Saldo buku kas laci (akun 1-1000), hanya untuk peran yang boleh membaca saldo kas */}
           {cashInDrawer !== null && (
             <div
-              className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono shadow-2xs shrink-0"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 font-mono shadow-2xs shrink-0"
               title={`Kas Laci (buku 1-1000): ${formatRupiah(cashInDrawer)}`}
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse shrink-0" />
+              <span className="hidden xs:inline-block sm:inline-block w-2 h-2 rounded-full bg-emerald-600 animate-pulse shrink-0" />
               <span className="hidden md:inline text-emerald-800 text-[11px] font-semibold">Kas Laci:</span>
-              <span className="font-extrabold text-[10px] sm:text-xs text-emerald-950 truncate max-w-[70px] sm:max-w-none">{formatRupiah(cashInDrawer)}</span>
+              <span className="font-extrabold text-[11px] sm:text-xs text-emerald-950 whitespace-nowrap tabular-nums">{formatRupiah(cashInDrawer)}</span>
             </div>
           )}
 

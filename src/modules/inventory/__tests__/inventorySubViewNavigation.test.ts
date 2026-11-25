@@ -8,9 +8,10 @@ describe('InventorySubView type', () => {
   });
 
   it('supports all required subviews in inventory screen', () => {
-    const subViews: InventorySubView[] = ['katalog', 'buku_fifo', 'audit_harga', 'kategori', 'jasa', 'stok_mutasi', 'supplier'];
+    const subViews: InventorySubView[] = ['katalog', 'margin_merek', 'buku_fifo', 'audit_harga', 'kategori', 'jasa', 'stok_mutasi', 'supplier'];
+    expect(subViews).toContain('margin_merek');
     expect(subViews).toContain('buku_fifo');
     expect(subViews).toContain('audit_harga');
-    expect(subViews).toHaveLength(7);
+    expect(subViews).toHaveLength(8);
   });
 });

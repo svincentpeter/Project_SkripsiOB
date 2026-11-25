@@ -435,6 +435,15 @@ export interface UpdateProductInput {
 
 export type PaymentTerms = 'TUNAI_KAS' | 'TUNAI_BANK' | 'TEMPO_HUTANG';
 
+export interface GoodsReceiptLineInput {
+  product_id: string;
+  incoming_qty: number;
+  unit_cost: number;
+  line_total?: number;
+  selling_price?: number;
+  price_change_reason?: string;
+}
+
 export interface GoodsReceiptInput {
   product_id: string;
   incoming_qty: number;
@@ -446,6 +455,21 @@ export interface GoodsReceiptInput {
   /** Harga jual katalog baru (opsional saat restock jika HPP batch baru naik atau harga lama Rp 0). */
   selling_price?: number;
   price_change_reason?: string;
+  supplier_name: string;
+  supplier_invoice?: string;
+  receipt_date?: string;
+  payment_terms?: PaymentTerms;
+  due_date?: string;
+  notes?: string;
+  operator?: string;
+}
+
+export interface GoodsReceiptBatchInput {
+  items: GoodsReceiptLineInput[];
+  invoice_total?: number;
+  dpp_amount?: number;
+  ppn_amount?: number;
+  supplier_id?: string;
   supplier_name: string;
   supplier_invoice?: string;
   receipt_date?: string;
@@ -481,6 +505,7 @@ export interface DebtPaymentInput {
 }
 
 export interface ChartOfAccount {
+  id?: number;
   account_code: string;
   account_name: string;
   account_type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
@@ -488,6 +513,22 @@ export interface ChartOfAccount {
   category_name?: string;
   /** Dari server; akun nonaktif ditolak saat pembukuan. */
   is_active?: boolean;
+  /** Jumlah baris jurnal yang sudah memakai akun ini. */
+  journal_items_count?: number;
+  /** Akun inti sistem yang dipakai otomatis oleh POS/FIFO/Tutup Buku. */
+  is_system?: boolean;
+}
+
+export interface BrandPricingItem {
+  id: number;
+  name: string;
+  is_partner: boolean;
+  min_markup_percent: number;
+  default_markup_percent: number;
+  product_count: number;
+  active_product_count: number;
+  zero_price_count: number;
+  avg_current_markup_percent: number | null;
 }
 
 export interface LedgerTransaction {

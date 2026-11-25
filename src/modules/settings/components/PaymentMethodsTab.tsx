@@ -10,7 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { PaymentProviderSetting, StoreSettings } from '../../../shared/types';
-import { useToast } from '../../../shared/components';
+import { useDialog, useToast } from '../../../shared/components';
 import { MoneyInput } from '../../../shared/components/MoneyInput';
 import { paymentApi } from '../../../services/api/paymentApi';
 import { providerErrorMessage, validateProviderInput } from '../paymentProviderInput';
@@ -25,6 +25,7 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
   onUpdateSettings,
 }) => {
   const toast = useToast();
+  const dialog = useDialog();
   const [activeSubTab, setActiveSubTab] = useState<'bank' | 'qris' | 'account'>('bank');
 
   // Local state for adding Bank
@@ -35,8 +36,8 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
   // Local state for adding QRIS
   const [newQrisName, setNewQrisName] = useState('');
   const [newQrisCode, setNewQrisCode] = useState('');
-  const [newQrisFee, setNewQrisFee] = useState<number>(0.30);
-  const [newQrisThreshold, setNewQrisThreshold] = useState<number>(500000);
+  const [newQrisFee, setNewQrisFee] = useState<number>(0.70);
+  const [newQrisThreshold, setNewQrisThreshold] = useState<number>(0);
   const [newQrisActive, setNewQrisActive] = useState(true);
 
   // Bank transfer & provider QRIS disimpan di server (payment_provider_settings): checkout menghitung MDR dari sini.
@@ -186,8 +187,15 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
     editLocal(id, { [field]: val } as Partial<PaymentProviderSetting>);
   };
 
-  const handleDeleteBank = (id: string | number, name: string) => {
-    if (!window.confirm(`Hapus bank "${name}" dari master transfer bank?`)) return;
+  const handleDeleteBank = async (id: string | number, name: string) => {
+    const ok = await dialog.confirm({
+      title: `Hapus Bank "${name}"?`,
+      message: `Rekening bank "${name}" akan dihapus dari daftar master transfer bank.`,
+      confirmLabel: 'Hapus Bank',
+      cancelLabel: 'Batal',
+      tone: 'danger',
+    });
+    if (!ok) return;
     saveToServer(() => paymentApi.deleteProvider(id), 'Bank Dihapus', `Bank ${name} telah dihapus dari sistem.`, 'Gagal Menghapus Provider');
   };
 
@@ -247,8 +255,15 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
     editLocal(id, { [field]: val } as Partial<PaymentProviderSetting>);
   };
 
-  const handleDeleteQris = (id: string | number, name: string) => {
-    if (!window.confirm(`Hapus provider QRIS "${name}"?`)) return;
+  const handleDeleteQris = async (id: string | number, name: string) => {
+    const ok = await dialog.confirm({
+      title: `Hapus Provider QRIS "${name}"?`,
+      message: `Provider QRIS "${name}" akan dihapus dari pengaturan metode pembayaran.`,
+      confirmLabel: 'Hapus Provider',
+      cancelLabel: 'Batal',
+      tone: 'danger',
+    });
+    if (!ok) return;
     saveToServer(() => paymentApi.deleteProvider(id), 'Provider QRIS Dihapus', `Provider ${name} telah dihapus.`, 'Gagal Menghapus Provider');
   };
 
@@ -476,22 +491,22 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
           {/* Form Tambah Provider QRIS */}
           <div className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Tambah Provider QRIS</h3>
+              <h3 className="text-sm font-bold text-slate-900">Tambah Kanal QRIS Toko</h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Kelola provider e-wallet / mobile banking untuk penerimaan QRIS toko.
+                Atur Payment Gateway Midtrans (QRIS Dinamis otomatis) atau standee QRIS Statis toko beserta potongan MDR.
               </p>
             </div>
 
             <form onSubmit={handleAddQris} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Nama Provider
+                  Nama Kanal / Acquirer QRIS
                 </label>
                 <input
                   type="text"
                   value={newQrisName}
                   onChange={(e) => setNewQrisName(e.target.value)}
-                  placeholder="Contoh: GoPay, OVO, DANA, BCA QRIS"
+                  placeholder="Contoh: Midtrans QRIS, QRIS BCA (Statis)"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
                   required
                 />
@@ -499,13 +514,13 @@ export const PaymentMethodsTab: React.FC<PaymentMethodsTabProps> = ({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Kode Provider
+                  Kode Kanal
                 </label>
                 <input
                   type="text"
                   value={newQrisCode}
                   onChange={(e) => setNewQrisCode(e.target.value)}
-                  placeholder="Contoh: GOPAY, OVO"
+                  placeholder="Contoh: MIDTRANS_QRIS, QRIS_BCA"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
                 />
               </div>

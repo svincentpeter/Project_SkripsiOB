@@ -63,6 +63,29 @@ export const invoiceSummary = (quantity: number, unitPrice: number, mode: PpnMod
   return { mode, dpp: faktur, ppn, total: faktur + ppn };
 };
 
+/**
+ * Ringkasan faktur multi-item: total DPP seluruh baris dibulatkan ke rupiah dulu,
+ * lalu PPN 11% dihitung dari total DPP (sama persis dengan nota distributor & ProjectOmahBan receipt-cart.js).
+ */
+export const invoiceCartSummary = (
+  items: { quantity: number; invoicePrice: number }[],
+  mode: PpnMode
+): InvoiceSummary => {
+  const fakturSen = items.reduce((sum, item) => {
+    const qty = Math.max(0, Math.round(Number(item.quantity) || 0));
+    return sum + qty * toCents(item.invoicePrice);
+  }, 0);
+  const faktur = Math.round(fakturSen / 100);
+
+  if (mode === 'include') {
+    const dpp = Math.round((faktur * 100) / 111);
+    return { mode, dpp, ppn: faktur - dpp, total: faktur };
+  }
+
+  const ppn = Math.round((faktur * 11) / 100);
+  return { mode, dpp: faktur, ppn, total: faktur + ppn };
+};
+
 /** Modal batch aktif terbaru (tanggal masuk, lalu id terbesar); fallback ke product_cost. */
 export const lastBatchCost = (product: { batches?: ProductBatch[]; product_cost?: number }): number => {
   let latest: ProductBatch | null = null;

@@ -46,6 +46,7 @@ import {
 } from '../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../shared/utils/formatters';
 import { MoneyInput } from '../../shared/components/MoneyInput';
+import { TablePagination, usePagination } from '../../shared/components';
 import {
   CheckoutPayload,
   CheckoutPaymentMeta,
@@ -67,7 +68,7 @@ import {
   ReceiptPreviewModal,
   CashShiftControl,
 } from './components';
-import { useToast } from '../../shared/components';
+import { useDialog, useToast } from '../../shared/components';
 import { localDate } from '../../services/accountingPeriod';
 import { categoryKind } from '../../shared/utils/categoryKind';
 import {
@@ -168,6 +169,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   onLogout,
 }) => {
   const toast = useToast();
+  const dialog = useDialog();
   const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
@@ -303,7 +305,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           (prod.brand && prod.brand.toLowerCase().includes(q)) ||
           (prod.motif && prod.motif.toLowerCase().includes(q)) ||
           (prod.product_size && prod.product_size.toLowerCase().includes(q)) ||
-          (prod.barcode && prod.barcode.toLowerCase().includes(q)) ||
           (prod.pcd && prod.pcd.toLowerCase().includes(q)) ||
           (prod.product_code && prod.product_code.toLowerCase().includes(q));
         if (!matchesQuery) return false;
@@ -322,6 +323,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     });
   }, [isEmptyState, catalogTab, products, deferredSearchQuery, selectedRing, selectedBrand, stockFilter]);
 
+  const posProductPagination = usePagination(filteredProducts, 24, [
+    catalogTab,
+    deferredSearchQuery,
+    selectedRing,
+    selectedBrand,
+    stockFilter,
+  ]);
+
   const filteredServices = useMemo(() => {
     if (isEmptyState || catalogTab !== 'SERVICES') return [];
     const q = deferredSearchQuery.toLowerCase().trim();
@@ -338,6 +347,12 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       );
     });
   }, [isEmptyState, catalogTab, services, selectedServiceCategory, deferredSearchQuery]);
+
+  const posServicePagination = usePagination(filteredServices, 24, [
+    catalogTab,
+    selectedServiceCategory,
+    deferredSearchQuery,
+  ]);
 
   const handleAddToCartManual = (item: CartItem) => {
     setCart((prevCart) => [...prevCart, item]);
@@ -564,9 +579,16 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     );
   };
 
-  const handleResumeParkedOrder = (order: ParkedTransaction) => {
+  const handleResumeParkedOrder = async (order: ParkedTransaction) => {
     if (cart.length > 0) {
-      if (!confirm('Keranjang kasir saat ini masih berisi item. Ganti isi keranjang dengan nota mobil ini?')) {
+      const ok = await dialog.confirm({
+        title: 'Ganti Isi Keranjang Kasir?',
+        message: 'Keranjang kasir saat ini masih berisi item. Ganti isi keranjang dengan nota mobil ini?',
+        confirmLabel: 'Ya, Ganti Keranjang',
+        cancelLabel: 'Batal',
+        tone: 'warning',
+      });
+      if (!ok) {
         return;
       }
     }
@@ -1065,7 +1087,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         ) : (
           <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 bg-slate-50/70 custom-scrollbar">
             <div className="grid content-start auto-rows-max grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-              {catalogTab !== 'SERVICES' && filteredProducts.map((p) => {
+              {catalogTab !== 'SERVICES' && posProductPagination.pageItems.map((p) => {
                 const stockQty = p.stock || p.product_quantity || 0;
                 const isOutOfStock = stockQty <= 0;
                 const isLowStock = stockQty > 0 && stockQty <= 3;
@@ -1157,7 +1179,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 );
               })}
 
-              {catalogTab === 'SERVICES' && filteredServices.map((srv) => (
+              {catalogTab === 'SERVICES' && posServicePagination.pageItems.map((srv) => (
                 <div
                   key={srv.id}
                   onClick={() => handleAddServiceToCart(srv)}
@@ -1223,6 +1245,34 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                 </div>
               )}
             </div>
+            {catalogTab !== 'SERVICES' && filteredProducts.length > 0 && (
+              <div className="mt-4 bg-white border border-slate-200 rounded-xl px-3.5 pb-2.5">
+                <TablePagination
+                  page={posProductPagination.page}
+                  pageSize={posProductPagination.pageSize}
+                  totalItems={filteredProducts.length}
+                  itemLabel="produk"
+                  pageSizeOptions={[12, 24, 48, 96]}
+                  onPageChange={posProductPagination.setPage}
+                  onPageSizeChange={posProductPagination.setPageSize}
+                  compact
+                />
+              </div>
+            )}
+            {catalogTab === 'SERVICES' && filteredServices.length > 0 && (
+              <div className="mt-4 bg-white border border-slate-200 rounded-xl px-3.5 pb-2.5">
+                <TablePagination
+                  page={posServicePagination.page}
+                  pageSize={posServicePagination.pageSize}
+                  totalItems={filteredServices.length}
+                  itemLabel="layanan jasa"
+                  pageSizeOptions={[12, 24, 48]}
+                  onPageChange={posServicePagination.setPage}
+                  onPageSizeChange={posServicePagination.setPageSize}
+                  compact
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -1304,8 +1354,15 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
             <button
               type="button"
-              onClick={() => {
-                if (confirm('Kosongkan semua item di keranjang kasir?')) {
+              onClick={async () => {
+                const ok = await dialog.confirm({
+                  title: 'Kosongkan Keranjang Kasir?',
+                  message: 'Seluruh item yang ada di keranjang kasir saat ini akan dihapus.',
+                  confirmLabel: 'Kosongkan',
+                  cancelLabel: 'Batal',
+                  tone: 'danger',
+                });
+                if (ok) {
                   setCart([]);
                 }
               }}

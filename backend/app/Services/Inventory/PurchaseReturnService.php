@@ -35,23 +35,36 @@ class PurchaseReturnService
     /**
      * @return array{purchase: Purchase, return: PurchaseReturn, journal: ?JournalEntry}
      */
-    public function returnGoods(int $purchaseId, int $quantity, string $reason, ?string $refundAccount, User $user): array
+    public function returnGoods(int $purchaseId, int $quantity, string $reason, ?string $refundAccount, User $user, ?int $productId = null): array
     {
         // Tiga percobaan: korban deadlock (mis. nomor RTB pertama bulan itu, kunci FK 1-1000 saat refund ke laci) diulang.
-        return DB::transaction(function () use ($purchaseId, $quantity, $reason, $refundAccount, $user) {
+        return DB::transaction(function () use ($purchaseId, $quantity, $reason, $refundAccount, $user, $productId) {
             $purchase = Purchase::lockForUpdate()->findOrFail($purchaseId);
             if ($purchase->status === 'BATAL') {
                 throw new PosRuleException("Penerimaan {$purchase->purchase_number} sudah dibatalkan.");
             }
 
-            $product = $this->lockProduct($purchase);
+            $distinctProductIds = ProductBatch::where('purchase_id', $purchase->id)
+                ->where('remaining_qty', '>', 0)
+                ->distinct()
+                ->pluck('product_id')
+                ->all();
+
+            if ($productId === null) {
+                if (count($distinctProductIds) > 1) {
+                    throw new PosRuleException("Penerimaan {$purchase->purchase_number} terdiri dari beberapa produk; pilih produk yang akan diretur.");
+                }
+                $productId = $distinctProductIds[0] ?? ProductBatch::where('purchase_id', $purchase->id)->value('product_id');
+            }
+
+            $product = $productId ? Product::withTrashed()->lockForUpdate()->find($productId) : null;
             $batches = $this->batchesOf($purchase, $product)
                 ->where('remaining_qty', '>', 0)
                 ->lockForUpdate()
                 ->get()
                 ->sortByDesc('id'); // terbaru dulu, diurutkan di PHP (lihat batchesOf)
             $available = (int) $batches->sum('remaining_qty');
-            if ($quantity > $available) {
+            if (! $product || $quantity > $available) {
                 throw new PosRuleException("Hanya {$available} unit dari {$purchase->purchase_number} yang masih di gudang; unit yang sudah terjual tidak bisa diretur ke supplier.");
             }
 
@@ -111,7 +124,7 @@ class PurchaseReturnService
             ]);
             $this->settle($purchase, $value, $refund);
 
-            return ['purchase' => $purchase->fresh(), 'return' => $return->fresh(), 'journal' => $journal];
+            return ['purchase' => $purchase->fresh('batches.product'), 'return' => $return->fresh(), 'journal' => $journal];
         }, 3);
     }
 
@@ -126,8 +139,24 @@ class PurchaseReturnService
                 throw new PosRuleException("Penerimaan {$purchase->purchase_number} sudah dibatalkan.");
             }
 
-            $product = $this->lockProduct($purchase);
-            $batches = $this->batchesOf($purchase, $product)->lockForUpdate()->get();
+            // Kunci semua produk dalam urutan ID naik agar bebas deadlock (mendukung GR multi-produk).
+            $productIds = ProductBatch::where('purchase_id', $purchase->id)
+                ->distinct()
+                ->orderBy('product_id')
+                ->pluck('product_id')
+                ->all();
+            $products = Product::withTrashed()
+                ->whereIn('id', $productIds)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            $batches = collect();
+            foreach ($products as $prod) {
+                $batches = $batches->concat($this->batchesOf($purchase, $prod)->lockForUpdate()->get());
+            }
+
             $touched = $batches->isEmpty()
                 || $batches->contains(fn (ProductBatch $b) => $b->remaining_qty !== $b->initial_qty)
                 || SaleBatchAllocation::whereIn('product_batch_id', $batches->pluck('id'))->sharedLock()->exists()
@@ -156,18 +185,24 @@ class PurchaseReturnService
                 'operator_name' => $user->name,
             ]);
 
-            foreach ($batches as $batch) {
-                PurchaseReturnItem::create([
-                    'purchase_return_id' => $return->id,
-                    'product_batch_id' => $batch->id,
-                    'quantity' => $batch->initial_qty,
-                    'unit_cost' => $batch->batch_cost,
-                    'total_cost' => round($batch->initial_qty * (float) $batch->batch_cost, 2),
-                ]);
-                $batch->update(['remaining_qty' => 0]);
+            foreach ($batches->groupBy('product_id') as $prodId => $prodBatches) {
+                $prod = $products->get((int) $prodId);
+                $prodQty = (int) $prodBatches->sum('initial_qty');
+                foreach ($prodBatches as $batch) {
+                    PurchaseReturnItem::create([
+                        'purchase_return_id' => $return->id,
+                        'product_batch_id' => $batch->id,
+                        'quantity' => $batch->initial_qty,
+                        'unit_cost' => $batch->batch_cost,
+                        'total_cost' => round($batch->initial_qty * (float) $batch->batch_cost, 2),
+                    ]);
+                    $batch->update(['remaining_qty' => 0]);
+                }
+                if ($prod && $prodQty > 0) {
+                    $this->takeOutOfStock($prod, $prodQty, 'GOODS_RECEIPT_CANCEL', $return->reference,
+                        "Pembatalan penerimaan {$purchase->purchase_number}", $user);
+                }
             }
-            $this->takeOutOfStock($product, $qty, 'GOODS_RECEIPT_CANCEL', $return->reference,
-                "Pembatalan penerimaan {$purchase->purchase_number}", $user);
 
             // Penerimaan bonus Rp 0 tidak pernah dijurnal, jadi tidak ada yang dicerminkan.
             $journal = null;
@@ -186,7 +221,7 @@ class PurchaseReturnService
             }
             $this->settle($purchase, $total, $isTempo ? 0.0 : $total, 'BATAL');
 
-            return ['purchase' => $purchase->fresh(), 'return' => $return->fresh(), 'journal' => $journal];
+            return ['purchase' => $purchase->fresh('batches.product'), 'return' => $return->fresh(), 'journal' => $journal];
         }, 3);
     }
 

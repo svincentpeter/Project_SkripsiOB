@@ -3,6 +3,7 @@ import { AlertTriangle, CalendarDays, Search } from 'lucide-react';
 import type { DailyRecapTotals } from '../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
+import { TablePagination, usePagination } from '../../shared/components';
 import { reportsApi } from '../../services/api';
 import { localDate } from '../../services/accountingPeriod';
 import { cashMovementLabel, dailySummaryKpis, PAYMENT_GROUP_LABELS, PAYMENT_GROUPS } from '../../services/dailyReports';
@@ -39,7 +40,7 @@ const LoadState: React.FC<{ loading: boolean; error: string | null; onRetry: () 
   return loading ? <p className="text-xs text-slate-500">Memuat data dari server…</p> : null;
 };
 
-const Section: React.FC<{ title: string; head: React.ReactNode; controls?: React.ReactNode; children: React.ReactNode }> = ({ title, head, controls, children }) => (
+const Section: React.FC<{ title: string; head: React.ReactNode; controls?: React.ReactNode; footer?: React.ReactNode; children: React.ReactNode }> = ({ title, head, controls, footer, children }) => (
   <section className={`${card} space-y-3`}>
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h3 className="font-extrabold text-sm text-slate-900">{title}</h3>
@@ -51,6 +52,7 @@ const Section: React.FC<{ title: string; head: React.ReactNode; controls?: React
         <tbody className="divide-y divide-slate-100">{children}</tbody>
       </table>
     </div>
+    {footer}
   </section>
 );
 
@@ -93,6 +95,8 @@ const DailyCashTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =>
     });
   }, [r?.sales, saleSearch, saleStatusFilter, saleMethodFilter]);
 
+  const salesPagination = usePagination(filteredSales, 15, [date, saleSearch, saleStatusFilter, saleMethodFilter]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -120,9 +124,9 @@ const DailyCashTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =>
           {kpis.length > 0 && (
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               {kpis.map(([label, value]) => (
-                <div key={label} className={card}>
-                  <div className="text-[11px] font-bold text-slate-600">{label}</div>
-                  <div className="text-base font-black font-mono text-slate-900">{formatRupiah(value)}</div>
+                <div key={label} className={`${card} min-w-0`}>
+                  <div className="text-[11px] font-bold text-slate-600 leading-tight">{label}</div>
+                  <div className="text-sm sm:text-base font-black font-mono tabular-nums text-slate-900 break-words mt-1">{formatRupiah(value)}</div>
                 </div>
               ))}
             </div>
@@ -267,9 +271,21 @@ const DailyCashTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =>
                 <th className={th}>Status</th>
               </tr>
             }
+            footer={
+              <TablePagination
+                page={salesPagination.page}
+                pageSize={salesPagination.pageSize}
+                totalItems={filteredSales.length}
+                totalUnfiltered={r.sales.length}
+                itemLabel="nota"
+                pageSizeOptions={[10, 15, 25, 50]}
+                onPageChange={salesPagination.setPage}
+                onPageSizeChange={salesPagination.setPageSize}
+              />
+            }
           >
             {filteredSales.length === 0 && <Empty cols={showHpp ? 8 : 7} />}
-            {filteredSales.map((s) => (
+            {salesPagination.pageItems.map((s) => (
               <tr key={s.id} className={s.status === 'VOID' ? 'bg-rose-50/60 text-slate-500' : ''}>
                 <td className={td}>{s.time ?? '-'}</td>
                 <td className={`${td} font-mono font-bold text-blue-700`}>{s.reference}</td>
@@ -308,6 +324,8 @@ const DailyRecapTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =
   const [to, setTo] = useState(today);
   const recap = useServerData(() => reportsApi.dailyRecap(from, to), [from, to, ledgerVersion]);
   const r = recap.data;
+  const reversedRows = useMemo(() => (r ? [...r.rows].reverse() : []), [r]);
+  const recapPagination = usePagination(reversedRows, 15, [from, to]);
   const cols: [string, Exclude<keyof DailyRecapTotals, 'payment_mix'>][] = [
     ['Pendapatan Bersih', 'net_revenue'],
     ['Retur', 'returns'],
@@ -349,8 +367,19 @@ const DailyRecapTab: React.FC<{ ledgerVersion: number }> = ({ ledgerVersion }) =
               {PAYMENT_GROUPS.map((g) => <th key={g} className={thr}>{PAYMENT_GROUP_LABELS[g]}</th>)}
             </tr>
           }
+          footer={
+            <TablePagination
+              page={recapPagination.page}
+              pageSize={recapPagination.pageSize}
+              totalItems={reversedRows.length}
+              itemLabel="hari"
+              pageSizeOptions={[10, 15, 31, 92]}
+              onPageChange={recapPagination.setPage}
+              onPageSizeChange={recapPagination.setPageSize}
+            />
+          }
         >
-          {[...r.rows].reverse().map((row) => (
+          {recapPagination.pageItems.map((row) => (
             <tr key={row.date}>
               <td className={td}>{formatDateIndo(row.date)}</td>
               <td className={num}>{row.sales_count}</td>

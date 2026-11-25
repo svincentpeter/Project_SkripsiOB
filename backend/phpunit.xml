@@ -36,5 +36,10 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="MIDTRANS_IS_PRODUCTION" value="false" force="true"/>
+        <env name="MIDTRANS_SERVER_KEY" value="" force="true"/>
+        <env name="MIDTRANS_SIGNATURE_KEY" value="" force="true"/>
+        <env name="MIDTRANS_CLIENT_KEY" value="" force="true"/>
+        <env name="MIDTRANS_ALLOW_SIMULATION" value="false" force="true"/>
     </php>
 </phpunit>

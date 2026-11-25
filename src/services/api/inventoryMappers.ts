@@ -1,6 +1,7 @@
 import {
   CreateProductInput,
   DebtPaymentInput,
+  GoodsReceiptBatchInput,
   GoodsReceiptInput,
   PayableInvoice,
   ProductCategory,
@@ -59,6 +60,15 @@ export interface ApiMovement {
   product?: { id: number; product_name: string; product_size?: string | null } | null;
 }
 
+export interface ApiPurchaseItem {
+  product_id: number;
+  product_name: string;
+  product_size?: string | null;
+  quantity: number;
+  returnable_qty: number;
+  total_cost: number;
+}
+
 export interface ApiPurchase {
   id: number;
   purchase_number: string;
@@ -78,6 +88,8 @@ export interface ApiPurchase {
   journal_entry_number?: string | null;
   notes?: string | null;
   product_name?: string | null;
+  item_count?: number;
+  items?: ApiPurchaseItem[];
   quantity?: number;
   returnable_qty?: number;
 }
@@ -313,6 +325,56 @@ export const restockPayload = (input: GoodsReceiptInput, suppliers: SupplierItem
     notes: input.notes || undefined,
     selling_price: input.selling_price && input.selling_price > 0 ? input.selling_price : undefined,
     price_change_reason: input.price_change_reason?.trim() || undefined,
+  };
+};
+
+export interface RestockBatchPayload {
+  items: {
+    product_id: number;
+    quantity: number;
+    batch_cost: number;
+    line_total?: number;
+    selling_price?: number;
+    price_change_reason?: string;
+  }[];
+  invoice_total?: number;
+  dpp_amount?: number;
+  ppn_amount?: number;
+  supplier_id?: number;
+  source_name: string;
+  supplier_invoice?: string;
+  purchase_date?: string;
+  payment_method: 'TUNAI' | 'TRANSFER_BCA' | 'TEMPO';
+  due_date?: string;
+  notes?: string;
+}
+
+export const restockBatchPayload = (input: GoodsReceiptBatchInput, suppliers: SupplierItem[]): RestockBatchPayload => {
+  const supplier =
+    (input.supplier_id ? suppliers.find((s) => String(s.id) === String(input.supplier_id)) : undefined) ||
+    suppliers.find((s) => s.supplier_name === input.supplier_name);
+  const method = PAYMENT_TERMS[input.payment_terms ?? 'TEMPO_HUTANG'] ?? 'TEMPO';
+  const supplierId = Number(supplier?.id);
+
+  return {
+    items: input.items.map((item) => ({
+      product_id: Number(item.product_id),
+      quantity: item.incoming_qty,
+      batch_cost: item.line_total && item.incoming_qty > 0 ? item.line_total / item.incoming_qty : item.unit_cost,
+      line_total: item.line_total && item.line_total > 0 ? item.line_total : undefined,
+      selling_price: item.selling_price && item.selling_price > 0 ? item.selling_price : undefined,
+      price_change_reason: item.price_change_reason?.trim() || undefined,
+    })),
+    invoice_total: input.invoice_total && input.invoice_total > 0 ? input.invoice_total : undefined,
+    dpp_amount: input.dpp_amount,
+    ppn_amount: input.ppn_amount,
+    supplier_id: Number.isInteger(supplierId) && supplierId > 0 ? supplierId : undefined,
+    source_name: input.supplier_name,
+    supplier_invoice: input.supplier_invoice || undefined,
+    purchase_date: input.receipt_date || undefined,
+    payment_method: method,
+    due_date: method === 'TEMPO' ? input.due_date || undefined : undefined,
+    notes: input.notes || undefined,
   };
 };
 

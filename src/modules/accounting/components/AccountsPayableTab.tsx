@@ -13,6 +13,7 @@ import {
 import { DebtPaymentInput, PayableInvoice } from '../../../shared/types';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
 import { localDate } from '../../../services/accountingPeriod';
+import { TablePagination, usePagination } from '../../../shared/components';
 import { PayDebtModal } from './PayDebtModal';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
 
@@ -65,6 +66,14 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
 
     return matchesQuery && matchesStatus && matchesSupplier && matchesFrom && matchesTo;
   });
+
+  const payablePagination = usePagination(filteredInvoices, 10, [
+    searchQuery,
+    statusFilter,
+    supplierFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   const overdueCount = invoices.filter((i) => i.status !== 'LUNAS' && !!i.due_date && i.due_date < todayStr).length;
 
@@ -294,7 +303,7 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredInvoices.map((inv) => (
+                payablePagination.pageItems.map((inv) => (
                 <tr key={inv.id} className="hover:bg-slate-50/70 transition-colors">
                   <td className="py-2 px-3 font-bold text-indigo-700 text-xs truncate" title={inv.invoice_number}>{inv.invoice_number}</td>
                   <td className="py-2 px-3 font-sans truncate" title={inv.supplier_name}>
@@ -356,15 +365,16 @@ export const AccountsPayableTab: React.FC<AccountsPayableTabProps> = ({
           </div>
         </div>
 
-        {/* Card Footer Summary */}
-        <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
-          <span>
-            Menampilkan {filteredInvoices.length} tagihan faktur distributor
-          </span>
-          <span className="text-[11px] text-slate-400">
-            Total Sisa Hutang: {formatRupiah(totalRemainingDebt)}
-          </span>
-        </div>
+        {/* Pagination Footer */}
+        <TablePagination
+          page={payablePagination.page}
+          pageSize={payablePagination.pageSize}
+          totalItems={filteredInvoices.length}
+          unfilteredTotal={invoices.length}
+          itemLabel="faktur hutang"
+          onPageChange={payablePagination.setPage}
+          onPageSizeChange={payablePagination.setPageSize}
+        />
       </div>
 
       {/* Pay Debt Modal */}

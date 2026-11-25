@@ -4,7 +4,7 @@ import type { ApiJournal } from '../../../services/api';
 import { sakEmkmApi } from '../../../services/api/sakEmkmApi';
 import { currentMonth, localDate, monthLabel } from '../../../services/accountingPeriod';
 import type { BankStatementLine, OutstandingLedgerItem } from '../../../shared/types/sakEmkm';
-import { useToast } from '../../../shared/components';
+import { TablePagination, useDialog, usePagination, useToast } from '../../../shared/components';
 import { ExportMenu } from '../../../shared/export/ExportMenu';
 import { formatDateIndo, formatRupiah, parseDecimalRupiah } from '../../../shared/utils/formatters';
 import { groupCandidates, groupGapCents } from '../bankGroupMatch';
@@ -26,6 +26,7 @@ const FORMAT_HINT = 'Gunakan format 12.345.678,90 atau 12345678.90.';
 
 export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ refreshKey = 0, onJournalsPosted, lockDate = null }) => {
   const toast = useToast();
+  const dialog = useDialog();
   const [period, setPeriod] = useState(currentMonth());
   // Teks bebas (bukan MoneyInput yang hanya bilangan bulat): saldo bank bisa bersen. Rekening tanpa fasilitas cerukan: tidak negatif.
   const [balanceText, setBalanceText] = useState('');
@@ -64,6 +65,9 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
       return true;
     });
   }, [r?.lines, lineSearch, matchFilter, directionFilter]);
+
+  const statementPagination = usePagination(filteredStatementLines, 15, [period, lineSearch, matchFilter, directionFilter]);
+  const outstandingPagination = usePagination(r?.outstanding_ledger ?? [], 10, [period]);
 
   useEffect(() => {
     setBalanceText(r?.statement_ending_balance == null ? '' : decimalText(r.statement_ending_balance));
@@ -143,19 +147,32 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
   const toggleGroupItem = (id: number) =>
     setGroup((g) => g && { ...g, picked: g.picked.includes(id) ? g.picked.filter((p) => p !== id) : [...g.picked, id] });
 
-  const remove = (line: BankStatementLine) => {
-    if (!window.confirm(`Hapus mutasi "${line.description}"?`)) return;
+  const remove = async (line: BankStatementLine) => {
+    const ok = await dialog.confirm({
+      title: 'Hapus Baris Mutasi Rekening?',
+      message: `Hapus mutasi "${line.description}" dari daftar rekening koran?`,
+      confirmLabel: 'Hapus Mutasi',
+      cancelLabel: 'Batal',
+      tone: 'danger',
+    });
+    if (!ok) return;
     void act('Hapus Mutasi', () => sakEmkmApi.deleteStatementLine(line.id), () => 'Baris rekening koran dihapus.');
   };
 
-  const postAdjustment = (line: BankStatementLine) => {
+  const postAdjustment = async (line: BankStatementLine) => {
     // Setoran QRIS/transfer yang belum dicocokkan akan terbukukan dua kali bila dicatat sebagai bunga.
     const what = line.amount < 0 ? 'biaya administrasi bank (6-1012)' : 'bunga bank (4-3000)';
-    if (!window.confirm(
-      `Bukukan ${formatRupiah(Math.abs(line.amount))} "${line.description}" sebagai ${what}?\n\n` +
+    const ok = await dialog.confirm({
+      title: line.amount < 0 ? 'Bukukan Biaya Administrasi Bank?' : 'Bukukan Pendapatan Bunga Bank?',
+      message:
+        `Bukukan ${formatRupiah(Math.abs(line.amount))} "${line.description}" sebagai ${what}?\n\n` +
         'Hanya untuk mutasi yang belum ada di buku. Setoran QRIS/transfer penjualan atau pembayaran yang sudah dijurnal ' +
         'harus dicocokkan (gunakan "Beberapa jurnal" untuk setoran gabungan), bukan dibukukan lagi.',
-    )) return;
+      confirmLabel: 'Ya, Bukukan Jurnal',
+      cancelLabel: 'Batal',
+      tone: 'warning',
+    });
+    if (!ok) return;
     void act(line.amount < 0 ? 'Biaya Admin Bank' : 'Bunga Bank',
     () => sakEmkmApi.postBankAdjustment(line.id), (res) => {
       onJournalsPosted(res.journals);
@@ -319,7 +336,7 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                       {r.lines.length === 0 ? 'Belum ada mutasi rekening koran bulan ini.' : 'Tidak ada mutasi rekening koran yang cocok dengan filter.'}
                     </td></tr>
                   )}
-                  {filteredStatementLines.map((line) => {
+                  {statementPagination.pageItems.map((line) => {
                     const options = candidates(line);
                     const locked = lockDate !== null && line.statement_date <= lockDate;
                     const grouping = group?.lineId === line.id ? group : null;
@@ -414,6 +431,17 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                 </tbody>
               </table>
             </div>
+            <TablePagination
+              page={statementPagination.page}
+              pageSize={statementPagination.pageSize}
+              totalItems={filteredStatementLines.length}
+              unfilteredTotal={r.lines.length}
+              itemLabel="mutasi rekening koran"
+              pageSizeOptions={[10, 15, 25, 50]}
+              onPageChange={statementPagination.setPage}
+              onPageSizeChange={statementPagination.setPageSize}
+              compact
+            />
             {r.unrecorded_bank.some((l) => l.journal_item_id === null && l.statement_date < r.start_date) && (
               <p className="text-amber-800">Ada mutasi rekening koran bulan sebelumnya yang belum dicocokkan; buka bulan tersebut untuk menyelesaikannya.</p>
             )}
@@ -428,7 +456,7 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {r.outstanding_ledger.length === 0 && <tr><td colSpan={5} className="py-4 text-center text-slate-500">Semua jurnal bank sudah cocok.</td></tr>}
-                  {r.outstanding_ledger.map((i) => (
+                  {outstandingPagination.pageItems.map((i) => (
                     <tr key={i.journal_item_id}>
                       <td className="py-2 px-2">{formatDateIndo(i.entry_date)}</td>
                       <td className="py-2 px-2 font-mono">{i.entry_number}</td>
@@ -448,6 +476,15 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
                 </tbody>
               </table>
             </div>
+            <TablePagination
+              page={outstandingPagination.page}
+              pageSize={outstandingPagination.pageSize}
+              totalItems={r.outstanding_ledger.length}
+              itemLabel="jurnal belum cocok"
+              onPageChange={outstandingPagination.setPage}
+              onPageSizeChange={outstandingPagination.setPageSize}
+              compact
+            />
           </section>
         </>
       )}

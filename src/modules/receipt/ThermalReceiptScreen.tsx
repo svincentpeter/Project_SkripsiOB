@@ -28,6 +28,7 @@ import { PosTransaction, UserSession } from '../../shared/types';
 import { formatDateIndo, formatRupiah, playCashDrawerSound } from '../../shared/utils/formatters';
 import { ExportMenu } from '../../shared/export/ExportMenu';
 import { localDate } from '../../services/accountingPeriod';
+import { TablePagination, usePagination } from '../../shared/components';
 import { SalesReturnModal, type SalesReturnItemInput } from './components/SalesReturnModal';
 
 interface ThermalReceiptScreenProps {
@@ -159,6 +160,16 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
       return true;
     });
   }, [transactionsHistory, searchQuery, statusFilter, dateFilter, dateFrom, dateTo, paymentFilter, cashierFilter]);
+
+  const txListPagination = usePagination(filteredTransactions, 12, [
+    searchQuery,
+    statusFilter,
+    dateFilter,
+    dateFrom,
+    dateTo,
+    paymentFilter,
+    cashierFilter,
+  ]);
 
   // Mini summary metrics
   const summaryMetrics = useMemo(() => {
@@ -493,7 +504,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                 </button>
               </div>
             ) : (
-              filteredTransactions.map((tx) => {
+              txListPagination.pageItems.map((tx) => {
                 const isSelected = activeTx?.id === tx.id;
                 const isVoid = tx.status === 'VOID' || tx.is_voided;
 
@@ -571,6 +582,21 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
               })
             )}
           </div>
+          {filteredTransactions.length > 0 && (
+            <div className="px-3 pb-2.5 bg-white border-t border-slate-100 shrink-0">
+              <TablePagination
+                page={txListPagination.page}
+                pageSize={txListPagination.pageSize}
+                totalItems={filteredTransactions.length}
+                unfilteredTotal={transactionsHistory.length}
+                itemLabel="nota"
+                pageSizeOptions={[12, 24, 50]}
+                onPageChange={txListPagination.setPage}
+                onPageSizeChange={txListPagination.setPageSize}
+                compact
+              />
+            </div>
+          )}
         </aside>
 
         {/* =========================================================
@@ -894,16 +920,9 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                       </div>
                     </div>
 
-                    {showBarcode && (
-                      <>
-                        <div className="font-mono tracking-widest text-slate-400 text-[10px]">
-                          ||| | ||||| || |||| ||||| | ||
-                        </div>
-                        <div className="text-[8px] text-slate-400 font-mono">
-                          {activeTx.invoice_number}
-                        </div>
-                      </>
-                    )}
+                    <div className="text-[8px] text-slate-400 font-mono pt-1">
+                      No. Nota: {activeTx.invoice_number}
+                    </div>
 
                     <p className="font-bold text-black text-[10px] pt-1">
                       {footerTitle}

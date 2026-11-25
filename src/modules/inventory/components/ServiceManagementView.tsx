@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { ServiceCategoryItem, ServiceMasterItem } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
+import { TablePagination, usePagination } from '../../../shared/components';
 import { ServiceFormModal } from './ServiceFormModal';
 
 interface ServiceManagementViewProps {
@@ -82,6 +83,8 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
       return matchesCat && matchesStatus && matchesSearch;
     });
   }, [services, selectedCategoryFilter, statusFilter, searchQuery]);
+
+  const servicePagination = usePagination(filteredServices, 10, [selectedCategoryFilter, statusFilter, searchQuery]);
 
   const handleOpenCreateService = () => {
     setServiceModalMode('CREATE');
@@ -282,7 +285,8 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  filteredServices.map((srv, idx) => {
+                  servicePagination.pageItems.map((srv, idx) => {
+                    const rowNum = (servicePagination.page - 1) * servicePagination.pageSize + idx + 1;
                     const categoryObj = serviceCategories.find(
                       (c) => c.code.toUpperCase() === srv.category.toUpperCase()
                     );
@@ -290,7 +294,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
 
                     return (
                       <tr key={srv.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
+                        <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{rowNum}</td>
                         <td className="py-3 px-4">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-800 border border-cyan-200 font-mono text-xs font-bold">
                             {srv.service_code}
@@ -377,11 +381,16 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
           </div>
         </div>
 
-        {/* Card Footer Summary */}
-        <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-100">
-          <span>Menampilkan {filteredServices.length} dari {services.length} master layanan jasa</span>
-          <span className="text-[11px] text-slate-400">Sistem Inventori Cabang 3 • SAK EMKM</span>
-        </div>
+        {/* Pagination Footer */}
+        <TablePagination
+          page={servicePagination.page}
+          pageSize={servicePagination.pageSize}
+          totalItems={filteredServices.length}
+          unfilteredTotal={services.length}
+          itemLabel="layanan jasa"
+          onPageChange={servicePagination.setPage}
+          onPageSizeChange={servicePagination.setPageSize}
+        />
       </div>
 
       {/* Service Modal Form */}

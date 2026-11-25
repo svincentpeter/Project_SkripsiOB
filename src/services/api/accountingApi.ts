@@ -30,8 +30,20 @@ export type CashBalances = Record<'1-1000' | '1-1001', number>;
 
 const data = <T>(request: Promise<Envelope<T>>): Promise<T> => request.then((r) => r.data);
 
+export interface AccountPayload {
+  account_code: string;
+  account_name: string;
+  account_type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
+  normal_balance: 'DEBIT' | 'CREDIT';
+  is_active?: boolean;
+}
+
 export const accountingApi = {
   accounts: () => data(apiClient.get<Envelope<ApiAccount[]>>('/accounts')),
+  createAccount: (payload: AccountPayload) => data(apiClient.post<Envelope<ApiAccount>>('/accounts', payload)),
+  updateAccount: (id: number, payload: Partial<AccountPayload>) =>
+    data(apiClient.put<Envelope<ApiAccount>>(`/accounts/${id}`, payload)),
+  deleteAccount: (id: number) => data(apiClient.delete<Envelope<{ deleted: boolean }>>(`/accounts/${id}`)),
   journals: (query: JournalQuery) => data(apiClient.get<Envelope<ApiJournalPage>>('/accounting/journals', query)),
   createManualJournal: (payload: ManualJournalPayload) =>
     data(apiClient.post<Envelope<ApiJournal>>('/accounting/journals/manual', payload)),

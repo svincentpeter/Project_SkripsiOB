@@ -13,4 +13,5 @@ export * from './posMappers';
 export * from './inventoryMappers';
 export * from './accountingMappers';
 export * from './priceAuditApi';
+export * from './brandPricingApi';
 

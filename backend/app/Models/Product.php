@@ -110,10 +110,24 @@ class Product extends Model
     }
 
     /**
-     * Standar harga jual minimal: HPP patokan + 15% keuntungan (Markup 1,15 × HPP).
+     * Persentase margin minimal efektif produk: minimal 15% global atau standar khusus merek bila lebih tinggi.
+     */
+    public function minimumMarkupRate(): float
+    {
+        $brandMin = $this->relationLoaded('brandRelation')
+            ? $this->brandRelation?->min_markup_percent
+            : ($this->brand_id ? $this->brandRelation()->value('min_markup_percent') : null);
+
+        $pct = max(self::MIN_MARKUP_RATE * 100, (float) ($brandMin ?? 0));
+
+        return round($pct / 100, 4);
+    }
+
+    /**
+     * Standar harga jual minimal: HPP patokan × (1 + minimumMarkupRate).
      */
     public function minimumSellingPrice(): float
     {
-        return round($this->referenceHpp() * (1 + self::MIN_MARKUP_RATE), 2);
+        return round($this->referenceHpp() * (1 + $this->minimumMarkupRate()), 2);
     }
 }

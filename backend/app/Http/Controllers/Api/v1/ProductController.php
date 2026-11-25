@@ -32,6 +32,7 @@ class ProductController extends Controller
         $query = Product::with([
             'activeBatches:id,product_id,batch_code,source_name,purchase_date,batch_cost,initial_qty,remaining_qty',
             'category:id,category_code',
+            'brandRelation:id,name,min_markup_percent,default_markup_percent',
         ])->select([
             'id', 'category_id', 'brand_id', 'brand', 'product_name', 'product_code', 'barcode',
             'size_width', 'size_ratio', 'ring', 'product_size', 'motif', 'condition_code',
@@ -300,6 +301,7 @@ class ProductController extends Controller
         $baseCost = (float) ($product->product_cost ?? 0);
         $maxBatchCost = (float) ($batches->max('batch_cost') ?? 0);
         $refHpp = round(max($baseCost, $maxBatchCost), 2);
+        $minRate = $product->minimumMarkupRate();
 
         return [
             'id' => $product->id,
@@ -321,7 +323,7 @@ class ProductController extends Controller
             'product_price' => (string) $product->product_price,
             'reference_price' => $product->reference_price !== null ? (string) $product->reference_price : null,
             'reference_hpp' => $refHpp,
-            'min_selling_price' => round($refHpp * (1 + Product::MIN_MARKUP_RATE), 2),
+            'min_selling_price' => round($refHpp * (1 + $minRate), 2),
             'product_quantity' => $product->product_quantity,
             'stok_awal' => $product->stok_awal,
             'product_stock_alert' => $product->product_stock_alert,

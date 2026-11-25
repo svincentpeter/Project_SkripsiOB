@@ -439,11 +439,6 @@ export const CartLineEditModal: React.FC<CartLineEditModalProps> = ({
                     SKU: {item.service?.service_code || item.product?.product_code}
                   </span>
                 )}
-                {!isService && item.product?.barcode && item.product.barcode !== item.product.product_code && (
-                  <span className="font-mono px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600">
-                    EAN: {item.product.barcode}
-                  </span>
-                )}
                 {stockAvailable !== null && (
                   <span
                     className={`font-bold px-2 py-0.5 rounded-md border ${

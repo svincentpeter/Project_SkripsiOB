@@ -20,7 +20,6 @@ import {
   Info,
   Calendar,
   DollarSign,
-  Barcode,
   Sparkles,
   Eye,
   Edit3,
@@ -31,9 +30,11 @@ import {
   X,
   FileSpreadsheet,
   ShieldCheck,
+  Percent,
 } from 'lucide-react';
 import { 
   CreateProductInput, 
+  GoodsReceiptBatchInput,
   GoodsReceiptInput, 
   ItemCategory, 
   PosTransaction, 
@@ -46,6 +47,7 @@ import {
   UpdateProductInput 
 } from '../../shared/types';
 import { formatRupiah } from '../../shared/utils/formatters';
+import { matchesProductQuery } from '../../shared/utils/productMatcher';
 import { 
   calculateInventoryValuation, 
   canSafelyDeleteProduct 
@@ -66,7 +68,7 @@ import {
 } from '../../services/serviceMasterService';
 import { 
   CategoryManagementView, 
-  GoodsReceiptModal, 
+  GoodsReceiptWorkspace,
   ProductFormModal, 
   ServiceFormModal, 
   ServiceManagementView, 
@@ -78,13 +80,14 @@ import {
   StockMonthlyLedgerView,
   PurchaseReturnModal,
   PriceAuditLogView,
+  BrandMarkupSettingsView,
 } from './components';
 import type { PurchaseReturnPayload } from './components';
-import { useToast } from '../../shared/components';
+import { TablePagination, usePagination, useToast } from '../../shared/components';
 import { ExportMenu } from '../../shared/export/ExportMenu';
 import type { ApiJournal, InventoryValuation } from '../../services/api';
 
-export type InventorySubView = 'katalog' | 'buku_fifo' | 'audit_harga' | 'kategori' | 'jasa' | 'stok_mutasi' | 'supplier';
+export type InventorySubView = 'katalog' | 'penerimaan' | 'margin_merek' | 'buku_fifo' | 'audit_harga' | 'kategori' | 'jasa' | 'stok_mutasi' | 'supplier';
 
 interface InventoryScreenProps {
   initialSubView?: InventorySubView;
@@ -100,6 +103,7 @@ interface InventoryScreenProps {
   onCreateProduct?: (input: CreateProductInput) => Promise<boolean>;
   onUpdateProduct?: (productId: string, updates: UpdateProductInput) => Promise<boolean>;
   onGoodsReceipt?: (input: GoodsReceiptInput) => Promise<boolean>;
+  onGoodsReceiptBatch?: (input: GoodsReceiptBatchInput) => Promise<boolean>;
   onDeleteOrDeactivateProduct?: (productId: string) => void;
   onStockOpname: (items: { product_id: number; physical_qty: number }[], notes: string) => Promise<boolean>;
   onServerChanged?: (journal?: ApiJournal | null) => void;
@@ -142,6 +146,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   onCreateProduct,
   onUpdateProduct,
   onGoodsReceipt,
+  onGoodsReceiptBatch,
   onDeleteOrDeactivateProduct,
   onStockOpname,
   onServerChanged,
@@ -211,8 +216,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
   const [productFormMode, setProductFormMode] = useState<'CREATE' | 'EDIT'>('CREATE');
   const [productToEdit, setProductToEdit] = useState<ProductItem | null>(null);
 
-  const [showGoodsReceiptModal, setShowGoodsReceiptModal] = useState<boolean>(false);
-  const [preselectedRestockProduct, setPreselectedRestockProduct] = useState<ProductItem | null>(null);
+  const [pendingRestockProduct, setPendingRestockProduct] = useState<ProductItem | null>(null);
 
   const [showReconciliationModal, setShowReconciliationModal] = useState<boolean>(false);
   const [showPurchaseReturnModal, setShowPurchaseReturnModal] = useState<boolean>(false);
@@ -283,6 +287,12 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
     });
   }, [suppliers, supplierSearch, supplierStatusFilter, supplierTermFilter]);
 
+  const supplierPagination = usePagination(filteredSuppliers, 10, [
+    supplierSearch,
+    supplierStatusFilter,
+    supplierTermFilter,
+  ]);
+
   // Filtered products for catalog
   const filteredProducts = useMemo(() => {
     if (isEmptyState) return [];
@@ -313,18 +323,11 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
       if (stockFilter === 'INACTIVE' && isActive) return false;
       if (stockFilter === 'NO_PRICE' && (!isActive || (p.product_price || p.price || 0) > 0)) return false;
 
-      // Search query
-      const q = searchQuery.toLowerCase().trim();
+      // Search query (token matcher mendukung format ukuran seperti 185/65/14 & 18565r14)
+      const q = searchQuery.trim();
       if (q) {
-        const matchName = p.product_name && p.product_name.toLowerCase().includes(q);
-        const matchAltName = p.name && p.name.toLowerCase().includes(q);
-        const matchCode = p.product_code && p.product_code.toLowerCase().includes(q);
-        const matchBarcode = p.barcode && p.barcode.toLowerCase().includes(q);
-        const matchBrand = p.brand && p.brand.toLowerCase().includes(q);
-        const matchSize = p.product_size && p.product_size.toLowerCase().includes(q);
-        const matchMotif = p.motif && p.motif.toLowerCase().includes(q);
-        const matchPcd = p.pcd && p.pcd.toLowerCase().includes(q);
-        if (!matchName && !matchAltName && !matchCode && !matchBarcode && !matchBrand && !matchSize && !matchMotif && !matchPcd) {
+        const matchPcd = p.pcd && p.pcd.toLowerCase().includes(q.toLowerCase());
+        if (!matchPcd && !matchesProductQuery(p, q)) {
           return false;
         }
       }
@@ -454,10 +457,10 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
     toast.info('Layanan Dihapus', 'Layanan jasa berhasil dihapus.');
   };
 
-  // Restock trigger from card or catalog
+  // Restock trigger from card or catalog -> buka halaman Penerimaan Barang Multi-Item
   const handleOpenRestock = (product?: ProductItem) => {
-    setPreselectedRestockProduct(product || null);
-    setShowGoodsReceiptModal(true);
+    setPendingRestockProduct(product || null);
+    setActiveSubView('penerimaan');
   };
 
   const handleOpenCreateProduct = () => {
@@ -503,134 +506,241 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
           </div>
         </div>
 
-        {/* Integrated Sub-Navigation Tabs Bar with Clear Button Borders */}
-        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200/80 overflow-x-auto scrollbar-none text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => setActiveSubView('katalog')}
-            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeSubView === 'katalog'
-                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
-                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
-            }`}
-          >
-            <Package className="w-4 h-4" />
-            <span>Katalog Produk</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-              activeSubView === 'katalog' ? 'bg-white text-blue-700' : 'bg-blue-50 text-blue-700 border border-blue-200'
-            }`}>
-              {products.length} SKU
-            </span>
-          </button>
+        {/* 4 Menu Utama Terkelompok (rapi, urut, tanpa overflow) */}
+        {(() => {
+          const isProductGroup =
+            activeSubView === 'katalog' ||
+            activeSubView === 'margin_merek' ||
+            activeSubView === 'audit_harga' ||
+            activeSubView === 'kategori';
+          const isStockGroup =
+            activeSubView === 'penerimaan' ||
+            activeSubView === 'buku_fifo' ||
+            activeSubView === 'stok_mutasi';
 
-          <button
-            type="button"
-            onClick={() => setActiveSubView('buku_fifo')}
-            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeSubView === 'buku_fifo'
-                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
-                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
-            }`}
-          >
-            <FileSpreadsheet className={`w-4 h-4 ${activeSubView === 'buku_fifo' ? 'text-white' : 'text-emerald-600'}`} />
-            <span>Buku Stok FIFO (Excel)</span>
-          </button>
+          return (
+            <div className="space-y-2.5">
+              <div
+                role="tablist"
+                aria-label="Menu utama inventori"
+                className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200/80 text-xs font-bold"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={isProductGroup}
+                  onClick={() => {
+                    if (!isProductGroup) setActiveSubView('katalog');
+                  }}
+                  className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                    isProductGroup
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                      : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
+                  }`}
+                >
+                  <Package className="w-4 h-4" />
+                  <span>Produk &amp; Harga</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      isProductGroup ? 'bg-white text-blue-700' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                    }`}
+                  >
+                    {products.length} SKU
+                  </span>
+                  {unreviewedPriceAuditCount > 0 && (
+                    <span
+                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-extrabold ${
+                        isProductGroup ? 'bg-amber-300 text-slate-900' : 'bg-rose-600 text-white'
+                      }`}
+                      title="Ada notifikasi audit harga belum ditinjau"
+                    >
+                      {unreviewedPriceAuditCount}
+                    </span>
+                  )}
+                </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubView('audit_harga')}
-            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeSubView === 'audit_harga'
-                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
-                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
-            }`}
-          >
-            <ShieldCheck className={`w-4 h-4 ${activeSubView === 'audit_harga' ? 'text-white' : 'text-amber-600'}`} />
-            <span>Audit Harga &amp; Notifikasi Kasir</span>
-            {unreviewedPriceAuditCount > 0 && (
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-extrabold ${
-                activeSubView === 'audit_harga' ? 'bg-white text-rose-700' : 'bg-rose-600 text-white'
-              }`}>
-                {unreviewedPriceAuditCount} Baru
-              </span>
-            )}
-          </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={isStockGroup}
+                  onClick={() => {
+                    if (!isStockGroup) setActiveSubView(permissions.goodsReceipt ? 'penerimaan' : 'buku_fifo');
+                  }}
+                  className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                    isStockGroup
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                      : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
+                  }`}
+                >
+                  <Boxes className="w-4 h-4" />
+                  <span>Stok &amp; Penerimaan</span>
+                </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubView('kategori')}
-            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeSubView === 'kategori'
-                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
-                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
-            }`}
-          >
-            <Tag className="w-4 h-4" />
-            <span>Kategori Produk</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-              activeSubView === 'kategori' ? 'bg-white text-blue-700' : 'bg-slate-200 text-slate-700'
-            }`}>
-              {categories.length}
-            </span>
-          </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSubView === 'jasa'}
+                  onClick={() => setActiveSubView('jasa')}
+                  className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                    activeSubView === 'jasa'
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                      : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
+                  }`}
+                >
+                  <Wrench className="w-4 h-4" />
+                  <span>Jasa &amp; Servis</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      activeSubView === 'jasa' ? 'bg-white text-blue-700' : 'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {currentServices.length}
+                  </span>
+                </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubView('jasa')}
-            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeSubView === 'jasa'
-                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
-                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
-            }`}
-          >
-            <Wrench className="w-4 h-4" />
-            <span>Master Jasa & Servis</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-              activeSubView === 'jasa' ? 'bg-white text-blue-700' : 'bg-slate-200 text-slate-700'
-            }`}>
-              {currentServices.length}
-            </span>
-          </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeSubView === 'supplier'}
+                  onClick={() => setActiveSubView('supplier')}
+                  className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+                    activeSubView === 'supplier'
+                      ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
+                      : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
+                  }`}
+                >
+                  <Truck className="w-4 h-4" />
+                  <span>Supplier</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      activeSubView === 'supplier' ? 'bg-white text-blue-700' : 'bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    {suppliers.length}
+                  </span>
+                </button>
+              </div>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubView('stok_mutasi')}
-            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeSubView === 'stok_mutasi'
-                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
-                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
-            }`}
-          >
-            <Boxes className="w-4 h-4" />
-            <span>Penerimaan & Stok Opname</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-              activeSubView === 'stok_mutasi' ? 'bg-white text-blue-700' : 'bg-amber-100 text-amber-800'
-            }`}>
-              {mutations.length} Mutasi
-            </span>
-          </button>
+              {/* Sub-navigasi kontekstual: hanya muncul untuk fitur dalam grup aktif */}
+              {isProductGroup && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubView('katalog')}
+                    className={`px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      activeSubView === 'katalog'
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-semibold'
+                    }`}
+                  >
+                    <Package className="w-3.5 h-3.5" />
+                    <span>Katalog Produk</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubView('margin_merek')}
+                    className={`px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      activeSubView === 'margin_merek'
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-semibold'
+                    }`}
+                  >
+                    <Percent className="w-3.5 h-3.5" />
+                    <span>Standar Margin Merek</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubView('audit_harga')}
+                    className={`px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      activeSubView === 'audit_harga'
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-semibold'
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Audit Harga</span>
+                    {unreviewedPriceAuditCount > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-extrabold bg-rose-600 text-white">
+                        {unreviewedPriceAuditCount} Baru
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubView('kategori')}
+                    className={`px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      activeSubView === 'kategori'
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-semibold'
+                    }`}
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    <span>Kategori Produk ({categories.length})</span>
+                  </button>
+                </div>
+              )}
 
-          <button
-            type="button"
-            onClick={() => setActiveSubView('supplier')}
-            className={`px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-2 cursor-pointer whitespace-nowrap ${
-              activeSubView === 'supplier'
-                ? 'bg-blue-600 text-white border-blue-700 shadow-xs font-extrabold'
-                : 'bg-white text-slate-700 border-slate-200/90 hover:text-slate-900 hover:border-slate-300 font-semibold'
-            }`}
-          >
-            <Truck className="w-4 h-4" />
-            <span>Distributor & Supplier</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-              activeSubView === 'supplier' ? 'bg-white text-blue-700' : 'bg-slate-200 text-slate-700'
-            }`}>
-              {suppliers.length}
-            </span>
-          </button>
-        </div>
+              {isStockGroup && (
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-xs">
+                  {permissions.goodsReceipt && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveSubView('penerimaan')}
+                      className={`px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                        activeSubView === 'penerimaan'
+                          ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-semibold'
+                      }`}
+                    >
+                      <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Penerimaan Barang</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubView('buku_fifo')}
+                    className={`px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      activeSubView === 'buku_fifo'
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-semibold'
+                    }`}
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Buku Stok FIFO</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubView('stok_mutasi')}
+                    className={`px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 cursor-pointer ${
+                      activeSubView === 'stok_mutasi'
+                        ? 'bg-blue-50 text-blue-700 border-blue-300 font-bold'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 font-semibold'
+                    }`}
+                  >
+                    <Boxes className="w-3.5 h-3.5" />
+                    <span>Riwayat Mutasi &amp; Opname ({mutations.length})</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* 3. Render Konten Sub-View Terpilih */}
+
+      {/* SUB-VIEW: STANDAR MARGIN PENJUALAN PER MEREK */}
+      {activeSubView === 'margin_merek' && (
+        <div className="w-full space-y-4 animate-in fade-in duration-200">
+          <BrandMarkupSettingsView
+            canManage={permissions.manage}
+            onProductsUpdated={() => {
+              onRefreshProducts?.();
+              onPriceAuditReviewed?.();
+            }}
+          />
+        </div>
+      )}
 
       {/* SUB-VIEW: AUDIT HARGA & NOTIFIKASI KASIR */}
       {activeSubView === 'audit_harga' && (
@@ -691,36 +801,36 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
 
           {/* KPI Cards Ringkas */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
+            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs min-w-0">
               <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Total Unit Fisik
               </span>
-              <span className="text-base sm:text-2xl font-black text-slate-900 truncate block">
-                {valuation.totalPcs} <span className="text-xs text-slate-500 font-semibold">Unit</span>
+              <span className="text-sm sm:text-lg lg:text-xl xl:text-2xl font-black text-slate-900 font-mono tabular-nums break-words block leading-snug">
+                {valuation.totalPcs} <span className="text-xs text-slate-500 font-semibold font-sans">Unit</span>
               </span>
             </div>
-            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
+            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs min-w-0">
               <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Total Nilai HPP
               </span>
-              <span className="text-base sm:text-2xl font-black text-emerald-700 truncate block">
+              <span className="text-sm sm:text-lg lg:text-xl xl:text-2xl font-black text-emerald-700 font-mono tabular-nums break-words block leading-snug">
                 {ledgerValuation ? formatRupiah(ledgerValuation.fifo_value) : '—'}
               </span>
             </div>
-            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
+            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs min-w-0">
               <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Stok Kritis
               </span>
-              <span className="text-base sm:text-2xl font-black text-amber-700 truncate block">
-                {valuation.lowStockCount} <span className="text-xs text-slate-500 font-semibold">SKU</span>
+              <span className="text-sm sm:text-lg lg:text-xl xl:text-2xl font-black text-amber-700 font-mono tabular-nums break-words block leading-snug">
+                {valuation.lowStockCount} <span className="text-xs text-slate-500 font-semibold font-sans">SKU</span>
               </span>
             </div>
-            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs">
+            <div className="bg-white border border-slate-200 p-3 sm:p-4 rounded-xl shadow-xs min-w-0">
               <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Stok Habis
               </span>
-              <span className="text-base sm:text-2xl font-black text-rose-700 truncate block">
-                {valuation.outOfStockCount} <span className="text-xs text-slate-500 font-semibold">SKU</span>
+              <span className="text-sm sm:text-lg lg:text-xl xl:text-2xl font-black text-rose-700 font-mono tabular-nums break-words block leading-snug">
+                {valuation.outOfStockCount} <span className="text-xs text-slate-500 font-semibold font-sans">SKU</span>
               </span>
             </div>
           </div>
@@ -865,7 +975,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Cari nama, kode SKU, merek, ukuran, motif, barcode..."
+                  placeholder="Cari nama, kode SKU, merek, ukuran/ring (185/65/14), motif..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
@@ -1012,7 +1122,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                               <span className="font-mono text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
                                 {p.product_code}
                               </span>
-                              {p.barcode && <span>• EAN: {p.barcode}</span>}
                               {p.ring && <span>• {p.ring}</span>}
                             </div>
                           </td>
@@ -1079,29 +1188,35 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                                 <Edit3 className="w-4 h-4" />
                               </button>
                               )}
+                              {permissions.manage && onUpdateProduct && (
+                                <button
+                                  type="button"
+                                  onClick={() => onUpdateProduct(p.id, { is_active: p.is_active === false })}
+                                  className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                    p.is_active === false
+                                      ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                      : 'text-slate-500 hover:text-amber-700 hover:bg-amber-50'
+                                  }`}
+                                  title={p.is_active === false ? 'Aktifkan Produk' : 'Nonaktifkan Produk'}
+                                  aria-label={
+                                    p.is_active === false
+                                      ? `Aktifkan produk ${p.product_name || p.name}`
+                                      : `Nonaktifkan produk ${p.product_name || p.name}`
+                                  }
+                                >
+                                  <Power className="w-4 h-4" />
+                                </button>
+                              )}
                               {permissions.manage && onDeleteOrDeactivateProduct && (
-                                p.is_active === false ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => onDeleteOrDeactivateProduct(p.id)}
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[11px] font-bold transition-colors cursor-pointer"
-                                    title="Aktifkan Kembali Produk"
-                                  >
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                    <span>Aktifkan</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => onDeleteOrDeactivateProduct(p.id)}
-                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-rose-600 bg-rose-50/80 hover:text-rose-700 hover:bg-rose-100 border border-rose-200 text-[11px] font-bold transition-colors cursor-pointer"
-                                    title="Hapus Produk"
-                                    aria-label={`Hapus produk ${p.product_name || p.name}`}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    <span>Hapus</span>
-                                  </button>
-                                )
+                                <button
+                                  type="button"
+                                  onClick={() => onDeleteOrDeactivateProduct(p.id)}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Hapus Produk"
+                                  aria-label={`Hapus produk ${p.product_name || p.name}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               )}
                             </div>
                           </td>
@@ -1199,6 +1314,44 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* SUB-VIEW 1B: PENERIMAAN BARANG MULTI-ITEM (GAYA CABANG 2) */}
+      {activeSubView === 'penerimaan' && permissions.goodsReceipt && (
+        <GoodsReceiptWorkspace
+          products={products}
+          suppliers={suppliers}
+          categories={categories}
+          initialProductToAdd={pendingRestockProduct}
+          onConsumeInitialProduct={() => setPendingRestockProduct(null)}
+          onBackToList={() => setActiveSubView('stok_mutasi')}
+          onSubmitBatchReceipt={async (input) => {
+            if (onGoodsReceiptBatch) {
+              return onGoodsReceiptBatch(input);
+            }
+            if (onGoodsReceipt && input.items.length === 1) {
+              const first = input.items[0];
+              return onGoodsReceipt({
+                product_id: first.product_id,
+                incoming_qty: first.incoming_qty,
+                unit_cost: first.unit_cost,
+                invoice_total: input.invoice_total,
+                dpp_amount: input.dpp_amount,
+                ppn_amount: input.ppn_amount,
+                selling_price: first.selling_price,
+                price_change_reason: first.price_change_reason,
+                supplier_name: input.supplier_name,
+                supplier_invoice: input.supplier_invoice,
+                receipt_date: input.receipt_date,
+                payment_terms: input.payment_terms,
+                due_date: input.due_date,
+                notes: input.notes,
+                operator: input.operator,
+              });
+            }
+            return false;
+          }}
+        />
       )}
 
       {/* SUB-VIEW 2: KATEGORI PRODUK (CRUD LENGKAP) */}
@@ -1366,9 +1519,11 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
                         </td>
                       </tr>
                     ) : (
-                      filteredSuppliers.map((sup, idx) => (
+                      supplierPagination.pageItems.map((sup, idx) => (
                         <tr key={sup.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
+                          <td className="py-3 px-4 text-center text-slate-400 font-mono text-xs">
+                            {(supplierPagination.page - 1) * supplierPagination.pageSize + idx + 1}
+                          </td>
                           <td className="py-3 px-4">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono font-bold text-xs">
                               {sup.supplier_code}
@@ -1433,11 +1588,16 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
               </div>
             </div>
 
-            {/* Footer Summary Strip */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
-              <span>Menampilkan {filteredSuppliers.length} dari {suppliers.length} rekanan pemasok</span>
-              <span className="font-semibold">Manajemen Hutang Dagang (Accounts Payable) • SAK EMKM</span>
-            </div>
+            {/* Pagination Footer */}
+            <TablePagination
+              page={supplierPagination.page}
+              pageSize={supplierPagination.pageSize}
+              totalItems={filteredSuppliers.length}
+              unfilteredTotal={suppliers.length}
+              itemLabel="rekanan pemasok"
+              onPageChange={supplierPagination.setPage}
+              onPageSizeChange={supplierPagination.setPageSize}
+            />
           </div>
         </div>
       )}
@@ -1469,24 +1629,6 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({
         }}
         onSaveEdit={async (id, updates) => {
           if (await onUpdateProduct?.(id, updates)) setShowProductFormModal(false);
-        }}
-      />
-
-      <GoodsReceiptModal
-        isOpen={showGoodsReceiptModal}
-        products={products}
-        suppliers={suppliers}
-        preselectedProduct={preselectedRestockProduct}
-        existingMutations={mutations}
-        onClose={() => {
-          setShowGoodsReceiptModal(false);
-          setPreselectedRestockProduct(null);
-        }}
-        onSubmitReceipt={async (input) => {
-          if (await onGoodsReceipt?.(input)) {
-            setShowGoodsReceiptModal(false);
-            setPreselectedRestockProduct(null);
-          }
         }}
       />
 

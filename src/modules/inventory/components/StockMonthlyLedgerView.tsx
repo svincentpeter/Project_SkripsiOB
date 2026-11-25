@@ -18,7 +18,7 @@ import {
 import { ProductItem, PosTransaction, StockMutation } from '../../../shared/types';
 import { apiClient } from '../../../services/api';
 import type { ApiJournal } from '../../../services/api';
-import { useToast } from '../../../shared/components';
+import { TablePagination, usePagination, useToast } from '../../../shared/components';
 import { formatRupiah, formatNumber, formatSignedQty } from '../../../shared/utils/formatters';
 import { currentMonth } from '../../../services/accountingPeriod';
 import {
@@ -132,6 +132,8 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
       return true;
     });
   }, [reportData, selectedRing, stockFilter, searchQuery]);
+
+  const ledgerPagination = usePagination(displayRows, 25, [selectedMonth, selectedRing, stockFilter, searchQuery]);
 
   const daysInMonth = reportData?.meta?.days_in_month || 30;
   const dayColumns = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
@@ -468,7 +470,8 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                displayRows.map((row, index) => {
+                ledgerPagination.pageItems.map((row, index) => {
+                  const rowNum = (ledgerPagination.page - 1) * ledgerPagination.pageSize + index + 1;
                   const sisaColor =
                     row.remaining <= 0
                       ? 'bg-rose-100 text-rose-800 font-extrabold'
@@ -484,7 +487,7 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
                       <tr className="hover:bg-slate-50/80 transition-colors group">
                         {/* 1. No */}
                         <td className="py-2 px-2 text-center font-mono font-bold text-slate-500 border-r border-slate-200 sticky left-0 z-20 bg-white group-hover:bg-slate-50">
-                          {index + 1}
+                          {rowNum}
                         </td>
 
                         {/* 2. Brand & Tire Name */}
@@ -779,6 +782,18 @@ export const StockMonthlyLedgerView: React.FC<StockMonthlyLedgerViewProps> = ({
               </tr>
             </tfoot>
           </table>
+        </div>
+        <div className="px-4 pb-3 bg-white">
+          <TablePagination
+            page={ledgerPagination.page}
+            pageSize={ledgerPagination.pageSize}
+            totalItems={displayRows.length}
+            unfilteredTotal={reportData?.rows?.length}
+            itemLabel="produk FIFO"
+            pageSizeOptions={[10, 25, 50, 100]}
+            onPageChange={ledgerPagination.setPage}
+            onPageSizeChange={ledgerPagination.setPageSize}
+          />
         </div>
       </div>
 

@@ -26,30 +26,40 @@ class DatabaseSeeder extends Seeder
         $this->call(UserSeeder::class);
         $this->call(RolePermissionSeeder::class);
 
-        // 3. Provider pembayaran (transfer & QRIS)
+        // 3. Provider pembayaran (transfer bank & kanal QRIS resmi)
         PaymentProviderSetting::firstOrCreate(
-            ['provider_code' => 'QRIS_BCA'],
+            ['method_type' => 'qris', 'provider_name' => 'Midtrans QRIS'],
             [
-                'method_type' => 'qris',
-                'provider_name' => 'QRIS BCA (Statis)',
+                'provider_code' => 'MIDTRANS_QRIS',
                 'fee_percentage' => 0.70,
                 'fee_threshold_amount' => 0.00,
                 'is_active' => true,
                 'sort_order' => 1,
-                'notes' => 'MDR Standard QRIS 0.7%',
+                'notes' => 'Payment Gateway Midtrans QRIS Dinamis (MDR 0,7% semua bank & e-wallet)',
             ]
         );
 
         PaymentProviderSetting::firstOrCreate(
-            ['provider_code' => 'TF_BCA'],
+            ['method_type' => 'qris', 'provider_name' => 'Midtrans Snap (Pengganti EDC)'],
             [
-                'method_type' => 'bank',
-                'provider_name' => 'Bank BCA (Transfer Direct)',
-                'fee_percentage' => 0.00,
+                'provider_code' => 'MIDTRANS_SNAP',
+                'fee_percentage' => 2.90,
                 'fee_threshold_amount' => 0.00,
                 'is_active' => true,
                 'sort_order' => 2,
-                'notes' => 'Transfer manual ke BCA Cabang 3',
+                'notes' => 'Pengganti mesin EDC fisik — Kartu Kredit/Debit (Visa/Mastercard), Virtual Account, E-Wallet, & QRIS.',
+            ]
+        );
+
+        PaymentProviderSetting::firstOrCreate(
+            ['method_type' => 'bank', 'provider_name' => 'BCA'],
+            [
+                'provider_code' => 'BCA',
+                'fee_percentage' => 0.00,
+                'fee_threshold_amount' => 0.00,
+                'is_active' => true,
+                'sort_order' => 1,
+                'notes' => 'Rekening Utama Operasional',
             ]
         );
 

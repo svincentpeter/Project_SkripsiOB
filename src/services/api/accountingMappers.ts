@@ -14,6 +14,8 @@ export interface ApiAccount {
   account_type: AccountType;
   normal_balance: NormalBalance;
   is_active: boolean;
+  journal_items_count?: number;
+  is_system?: boolean;
 }
 
 export interface ApiTrialBalance {
@@ -84,11 +86,14 @@ export interface ApiExpense {
 }
 
 export const mapAccount = (a: ApiAccount): ChartOfAccount => ({
+  id: a.id,
   account_code: a.account_code,
   account_name: a.account_name,
   account_type: a.account_type,
   normal_balance: a.normal_balance,
   is_active: a.is_active,
+  journal_items_count: a.journal_items_count ?? 0,
+  is_system: a.is_system ?? false,
 });
 
 export const mapTrialBalance = (tb: ApiTrialBalance): TrialBalanceResult => ({

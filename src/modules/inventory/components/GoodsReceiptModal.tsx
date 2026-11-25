@@ -113,22 +113,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
     }
   }, [isOpen, preselectedProduct, products, suppliers]);
 
-  if (!isOpen) return null;
-
   const currentProduct = activeProducts.find((p) => p.id === selectedProductId);
-
-  const handleProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const id = e.target.value;
-    setSelectedProductId(id);
-    const prod = activeProducts.find((p) => p.id === id);
-    if (prod) {
-      setInvoicePriceText(initialInvoiceText(prod, ppnMode));
-      const matchedSup = suppliers.find((s) => s.supplier_name.toLowerCase().includes(prod.brand.toLowerCase()));
-      if (matchedSup) {
-        setSupplierName(matchedSup.supplier_name);
-      }
-    }
-  };
 
   const invoicePrice = parseInvoicePrice(invoicePriceText);
   const unitCost = costFromInvoice(invoicePrice, ppnMode);
@@ -145,7 +130,7 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
   const previewMarkupPct = calculateMarkupPercent(effectivePreviewPrice, newReferenceHpp);
 
   useEffect(() => {
-    if (!currentProduct) return;
+    if (!isOpen || !currentProduct) return;
     const catPrice = Number(currentProduct.product_price ?? currentProduct.price ?? 0);
     const refHpp = getProductReferenceHpp(currentProduct, unitCost > 0 ? unitCost : undefined);
     const minP = getMinSellingPrice(refHpp);
@@ -155,7 +140,22 @@ export const GoodsReceiptModal: React.FC<GoodsReceiptModalProps> = ({
       setNewSellingPrice(catPrice);
     }
     setUpdateSellingPriceNow(false);
-  }, [selectedProductId, unitCost]);
+  }, [isOpen, selectedProductId, unitCost]);
+
+  if (!isOpen) return null;
+
+  const handleProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedProductId(id);
+    const prod = activeProducts.find((p) => p.id === id);
+    if (prod) {
+      setInvoicePriceText(initialInvoiceText(prod, ppnMode));
+      const matchedSup = suppliers.find((s) => s.supplier_name.toLowerCase().includes(prod.brand.toLowerCase()));
+      if (matchedSup) {
+        setSupplierName(matchedSup.supplier_name);
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

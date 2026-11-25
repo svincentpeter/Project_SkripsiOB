@@ -243,10 +243,89 @@ class MidtransQrisApiTest extends TestCase
 
     public function test_webhook_is_rejected_when_no_server_key_is_configured(): void
     {
-        config(['midtrans.server_key' => '']);
+        config(['midtrans.server_key' => '', 'midtrans.signature_key' => '']);
         $payload = $this->signed(['order_id' => 'POS-WH-'.uniqid(), 'status_code' => '200', 'gross_amount' => '150000.00', 'transaction_status' => 'settlement'], '');
 
         $this->postJson('/api/v1/payment/midtrans/webhook', $payload)->assertForbidden();
         $this->assertDatabaseMissing('qris_transactions', ['order_id' => $payload['order_id']]);
+    }
+
+    public function test_webhook_accepts_separate_signature_secret_key(): void
+    {
+        $sigSecret = 'Mid-server-separate-signature-secret';
+        config(['midtrans.server_key' => 'Mid-server-api-only', 'midtrans.signature_key' => $sigSecret]);
+        $orderId = 'POS-WH-SIG-'.uniqid();
+        $payload = $this->signed([
+            'order_id' => $orderId,
+            'status_code' => '200',
+            'gross_amount' => '250000.00',
+            'transaction_status' => 'settlement',
+        ], $sigSecret);
+
+        $this->postJson('/api/v1/payment/midtrans/webhook', $payload)->assertOk();
+        $this->assertDatabaseHas('qris_transactions', [
+            'order_id' => $orderId,
+            'transaction_status' => 'settlement',
+            'gross_amount' => 250000,
+        ]);
+    }
+
+    public function test_snap_endpoint_returns_token_and_records_pending_order(): void
+    {
+        $orderId = 'POS-SNAP-'.uniqid();
+        Http::fake([
+            'https://app.sandbox.midtrans.com/snap/v1/transactions' => Http::response([
+                'token' => 'snap-token-abc123',
+                'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v4/redirection/snap-token-abc123',
+            ], 201),
+        ]);
+
+        $this->postJson('/api/v1/payment/midtrans/snap', [
+            'order_id' => $orderId,
+            'gross_amount' => 450000,
+            'customer_name' => 'Budi Santoso',
+        ])
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'order_id' => $orderId,
+                    'gross_amount' => 450000,
+                    'snap_token' => 'snap-token-abc123',
+                    'is_fallback' => false,
+                    'simulation_enabled' => false,
+                ],
+            ]);
+
+        $this->assertDatabaseHas('qris_transactions', [
+            'order_id' => $orderId,
+            'gross_amount' => 450000,
+            'transaction_status' => 'pending',
+        ]);
+    }
+
+    public function test_snap_endpoint_allows_sandbox_dummy_fallback_when_simulation_enabled(): void
+    {
+        config(['midtrans.server_key' => '', 'midtrans.allow_simulation' => true]);
+        $orderId = 'POS-SNAP-SIM-'.uniqid();
+
+        $this->postJson('/api/v1/payment/midtrans/snap', [
+            'order_id' => $orderId,
+            'gross_amount' => 175000,
+        ])
+            ->assertOk()
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'order_id' => $orderId,
+                    'gross_amount' => 175000,
+                    'is_fallback' => true,
+                    'simulation_enabled' => true,
+                ],
+            ]);
+
+        $this->postJson("/api/v1/payment/qris/simulate/{$orderId}")
+            ->assertOk()
+            ->assertJsonPath('data.transaction_status', 'settlement');
     }
 }

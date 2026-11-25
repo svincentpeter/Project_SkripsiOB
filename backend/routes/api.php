@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\v1\AccountingPeriodController;
 use App\Http\Controllers\Api\v1\AccountingReportController;
 use App\Http\Controllers\Api\v1\AuthController;
 use App\Http\Controllers\Api\v1\BankReconciliationController;
+use App\Http\Controllers\Api\v1\BrandPricingController;
 use App\Http\Controllers\Api\v1\CalkController;
 use App\Http\Controllers\Api\v1\DailyReportController;
 use App\Http\Controllers\Api\v1\FixedAssetController;
@@ -73,14 +74,22 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('suppliers', SupplierController::class)->only(['index', 'show']);
             Route::get('product-categories', [ProductCategoryController::class, 'index']);
             Route::get('service-categories', [ServiceCategoryController::class, 'index']);
+            Route::get('brands/pricing', [BrandPricingController::class, 'index']);
         });
         Route::get('accounts', [AccountController::class, 'index'])->middleware('permission:pos,inventory_view,accounting_hub,financial_reports,expenses');
+        Route::middleware('permission:accounting_hub')->group(function () {
+            Route::post('accounts', [AccountController::class, 'store']);
+            Route::put('accounts/{id}', [AccountController::class, 'update'])->whereNumber('id');
+            Route::delete('accounts/{id}', [AccountController::class, 'destroy'])->whereNumber('id');
+        });
         Route::middleware('permission:inventory_manage')->group(function () {
             Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('services', ServiceMasterController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('suppliers', SupplierController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('product-categories', ProductCategoryController::class)->only(['store', 'update', 'destroy']);
             Route::apiResource('service-categories', ServiceCategoryController::class)->only(['store', 'update', 'destroy']);
+            Route::post('brands', [BrandPricingController::class, 'store']);
+            Route::put('brands/{id}/pricing', [BrandPricingController::class, 'updatePricing'])->whereNumber('id');
         });
 
         // POS Kiosk & Transactions
@@ -93,6 +102,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('status/{orderId}', [PaymentApiController::class, 'checkQrisStatus']);
                 Route::post('simulate/{orderId}', [PaymentApiController::class, 'simulateQrisSettlement']);
             });
+            Route::post('payment/midtrans/snap', [PaymentApiController::class, 'createSnapTransaction']);
         });
         Route::middleware('permission:pos,receipt')->group(function () {
             Route::get('pos/transactions', [PosController::class, 'index']);

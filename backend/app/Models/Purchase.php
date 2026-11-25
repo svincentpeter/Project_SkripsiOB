@@ -46,6 +46,27 @@ class Purchase extends Model
 
     public function toApiArray(): array
     {
+        $items = $this->batches
+            ->groupBy('product_id')
+            ->map(function ($group, $productId) {
+                $first = $group->first();
+                return [
+                    'product_id' => (int) $productId,
+                    'product_name' => $first?->product?->product_name ?? "Produk #{$productId}",
+                    'product_size' => $first?->product?->product_size,
+                    'quantity' => (int) $group->sum('initial_qty'),
+                    'returnable_qty' => (int) $group->sum('remaining_qty'),
+                    'total_cost' => round($group->sum(fn ($b) => (int) $b->initial_qty * (float) $b->batch_cost), 2),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $firstProductName = $items[0]['product_name'] ?? $this->batches->first()?->product?->product_name;
+        $productLabel = count($items) > 1 && $firstProductName
+            ? "{$firstProductName} (+".(count($items) - 1).' produk)'
+            : $firstProductName;
+
         return [
             'id' => $this->id,
             'purchase_number' => $this->purchase_number,
@@ -61,7 +82,9 @@ class Purchase extends Model
             'paid_amount' => (float) $this->paid_amount,
             'returned_amount' => (float) $this->returned_amount,
             'remaining_amount' => $this->remaining(),
-            'product_name' => $this->batches->first()?->product?->product_name,
+            'product_name' => $productLabel,
+            'item_count' => count($items),
+            'items' => $items,
             'quantity' => (int) $this->batches->sum('initial_qty'),
             'returnable_qty' => (int) $this->batches->sum('remaining_qty'),
             'status' => $this->status,

@@ -5,8 +5,8 @@ import {
   Info, 
   X, 
   XCircle,
-  Sparkles
 } from 'lucide-react';
+import { DialogProvider } from './DialogProvider';
 
 export type NotificationType = 'success' | 'warning' | 'info' | 'error';
 
@@ -62,21 +62,21 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <ToastContext.Provider value={contextValue}>
-      {children}
+      <DialogProvider>{children}</DialogProvider>
 
       {/* Floating Minimalist Toast Notification Container */}
-      <div className="fixed top-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-['Plus_Jakarta_Sans',sans-serif] select-none">
+      <div className="fixed top-5 right-5 z-[80] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none font-['Plus_Jakarta_Sans',sans-serif] select-none">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl border shadow-xl backdrop-blur-md transition-all animate-in slide-in-from-top-4 fade-in duration-300 ${
+            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border shadow-md transition-opacity animate-in slide-in-from-top-4 fade-in duration-200 ${
               toast.type === 'success'
-                ? 'bg-white/95 border-emerald-200/80 text-slate-800 shadow-emerald-500/10'
+                ? 'bg-white border-emerald-200 text-slate-800'
                 : toast.type === 'warning'
-                ? 'bg-white/95 border-amber-200/80 text-slate-800 shadow-amber-500/10'
+                ? 'bg-white border-amber-200 text-slate-800'
                 : toast.type === 'error'
-                ? 'bg-white/95 border-rose-200/80 text-slate-800 shadow-rose-500/10'
-                : 'bg-white/95 border-blue-200/80 text-slate-800 shadow-blue-500/10'
+                ? 'bg-white border-rose-200 text-slate-800'
+                : 'bg-white border-blue-200 text-slate-800'
             }`}
           >
             <div className={`p-1.5 rounded-xl shrink-0 ${

@@ -19,6 +19,22 @@ export interface QrisChargeResponse {
   is_fallback?: boolean;
   /** Server mengizinkan simulasi lunas (hanya demo sandbox, MIDTRANS_ALLOW_SIMULATION). */
   simulation_enabled?: boolean;
+  /** True bila backend memakai kunci Midtrans Production (api.midtrans.com). */
+  is_production?: boolean;
+}
+
+export interface MidtransSnapResponse {
+  order_id: string;
+  gross_amount: number;
+  snap_token: string | null;
+  redirect_url: string | null;
+  transaction_status: string;
+  is_fallback?: boolean;
+  fallback_reason?: string;
+  client_key?: string;
+  snap_js_url?: string;
+  simulation_enabled?: boolean;
+  is_production?: boolean;
 }
 
 export interface QrisStatusResponse {
@@ -50,6 +66,13 @@ export interface PaymentProviderInput {
 export const paymentApi = {
   chargeQris: (orderId: string, grossAmount: number, customerName?: string) =>
     apiClient.post<{ success: boolean; message: string; data: QrisChargeResponse }>('/payment/qris/charge', {
+      order_id: orderId,
+      gross_amount: grossAmount,
+      customer_name: customerName,
+    }),
+
+  createSnap: (orderId: string, grossAmount: number, customerName?: string) =>
+    apiClient.post<{ success: boolean; message: string; data: MidtransSnapResponse }>('/payment/midtrans/snap', {
       order_id: orderId,
       gross_amount: grossAmount,
       customer_name: customerName,

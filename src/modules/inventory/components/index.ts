@@ -4,6 +4,7 @@ export * from './ProductFormModal';
 export * from './ServiceFormModal';
 export * from './SupplierFormModal';
 export * from './GoodsReceiptModal';
+export * from './GoodsReceiptWorkspace';
 export * from './StockOpnameModal';
 export * from './CategoryManagementView';
 export * from './ServiceManagementView';
@@ -13,4 +14,5 @@ export * from './StockMonthlyLedgerView';
 export * from './StockLedgerInlineModal';
 export * from './PurchaseReturnModal';
 export * from './PriceAuditLogView';
+export * from './BrandMarkupSettingsView';
 

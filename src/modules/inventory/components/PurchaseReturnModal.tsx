@@ -5,6 +5,7 @@ import type { ApiPurchase } from '../../../services/api';
 import { formatDateIndo, formatRupiah } from '../../../shared/utils/formatters';
 
 export interface PurchaseReturnPayload {
+  product_id?: number;
   quantity: number;
   reason: string;
   refund_account_code?: '1-1000' | '1-1001';
@@ -35,6 +36,7 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | undefined>(undefined);
   const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState('');
   const [refundAccount, setRefundAccount] = useState<'1-1000' | '1-1001'>('1-1001');
@@ -64,7 +66,9 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
   };
 
   const start = (purchase: ApiPurchase, kind: PendingAction['kind']) => {
+    const returnableLines = (purchase.items ?? []).filter((item) => item.returnable_qty > 0);
     setPending({ purchase, kind });
+    setSelectedProductId(returnableLines[0]?.product_id);
     setQuantity(1);
     setReason('');
     setFormError('');
@@ -80,7 +84,12 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
     setBusy(true);
     const ok =
       pending.kind === 'RETURN'
-        ? await onReturn(pending.purchase.id, { quantity, reason: reason.trim(), refund_account_code: refundAccount })
+        ? await onReturn(pending.purchase.id, {
+            product_id: selectedProductId,
+            quantity,
+            reason: reason.trim(),
+            refund_account_code: refundAccount,
+          })
         : await onCancelReceipt(pending.purchase.id, reason.trim());
     setBusy(false);
     if (ok) {
@@ -89,7 +98,9 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
     }
   };
 
-  const maxQty = pending?.purchase.returnable_qty ?? 0;
+  const returnableLines = (pending?.purchase.items ?? []).filter((item) => item.returnable_qty > 0);
+  const activeReturnLine = returnableLines.find((item) => item.product_id === selectedProductId);
+  const maxQty = activeReturnLine?.returnable_qty ?? pending?.purchase.returnable_qty ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-6">
@@ -190,29 +201,52 @@ export const PurchaseReturnModal: React.FC<PurchaseReturnModalProps> = ({ isOpen
               {pending.kind === 'RETURN' ? 'Retur ke supplier' : 'Batalkan penerimaan'} {pending.purchase.purchase_number}
             </p>
             {pending.kind === 'RETURN' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <label className="text-[11px] font-bold text-slate-600">
-                  Jumlah (maks. {maxQty})
-                  <input
-                    type="number"
-                    min={1}
-                    max={maxQty}
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, Math.min(maxQty, parseInt(e.target.value, 10) || 1)))}
-                    className="mt-0.5 w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono"
-                  />
-                </label>
-                <label className="text-[11px] font-bold text-slate-600">
-                  Refund (bila hutang sudah lunas)
-                  <select
-                    value={refundAccount}
-                    onChange={(e) => setRefundAccount(e.target.value as '1-1000' | '1-1001')}
-                    className="mt-0.5 w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg"
-                  >
-                    <option value="1-1000">Kas Laci (1-1000)</option>
-                    <option value="1-1001">Bank BCA (1-1001)</option>
-                  </select>
-                </label>
+              <div className="space-y-2">
+                {returnableLines.length > 1 && (
+                  <label className="block text-[11px] font-bold text-slate-600">
+                    Pilih Produk yang Diretur
+                    <select
+                      value={selectedProductId ?? ''}
+                      onChange={(e) => {
+                        const nextId = Number(e.target.value);
+                        setSelectedProductId(nextId);
+                        const nextMax = returnableLines.find((l) => l.product_id === nextId)?.returnable_qty ?? 1;
+                        setQuantity((q) => Math.max(1, Math.min(nextMax, q)));
+                      }}
+                      className="mt-0.5 w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg"
+                    >
+                      {returnableLines.map((item) => (
+                        <option key={item.product_id} value={item.product_id}>
+                          {item.product_name} (Sisa bisa diretur: {item.returnable_qty} pcs)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <label className="text-[11px] font-bold text-slate-600">
+                    Jumlah (maks. {maxQty})
+                    <input
+                      type="number"
+                      min={1}
+                      max={maxQty}
+                      value={quantity}
+                      onChange={(e) => setQuantity(Math.max(1, Math.min(maxQty, parseInt(e.target.value, 10) || 1)))}
+                      className="mt-0.5 w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg font-mono"
+                    />
+                  </label>
+                  <label className="text-[11px] font-bold text-slate-600">
+                    Refund (bila hutang sudah lunas)
+                    <select
+                      value={refundAccount}
+                      onChange={(e) => setRefundAccount(e.target.value as '1-1000' | '1-1001')}
+                      className="mt-0.5 w-full px-2 py-1.5 bg-white border border-slate-300 rounded-lg"
+                    >
+                      <option value="1-1000">Kas Laci (1-1000)</option>
+                      <option value="1-1001">Bank BCA (1-1001)</option>
+                    </select>
+                  </label>
+                </div>
               </div>
             )}
             <label className="block text-[11px] font-bold text-slate-600">

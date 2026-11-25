@@ -18,3 +18,4 @@ export * from './FixedAssetsTab';
 export * from './AdjustingEntryModal';
 export * from './BankReconciliationTab';
 export * from './CalkView';
+export * from './ChartOfAccountsTab';

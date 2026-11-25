@@ -14,25 +14,51 @@ class InventoryController extends Controller
 {
     public function restock(Request $request, GoodsReceiptService $receipts): JsonResponse
     {
-        $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|integer|min:1',
-            'batch_cost' => 'required|numeric|min:0',
-            'invoice_total' => 'nullable|numeric',
-            'dpp_amount' => 'nullable|numeric|min:0',
-            'ppn_amount' => 'nullable|numeric|min:0',
-            'supplier_id' => 'nullable|integer|exists:suppliers,id',
-            'source_name' => 'required_without:supplier_id|nullable|string|max:150',
-            'supplier_invoice' => 'nullable|string|max:100',
-            'purchase_date' => 'nullable|date|before_or_equal:today',
-            'payment_method' => 'required|string|in:TUNAI,TRANSFER_BCA,TEMPO',
-            'due_date' => 'nullable|date',
-            'notes' => 'nullable|string|max:255',
-            'selling_price' => 'nullable|numeric|min:0',
-            'price_change_reason' => 'nullable|string|max:255',
-        ], ['purchase_date.before_or_equal' => 'Tanggal penerimaan barang tidak boleh melebihi hari ini.']);
+        $messages = ['purchase_date.before_or_equal' => 'Tanggal penerimaan barang tidak boleh melebihi hari ini.'];
 
-        $out = $receipts->receive($validated, $request->user());
+        if ($request->has('items')) {
+            $validated = $request->validate([
+                'items' => 'required|array|min:1',
+                'items.*.product_id' => 'required|integer|exists:products,id',
+                'items.*.quantity' => 'required|integer|min:1',
+                'items.*.batch_cost' => 'required|numeric|min:0',
+                'items.*.line_total' => 'nullable|numeric',
+                'items.*.selling_price' => 'nullable|numeric|min:0',
+                'items.*.price_change_reason' => 'nullable|string|max:255',
+                'invoice_total' => 'nullable|numeric',
+                'dpp_amount' => 'nullable|numeric|min:0',
+                'ppn_amount' => 'nullable|numeric|min:0',
+                'supplier_id' => 'nullable|integer|exists:suppliers,id',
+                'source_name' => 'required_without:supplier_id|nullable|string|max:150',
+                'supplier_invoice' => 'nullable|string|max:100',
+                'purchase_date' => 'nullable|date|before_or_equal:today',
+                'payment_method' => 'required|string|in:TUNAI,TRANSFER_BCA,TEMPO',
+                'due_date' => 'nullable|date',
+                'notes' => 'nullable|string|max:255',
+            ], $messages);
+
+            $out = $receipts->receiveMany($validated, $request->user());
+        } else {
+            $validated = $request->validate([
+                'product_id' => 'required|exists:products,id',
+                'quantity' => 'required|integer|min:1',
+                'batch_cost' => 'required|numeric|min:0',
+                'invoice_total' => 'nullable|numeric',
+                'dpp_amount' => 'nullable|numeric|min:0',
+                'ppn_amount' => 'nullable|numeric|min:0',
+                'supplier_id' => 'nullable|integer|exists:suppliers,id',
+                'source_name' => 'required_without:supplier_id|nullable|string|max:150',
+                'supplier_invoice' => 'nullable|string|max:100',
+                'purchase_date' => 'nullable|date|before_or_equal:today',
+                'payment_method' => 'required|string|in:TUNAI,TRANSFER_BCA,TEMPO',
+                'due_date' => 'nullable|date',
+                'notes' => 'nullable|string|max:255',
+                'selling_price' => 'nullable|numeric|min:0',
+                'price_change_reason' => 'nullable|string|max:255',
+            ], $messages);
+
+            $out = $receipts->receive($validated, $request->user());
+        }
 
         return response()->json([
             'success' => true,
@@ -40,6 +66,7 @@ class InventoryController extends Controller
             'data' => [
                 'purchase' => $out['purchase']->toApiArray(),
                 'batch' => $out['batch'],
+                'batches' => $out['batches'],
                 'journal_entry_number' => $out['journal']?->entry_number,
                 'journal' => $out['journal']?->toApiArray(),
             ],

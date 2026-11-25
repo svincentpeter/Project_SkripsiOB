@@ -21,7 +21,7 @@ import {
   getMinSellingPrice,
   getRecommendedPriceByMarkup,
 } from '../../../shared/utils/pricingStandard';
-import { MarkupPercentStepper, useToast } from '../../../shared/components';
+import { MarkupPercentStepper, TablePagination, usePagination, useToast } from '../../../shared/components';
 
 interface PriceAuditLogViewProps {
   canManageCatalog?: boolean;
@@ -87,6 +87,8 @@ export const PriceAuditLogView: React.FC<PriceAuditLogViewProps> = ({
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  const auditPagination = usePagination(items, 10, [filterMode, debouncedSearch]);
 
   const handleMarkAllRead = async () => {
     try {
@@ -384,7 +386,7 @@ export const PriceAuditLogView: React.FC<PriceAuditLogViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                items.map((item) => {
+                auditPagination.pageItems.map((item) => {
                   const badge = getSourceBadge(item);
                   const isUnreviewed = !item.is_reviewed_by_owner;
                   return (
@@ -541,6 +543,16 @@ export const PriceAuditLogView: React.FC<PriceAuditLogViewProps> = ({
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4 pb-3 bg-white">
+          <TablePagination
+            page={auditPagination.page}
+            pageSize={auditPagination.pageSize}
+            totalItems={items.length}
+            itemLabel="catatan audit"
+            onPageChange={auditPagination.setPage}
+            onPageSizeChange={auditPagination.setPageSize}
+          />
         </div>
       </div>
 

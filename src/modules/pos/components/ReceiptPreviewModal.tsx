@@ -141,32 +141,6 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
               <span className="uppercase">TOTAL TAGIHAN:</span>
               <span className="font-mono text-sm">{formatRupiah(transaction.grand_total)}</span>
             </div>
-
-            {/* Metode Bayar & Status */}
-            <div className="pt-2 space-y-1 text-[10px]">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Metode Bayar:</span>
-                <span className="font-bold text-black">{transaction.payment_method.replace(/_/g, ' ')}</span>
-              </div>
-
-              {transaction.payment_method === 'TUNAI' && (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Uang Diterima:</span>
-                    <span className="font-mono font-bold text-black">
-                      {formatRupiah(transaction.paid_amount || transaction.grand_total)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Kembalian:</span>
-                    <span className="font-mono font-bold text-black">
-                      {formatRupiah(transaction.change_amount || 0)}
-                    </span>
-                  </div>
-                </>
-              )}
-
-            </div>
           </div>
 
           {/* Garansi & Footer Ramah */}
@@ -181,14 +155,8 @@ export const ReceiptPreviewModal: React.FC<ReceiptPreviewModalProps> = ({
             <div className="font-bold tracking-wider text-[10px] text-black pt-1">
               TERIMA KASIH ATAS KUNJUNGAN ANDA
             </div>
-            {/* Barcode Mockup */}
-            <div className="pt-2 flex flex-col items-center justify-center">
-              <div className="font-mono tracking-[0.25em] text-[8px] text-slate-400">
-                |||||| | |||| ||| ||||||| ||| ||||
-              </div>
-              <div className="text-[8px] text-slate-500 font-mono mt-0.5">
-                {receiptNo}
-              </div>
+            <div className="text-[8px] text-slate-500 font-mono pt-1">
+              No. Nota: {receiptNo}
             </div>
           </div>
         </div>

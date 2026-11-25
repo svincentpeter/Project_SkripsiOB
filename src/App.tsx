@@ -6,6 +6,7 @@ import {
   CreateProductInput,
   DebtPaymentInput,
   ExpenseRecord,
+  GoodsReceiptBatchInput,
   GoodsReceiptInput,
   JournalEntry,
   ManualJournalPayload,
@@ -72,7 +73,7 @@ import { ExpensesScreen } from './modules/expenses';
 import { GeneralLedgerScreen } from './modules/accounting';
 import { FinancialStatementsScreen } from './modules/accounting';
 import { SettingsScreen } from './modules/settings';
-import { ToastProvider, useToast, AppNotification } from './shared/components';
+import { ToastProvider, useDialog, useToast, AppNotification } from './shared/components';
 import { WireframeGuideModal } from './shared/components/WireframeGuideModal';
 import { HeaderNavbar } from './shared/components/HeaderNavbar';
 import {
@@ -94,6 +95,7 @@ import {
   mapServiceCategory,
   mapSupplier,
   productPayload,
+  restockBatchPayload,
   restockPayload,
   debtPaymentPayload,
   expenseApi,
@@ -125,6 +127,7 @@ export default function App() {
 
 function MainAppContent() {
   const toast = useToast();
+  const dialog = useDialog();
 
   // Sesi login dari server (Laravel Sanctum); dipulihkan lewat /auth/me bila token masih ada.
   const [currentUser, setCurrentUser] = useState<UserSession | null>(null);
@@ -464,6 +467,16 @@ function MainAppContent() {
     inventoryApi.valuation().then(setInventoryValuation).catch(() => {});
   };
 
+  /** Muat ulang daftar akun COA dari server setelah Owner menambah/mengubah/menghapus akun. */
+  const refreshAccounts = async () => {
+    try {
+      const rows = await accountingApi.accounts();
+      setAccounts(rows.map(mapAccount));
+    } catch {
+      // Abaikan jika peran tidak punya akses
+    }
+  };
+
   /** Saldo buku kas laci & bank hari ini (server). */
   const refreshCashBalances = () => {
     accountingApi.cashBalances().then(setCashBalances).catch(() => {});
@@ -633,7 +646,7 @@ function MainAppContent() {
   // Retur pembelian: hutang dikurangi dulu, sisanya refund kas/bank; persediaan dan daftar hutang dimuat ulang.
   const handlePurchaseReturn = async (
     purchaseId: number,
-    payload: { quantity: number; reason: string; refund_account_code?: '1-1000' | '1-1001' }
+    payload: { product_id?: number; quantity: number; reason: string; refund_account_code?: '1-1000' | '1-1001' }
   ): Promise<boolean> => {
     let res: Awaited<ReturnType<typeof inventoryApi.returnPurchase>>;
     try {
@@ -771,6 +784,26 @@ function MainAppContent() {
     }
   };
 
+  // Penerimaan barang multi-item dalam satu dokumen GR & satu jurnal pembelian seimbang
+  const handleGoodsReceiptBatch = async (input: GoodsReceiptBatchInput): Promise<boolean> => {
+    try {
+      const payload = restockBatchPayload(input, suppliers);
+      const res = await inventoryApi.restock(payload);
+      if (res.journal) notifyLedgerChanged([res.journal]);
+      if (payload.payment_method === 'TEMPO') refreshPayables();
+      handleRefreshProducts();
+      const itemInfo = payload.items.length > 1 ? ` (${payload.items.length} jenis item)` : '';
+      toast.success(
+        'Penerimaan Barang Dibukukan',
+        `${res.purchase.purchase_number}${itemInfo}: ${formatRupiah(res.purchase.total_amount)} (${payload.payment_method}).`
+      );
+      return true;
+    } catch (err) {
+      toast.error('Penerimaan Barang Gagal', errorMessage(err));
+      return false;
+    }
+  };
+
   // Pelunasan hutang supplier per faktur di server (Dr 2-1000 / Cr kas atau bank)
   const handlePayDebt = async (paymentInput: DebtPaymentInput) => {
     try {
@@ -848,16 +881,18 @@ function MainAppContent() {
     }
   };
 
-  // Handle Safe Delete or Deactivate Product
-  // Produk tanpa riwayat dihapus; yang punya riwayat/stok dinonaktifkan server. Produk nonaktif diaktifkan kembali.
+  // Handle Delete Product (produk tanpa riwayat dihapus permanen; yang punya riwayat stok/penjualan diamankan server sebagai nonaktif)
   const handleDeleteOrDeactivateProduct = async (productId: string) => {
     const target = products.find((p) => p.id === productId);
     if (!target) return;
-    if (target.is_active === false) {
-      await handleUpdateProduct(productId, { is_active: true });
-      return;
-    }
-    if (!window.confirm(`Hapus produk ${target.product_name}? (Jika sudah memiliki riwayat stok/penjualan, produk akan dinonaktifkan agar histori tetap aman.)`)) return;
+    const confirmed = await dialog.confirm({
+      title: `Hapus Produk ${target.product_name}?`,
+      message: 'Produk yang belum memiliki riwayat stok/penjualan akan dihapus permanen. Jika sudah memiliki histori, produk akan dinonaktifkan agar buku besar tetap aman.',
+      confirmLabel: 'Ya, Hapus Produk',
+      cancelLabel: 'Batal',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     try {
       const res = await inventoryApi.deleteProduct(productId);
       handleRefreshProducts();
@@ -985,8 +1020,15 @@ function MainAppContent() {
     }
   };
 
-  const handleResetData = () => {
-    if (window.confirm('Hapus data lokal di browser ini (keranjang, nota tertahan, pengaturan struk) lalu muat ulang? Anda akan keluar dan perlu login lagi. Data di server tidak berubah.')) {
+  const handleResetData = async () => {
+    const confirmed = await dialog.confirm({
+      title: 'Bersihkan Data Lokal Browser?',
+      message: 'Keranjang kasir, nota tertahan, dan pengaturan struk lokal di browser ini akan dihapus lalu halaman dimuat ulang. Anda perlu login kembali. Data di server tidak berubah.',
+      confirmLabel: 'Bersihkan & Muat Ulang',
+      cancelLabel: 'Batal',
+      tone: 'warning',
+    });
+    if (confirmed) {
       localStorage.clear();
       window.location.reload();
     }
@@ -1157,6 +1199,7 @@ function MainAppContent() {
                 onCreateProduct={handleCreateProduct}
                 onUpdateProduct={handleUpdateProduct}
                 onGoodsReceipt={handleGoodsReceipt}
+                onGoodsReceiptBatch={handleGoodsReceiptBatch}
                 onDeleteOrDeactivateProduct={handleDeleteOrDeactivateProduct}
                 onStockOpname={handleStockOpname}
                 onServerChanged={handleInventoryServerChanged}
@@ -1199,6 +1242,7 @@ function MainAppContent() {
                 canApproveCash={can('cash_session_approve')}
                 canMoveCash={can('cash_movement')}
                 onLedgerChanged={notifyLedgerChanged}
+                onAccountsChanged={refreshAccounts}
                 canReopenPeriod={currentUser?.role === 'OWNER'}
                 canUseHub={can('accounting_hub')}
                 canUsePayables={can('accounts_payable')}

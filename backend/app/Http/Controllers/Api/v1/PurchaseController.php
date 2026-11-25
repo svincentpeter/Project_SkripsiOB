@@ -44,11 +44,19 @@ class PurchaseController extends Controller
     public function returnGoods(Request $request, int $id, PurchaseReturnService $returns): JsonResponse
     {
         $data = $request->validate([
+            'product_id' => 'nullable|integer|exists:products,id',
             'quantity' => 'required|integer|min:1',
             'reason' => 'required|string|min:5|max:255',
             'refund_account_code' => ['nullable', Rule::in(['1-1000', '1-1001'])],
         ]);
-        $out = $returns->returnGoods($id, (int) $data['quantity'], $data['reason'], $data['refund_account_code'] ?? null, $request->user());
+        $out = $returns->returnGoods(
+            $id,
+            (int) $data['quantity'],
+            $data['reason'],
+            $data['refund_account_code'] ?? null,
+            $request->user(),
+            isset($data['product_id']) ? (int) $data['product_id'] : null
+        );
 
         return response()->json([
             'success' => true,
