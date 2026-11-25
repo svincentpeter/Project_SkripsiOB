@@ -151,6 +151,7 @@ export interface CalkReport {
   policies: { title: string; body: string }[];
   notes: {
     cash_and_bank: { lines: CalkLine[]; total: number; bank_statement_balance: number | null; bank_reconciled: boolean | null };
+    receivables?: { customers: { customer_name: string; amount: number }[]; subledger_total: number; other_adjustments: number; ledger_balance: number };
     inventory: { ledger_balance: number; method: string; breakdown: { category: string; quantity: number; value: number }[]; breakdown_as_of: string | null };
     prepaid_expenses: { balance: number };
     accrued_expenses: { balance: number };

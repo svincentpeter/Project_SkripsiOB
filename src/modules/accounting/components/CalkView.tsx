@@ -30,6 +30,8 @@ export const CalkView: React.FC<{ calk: CalkReport }> = ({ calk }) => {
   const n = calk.notes;
   const fa = n.fixed_assets;
   const cash = n.cash_and_bank;
+  const hasReceivables = Boolean(n.receivables && (n.receivables.customers.length > 0 || n.receivables.ledger_balance !== 0));
+  const offset = hasReceivables ? 1 : 0;
 
   return (
     <div className="space-y-6">
@@ -65,7 +67,17 @@ export const CalkView: React.FC<{ calk: CalkReport }> = ({ calk }) => {
         </p>
       </Note>
 
-      <Note n={5} title="Persediaan">
+      {hasReceivables && n.receivables && (
+        <Note n={5} title="Piutang Usaha">
+          <Rows rows={[
+            ...n.receivables.customers.map((c) => ({ label: c.customer_name, value: c.amount })),
+            ...(n.receivables.other_adjustments !== 0 ? [{ label: 'Penyesuaian lain (selisih historis)', value: n.receivables.other_adjustments }] : []),
+            { label: 'Jumlah piutang usaha (1-1002)', value: n.receivables.ledger_balance, strong: true },
+          ]} />
+        </Note>
+      )}
+
+      <Note n={5 + offset} title="Persediaan">
         <Rows rows={[
           { label: 'Persediaan ban (1-2000), metode FIFO', value: n.inventory.ledger_balance, strong: true },
           ...n.inventory.breakdown.map((b) => ({ label: `${b.category} (${b.quantity} unit)`, value: b.value })),
@@ -75,14 +87,14 @@ export const CalkView: React.FC<{ calk: CalkReport }> = ({ calk }) => {
           : <p>Rincian per kategori hanya tersedia untuk bulan berjalan.</p>}
       </Note>
 
-      <Note n={6} title="Beban Dibayar di Muka dan Beban yang Masih Harus Dibayar">
+      <Note n={6 + offset} title="Beban Dibayar di Muka dan Beban yang Masih Harus Dibayar">
         <Rows rows={[
           { label: 'Beban dibayar di muka (1-1100)', value: n.prepaid_expenses.balance },
           { label: 'Beban yang masih harus dibayar (2-1100)', value: n.accrued_expenses.balance },
         ]} />
       </Note>
 
-      <Note n={7} title="Aset Tetap">
+      <Note n={7 + offset} title="Aset Tetap">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px]">
             <thead className="bg-slate-50 font-bold text-left">
@@ -120,7 +132,7 @@ export const CalkView: React.FC<{ calk: CalkReport }> = ({ calk }) => {
         </p>
       </Note>
 
-      <Note n={8} title="Utang Usaha">
+      <Note n={8 + offset} title="Utang Usaha">
         <Rows rows={[
           ...n.payables.suppliers.map((s) => ({ label: s.supplier_name, value: s.amount })),
           ...(n.payables.other_adjustments !== 0 ? [{ label: 'Penyesuaian lain (selisih historis)', value: n.payables.other_adjustments }] : []),
@@ -128,7 +140,7 @@ export const CalkView: React.FC<{ calk: CalkReport }> = ({ calk }) => {
         ]} />
       </Note>
 
-      <Note n={9} title="Ekuitas">
+      <Note n={9 + offset} title="Ekuitas">
         <Rows rows={[...n.equity.lines.map((l) => ({ label: `${l.code ?? ''} ${l.name}`.trim(), value: l.amount })), { label: 'Jumlah ekuitas', value: n.equity.total, strong: true }]} />
       </Note>
     </div>

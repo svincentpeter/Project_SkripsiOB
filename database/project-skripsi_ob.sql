@@ -86,7 +86,7 @@ CREATE TABLE `accounts` (
 
 LOCK TABLES `accounts` WRITE;
 /*!40000 ALTER TABLE `accounts` DISABLE KEYS */;
-INSERT INTO `accounts` VALUES (1,'2-1004','Uang Muka Pelanggan (DP Booking)','LIABILITY','CREDIT',0,'2026-10-05 08:32:45','2026-10-05 08:32:46'),(2,'4-2000','Pendapatan Surcharge EDC','REVENUE','CREDIT',0,'2026-10-05 08:32:45','2026-10-05 08:32:46'),(3,'5-2000','Selisih Persediaan (Opname)','EXPENSE','DEBIT',1,'2026-10-05 08:32:45','2026-10-05 08:32:45'),(4,'6-1009','Beban MDR QRIS & EDC','EXPENSE','DEBIT',1,'2026-10-05 08:32:45','2026-10-05 08:32:45'),(5,'1-1002','Piutang Dagang (AR)','ASSET','DEBIT',0,'2026-10-05 08:32:46','2026-10-05 08:32:46'),(6,'3-3000','Prive Pemilik','EQUITY','DEBIT',1,'2026-10-05 08:32:47','2026-10-05 08:32:47'),(7,'6-1010','Selisih Kas Kasir (Lebih/Kurang)','EXPENSE','DEBIT',1,'2026-10-05 08:32:47','2026-10-05 08:32:47'),(8,'4-9100','Retur Penjualan','REVENUE','DEBIT',1,'2026-10-05 08:32:47','2026-10-05 08:32:47'),(9,'1-1100','Beban Dibayar di Muka','ASSET','DEBIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(10,'2-1100','Beban Yang Masih Harus Dibayar','LIABILITY','CREDIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(11,'4-3000','Pendapatan Bunga Bank','REVENUE','CREDIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(12,'6-1011','Beban Penyusutan Aset Tetap','EXPENSE','DEBIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(13,'6-1012','Beban Administrasi Bank','EXPENSE','DEBIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(14,'1-1000','Kas Toko Laci Kasir','ASSET','DEBIT',1,'2026-10-05 08:32:49',NULL),(15,'1-1001','Bank BCA Cabang 3','ASSET','DEBIT',1,'2026-10-05 08:32:49',NULL),(16,'1-2000','Persediaan Ban Baru Cabang 3','ASSET','DEBIT',1,'2026-10-05 08:32:49',NULL),(17,'1-3000','Peralatan Bengkel & Mesin Spooring','ASSET','DEBIT',1,'2026-10-05 08:32:49',NULL),(18,'1-3999','Akumulasi Penyusutan Mesin','ASSET','CREDIT',1,'2026-10-05 08:32:49',NULL),(19,'2-1000','Hutang Dagang Supplier (AP)','LIABILITY','CREDIT',1,'2026-10-05 08:32:49',NULL),(20,'3-1000','Modal Disetor Pemilik','EQUITY','CREDIT',1,'2026-10-05 08:32:49',NULL),(21,'3-2000','Laba Ditahan Cabang 3','EQUITY','CREDIT',1,'2026-10-05 08:32:49',NULL),(22,'4-1000','Pendapatan Penjualan Ban Baru','REVENUE','CREDIT',1,'2026-10-05 08:32:49',NULL),(23,'4-1001','Pendapatan Jasa Servis & Spooring','REVENUE','CREDIT',1,'2026-10-05 08:32:49',NULL),(24,'4-9000','Potongan Diskon Penjualan','REVENUE','DEBIT',1,'2026-10-05 08:32:49',NULL),(25,'5-1000','Harga Pokok Penjualan (HPP) Ban Baru','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(26,'6-1000','Beban Gaji & Uang Makan Karyawan','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(27,'6-1001','Beban Listrik, Air & Internet','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(28,'6-1003','Beban Sewa Bangunan Toko','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(29,'6-1004','Beban Transportasi & Pengiriman Ban','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(30,'6-1005','Beban Perlengkapan & ATK Toko','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(31,'6-1006','Beban Perawatan Mesin Spooring & Balancing','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(32,'6-1007','Beban Konsumsi & Lembur Karyawan','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(33,'6-1008','Beban Pajak & Retribusi Daerah','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL);
+INSERT INTO `accounts` VALUES (1,'2-1004','Uang Muka Pelanggan (DP Booking)','LIABILITY','CREDIT',0,'2026-10-05 08:32:45','2026-10-05 08:32:46'),(2,'4-2000','Pendapatan Surcharge EDC','REVENUE','CREDIT',0,'2026-10-05 08:32:45','2026-10-05 08:32:46'),(3,'5-2000','Selisih Persediaan (Opname)','EXPENSE','DEBIT',1,'2026-10-05 08:32:45','2026-10-05 08:32:45'),(4,'6-1009','Beban MDR QRIS & EDC','EXPENSE','DEBIT',1,'2026-10-05 08:32:45','2026-10-05 08:32:45'),(5,'1-1002','Piutang Dagang (AR)','ASSET','DEBIT',1,'2026-10-05 08:32:46','2026-11-26 01:17:00'),(6,'3-3000','Prive Pemilik','EQUITY','DEBIT',1,'2026-10-05 08:32:47','2026-10-05 08:32:47'),(7,'6-1010','Selisih Kas Kasir (Lebih/Kurang)','EXPENSE','DEBIT',1,'2026-10-05 08:32:47','2026-10-05 08:32:47'),(8,'4-9100','Retur Penjualan','REVENUE','DEBIT',1,'2026-10-05 08:32:47','2026-10-05 08:32:47'),(9,'1-1100','Beban Dibayar di Muka','ASSET','DEBIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(10,'2-1100','Beban Yang Masih Harus Dibayar','LIABILITY','CREDIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(11,'4-3000','Pendapatan Bunga Bank','REVENUE','CREDIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(12,'6-1011','Beban Penyusutan Aset Tetap','EXPENSE','DEBIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(13,'6-1012','Beban Administrasi Bank','EXPENSE','DEBIT',1,'2026-10-05 08:32:48','2026-10-05 08:32:48'),(14,'1-1000','Kas Toko Laci Kasir','ASSET','DEBIT',1,'2026-10-05 08:32:49',NULL),(15,'1-1001','Bank BCA Cabang 3','ASSET','DEBIT',1,'2026-10-05 08:32:49',NULL),(16,'1-2000','Persediaan Ban Baru Cabang 3','ASSET','DEBIT',1,'2026-10-05 08:32:49',NULL),(17,'1-3000','Peralatan Bengkel & Mesin Spooring','ASSET','DEBIT',1,'2026-10-05 08:32:49',NULL),(18,'1-3999','Akumulasi Penyusutan Mesin','ASSET','CREDIT',1,'2026-10-05 08:32:49',NULL),(19,'2-1000','Hutang Dagang Supplier (AP)','LIABILITY','CREDIT',1,'2026-10-05 08:32:49',NULL),(20,'3-1000','Modal Disetor Pemilik','EQUITY','CREDIT',1,'2026-10-05 08:32:49',NULL),(21,'3-2000','Laba Ditahan Cabang 3','EQUITY','CREDIT',1,'2026-10-05 08:32:49',NULL),(22,'4-1000','Pendapatan Penjualan Ban Baru','REVENUE','CREDIT',1,'2026-10-05 08:32:49',NULL),(23,'4-1001','Pendapatan Jasa Servis & Spooring','REVENUE','CREDIT',1,'2026-10-05 08:32:49',NULL),(24,'4-9000','Potongan Diskon Penjualan','REVENUE','DEBIT',1,'2026-10-05 08:32:49',NULL),(25,'5-1000','Harga Pokok Penjualan (HPP) Ban Baru','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(26,'6-1000','Beban Gaji & Uang Makan Karyawan','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(27,'6-1001','Beban Listrik, Air & Internet','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(28,'6-1003','Beban Sewa Bangunan Toko','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(29,'6-1004','Beban Transportasi & Pengiriman Ban','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(30,'6-1005','Beban Perlengkapan & ATK Toko','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(31,'6-1006','Beban Perawatan Mesin Spooring & Balancing','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(32,'6-1007','Beban Konsumsi & Lembur Karyawan','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL),(33,'6-1008','Beban Pajak & Retribusi Daerah','EXPENSE','DEBIT',1,'2026-10-05 08:32:49',NULL);
 /*!40000 ALTER TABLE `accounts` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -688,7 +688,7 @@ CREATE TABLE `migrations` (
   `migration` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `batch` int NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=45 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=46 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -697,8 +697,78 @@ CREATE TABLE `migrations` (
 
 LOCK TABLES `migrations` WRITE;
 /*!40000 ALTER TABLE `migrations` DISABLE KEYS */;
-INSERT INTO `migrations` VALUES (1,'0001_01_01_000000_create_users_table',1),(2,'0001_01_01_000001_create_cache_table',1),(3,'0001_01_01_000002_create_jobs_table',1),(4,'2026_09_05_000001_create_core_entities_tables',1),(5,'2026_09_05_000002_adjust_products_columns',1),(6,'2026_09_05_000003_add_status_to_expenses_table',1),(7,'2026_09_08_000001_create_payment_provider_settings_table',1),(8,'2026_09_08_000002_create_edc_settings_table',1),(9,'2026_09_08_000003_add_payment_meta_to_sales_table',1),(10,'2026_09_08_000004_create_product_and_service_categories_tables',1),(11,'2026_09_08_000005_create_brands_and_brand_aliases_tables',1),(12,'2026_09_08_000006_create_product_price_audits_table',1),(13,'2026_09_08_000007_add_reconciliation_columns_to_products_table',1),(14,'2026_09_23_000001_add_role_columns_to_users_table',1),(15,'2026_09_23_000002_create_role_permissions_table',1),(16,'2026_09_23_163541_create_personal_access_tokens_table',1),(17,'2026_09_24_000001_extend_sales_for_server_pos',1),(18,'2026_09_24_000002_create_purchases_tables',1),(19,'2026_09_24_000003_add_pos_inventory_accounts',1),(20,'2026_09_27_000001_remove_ppn_from_sales',1),(21,'2026_09_29_000001_harden_journal_entries_and_add_period_closings',1),(22,'2026_09_29_000002_add_void_audit_to_expenses_and_seed_categories',1),(23,'2026_09_30_000001_deactivate_dp_bon_edc_accounts',1),(24,'2026_09_30_000002_remove_dp_bon_permission_keys',1),(25,'2026_09_30_100001_add_dpp_ppn_to_purchases',1),(26,'2026_10_01_000001_create_qris_transactions_table',1),(27,'2026_10_02_000001_create_cash_sessions_and_cash_accounts',1),(28,'2026_10_03_000001_add_sales_return_account_and_permissions',1),(29,'2026_10_03_000002_create_sales_returns_tables',1),(30,'2026_10_03_000003_create_purchase_returns_tables',1),(31,'2026_10_04_000001_add_sak_emkm_accounts',1),(32,'2026_10_04_000002_create_fixed_assets_tables',1),(33,'2026_10_04_000003_create_bank_reconciliation_tables',1),(34,'2026_10_04_000004_unique_fixed_asset_depreciation_period',1),(35,'2026_10_05_000001_add_daily_reports_permission',1),(36,'2026_10_05_000002_add_user_id_to_sales',1),(37,'2026_10_05_000003_index_stock_movements_reference_id',1),(38,'2026_10_05_000004_add_split_to_bank_statement_lines',2),(39,'2026_10_05_000005_backfill_sales_user_id',2),(40,'2026_10_05_000006_split_sales_return_refunds',2),(41,'2026_11_24_000001_extend_price_audits_and_sale_details_for_pricing_control',3),(42,'2026_11_25_000001_add_pricing_markup_to_brands_table',3),(43,'2026_11_25_000002_cleanup_payment_provider_settings',4),(44,'2026_11_25_000003_replace_static_qris_with_midtrans_snap',5);
+INSERT INTO `migrations` VALUES (1,'0001_01_01_000000_create_users_table',1),(2,'0001_01_01_000001_create_cache_table',1),(3,'0001_01_01_000002_create_jobs_table',1),(4,'2026_09_05_000001_create_core_entities_tables',1),(5,'2026_09_05_000002_adjust_products_columns',1),(6,'2026_09_05_000003_add_status_to_expenses_table',1),(7,'2026_09_08_000001_create_payment_provider_settings_table',1),(8,'2026_09_08_000002_create_edc_settings_table',1),(9,'2026_09_08_000003_add_payment_meta_to_sales_table',1),(10,'2026_09_08_000004_create_product_and_service_categories_tables',1),(11,'2026_09_08_000005_create_brands_and_brand_aliases_tables',1),(12,'2026_09_08_000006_create_product_price_audits_table',1),(13,'2026_09_08_000007_add_reconciliation_columns_to_products_table',1),(14,'2026_09_23_000001_add_role_columns_to_users_table',1),(15,'2026_09_23_000002_create_role_permissions_table',1),(16,'2026_09_23_163541_create_personal_access_tokens_table',1),(17,'2026_09_24_000001_extend_sales_for_server_pos',1),(18,'2026_09_24_000002_create_purchases_tables',1),(19,'2026_09_24_000003_add_pos_inventory_accounts',1),(20,'2026_09_27_000001_remove_ppn_from_sales',1),(21,'2026_09_29_000001_harden_journal_entries_and_add_period_closings',1),(22,'2026_09_29_000002_add_void_audit_to_expenses_and_seed_categories',1),(23,'2026_09_30_000001_deactivate_dp_bon_edc_accounts',1),(24,'2026_09_30_000002_remove_dp_bon_permission_keys',1),(25,'2026_09_30_100001_add_dpp_ppn_to_purchases',1),(26,'2026_10_01_000001_create_qris_transactions_table',1),(27,'2026_10_02_000001_create_cash_sessions_and_cash_accounts',1),(28,'2026_10_03_000001_add_sales_return_account_and_permissions',1),(29,'2026_10_03_000002_create_sales_returns_tables',1),(30,'2026_10_03_000003_create_purchase_returns_tables',1),(31,'2026_10_04_000001_add_sak_emkm_accounts',1),(32,'2026_10_04_000002_create_fixed_assets_tables',1),(33,'2026_10_04_000003_create_bank_reconciliation_tables',1),(34,'2026_10_04_000004_unique_fixed_asset_depreciation_period',1),(35,'2026_10_05_000001_add_daily_reports_permission',1),(36,'2026_10_05_000002_add_user_id_to_sales',1),(37,'2026_10_05_000003_index_stock_movements_reference_id',1),(38,'2026_10_05_000004_add_split_to_bank_statement_lines',2),(39,'2026_10_05_000005_backfill_sales_user_id',2),(40,'2026_10_05_000006_split_sales_return_refunds',2),(41,'2026_11_24_000001_extend_price_audits_and_sale_details_for_pricing_control',3),(42,'2026_11_25_000001_add_pricing_markup_to_brands_table',3),(43,'2026_11_25_000002_cleanup_payment_provider_settings',4),(44,'2026_11_25_000003_replace_static_qris_with_midtrans_snap',5),(45,'2026_11_26_000001_create_opening_receivables_tables',6);
 /*!40000 ALTER TABLE `migrations` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `opening_receivables`
+--
+
+DROP TABLE IF EXISTS `opening_receivables`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `opening_receivables` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `receivable_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customer_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customer_phone` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `invoice_number` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `receivable_date` date NOT NULL,
+  `due_date` date DEFAULT NULL,
+  `total_amount` decimal(15,2) NOT NULL,
+  `paid_amount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'BELUM_LUNAS',
+  `journal_entry_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operator_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `opening_receivables_receivable_number_unique` (`receivable_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `opening_receivables`
+--
+
+LOCK TABLES `opening_receivables` WRITE;
+/*!40000 ALTER TABLE `opening_receivables` DISABLE KEYS */;
+/*!40000 ALTER TABLE `opening_receivables` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `opening_receivable_payments`
+--
+
+DROP TABLE IF EXISTS `opening_receivable_payments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `opening_receivable_payments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `opening_receivable_id` bigint unsigned NOT NULL,
+  `payment_date` date NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `account_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `notes` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operator_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `journal_entry_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `opening_receivable_payments_opening_receivable_id_foreign` (`opening_receivable_id`),
+  CONSTRAINT `opening_receivable_payments_opening_receivable_id_foreign` FOREIGN KEY (`opening_receivable_id`) REFERENCES `opening_receivables` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `opening_receivable_payments`
+--
+
+LOCK TABLES `opening_receivable_payments` WRITE;
+/*!40000 ALTER TABLE `opening_receivable_payments` DISABLE KEYS */;
+/*!40000 ALTER TABLE `opening_receivable_payments` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --

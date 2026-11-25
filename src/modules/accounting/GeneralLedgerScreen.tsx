@@ -9,6 +9,8 @@ import {
   ManualJournalPayload,
   OpeningBalanceInput,
   PayableInvoice,
+  ProductItem,
+  SupplierItem,
 } from '../../shared/types';
 import { accountingApi } from '../../services/api';
 import type { ApiJournal } from '../../services/api';
@@ -30,16 +32,29 @@ import {
   JournalTab,
   ManualJournalModal,
   OpeningBalanceModal,
+  OpeningBalanceTab,
   PeriodClosingModal,
   SakEmkmReportTab,
   TrialBalanceTab,
 } from './components';
 
-export type AccountingTabKey = 'journals' | 'ledger' | 'trial-balance' | 'accounts' | 'payables' | 'reports' | 'cash' | 'fixed-assets' | 'bank-recon';
+export type AccountingTabKey =
+  | 'opening-balance'
+  | 'journals'
+  | 'ledger'
+  | 'trial-balance'
+  | 'accounts'
+  | 'payables'
+  | 'reports'
+  | 'cash'
+  | 'fixed-assets'
+  | 'bank-recon';
 
 interface GeneralLedgerScreenProps {
   ledgerVersion: number;
   accounts: ChartOfAccount[];
+  products?: ProductItem[];
+  suppliers?: SupplierItem[];
   payableInvoices: PayableInvoice[];
   cashInDrawer: number;
   canReopenPeriod: boolean;
@@ -63,13 +78,18 @@ interface GeneralLedgerScreenProps {
   canApproveCash?: boolean;
   /** Izin `cash_movement`: setor bank, prive, setoran modal. */
   canMoveCash?: boolean;
-  /** Dipanggil saat tab di layar ini (Kas & Bank, Aset Tetap, Rekonsiliasi Bank) membukukan jurnal: App memuat ulang laporan dan saldo kas. */
+  /** Dipanggil saat tab di layar ini (Kas & Bank, Aset Tetap, Rekonsiliasi Bank, Saldo Awal) membukukan jurnal: App memuat ulang laporan dan saldo kas. */
   onLedgerChanged?: (journals: ApiJournal[]) => void;
   /** Dipanggil setelah Owner menambah/mengubah/menghapus akun COA agar daftar akun global disegarkan. */
   onAccountsChanged?: () => Promise<void> | void;
+  /** Dipanggil setelah saldo awal persediaan menambah batch FIFO agar katalog produk disegarkan. */
+  onProductsChanged?: () => void;
+  /** Dipanggil setelah saldo awal utang dicatat agar daftar faktur hutang disegarkan. */
+  onPayablesChanged?: () => void;
 }
 
 const TABS: { id: AccountingTabKey; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'opening-balance', label: 'Saldo Awal', icon: Landmark },
   { id: 'journals', label: 'Jurnal Umum', icon: BookOpen },
   { id: 'ledger', label: 'Buku Besar', icon: BookMarked },
   { id: 'trial-balance', label: 'Neraca Saldo', icon: Scale },
@@ -101,6 +121,8 @@ const isTabAllowed = (id: AccountingTabKey, access: TabAccess): boolean => {
 export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   ledgerVersion,
   accounts,
+  products = [],
+  suppliers = [],
   payableInvoices,
   cashInDrawer,
   canReopenPeriod,
@@ -120,6 +142,8 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   canMoveCash = false,
   onLedgerChanged,
   onAccountsChanged,
+  onProductsChanged,
+  onPayablesChanged,
 }) => {
   const access: TabAccess = {
     hub: canUseHub,
@@ -130,6 +154,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   };
   const visibleTabs = TABS.filter((t) => isTabAllowed(t.id, access));
   const [selectedTab, setSelectedTab] = useState<AccountingTabKey>(initialTab);
+  const [focusedLedgerAccount, setFocusedLedgerAccount] = useState<string | undefined>(undefined);
   const activeTab = visibleTabs.some((t) => t.id === selectedTab) ? selectedTab : visibleTabs[0]?.id;
   const [isManualOpen, setIsManualOpen] = useState(false);
   const [isClosingOpen, setIsClosingOpen] = useState(false);
@@ -137,6 +162,11 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
   const [isAdjustingOpen, setIsAdjustingOpen] = useState(false);
   const toast = useToast();
   const dialog = useDialog();
+
+  const openAccountLedger = (accountCode: string) => {
+    setFocusedLedgerAccount(accountCode);
+    setSelectedTab('ledger');
+  };
 
   // Hanya POST yang ditangkap: pekerjaan setelah sukses di luar catch agar galat UI tidak tampil sebagai "ditolak" untuk AJP yang sudah dibukukan.
   const handleAdjustingEntry = async (input: AdjustingEntryInput): Promise<boolean> => {
@@ -210,9 +240,13 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
               </div>
             )}
 
-            {canUseHub && opening.data === null && !opening.loading && !opening.error && (
-              <button type="button" onClick={() => setIsOpeningOpen(true)}
-                className="px-3.5 py-2 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-200 rounded-xl flex items-center gap-1.5 cursor-pointer">
+            {canUseHub && (
+              <button type="button" onClick={() => setSelectedTab('opening-balance')}
+                className={`px-3.5 py-2 text-xs font-bold rounded-xl border flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'opening-balance'
+                    ? 'text-white bg-amber-600 border-amber-700'
+                    : 'text-amber-900 bg-amber-100 hover:bg-amber-200 border-amber-200'
+                }`}>
                 <Landmark className="w-3.5 h-3.5" />
                 <span>Saldo Awal</span>
               </button>
@@ -249,7 +283,7 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
             tabs: AccountingTabKey[];
           };
           const groups: GroupDef[] = [
-            { id: 'bookkeeping', label: 'Pembukuan', icon: BookOpen, tabs: ['journals', 'ledger', 'trial-balance'] },
+            { id: 'bookkeeping', label: 'Pembukuan', icon: BookOpen, tabs: ['opening-balance', 'journals', 'ledger', 'trial-balance'] },
             { id: 'treasury', label: 'Kas & Bank', icon: Wallet, tabs: ['cash', 'bank-recon'] },
             { id: 'payables', label: 'Hutang Supplier', icon: CreditCard, tabs: ['payables'] },
             { id: 'master', label: 'Aset & Akun', icon: ListTree, tabs: ['accounts', 'fixed-assets'] },
@@ -338,11 +372,35 @@ export const GeneralLedgerScreen: React.FC<GeneralLedgerScreenProps> = ({
       </div>
 
       <div className="pt-1">
+        {activeTab === 'opening-balance' && (
+          <OpeningBalanceTab
+            refreshKey={ledgerVersion}
+            cashInDrawer={cashInDrawer}
+            products={products}
+            suppliers={suppliers}
+            onLedgerChanged={onLedgerChanged}
+            onProductsChanged={onProductsChanged}
+            onPayablesChanged={onPayablesChanged}
+            onNavigateToTrialBalance={() => setSelectedTab('trial-balance')}
+            onNavigateToLedger={openAccountLedger}
+            onNavigateToAccounts={() => setSelectedTab('accounts')}
+            onNavigateToPayables={() => setSelectedTab('payables')}
+          />
+        )}
         {activeTab === 'journals' && (
           <JournalTab refreshKey={ledgerVersion} onOpenManualModal={() => setIsManualOpen(true)} onReverseJournal={onReverseJournal} />
         )}
-        {activeTab === 'ledger' && <GeneralLedgerTab accounts={accounts} refreshKey={ledgerVersion} />}
-        {activeTab === 'trial-balance' && <TrialBalanceTab refreshKey={ledgerVersion} onNavigateToReports={() => setSelectedTab('reports')} />}
+        {activeTab === 'ledger' && (
+          <GeneralLedgerTab accounts={accounts} refreshKey={ledgerVersion} initialAccountCode={focusedLedgerAccount} />
+        )}
+        {activeTab === 'trial-balance' && (
+          <TrialBalanceTab
+            refreshKey={ledgerVersion}
+            onNavigateToReports={() => setSelectedTab('reports')}
+            onOpenLedger={openAccountLedger}
+            onOpenOpeningBalance={() => setSelectedTab('opening-balance')}
+          />
+        )}
         {activeTab === 'accounts' && (
           <ChartOfAccountsTab accounts={accounts} onAccountsChanged={onAccountsChanged ?? (() => {})} />
         )}

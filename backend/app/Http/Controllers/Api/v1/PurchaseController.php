@@ -27,7 +27,7 @@ class PurchaseController extends Controller
     {
         $data = $request->validate([
             'amount' => 'required|numeric|min:1',
-            'account_code' => ['required', Rule::in(['1-1000', '1-1001'])],
+            'account_code' => ['required', Rule::in(['1-1000', '1-1001', '3-1000'])],
             'payment_date' => 'nullable|date|before_or_equal:today',
             'notes' => 'nullable|string|max:255',
         ], ['payment_date.before_or_equal' => 'Tanggal pembayaran tidak boleh melebihi hari ini.']);

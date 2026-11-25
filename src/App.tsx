@@ -1237,12 +1237,16 @@ function MainAppContent() {
               <GeneralLedgerScreen
                 ledgerVersion={ledgerVersion}
                 accounts={accounts}
+                products={products}
+                suppliers={suppliers}
                 payableInvoices={payableInvoices}
                 cashInDrawer={cashBalances['1-1000']}
                 canApproveCash={can('cash_session_approve')}
                 canMoveCash={can('cash_movement')}
                 onLedgerChanged={notifyLedgerChanged}
                 onAccountsChanged={refreshAccounts}
+                onProductsChanged={handleRefreshProducts}
+                onPayablesChanged={refreshPayables}
                 canReopenPeriod={currentUser?.role === 'OWNER'}
                 canUseHub={can('accounting_hub')}
                 canUsePayables={can('accounts_payable')}

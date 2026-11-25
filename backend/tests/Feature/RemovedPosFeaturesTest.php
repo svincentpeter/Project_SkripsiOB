@@ -51,12 +51,13 @@ class RemovedPosFeaturesTest extends TestCase
             ->assertJsonMissingPath('data.edc_settings');
     }
 
-    public function test_dp_bon_and_surcharge_accounts_are_inactive_but_mdr_stays_active(): void
+    public function test_dp_and_surcharge_accounts_are_inactive_while_ar_and_mdr_are_active(): void
     {
         $active = Account::whereIn('account_code', ['1-1002', '2-1004', '4-2000', '6-1009'])
             ->pluck('is_active', 'account_code');
 
-        $this->assertFalse((bool) $active['1-1002']);
+        // 1-1002 aktif untuk Saldo Awal Piutang & Buku Pembantu Piutang (revisi SAK EMKM); POS BON tetap ditolak.
+        $this->assertTrue((bool) $active['1-1002']);
         $this->assertFalse((bool) $active['2-1004']);
         $this->assertFalse((bool) $active['4-2000']);
         $this->assertTrue((bool) $active['6-1009']);

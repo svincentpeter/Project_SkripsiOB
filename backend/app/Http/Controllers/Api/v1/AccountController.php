@@ -19,7 +19,7 @@ class AccountController extends Controller
      * Kode akun inti yang dipakai langsung oleh layanan otomatis (POS, FIFO, Kas/Bank, Aset Tetap, Tutup Buku).
      */
     public const SYSTEM_ACCOUNT_CODES = [
-        '1-1000', '1-1001', '1-1100', '1-2000', '1-3000', '1-3999',
+        '1-1000', '1-1001', '1-1002', '1-1100', '1-2000', '1-3000', '1-3999',
         '2-1000', '2-1100',
         '3-1000', '3-2000', '3-3000',
         '4-1000', '4-1001', '4-3000', '4-9000', '4-9100',

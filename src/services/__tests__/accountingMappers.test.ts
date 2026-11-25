@@ -44,18 +44,30 @@ describe('accountingMappers', () => {
 
   it('mapTrialBalance dan mapLedger mengubah angka string menjadi number', () => {
     const tb: ApiTrialBalance = {
-      as_of: '2026-09-30', total_debit: 100, total_credit: 100, difference: 0, is_balanced: true,
-      accounts: [{ account_code: '1-1000', account_name: 'Kas', account_type: 'ASSET', normal_balance: 'DEBIT', debit: '100.00', credit: 0 }],
+      start_date: '2026-09-01', end_date: '2026-09-30', as_of: '2026-09-30',
+      total_opening_debit: 50, total_opening_credit: 50,
+      total_mutation_debit: 50, total_mutation_credit: 50,
+      total_debit: 100, total_credit: 100, difference: 0, is_balanced: true,
+      accounts: [{
+        account_code: '1-1000', account_name: 'Kas', account_type: 'ASSET', normal_balance: 'DEBIT',
+        opening_debit: '50.00', opening_credit: 0, mutation_debit: '50.00', mutation_credit: 0, debit: '100.00', credit: 0,
+      }],
     };
-    expect(mapTrialBalance(tb).rows[0]).toEqual({ account_code: '1-1000', account_name: 'Kas', account_type: 'ASSET', debit_balance: 100, credit_balance: 0 });
+    expect(mapTrialBalance(tb).rows[0]).toEqual({
+      account_code: '1-1000', account_name: 'Kas', account_type: 'ASSET', normal_balance: 'DEBIT',
+      opening_debit: 50, opening_credit: 0, mutation_debit: 50, mutation_credit: 0, debit_balance: 100, credit_balance: 0,
+    });
 
     const ledger: ApiLedger = {
       account: { account_code: '1-1000', account_name: 'Kas', account_type: 'ASSET', normal_balance: 'DEBIT' },
-      start_date: '2026-09-01', end_date: '2026-09-30', opening_balance: 500, total_debit: 100, total_credit: 0, ending_balance: 600,
+      start_date: '2026-09-01', end_date: '2026-09-30', prior_balance: 200, opening_balance: 500,
+      opening_entries: [{ id: 1, entry_number: 'JRN-202609-0000', date: '2026-09-01', reference_type: 'ACCOUNT_OPENING', reference_id: 'SALDO-AWAL', description: 'Saldo awal', note: null, debit: 300, credit: 0, signed_amount: 300 }],
+      total_debit: 100, total_credit: 0, ending_balance: 600,
       mutations: [{ id: 3, entry_number: 'JRN-202609-0001', date: '2026-09-02', reference_type: 'POS_SALE', reference_id: 'OB3-INV-1', description: 'Jual', note: null, debit: 100, credit: 0, running_balance: 600 }],
     };
     const mapped = mapLedger(ledger);
     expect(mapped.initial_balance).toBe(500);
+    expect(mapped.opening_entries?.[0]).toMatchObject({ journal_number: 'JRN-202609-0000', signed_amount: 300 });
     expect(mapped.transactions[0]).toMatchObject({ journal_number: 'JRN-202609-0001', ref_doc: 'OB3-INV-1', running_balance: 600 });
   });
 

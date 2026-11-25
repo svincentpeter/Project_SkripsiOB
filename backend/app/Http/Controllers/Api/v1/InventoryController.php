@@ -84,9 +84,12 @@ class InventoryController extends Controller
         return InventoryValueJournal::summary() + ['opening_posted' => InventoryValueJournal::openingEntry() !== null];
     }
 
-    public function openingBalance(InventoryValueJournal $journal): JsonResponse
+    public function openingBalance(Request $request, InventoryValueJournal $journal): JsonResponse
     {
-        $entry = $journal->postOpeningBalance();
+        $validated = $request->validate([
+            'date' => 'nullable|date_format:Y-m-d|before_or_equal:today',
+        ]);
+        $entry = $journal->postOpeningBalance($validated['date'] ?? null);
 
         return response()->json([
             'success' => true,

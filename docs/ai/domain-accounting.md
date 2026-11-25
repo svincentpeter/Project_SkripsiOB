@@ -25,7 +25,7 @@ completeness).
 |---|---|---|---|
 | 1-1000 | Kas Toko Laci Kasir (cash drawer) | ASSET | D |
 | 1-1001 | Bank BCA Cabang 3 | ASSET | D |
-| 1-1002 | Piutang Dagang (AR). **Inactive** since 2026-09-30 (no credit sales); historic entries only | ASSET | D |
+| 1-1002 | Piutang Dagang (AR). Active since 2026-11-26 for Opening Receivables (`opening_receivables` sub-ledger & settlements); POS BON credit sales remain disabled | ASSET | D |
 | 1-1100 | Beban Dibayar di Muka (prepaid expenses) | ASSET | D |
 | 1-2000 | Persediaan Ban Baru Cabang 3 (inventory, FIFO) | ASSET | D |
 | 1-3000 | Peralatan Bengkel & Mesin Spooring. Control account: only the fixed asset register (and the account opening balance) posts here | ASSET | D |
@@ -94,7 +94,7 @@ The README's 21-account table is outdated.
 `STOCK_RECONCILIATION`, `STOCK_COST_CORRECTION`, `PERIOD_CLOSING`, `PERIOD_REOPEN`, `MANUAL_REVERSAL`,
 `ACCOUNT_OPENING`, `CASH_SESSION_VARIANCE`, `CASH_DEPOSIT`, `OWNER_DRAWING`, `CAPITAL_INJECTION`, `SALES_RETURN`,
 `PURCHASE_RETURN`, `GOODS_RECEIPT_CANCEL`, `FIXED_ASSET_ACQUISITION`, `FIXED_ASSET_VOID`, `DEPRECIATION`,
-`ADJUSTING_ENTRY`, `ADJUSTING_REVERSAL`, `BANK_RECON_ADJUSTMENT`. Reuse one of these where it fits. If you add a new value, list it here.
+`ADJUSTING_ENTRY`, `ADJUSTING_REVERSAL`, `BANK_RECON_ADJUSTMENT`, `RECEIVABLE_OPENING`, `RECEIVABLE_PAYMENT`, `PAYABLE_OPENING`. Reuse one of these where it fits. If you add a new value, list it here.
 `TEST_ALIGN` is used by tests only (`AlignsInventoryLedger`), never in production.
 Historic only (no longer produced since 2026-09-30): `BOOKING_DP`, `BOOKING_DP_REFUND`, `RECEIVABLE_PAYMENT`. The
 journal screen has no filter group for them; they show under "Semua".

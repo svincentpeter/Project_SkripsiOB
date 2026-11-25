@@ -19,8 +19,25 @@ export interface ApiAccount {
 }
 
 export interface ApiTrialBalance {
+  start_date?: string | null;
+  end_date?: string;
   as_of: string;
-  accounts: { account_code: string; account_name: string; account_type: AccountType; normal_balance: NormalBalance; debit: number | string; credit: number | string }[];
+  accounts: {
+    account_code: string;
+    account_name: string;
+    account_type: AccountType;
+    normal_balance: NormalBalance;
+    opening_debit?: number | string;
+    opening_credit?: number | string;
+    mutation_debit?: number | string;
+    mutation_credit?: number | string;
+    debit: number | string;
+    credit: number | string;
+  }[];
+  total_opening_debit?: number;
+  total_opening_credit?: number;
+  total_mutation_debit?: number;
+  total_mutation_credit?: number;
   total_debit: number;
   total_credit: number;
   difference: number;
@@ -31,7 +48,20 @@ export interface ApiLedger {
   account: { account_code: string; account_name: string; account_type: AccountType; normal_balance: NormalBalance };
   start_date: string | null;
   end_date: string | null;
+  prior_balance?: number;
   opening_balance: number;
+  opening_entries?: {
+    id: number;
+    entry_number: string;
+    date: string;
+    reference_type: string;
+    reference_id: string;
+    description: string;
+    note: string | null;
+    debit: number;
+    credit: number;
+    signed_amount: number;
+  }[];
   total_debit: number;
   total_credit: number;
   ending_balance: number;
@@ -97,13 +127,24 @@ export const mapAccount = (a: ApiAccount): ChartOfAccount => ({
 });
 
 export const mapTrialBalance = (tb: ApiTrialBalance): TrialBalanceResult => ({
+  start_date: tb.start_date ?? null,
+  end_date: tb.end_date ?? tb.as_of,
   rows: tb.accounts.map((r) => ({
     account_code: r.account_code,
     account_name: r.account_name,
     account_type: r.account_type,
+    normal_balance: r.normal_balance,
+    opening_debit: num(r.opening_debit),
+    opening_credit: num(r.opening_credit),
+    mutation_debit: num(r.mutation_debit),
+    mutation_credit: num(r.mutation_credit),
     debit_balance: num(r.debit),
     credit_balance: num(r.credit),
   })),
+  total_opening_debit: num(tb.total_opening_debit),
+  total_opening_credit: num(tb.total_opening_credit),
+  total_mutation_debit: num(tb.total_mutation_debit),
+  total_mutation_credit: num(tb.total_mutation_credit),
   total_debit: num(tb.total_debit),
   total_credit: num(tb.total_credit),
   is_balanced: tb.is_balanced,
@@ -115,7 +156,20 @@ export const mapLedger = (l: ApiLedger): LedgerAccountSummary => ({
   account_name: l.account.account_name,
   account_type: l.account.account_type,
   normal_balance: l.account.normal_balance,
+  prior_balance: l.prior_balance !== undefined ? num(l.prior_balance) : undefined,
   initial_balance: num(l.opening_balance),
+  opening_entries: (l.opening_entries ?? []).map((o) => ({
+    id: String(o.id),
+    journal_number: o.entry_number,
+    date: o.date,
+    reference_type: o.reference_type,
+    ref_doc: o.reference_id,
+    description: o.description,
+    note: o.note ?? undefined,
+    debit: num(o.debit),
+    credit: num(o.credit),
+    signed_amount: num(o.signed_amount),
+  })),
   total_debit: num(l.total_debit),
   total_credit: num(l.total_credit),
   ending_balance: num(l.ending_balance),

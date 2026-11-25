@@ -221,7 +221,14 @@ Route::prefix('v1')->group(function () {
                 Route::post('periods/close', [AccountingPeriodController::class, 'close']);
                 Route::post('periods/{period}/reopen', [AccountingPeriodController::class, 'reopen'])->where('period', '\d{4}-\d{2}');
                 Route::get('opening-balance', [OpeningBalanceController::class, 'show']);
+                Route::get('opening-balance/summary', [OpeningBalanceController::class, 'summary']);
                 Route::post('opening-balance', [OpeningBalanceController::class, 'store']);
+                Route::post('opening-balance/inventory', [OpeningBalanceController::class, 'storeInventory']);
+                Route::get('opening-balance/receivables', [OpeningBalanceController::class, 'listReceivables']);
+                Route::post('opening-balance/receivables', [OpeningBalanceController::class, 'storeReceivable']);
+                Route::post('opening-balance/receivables/{id}/payments', [OpeningBalanceController::class, 'payReceivable'])->whereNumber('id');
+                Route::get('opening-balance/payables', [OpeningBalanceController::class, 'listPayables']);
+                Route::post('opening-balance/payables', [OpeningBalanceController::class, 'storePayable']);
             });
             Route::get('financial-statements', [AccountingReportController::class, 'financialStatements'])->middleware('permission:financial_reports,accounting_hub');
             Route::get('cash-flow', [AccountingReportController::class, 'cashFlow'])->middleware('permission:financial_reports,accounting_hub');

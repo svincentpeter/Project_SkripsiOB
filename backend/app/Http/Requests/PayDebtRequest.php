@@ -16,7 +16,7 @@ class PayDebtRequest extends FormRequest
         return [
             'supplier_id' => 'required|exists:suppliers,id',
             'amount' => 'required|numeric|min:1',
-            'payment_method' => 'required|string|in:KAS_LACI,BANK_BCA,TUNAI,TRANSFER_BCA',
+            'payment_method' => 'required|string|in:KAS_LACI,BANK_BCA,TUNAI,TRANSFER_BCA,MODAL_OWNER',
             'payment_date' => 'nullable|date|before_or_equal:today',
             'notes' => 'nullable|string',
         ];

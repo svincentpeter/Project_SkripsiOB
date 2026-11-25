@@ -98,11 +98,17 @@ class AccountingReportController extends Controller
 
     public function trialBalance(Request $request, FinancialReportService $reports): JsonResponse
     {
-        $data = $request->validate(['as_of' => 'nullable|date_format:Y-m-d']);
+        $data = $request->validate([
+            'start_date' => 'nullable|date_format:Y-m-d',
+            'end_date' => ['nullable', 'date_format:Y-m-d', Rule::when($request->filled('start_date'), 'after_or_equal:start_date')],
+            'as_of' => ['nullable', 'date_format:Y-m-d', Rule::when($request->filled('start_date'), 'after_or_equal:start_date')],
+        ]);
+
+        $endDate = $data['end_date'] ?? $data['as_of'] ?? now()->toDateString();
 
         return response()->json([
             'success' => true,
-            'data' => $reports->trialBalance($data['as_of'] ?? now()->toDateString()),
+            'data' => $reports->trialBalance($endDate, $data['start_date'] ?? null),
         ]);
     }
 
@@ -187,7 +193,11 @@ class AccountingReportController extends Controller
     public function payDebt(PayDebtRequest $request, PayableService $payables): JsonResponse
     {
         $validated = $request->validated();
-        $account = in_array($validated['payment_method'], ['KAS_LACI', 'TUNAI']) ? '1-1000' : '1-1001';
+        $account = match ($validated['payment_method']) {
+            'KAS_LACI', 'TUNAI' => '1-1000',
+            'MODAL_OWNER' => '3-1000',
+            default => '1-1001',
+        };
 
         $journals = $payables->paySupplier(
             (int) $validated['supplier_id'],

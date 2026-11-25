@@ -140,11 +140,19 @@ class FifoCostingService
     }
 
     /**
-     * Add new inventory batch from Restock / Goods Receipt.
+     * Add new inventory batch from Restock / Goods Receipt / Opening Inventory.
      */
-    public function addBatch(int $productId, int $qty, float $unitCost, string $sourceName, ?string $date = null, int $branchId = 3): ProductBatch
-    {
-        return DB::transaction(function () use ($productId, $qty, $unitCost, $sourceName, $date, $branchId) {
+    public function addBatch(
+        int $productId,
+        int $qty,
+        float $unitCost,
+        string $sourceName,
+        ?string $date = null,
+        int $branchId = 3,
+        string $referenceType = 'GOODS_RECEIPT',
+        ?string $description = null,
+    ): ProductBatch {
+        return DB::transaction(function () use ($productId, $qty, $unitCost, $sourceName, $date, $branchId, $referenceType, $description) {
             $product = Product::lockForUpdate()->findOrFail($productId);
             $date = $date ?: now()->toDateString();
             // Produk sudah dikunci, jadi cek-lalu-buat aman; satu penerimaan bisa membuat dua batch di hari yang sama.
@@ -178,9 +186,9 @@ class FifoCostingService
                 'movement_type' => 'MASUK',
                 'quantity' => $qty,
                 'balance_after' => $newQuantity,
-                'reference_type' => 'GOODS_RECEIPT',
+                'reference_type' => $referenceType,
                 'reference_id' => $batchCode,
-                'description' => 'Penerimaan barang dari ' . $sourceName,
+                'description' => $description ?? ('Penerimaan barang dari ' . $sourceName),
                 'operator_name' => auth()->user()?->name ?? 'Admin Gudang',
                 'branch_id' => $branchId,
             ]);

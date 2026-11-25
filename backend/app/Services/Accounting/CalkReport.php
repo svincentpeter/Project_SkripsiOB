@@ -4,6 +4,7 @@ namespace App\Services\Accounting;
 
 use App\Models\BankReconciliation;
 use App\Models\FixedAsset;
+use App\Models\OpeningReceivable;
 use App\Models\ProductBatch;
 use App\Models\Purchase;
 use Illuminate\Support\Carbon;
@@ -54,6 +55,7 @@ class CalkReport
             'policies' => self::policies(),
             'notes' => [
                 'cash_and_bank' => $this->cashAndBank($period, $balances),
+                'receivables' => $this->receivables($end, self::balance($balances, '1-1002', 'DEBIT')),
                 'inventory' => $this->inventory($period, self::balance($balances, '1-2000', 'DEBIT')),
                 'prepaid_expenses' => ['balance' => self::balance($balances, '1-1100', 'DEBIT')],
                 'accrued_expenses' => ['balance' => self::balance($balances, '2-1100', 'CREDIT')],
@@ -185,6 +187,33 @@ class CalkReport
 
         return [
             'suppliers' => $suppliers,
+            'subledger_total' => $subledger,
+            'other_adjustments' => round($ledgerBalance - $subledger, 2),
+            'ledger_balance' => $ledgerBalance,
+        ];
+    }
+
+    /**
+     * Piutang usaha per akhir bulan dari buku pembantu saldo awal piutang dikurangi pelunasan s/d tanggal itu.
+     */
+    private function receivables(string $end, float $ledgerBalance): array
+    {
+        $customers = OpeningReceivable::where('receivable_date', '<=', $end)
+            ->withSum(['payments as paid_through' => fn ($q) => $q->where('payment_date', '<=', $end)], 'amount')
+            ->get()
+            ->groupBy('customer_name')
+            ->map(fn (Collection $group, string $name) => [
+                'customer_name' => $name,
+                'amount' => round($group->sum(fn (OpeningReceivable $r) => (float) $r->total_amount - (float) ($r->paid_through ?? 0)), 2),
+            ])
+            ->filter(fn (array $row) => abs($row['amount']) >= 0.005)
+            ->sortBy('customer_name')
+            ->values()->all();
+
+        $subledger = round(array_sum(array_column($customers, 'amount')), 2);
+
+        return [
+            'customers' => $customers,
             'subledger_total' => $subledger,
             'other_adjustments' => round($ledgerBalance - $subledger, 2),
             'ledger_balance' => $ledgerBalance,

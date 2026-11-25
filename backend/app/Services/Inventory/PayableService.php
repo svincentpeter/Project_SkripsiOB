@@ -43,10 +43,14 @@ class PayableService
             if ($date < $invoiceDate) {
                 throw new PosRuleException("Tanggal pembayaran {$date} sebelum tanggal faktur {$invoiceDate}.");
             }
+            $isOwnerDirect = $data['account_code'] === '3-1000';
+            $creditNote = $isOwnerDirect
+                ? "Pelunasan hutang {$purchase->purchase_number} dibayar langsung oleh Owner (setoran modal)"
+                : "Pembayaran hutang {$purchase->purchase_number}";
             $journal = (new JournalDraft())
                 ->debit('2-1000', $amount, "Pelunasan hutang {$purchase->supplier_name} ({$purchase->purchase_number})")
-                ->credit($data['account_code'], $amount, "Pembayaran hutang {$purchase->purchase_number}")
-                ->post($this->engine, 'DEBT_PAYMENT', $purchase->purchase_number, "Pelunasan hutang supplier {$purchase->supplier_name}".(! empty($data['notes']) ? " ({$data['notes']})" : ''), $date);
+                ->credit($data['account_code'], $amount, $creditNote)
+                ->post($this->engine, 'DEBT_PAYMENT', $purchase->purchase_number, "Pelunasan hutang supplier {$purchase->supplier_name}".($isOwnerDirect ? ' via dana Owner' : '').(! empty($data['notes']) ? " ({$data['notes']})" : ''), $date);
 
             PurchasePayment::create([
                 'purchase_id' => $purchase->id,

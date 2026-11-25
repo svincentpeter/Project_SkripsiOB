@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\JournalItem;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Laporan SAK EMKM dari jurnal POSTED. Akun dikelompokkan dari tipe & saldo normal di COA,
@@ -13,32 +14,102 @@ use Illuminate\Support\Carbon;
  */
 class FinancialReportService
 {
-    public function trialBalance(string $asOf): array
+    /**
+     * Neraca Saldo 6 kolom (Saldo Awal Dr/Cr, Mutasi Periode Dr/Cr, Saldo Akhir Dr/Cr).
+     * Jurnal saldo awal (ACCOUNT_OPENING, OPENING_BALANCE, RECEIVABLE_OPENING, PAYABLE_OPENING)
+     * di dalam periode dimasukkan ke kolom Saldo Awal agar tidak tercampur dengan mutasi operasional.
+     */
+    public function trialBalance(string $asOf, ?string $startDate = null): array
     {
-        $rows = LedgerBalances::forRange(null, $asOf)->map(function (AccountBalance $b) {
-            $debitSide = $b->signed('DEBIT');
+        $openingTypes = OpeningBalanceService::OPENING_TYPES;
+
+        $openingSums = DB::table('journal_items as i')
+            ->join('journal_entries as e', 'e.id', '=', 'i.journal_entry_id')
+            ->where('e.status', 'POSTED')
+            ->where(function ($q) use ($startDate, $asOf, $openingTypes) {
+                if ($startDate !== null) {
+                    $q->where('e.entry_date', '<', $startDate)
+                        ->orWhere(function ($in) use ($startDate, $asOf, $openingTypes) {
+                            $in->where('e.entry_date', '>=', $startDate)
+                                ->where('e.entry_date', '<=', $asOf)
+                                ->whereIn('e.reference_type', $openingTypes);
+                        });
+                } else {
+                    $q->where('e.entry_date', '<=', $asOf)
+                        ->whereIn('e.reference_type', $openingTypes);
+                }
+            })
+            ->groupBy('i.account_id')
+            ->selectRaw('i.account_id, SUM(i.debit) as debit, SUM(i.credit) as credit')
+            ->get()
+            ->keyBy('account_id');
+
+        $mutationSums = DB::table('journal_items as i')
+            ->join('journal_entries as e', 'e.id', '=', 'i.journal_entry_id')
+            ->where('e.status', 'POSTED')
+            ->when($startDate !== null, fn ($q) => $q->where('e.entry_date', '>=', $startDate))
+            ->where('e.entry_date', '<=', $asOf)
+            ->where(fn ($q) => $q->whereNull('e.reference_type')->orWhereNotIn('e.reference_type', $openingTypes))
+            ->groupBy('i.account_id')
+            ->selectRaw('i.account_id, SUM(i.debit) as debit, SUM(i.credit) as credit')
+            ->get()
+            ->keyBy('account_id');
+
+        $rows = Account::orderBy('account_code')->get()->map(function (Account $account) use ($openingSums, $mutationSums) {
+            $openRow = $openingSums->get($account->id);
+            $mutRow = $mutationSums->get($account->id);
+
+            $openRawD = round((float) ($openRow?->debit ?? 0), 2);
+            $openRawC = round((float) ($openRow?->credit ?? 0), 2);
+            $openNet = round($openRawD - $openRawC, 2);
+            $openingDebit = $openNet > 0 ? $openNet : 0.0;
+            $openingCredit = $openNet < 0 ? -$openNet : 0.0;
+
+            $mutDebit = round((float) ($mutRow?->debit ?? 0), 2);
+            $mutCredit = round((float) ($mutRow?->credit ?? 0), 2);
+
+            $endNet = round(($openRawD + $mutDebit) - ($openRawC + $mutCredit), 2);
+            $endDebit = $endNet > 0 ? $endNet : 0.0;
+            $endCredit = $endNet < 0 ? -$endNet : 0.0;
 
             return [
-                'account_code' => $b->account->account_code,
-                'account_name' => $b->account->account_name,
-                'account_type' => $b->account->account_type,
-                'normal_balance' => $b->account->normal_balance,
-                'debit' => $debitSide > 0 ? $debitSide : 0.0,
-                'credit' => $debitSide < 0 ? -$debitSide : 0.0,
+                'account_code' => $account->account_code,
+                'account_name' => $account->account_name,
+                'account_type' => $account->account_type,
+                'normal_balance' => $account->normal_balance,
+                'opening_debit' => $openingDebit,
+                'opening_credit' => $openingCredit,
+                'mutation_debit' => $mutDebit,
+                'mutation_credit' => $mutCredit,
+                'debit' => $endDebit,
+                'credit' => $endCredit,
             ];
         })->values()->all();
 
+        $totalOpeningDebit = round(array_sum(array_column($rows, 'opening_debit')), 2);
+        $totalOpeningCredit = round(array_sum(array_column($rows, 'opening_credit')), 2);
+        $totalMutationDebit = round(array_sum(array_column($rows, 'mutation_debit')), 2);
+        $totalMutationCredit = round(array_sum(array_column($rows, 'mutation_credit')), 2);
         $totalDebit = round(array_sum(array_column($rows, 'debit')), 2);
         $totalCredit = round(array_sum(array_column($rows, 'credit')), 2);
+
+        $openingDiff = round(abs($totalOpeningDebit - $totalOpeningCredit), 2);
+        $mutationDiff = round(abs($totalMutationDebit - $totalMutationCredit), 2);
         $difference = round(abs($totalDebit - $totalCredit), 2);
 
         return [
+            'start_date' => $startDate,
+            'end_date' => $asOf,
             'as_of' => $asOf,
             'accounts' => $rows,
+            'total_opening_debit' => $totalOpeningDebit,
+            'total_opening_credit' => $totalOpeningCredit,
+            'total_mutation_debit' => $totalMutationDebit,
+            'total_mutation_credit' => $totalMutationCredit,
             'total_debit' => $totalDebit,
             'total_credit' => $totalCredit,
             'difference' => $difference,
-            'is_balanced' => $difference < 0.005,
+            'is_balanced' => $difference < 0.005 && $openingDiff < 0.005 && $mutationDiff < 0.005,
         ];
     }
 
@@ -46,19 +117,54 @@ class FinancialReportService
     {
         $account = Account::where('account_code', $accountCode)->firstOrFail();
         $sign = $account->normal_balance === 'DEBIT' ? 1 : -1;
+        $openingTypes = OpeningBalanceService::OPENING_TYPES;
 
-        $opening = 0.0;
+        $priorBalance = 0.0;
         if ($from !== null) {
             $prior = self::postedItems($account->id)
                 ->where('e.entry_date', '<', $from)
                 ->selectRaw('COALESCE(SUM(journal_items.debit), 0) as d, COALESCE(SUM(journal_items.credit), 0) as c')
                 ->first();
-            $opening = round($sign * ((float) $prior->d - (float) $prior->c), 2);
+            $priorBalance = round($sign * ((float) $prior->d - (float) $prior->c), 2);
         }
+
+        $openingItems = self::postedItems($account->id)
+            ->when($from !== null, fn ($q) => $q->where('e.entry_date', '>=', $from))
+            ->when($to !== null, fn ($q) => $q->where('e.entry_date', '<=', $to))
+            ->whereIn('e.reference_type', $openingTypes)
+            ->orderBy('e.entry_date')->orderBy('e.id')->orderBy('journal_items.id')
+            ->get([
+                'journal_items.id', 'journal_items.debit', 'journal_items.credit', 'journal_items.note',
+                'e.entry_number', 'e.entry_date', 'e.reference_type', 'e.reference_id', 'e.description',
+            ]);
+
+        $periodOpeningDelta = 0.0;
+        $openingEntries = [];
+        foreach ($openingItems as $item) {
+            $debit = (float) $item->debit;
+            $credit = (float) $item->credit;
+            $signed = round($sign * ($debit - $credit), 2);
+            $periodOpeningDelta = round($periodOpeningDelta + $signed, 2);
+            $openingEntries[] = [
+                'id' => $item->id,
+                'entry_number' => $item->entry_number,
+                'date' => Carbon::parse($item->entry_date)->toDateString(),
+                'reference_type' => $item->reference_type,
+                'reference_id' => $item->reference_id,
+                'description' => $item->description,
+                'note' => $item->note,
+                'debit' => $debit,
+                'credit' => $credit,
+                'signed_amount' => $signed,
+            ];
+        }
+
+        $opening = round($priorBalance + $periodOpeningDelta, 2);
 
         $items = self::postedItems($account->id)
             ->when($from !== null, fn ($q) => $q->where('e.entry_date', '>=', $from))
             ->when($to !== null, fn ($q) => $q->where('e.entry_date', '<=', $to))
+            ->where(fn ($q) => $q->whereNull('e.reference_type')->orWhereNotIn('e.reference_type', $openingTypes))
             ->orderBy('e.entry_date')->orderBy('e.id')->orderBy('journal_items.id')
             ->get([
                 'journal_items.id', 'journal_items.debit', 'journal_items.credit', 'journal_items.note',
@@ -98,7 +204,9 @@ class FinancialReportService
             ],
             'start_date' => $from,
             'end_date' => $to,
+            'prior_balance' => $priorBalance,
             'opening_balance' => $opening,
+            'opening_entries' => $openingEntries,
             'total_debit' => round($totalDebit, 2),
             'total_credit' => round($totalCredit, 2),
             'ending_balance' => $running,

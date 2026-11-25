@@ -7,8 +7,16 @@ import type {
   FinancialStatements,
   ManualJournalPayload,
   OpeningBalanceInput,
+  OpeningBalanceSummary,
+  OpeningInventoryInput,
+  OpeningPayableInput,
+  OpeningReceivable,
+  OpeningReceivableInput,
+  OpeningReceivablePayment,
+  OpeningReceivablePaymentInput,
   PeriodClosingRecord,
 } from '../../shared/types';
+import type { ApiPurchase, InventoryValuation } from './inventoryMappers';
 
 interface Envelope<T> {
   success: boolean;
@@ -51,7 +59,10 @@ export const accountingApi = {
     data(apiClient.post<Envelope<ApiJournal>>(`/accounting/journals/${encodeURIComponent(entryNumber)}/reverse`, { reason })),
   generalLedger: (query: { account_code: string; start_date?: string; end_date?: string }) =>
     data(apiClient.get<Envelope<ApiLedger>>('/accounting/general-ledger', query)),
-  trialBalance: (asOf: string) => data(apiClient.get<Envelope<ApiTrialBalance>>('/accounting/trial-balance', { as_of: asOf })),
+  trialBalance: (query: string | { start_date?: string; end_date?: string; as_of?: string }) => {
+    const params = typeof query === 'string' ? { as_of: query } : query;
+    return data(apiClient.get<Envelope<ApiTrialBalance>>('/accounting/trial-balance', params));
+  },
   financialStatements: (range: ReportRange) =>
     data(apiClient.get<Envelope<FinancialStatements>>('/accounting/financial-statements', range)),
   cashFlow: (range: ReportRange) => data(apiClient.get<Envelope<CashFlowReport>>('/accounting/cash-flow', range)),
@@ -62,6 +73,32 @@ export const accountingApi = {
   reopenPeriod: (period: string, reason: string) =>
     data(apiClient.post<Envelope<PeriodClosingRecord>>(`/accounting/periods/${period}/reopen`, { reason })),
   openingBalance: () => data(apiClient.get<Envelope<ApiJournal | null>>('/accounting/opening-balance')),
+  openingBalanceSummary: () => data(apiClient.get<Envelope<OpeningBalanceSummary>>('/accounting/opening-balance/summary')),
   postOpeningBalance: (input: OpeningBalanceInput) =>
     data(apiClient.post<Envelope<ApiJournal>>('/accounting/opening-balance', input)),
+  postOpeningInventory: (input: OpeningInventoryInput) =>
+    data(
+      apiClient.post<
+        Envelope<{
+          reference: string;
+          total_value: number;
+          batches: { id: number; batch_code: string; product_id: number; product_name: string; quantity: number; unit_cost: number; total_value: number }[];
+          journal: ApiJournal;
+          valuation: InventoryValuation;
+        }>
+      >('/accounting/opening-balance/inventory', input)
+    ),
+  listOpeningReceivables: () => data(apiClient.get<Envelope<OpeningReceivable[]>>('/accounting/opening-balance/receivables')),
+  createOpeningReceivable: (input: OpeningReceivableInput) =>
+    data(apiClient.post<Envelope<{ receivable: OpeningReceivable; journal: ApiJournal }>>('/accounting/opening-balance/receivables', input)),
+  payOpeningReceivable: (id: number, input: OpeningReceivablePaymentInput) =>
+    data(
+      apiClient.post<Envelope<{ receivable: OpeningReceivable; payment: OpeningReceivablePayment; journal: ApiJournal }>>(
+        `/accounting/opening-balance/receivables/${id}/payments`,
+        input
+      )
+    ),
+  listOpeningPayables: () => data(apiClient.get<Envelope<ApiPurchase[]>>('/accounting/opening-balance/payables')),
+  createOpeningPayable: (input: OpeningPayableInput) =>
+    data(apiClient.post<Envelope<{ purchase: ApiPurchase; journal: ApiJournal }>>('/accounting/opening-balance/payables', input)),
 };

@@ -9,11 +9,11 @@ class AccountCoaSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1-1002, 2-1004 dan 4-2000 nonaktif sejak DP booking, BON dan surcharge EDC dihapus (jurnal lama tetap sah).
+        // 2-1004 dan 4-2000 nonaktif sejak DP booking dan surcharge EDC dihapus; 1-1002 aktif untuk Saldo Awal Piutang.
         $accounts = [
             ['account_code' => '1-1000', 'account_name' => 'Kas Toko Laci Kasir', 'account_type' => 'ASSET', 'normal_balance' => 'DEBIT'],
             ['account_code' => '1-1001', 'account_name' => 'Bank BCA Cabang 3', 'account_type' => 'ASSET', 'normal_balance' => 'DEBIT'],
-            ['account_code' => '1-1002', 'account_name' => 'Piutang Dagang (AR)', 'account_type' => 'ASSET', 'normal_balance' => 'DEBIT', 'is_active' => false],
+            ['account_code' => '1-1002', 'account_name' => 'Piutang Dagang (AR)', 'account_type' => 'ASSET', 'normal_balance' => 'DEBIT', 'is_active' => true],
             ['account_code' => '1-2000', 'account_name' => 'Persediaan Ban Baru Cabang 3', 'account_type' => 'ASSET', 'normal_balance' => 'DEBIT'],
             ['account_code' => '1-3000', 'account_name' => 'Peralatan Bengkel & Mesin Spooring', 'account_type' => 'ASSET', 'normal_balance' => 'DEBIT'],
             ['account_code' => '1-3999', 'account_name' => 'Akumulasi Penyusutan Mesin', 'account_type' => 'ASSET', 'normal_balance' => 'CREDIT'],

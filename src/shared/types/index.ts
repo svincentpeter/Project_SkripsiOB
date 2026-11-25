@@ -499,7 +499,7 @@ export interface DebtPaymentInput {
   payable_invoice_id: string;
   payment_date: string;
   amount: number;
-  source_account_code: '1-1000' | '1-1001';
+  source_account_code: '1-1000' | '1-1001' | '3-1000';
   notes?: string;
   operator?: string;
 }
@@ -544,12 +544,27 @@ export interface LedgerTransaction {
   note?: string;
 }
 
+export interface LedgerOpeningEntry {
+  id: string;
+  journal_number: string;
+  date: string;
+  reference_type: string;
+  ref_doc: string;
+  description: string;
+  note?: string;
+  debit: number;
+  credit: number;
+  signed_amount: number;
+}
+
 export interface LedgerAccountSummary {
   account_code: string;
   account_name: string;
   account_type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
   normal_balance: 'DEBIT' | 'CREDIT';
+  prior_balance?: number;
   initial_balance: number;
+  opening_entries?: LedgerOpeningEntry[];
   total_debit: number;
   total_credit: number;
   ending_balance: number;
@@ -560,12 +575,23 @@ export interface TrialBalanceRow {
   account_code: string;
   account_name: string;
   account_type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
+  normal_balance?: 'DEBIT' | 'CREDIT';
+  opening_debit?: number;
+  opening_credit?: number;
+  mutation_debit?: number;
+  mutation_credit?: number;
   debit_balance: number;
   credit_balance: number;
 }
 
 export interface TrialBalanceResult {
+  start_date?: string | null;
+  end_date?: string;
   rows: TrialBalanceRow[];
+  total_opening_debit?: number;
+  total_opening_credit?: number;
+  total_mutation_debit?: number;
+  total_mutation_credit?: number;
   total_debit: number;
   total_credit: number;
   is_balanced: boolean;
@@ -703,11 +729,151 @@ export interface AccountingPeriodsInfo {
   closings: PeriodClosingRecord[];
 }
 
-export type OpeningBalanceAccount = '1-1000' | '1-1001' | '1-3000' | '1-3999' | '3-2000';
+export type OpeningBalanceAccount = string;
 
 export interface OpeningBalanceInput {
   date: string;
-  balances: Partial<Record<OpeningBalanceAccount, number>>;
+  allow_additional?: boolean;
+  notes?: string;
+  balances: Record<string, number | undefined>;
+}
+
+export interface OpeningBalanceAccountRow {
+  id: number;
+  account_code: string;
+  account_name: string;
+  account_type: 'ASSET' | 'LIABILITY' | 'EQUITY';
+  normal_balance: 'DEBIT' | 'CREDIT';
+  is_active: boolean;
+  is_subledger: boolean;
+  subledger_kind: 'inventory' | 'receivables' | 'payables' | 'customer_dp' | null;
+  is_balancing_equity: boolean;
+  can_direct_input: boolean;
+  opening_debit: number;
+  opening_credit: number;
+  opening_balance: number;
+  ledger_balance: number;
+}
+
+export interface OpeningBalanceSummary {
+  has_account_opening: boolean;
+  account_opening_entry: unknown | null;
+  accounts: OpeningBalanceAccountRow[];
+  totals: {
+    opening_debit: number;
+    opening_credit: number;
+    difference: number;
+    is_balanced: boolean;
+    total_assets: number;
+    total_liabilities: number;
+    total_equity: number;
+    equation_difference: number;
+  };
+  subledgers: {
+    inventory: {
+      fifo_value: number;
+      ledger_balance: number;
+      difference: number;
+      opening_posted: boolean;
+    };
+    receivables: {
+      count: number;
+      unpaid_count: number;
+      total_original: number;
+      total_paid: number;
+      total_outstanding: number;
+      ledger_balance: number;
+      difference: number;
+    };
+    payables: {
+      opening_count: number;
+      opening_original: number;
+      opening_outstanding: number;
+      all_open_total: number;
+      ledger_balance: number;
+      difference: number;
+    };
+  };
+  history: {
+    id: number;
+    entry_number: string;
+    entry_date: string;
+    reference_type: string;
+    reference_id: string;
+    description: string;
+    total_debit: number;
+    total_credit: number;
+    created_by_name?: string | null;
+    lines: { account_code: string; account_name: string; debit: number; credit: number; note?: string | null }[];
+  }[];
+}
+
+export interface OpeningInventoryItemInput {
+  product_id: number;
+  quantity: number;
+  unit_cost: number;
+}
+
+export interface OpeningInventoryInput {
+  date: string;
+  notes?: string;
+  items: OpeningInventoryItemInput[];
+}
+
+export interface OpeningReceivablePayment {
+  id: number;
+  opening_receivable_id: number;
+  payment_date: string;
+  amount: number;
+  account_code: string;
+  notes: string | null;
+  operator_name: string | null;
+  journal_entry_number: string | null;
+}
+
+export interface OpeningReceivable {
+  id: number;
+  receivable_number: string;
+  customer_name: string;
+  customer_phone: string | null;
+  invoice_number: string | null;
+  receivable_date: string;
+  due_date: string | null;
+  total_amount: number;
+  paid_amount: number;
+  remaining_amount: number;
+  status: 'BELUM_LUNAS' | 'SEBAGIAN' | 'LUNAS';
+  journal_entry_number: string | null;
+  notes: string | null;
+  operator_name: string | null;
+  payments: OpeningReceivablePayment[];
+}
+
+export interface OpeningReceivableInput {
+  customer_name: string;
+  customer_phone?: string;
+  invoice_number?: string;
+  receivable_date: string;
+  due_date?: string;
+  amount: number;
+  notes?: string;
+}
+
+export interface OpeningReceivablePaymentInput {
+  payment_date: string;
+  amount: number;
+  account_code: '1-1000' | '1-1001';
+  notes?: string;
+}
+
+export interface OpeningPayableInput {
+  supplier_id?: number;
+  supplier_name?: string;
+  supplier_invoice?: string;
+  payable_date: string;
+  due_date?: string;
+  amount: number;
+  notes?: string;
 }
 
 export interface ManualJournalPayload {

@@ -67,29 +67,61 @@ const mapGeneralLedger = (g: LedgerAccountSummary, ctx: ExportCtx): ExportDoc =>
       { key: 'kredit', label: 'Kredit', type: 'currency' },
       { key: 'saldo', label: 'Saldo Berjalan', type: 'currency' },
     ],
-    rows: g.transactions.map((t) => ({
-      tanggal: t.date,
-      no_jurnal: t.journal_number,
-      no_ref: t.ref_doc,
-      keterangan: t.description,
-      debit: t.debit,
-      kredit: t.credit,
-      saldo: t.running_balance,
-    })),
+    rows: [
+      {
+        tanggal: ctx.startDate ?? '',
+        no_jurnal: 'SALDO AWAL',
+        no_ref: (g.opening_entries ?? []).map((o) => o.journal_number).join(', ') || '-',
+        keterangan: 'Saldo awal periode',
+        debit: null,
+        kredit: null,
+        saldo: g.initial_balance,
+      },
+      ...g.transactions.map((t) => ({
+        tanggal: t.date,
+        no_jurnal: t.journal_number,
+        no_ref: t.ref_doc,
+        keterangan: t.description,
+        debit: t.debit,
+        kredit: t.credit,
+        saldo: t.running_balance,
+      })),
+    ],
     totals: { debit: g.total_debit, kredit: g.total_credit, saldo: g.ending_balance },
   }]);
 
 const mapTrialBalance = (tb: TrialBalanceResult, ctx: ExportCtx): ExportDoc =>
-  makeDoc('trial_balance', 'Neraca Saldo', 'portrait', ctx, [{
+  makeDoc('trial_balance', 'Neraca Saldo', 'landscape', ctx, [{
     columns: [
-      { key: 'kode', label: 'Kode Akun', type: 'text', width: 12 },
-      { key: 'nama', label: 'Nama Rekening', type: 'text', width: 44 },
-      { key: 'klas', label: 'Klasifikasi', type: 'text', width: 18 },
-      { key: 'debit', label: 'Saldo Debit (Dr)', type: 'currency' },
-      { key: 'kredit', label: 'Saldo Kredit (Cr)', type: 'currency' },
+      { key: 'kode', label: 'Kode Akun', type: 'text', width: 10 },
+      { key: 'nama', label: 'Nama Rekening', type: 'text', width: 32 },
+      { key: 'klas', label: 'Klasifikasi', type: 'text', width: 12 },
+      { key: 'awal_d', label: 'Saldo Awal (Dr)', type: 'currency' },
+      { key: 'awal_k', label: 'Saldo Awal (Cr)', type: 'currency' },
+      { key: 'mut_d', label: 'Mutasi (Dr)', type: 'currency' },
+      { key: 'mut_k', label: 'Mutasi (Cr)', type: 'currency' },
+      { key: 'debit', label: 'Saldo Akhir (Dr)', type: 'currency' },
+      { key: 'kredit', label: 'Saldo Akhir (Cr)', type: 'currency' },
     ],
-    rows: tb.rows.map((r) => ({ kode: r.account_code, nama: r.account_name, klas: r.account_type, debit: r.debit_balance, kredit: r.credit_balance })),
-    totals: { debit: tb.total_debit, kredit: tb.total_credit },
+    rows: tb.rows.map((r) => ({
+      kode: r.account_code,
+      nama: r.account_name,
+      klas: r.account_type,
+      awal_d: r.opening_debit ?? 0,
+      awal_k: r.opening_credit ?? 0,
+      mut_d: r.mutation_debit ?? 0,
+      mut_k: r.mutation_credit ?? 0,
+      debit: r.debit_balance,
+      kredit: r.credit_balance,
+    })),
+    totals: {
+      awal_d: tb.total_opening_debit ?? 0,
+      awal_k: tb.total_opening_credit ?? 0,
+      mut_d: tb.total_mutation_debit ?? 0,
+      mut_k: tb.total_mutation_credit ?? 0,
+      debit: tb.total_debit,
+      kredit: tb.total_credit,
+    },
   }]);
 
 const mapPayable = (invoices: PayableInvoice[], ctx: ExportCtx): ExportDoc =>

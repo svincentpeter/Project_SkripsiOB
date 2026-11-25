@@ -17,10 +17,11 @@ interface JournalTabProps {
 
 const TYPE_GROUPS: { id: string; label: string; types: string[] }[] = [
   { id: 'ALL', label: 'Semua', types: [] },
+  { id: 'OPENING', label: 'Saldo Awal', types: ['ACCOUNT_OPENING', 'OPENING_BALANCE', 'RECEIVABLE_OPENING', 'PAYABLE_OPENING'] },
   { id: 'SALE', label: 'Penjualan', types: ['POS_SALE', 'POS_SALE_VOID', 'SALES_RETURN'] },
   { id: 'PURCHASE', label: 'Pembelian', types: ['PURCHASE', 'PURCHASE_RETURN', 'GOODS_RECEIPT_CANCEL'] },
   { id: 'EXPENSE', label: 'Biaya', types: ['EXPENSE', 'VOID_EXPENSE'] },
-  { id: 'DEBT', label: 'Bayar Hutang', types: ['DEBT_PAYMENT'] },
+  { id: 'DEBT', label: 'Utang & Piutang', types: ['DEBT_PAYMENT', 'RECEIVABLE_PAYMENT', 'RECEIVABLE_OPENING', 'PAYABLE_OPENING'] },
   { id: 'CASH', label: 'Kas & Modal', types: ['CASH_SESSION_VARIANCE', 'CASH_DEPOSIT', 'OWNER_DRAWING', 'CAPITAL_INJECTION'] },
   { id: 'INVENTORY', label: 'Persediaan', types: ['STOCK_OPNAME', 'STOCK_IMPORT', 'STOCK_RECONCILIATION', 'STOCK_COST_CORRECTION', 'OPENING_BALANCE'] },
   { id: 'ADJUSTMENT', label: 'Penyesuaian', types: ['MANUAL_ADJUSTMENT', 'MANUAL_REVERSAL', 'ACCOUNT_OPENING'] },
@@ -39,6 +40,10 @@ const TYPE_BADGE: Record<string, string> = {
   PURCHASE_RETURN: 'RETUR',
   GOODS_RECEIPT_CANCEL: 'PEMBALIK',
   ACCOUNT_OPENING: 'SALDO AWAL',
+  OPENING_BALANCE: 'SALDO AWAL PERSEDIAAN',
+  RECEIVABLE_OPENING: 'SALDO AWAL PIUTANG',
+  RECEIVABLE_PAYMENT: 'PELUNASAN PIUTANG',
+  PAYABLE_OPENING: 'SALDO AWAL UTANG',
   PERIOD_CLOSING: 'JURNAL PENUTUP',
   PERIOD_REOPEN: 'BUKA PERIODE',
   FIXED_ASSET_ACQUISITION: 'ASET TETAP',

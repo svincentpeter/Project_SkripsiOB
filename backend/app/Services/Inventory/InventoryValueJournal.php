@@ -113,9 +113,9 @@ class InventoryValueJournal
      * Bukukan selisih antara nilai FIFO dan saldo buku 1-2000 sebagai saldo awal persediaan, satu kali saja:
      * selisih sesudahnya bukan modal pemilik dan harus ditelusuri (stock opname).
      */
-    public function postOpeningBalance(): ?JournalEntry
+    public function postOpeningBalance(?string $date = null): ?JournalEntry
     {
-        return DB::transaction(function () {
+        return DB::transaction(function () use ($date) {
             // Kunci akun modal agar dua permintaan bersamaan tidak sama-sama lolos cek "belum ada".
             Account::where('account_code', self::OPENING_EQUITY)->lockForUpdate()->first();
             $existing = self::openingEntry();
@@ -130,7 +130,8 @@ class InventoryValueJournal
                 [self::OPENING_EQUITY => $difference],
                 'OPENING_BALANCE',
                 $reference,
-                'Saldo awal persediaan ban (penyesuaian nilai FIFO ke buku besar)'
+                'Saldo awal persediaan ban (penyesuaian nilai FIFO ke buku besar)',
+                $date
             );
         });
     }
@@ -152,7 +153,7 @@ class InventoryValueJournal
     /**
      * @param  array<string, float>  $deltas  perubahan nilai persediaan per akun lawan
      */
-    private function postDeltas(array $deltas, string $referenceType, string $referenceId, string $description): ?JournalEntry
+    private function postDeltas(array $deltas, string $referenceType, string $referenceId, string $description, ?string $date = null): ?JournalEntry
     {
         $draft = new JournalDraft();
         $posted = false;
@@ -170,6 +171,6 @@ class InventoryValueJournal
             }
         }
 
-        return $posted ? $draft->post($this->engine, $referenceType, $referenceId, $description) : null;
+        return $posted ? $draft->post($this->engine, $referenceType, $referenceId, $description, $date) : null;
     }
 }

@@ -60,7 +60,7 @@ rejects `bon`, `booking_id` and card-terminal methods with 422 (see [domain-pos.
 |---|---|---|
 | POST | `/inventory/restock` (goods receipt; `purchase_date` ≤ today) | `goods_receipt` |
 | GET | `/purchases` (`status=open` = TEMPO purchases that are not `LUNAS` or `BATAL`) | `goods_receipt`, `accounts_payable`, `purchase_return` |
-| POST | `/purchases/{id}/payments` (`account_code` 1-1000 or 1-1001; `payment_date` ≤ today and ≥ the invoice date) | `accounts_payable` |
+| POST | `/purchases/{id}/payments` (`account_code` 1-1000, 1-1001, atau 3-1000 untuk pelunasan langsung oleh Owner; `payment_date` ≤ today and ≥ the invoice date) | `accounts_payable` |
 | POST | `/purchases/{id}/returns` (`{quantity, reason, refund_account_code?}`) → 201 `{purchase, purchase_return, journal}` | `purchase_return` |
 | POST | `/purchases/{id}/cancel` (`{reason}`; only an untouched receipt) → 200 `{purchase, purchase_return, journal}` | `purchase_return` |
 | GET | `/inventory/stock-movements`, `/inventory/valuation` (includes `opening_posted`) | `inventory_view` |
@@ -86,15 +86,20 @@ The frontend calls all of these through `accountingApi.ts` and `expenseApi.ts`.
 | GET | `/accounting/journals` | `accounting_hub` | `start_date, end_date, types (comma list), search, account_code, page, per_page≤100`; paginated |
 | POST | `/accounting/journals/manual` | `accounting_hub` | `{date≤today, description, items[{account_code, debit, credit, note}]}`; control accounts (1-1002, 1-2000, 2-1000, 2-1004, 1-3000, 1-3999) rejected |
 | POST | `/accounting/journals/{entryNumber}/reverse` | `accounting_hub` | `{reason}`; only `MANUAL_ADJUSTMENT` entries, once each |
-| GET | `/accounting/general-ledger` | `accounting_hub` | `account_code, start_date, end_date` |
-| GET | `/accounting/trial-balance` | `accounting_hub` | `as_of` |
+| GET | `/accounting/general-ledger` | `accounting_hub` | `account_code, start_date, end_date`; includes `prior_balance`, `opening_balance` (prior + opening entries in period), `opening_entries`, and operational `mutations` |
+| GET | `/accounting/trial-balance` | `accounting_hub` | `start_date?, end_date?` (or legacy `as_of`); 6-column trial balance (Saldo Awal Dr/Cr, Mutasi Dr/Cr, Saldo Akhir Dr/Cr) |
 | GET | `/accounting/financial-statements` | `financial_reports`, `accounting_hub` | `start_date, end_date`; income statement, balance sheet, equity changes |
 | GET | `/accounting/cash-flow` | `financial_reports`, `accounting_hub` | `start_date, end_date`; direct method |
 | GET | `/accounting/cash-balances` | `expenses`, `accounting_hub`, `financial_reports`, `cash_session` | `{1-1000, 1-1001}` as of today |
 | GET | `/accounting/periods` | `accounting_hub` | lock date, recent closings, suggested period to close |
 | POST | `/accounting/periods/close` | `accounting_hub` | `{period: YYYY-MM, notes}`; only a fully-elapsed month; 422 while depreciation for the period is pending |
 | POST | `/accounting/periods/{period}/reopen` | `accounting_hub` + OWNER | `{reason}`; only the most recently closed period |
-| GET / POST | `/accounting/opening-balance` | `accounting_hub` | `{date, balances{code: amount}}`; posts once (`ACCOUNT_OPENING`) |
+| GET / POST | `/accounting/opening-balance` | `accounting_hub` | `{date, balances{code: amount}, allow_additional?, notes?}`; dynamically accepts all active non-subledger Balance Sheet COA accounts (`ACCOUNT_OPENING`) |
+| GET | `/accounting/opening-balance/summary` | `accounting_hub` | full COA-synced opening balance summary (assets/liabilities/equity totals, sub-ledger reconciliations, opening history) |
+| POST | `/accounting/opening-balance/inventory` | `accounting_hub` | `{date, notes?, items[{product_id, quantity, unit_cost}]}`; creates FIFO batches + `OPENING_BALANCE` journal (Dr 1-2000 / Cr 3-1000) |
+| GET / POST | `/accounting/opening-balance/receivables` | `accounting_hub` | lists/creates opening customer receivables (`SA-PIU-…`, Dr 1-1002 / Cr 3-1000, `RECEIVABLE_OPENING`) |
+| POST | `/accounting/opening-balance/receivables/{id}/payments` | `accounting_hub` | `{payment_date, amount, account_code 1-1000\|1-1001, notes?}` → Dr cash/bank / Cr 1-1002 (`RECEIVABLE_PAYMENT`) |
+| GET / POST | `/accounting/opening-balance/payables` | `accounting_hub` | lists/creates opening supplier payables (`SA-HUT-…` in `purchases` TEMPO, Dr 3-1000 / Cr 2-1000, `PAYABLE_OPENING`; settled via `/purchases/{id}/payments`) |
 | GET | `/accounting/accounts-payable` | `accounts_payable` | |
 | POST | `/accounting/accounts-payable/pay` | `accounts_payable` | per-supplier legacy path; the UI uses `/purchases/{id}/payments`; `payment_date` ≤ today and ≥ the date of each invoice it pays; skips `BATAL` |
 

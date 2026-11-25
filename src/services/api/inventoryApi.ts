@@ -94,8 +94,13 @@ export const inventoryApi = {
   listMovements: async (perPage = 1000) =>
     (await apiClient.get<Envelope<{ data: ApiMovement[] }>>('/inventory/stock-movements', { per_page: perPage })).data.data,
   valuation: async () => (await apiClient.get<Envelope<InventoryValuation>>('/inventory/valuation')).data,
-  postOpeningBalance: async () =>
-    (await apiClient.post<Envelope<{ valuation: InventoryValuation; journal: ApiJournal | null }>>('/inventory/opening-balance')).data,
+  postOpeningBalance: async (date?: string) =>
+    (
+      await apiClient.post<Envelope<{ valuation: InventoryValuation; journal: ApiJournal | null }>>(
+        '/inventory/opening-balance',
+        date ? { date } : undefined
+      )
+    ).data,
 
   // Hutang supplier
   listPurchases: async (status: 'open' | 'all' = 'all') =>
