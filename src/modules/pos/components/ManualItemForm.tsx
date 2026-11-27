@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Minus, Plus, Sparkles, Wrench } from 'lucide-react';
+import { Minus, Plus, Wrench } from 'lucide-react';
 import { CartItem, ProductItem, ServiceMasterItem } from '../../../shared/types';
 import { formatRupiah, parseRupiahInput } from '../../../shared/utils/formatters';
 import { useToast } from '../../../shared/components';
@@ -83,24 +83,22 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
   };
 
   return (
-    <div className="p-3 sm:p-4 bg-white rounded-2xl border border-slate-200 shadow-xs max-w-4xl mx-auto space-y-4">
-      <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-        <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
-          <Sparkles className="w-5 h-5" />
+    <div className="p-4 sm:p-5 bg-white rounded-xl border border-slate-200 max-w-3xl mx-auto space-y-5">
+      <div className="flex items-start gap-3 pb-3.5 border-b border-slate-200">
+        <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center shrink-0">
+          <Wrench className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="text-sm sm:text-base font-black text-slate-900">Input Jasa Manual Kasir</h3>
-          <p className="text-[11px] text-slate-500">
-            Untuk jasa dadakan yang belum ada di master jasa. Barang non-katalog harus didaftarkan dan diterima lewat
-            Penerimaan Barang dulu agar HPP FIFO tercatat.
+          <h3 className="text-sm sm:text-base font-bold text-slate-900">Input Jasa Manual Kasir</h3>
+          <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+            Untuk layanan jasa dadakan di luar daftar master. Barang dagangan baru tetap harus dicatat melalui menu Penerimaan Barang agar HPP FIFO tetap akurat.
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="manual-service-name" className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-            <Wrench className="w-3.5 h-3.5 text-cyan-600" />
+          <label htmlFor="manual-service-name" className="text-xs font-semibold text-slate-800 block">
             Nama Layanan Jasa <span className="text-rose-600">*</span>
           </label>
           <input
@@ -108,11 +106,11 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
             type="text"
             value={itemName}
             onChange={(e) => setItemName(e.target.value)}
-            placeholder="Cth: Tambal Tip Top Khusus Ban Tubeless / Press Velg"
-            className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs text-slate-900 font-bold focus:border-blue-600 focus:outline-none"
+            placeholder="Contoh: Tambal Tip Top Ban Tubeless atau Press Velg"
+            className="w-full h-10 bg-white border border-slate-300 rounded-lg px-3 text-sm text-slate-900 font-medium focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none"
           />
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-bold text-slate-500">Preset Cepat:</span>
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <span className="text-[11px] font-medium text-slate-500">Pilih cepat:</span>
             {PRESETS.map((p) => (
               <button
                 key={p.name}
@@ -121,7 +119,7 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
                   setItemName(p.name);
                   setSellPriceInput(String(p.price));
                 }}
-                className="px-2 py-0.5 rounded-md bg-white hover:bg-slate-100 border border-slate-200 text-[10px] font-semibold text-slate-700 cursor-pointer"
+                className="h-7 px-2.5 rounded-md bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-xs font-medium text-slate-700 hover:text-blue-700 transition-colors cursor-pointer"
               >
                 {p.label}
               </button>
@@ -129,9 +127,9 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="manual-service-price" className="text-xs font-black text-slate-800 block mb-1">
+            <label htmlFor="manual-service-price" className="text-xs font-semibold text-slate-800 block mb-1.5">
               Tarif Jasa Satuan (Rp) <span className="text-rose-600">*</span>
             </label>
             <input
@@ -140,17 +138,18 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
               value={sellPriceInput ? formatRupiah(sellPrice).replace('Rp ', '') : ''}
               onChange={(e) => setSellPriceInput(e.target.value)}
               placeholder="0"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-mono text-sm font-black focus:bg-white focus:border-emerald-600 focus:outline-none"
+              className="w-full h-10 px-3 bg-white border border-slate-300 rounded-lg text-emerald-700 font-mono text-sm font-bold tabular-nums focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none"
             />
           </div>
+
           <div>
-            <span className="text-xs font-black text-slate-800 block mb-1">Jumlah (Qty)</span>
+            <span className="text-xs font-semibold text-slate-800 block mb-1.5">Jumlah (Qty)</span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 aria-label="Kurangi jumlah"
                 onClick={() => setQty(Math.max(1, qty - 1))}
-                className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center cursor-pointer"
+                className="w-10 h-10 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 flex items-center justify-center cursor-pointer"
               >
                 <Minus className="w-4 h-4" />
               </button>
@@ -160,13 +159,13 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
                 aria-label="Jumlah"
                 value={qty}
                 onChange={(e) => setQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                className="flex-1 text-center py-1.5 bg-slate-50 border border-slate-300 rounded-xl font-mono text-base font-black text-slate-900"
+                className="flex-1 h-10 text-center bg-white border border-slate-300 rounded-lg font-mono text-sm font-bold tabular-nums text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none"
               />
               <button
                 type="button"
                 aria-label="Tambah jumlah"
                 onClick={() => setQty(qty + 1)}
-                className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center cursor-pointer"
+                className="w-10 h-10 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 flex items-center justify-center cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -175,26 +174,32 @@ export const ManualItemForm: React.FC<ManualItemFormProps> = ({ onAddToCart }) =
         </div>
 
         <div>
-          <label htmlFor="manual-service-notes" className="text-[11px] font-bold text-slate-600 block mb-1">
-            Catatan Khusus Baris (Opsional)
+          <label htmlFor="manual-service-notes" className="text-xs font-semibold text-slate-700 block mb-1.5">
+            Catatan Baris Struk (Opsional)
           </label>
           <input
             id="manual-service-notes"
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Cth: Garansi tambal 1 pekan"
-            className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:bg-white focus:border-blue-600 focus:outline-none"
+            placeholder="Contoh: Garansi tambal 1 pekan"
+            className="w-full h-10 bg-white border border-slate-300 rounded-lg px-3 text-xs sm:text-sm text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 focus:outline-none"
           />
         </div>
 
-        <button
-          type="submit"
-          className="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-sm shadow-md flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Masukkan Jasa ke Keranjang ({formatRupiah(total)})</span>
-        </button>
+        <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-xs text-slate-600">
+            Subtotal baris:{' '}
+            <strong className="text-base font-bold text-emerald-700 tabular-nums ml-1">{formatRupiah(total)}</strong>
+          </div>
+          <button
+            type="submit"
+            className="h-11 px-5 rounded-xl bg-blue-700 hover:bg-blue-800 active:scale-[0.98] text-white font-semibold text-sm flex items-center justify-center gap-2 cursor-pointer transition-[background-color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Masukkan ke Keranjang</span>
+          </button>
+        </div>
       </form>
     </div>
   );

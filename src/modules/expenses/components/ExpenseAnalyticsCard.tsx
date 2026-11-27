@@ -14,6 +14,7 @@ import {
 import { ExpenseCategory, ExpenseRecord } from '../../../shared/types';
 import { formatRupiah } from '../../../shared/utils/formatters';
 import { EXPENSE_CATEGORY_CONFIG } from '../../../shared/utils/formatters';
+import { currentMonth, monthLabel } from '../../../services/accountingPeriod';
 
 interface ExpenseAnalyticsCardProps {
   expenses: ExpenseRecord[];
@@ -182,7 +183,7 @@ export const ExpenseAnalyticsCard: React.FC<ExpenseAnalyticsCardProps> = ({ expe
               Evaluasi Anggaran & Realisasi Beban (Budget vs Actual)
             </h3>
           </div>
-          <span className="text-xs text-slate-500 font-medium">Periode: September 2026</span>
+          <span className="text-xs text-slate-500 font-medium">Periode: {monthLabel(currentMonth())}</span>
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-slate-200">

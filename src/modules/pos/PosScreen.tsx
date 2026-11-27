@@ -1,52 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo, useDeferredValue } from 'react';
-import { 
-  Search, 
-  Plus, 
-  Minus, 
-  Trash2, 
-  Printer, 
-  X, 
-  Car, 
-  Clock, 
-  ArrowLeft, 
-  ShieldCheck, 
-  Check, 
-  AlertCircle,
-  QrCode,
-  Building2,
-  Store,
-  Disc,
-  CircleDot,
-  Package,
-  Wrench,
-  Bookmark,
-  Edit3,
-  CreditCard,
-  ArrowRight,
-  ShoppingCart,
-  Droplets,
-  Sparkles,
-  LogOut,
-  Receipt,
-  HelpCircle,
-  UserCheck,
-  RotateCcw,
-} from 'lucide-react';
-import { 
-  CartItem, 
+import { Clock, LogOut, Package, RotateCcw, ShoppingCart } from 'lucide-react';
+import {
+  CartItem,
   ParkedTransaction,
-  PaymentMethod, 
-  PosTransaction, 
+  PaymentMethod,
+  PosTransaction,
   ProductCategory,
-  ProductItem, 
+  ProductItem,
   ServiceMasterItem,
   StoreSettings,
-  SplitPaymentLine,
-  UserSession
+  UserSession,
 } from '../../shared/types';
-import { formatRupiah, parseRupiahInput } from '../../shared/utils/formatters';
-import { MoneyInput } from '../../shared/components/MoneyInput';
-import { TablePagination, usePagination } from '../../shared/components';
+import { formatRupiah } from '../../shared/utils/formatters';
+import { TablePagination, useDialog, usePagination, useToast } from '../../shared/components';
 import {
   CheckoutPayload,
   CheckoutPaymentMeta,
@@ -54,29 +20,33 @@ import {
   cartLineToPayload,
   serviceCartProduct,
 } from '../../services/api';
-import { 
-  calculateCartTotals, 
-  createPosTransactionRecord, 
-  generateInvoiceNumber 
+import {
+  calculateCartTotals,
+  createPosTransactionRecord,
+  generateInvoiceNumber,
 } from '../../services/posService';
-import { 
+import {
   CartLineEditModal,
-  ParkedOrdersDrawer,
   CheckoutModal,
   ManualItemForm,
+  ParkedOrdersDrawer,
+  PosCartPanel,
+  PosCatalogToolbar,
+  PosHeader,
+  PosProductCard,
+  PosServiceCard,
   PosSuccessModal,
   ReceiptPreviewModal,
-  CashShiftControl,
+  getShortCategoryName,
 } from './components';
-import { useDialog, useToast } from '../../shared/components';
 import { localDate } from '../../services/accountingPeriod';
-import { categoryKind } from '../../shared/utils/categoryKind';
 import {
   CASHIER_INITIAL_PRICE_REASONS,
   getProductReferenceHpp,
   getRecommendedPriceByMarkup,
 } from '../../shared/utils/pricingStandard';
-import logoOmahBan from '../../assets/brand/logo-omah-ban.png';
+
+export { getShortCategoryName };
 
 interface PosScreenProps {
   products: ProductItem[];
@@ -113,37 +83,6 @@ const defaultCategories: ProductCategory[] = [
   { id: 'cat-03', category_code: 'BAN_DALAM', category_name: 'Ban Dalam', description: 'Ban dalam dan flap velg', is_active: true },
 ];
 
-export const getShortCategoryName = (code: string, fullName: string): string => {
-  const c = (code || '').toUpperCase().trim();
-  if (c === 'BAN_BARU' || c === 'TIRE' || c === 'BAN') return 'Ban';
-  if (c === 'VELG' || c === 'WHEEL' || c === 'RIMS') return 'Velg';
-  if (c === 'BAN_DALAM' || c === 'INNER_TUBE' || c.includes('DALAM')) return 'Ban Dlm';
-  if (c === 'OLI_PELUMAS' || c === 'OIL' || c.includes('LUBRICANT') || c.includes('OLI')) return 'Oli';
-  if (c === 'AKSESORIS' || c.includes('AKSESOR') || c.includes('ACCESSOR')) return 'Aksesori';
-
-  let name = (fullName || '').trim();
-  name = name.replace(/\(.*?\)/g, '').trim();
-  const lower = name.toLowerCase();
-  if (lower.startsWith('ban mobil baru') || lower === 'ban baru' || lower === 'ban luar') return 'Ban';
-  if (lower.startsWith('velg mobil') || lower === 'velg') return 'Velg';
-  if (lower.startsWith('oli & pelumas') || lower.startsWith('oli mesin') || lower.startsWith('oli')) return 'Oli';
-  if (lower.startsWith('ban dalam') || lower === 'ban dalam') return 'Ban Dlm';
-  if (lower.startsWith('aksesoris') || lower.startsWith('aksesori')) return 'Aksesori';
-
-  if (name.includes('&')) {
-    const first = name.split('&')[0].trim();
-    const parts = first.split(/\s+/);
-    if (parts.length > 0 && parts[0].length >= 3) return parts[0];
-    if (first.length >= 3 && first.length <= 10) return first;
-  }
-  const words = name.split(/\s+/);
-  if (words.length > 1 && name.length > 10) {
-    return words[0];
-  }
-  return name.slice(0, 10) || code;
-};
-
-
 export const PosScreen: React.FC<PosScreenProps> = ({
   products,
   services = [],
@@ -156,7 +95,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   cashierName,
   cashInDrawer,
   canUseCashSession = false,
-  timeString,
   onExitToBackoffice,
   onOpenWireframeModal,
   isEmptyState = false,
@@ -172,21 +110,37 @@ export const PosScreen: React.FC<PosScreenProps> = ({
   const dialog = useDialog();
   const [mobileTab, setMobileTab] = useState<'catalog' | 'cart'>('catalog');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  
+
   const availableCategories = useMemo(() => {
-    const activeCats = (categories && categories.length > 0)
-      ? categories.filter(c => c.is_active !== false)
+    return categories && categories.length > 0
+      ? categories.filter((c) => c.is_active !== false)
       : defaultCategories;
-    return activeCats;
   }, [categories]);
 
   const [catalogTab, setCatalogTab] = useState<string>('ALL');
-  const [isCartBouncing, setIsCartBouncing] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [selectedRing, setSelectedRing] = useState<string>('ALL');
+  const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
+  const [stockFilter, setStockFilter] = useState<'ALL' | 'AVAILABLE' | 'LOW' | 'OUT'>('ALL');
+  const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('ALL');
 
-  const triggerCartBounce = () => {
-    setIsCartBouncing(true);
-    setTimeout(() => setIsCartBouncing(false), 500);
-  };
+  const [customerName, setCustomerName] = useState('');
+  const [vehiclePlate, setVehiclePlate] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [manualDiscount, setManualDiscount] = useState<number>(0);
+
+  const [editLineIndex, setEditLineIndex] = useState<number | null>(null);
+  const [pendingZeroPriceItem, setPendingZeroPriceItem] = useState<CartItem | null>(null);
+  const [showParkedDrawer, setShowParkedDrawer] = useState<boolean>(false);
+  const [printTransaction, setPrintTransaction] = useState<PosTransaction | null>(null);
+  const [completedSaleTx, setCompletedSaleTx] = useState<PosTransaction | null>(null);
+  const [showReceiptPreviewModal, setShowReceiptPreviewModal] = useState<boolean>(false);
+  const [previewReceiptTx, setPreviewReceiptTx] = useState<PosTransaction | null>(null);
+  const [showCheckoutModal, setShowCheckoutModal] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const { activeProductsCount, categoryCountByCode, categoryCountById } = useMemo(() => {
     const byCode = new Map<string, number>();
@@ -210,12 +164,20 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     return categoryCountByCode.get(code) ?? (categoryId ? categoryCountById.get(categoryId) ?? 0 : 0);
   };
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [selectedRing, setSelectedRing] = useState<string>('ALL');
-  const [selectedBrand, setSelectedBrand] = useState<string>('ALL');
-  const [stockFilter, setStockFilter] = useState<'ALL' | 'AVAILABLE' | 'LOW' | 'OUT'>('ALL');
-  const [selectedServiceCategory, setSelectedServiceCategory] = useState<string>('ALL');
+  const { productQtyInCart, serviceQtyInCart } = useMemo(() => {
+    const prodMap = new Map<string, number>();
+    const srvMap = new Map<string, number>();
+    for (const item of cart) {
+      if (item.item_type === 'PRODUCT' && item.product?.id !== undefined) {
+        const key = String(item.product.id);
+        prodMap.set(key, (prodMap.get(key) ?? 0) + item.qty);
+      } else if (item.item_type === 'SERVICE' && item.service?.id !== undefined) {
+        const key = String(item.service.id);
+        srvMap.set(key, (srvMap.get(key) ?? 0) + item.qty);
+      }
+    }
+    return { productQtyInCart: prodMap, serviceQtyInCart: srvMap };
+  }, [cart]);
 
   const availableServiceCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -230,14 +192,15 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     const tabCode = catalogTab.toUpperCase().trim();
     products.forEach((p) => {
       const pCat = (p.category || '').toUpperCase().trim();
-      const matchesCategory = tabCode === 'ALL' || pCat === tabCode || (p.category_id && String(p.category_id) === catalogTab);
+      const matchesCategory =
+        tabCode === 'ALL' || pCat === tabCode || (p.category_id && String(p.category_id) === catalogTab);
       if (matchesCategory && p.is_active !== false && p.ring && p.ring.trim()) {
         rings.add(p.ring.trim());
       }
     });
     return Array.from(rings).sort((a, b) => {
-      const numA = parseInt(a.replace(/\D/g, '')) || 0;
-      const numB = parseInt(b.replace(/\D/g, '')) || 0;
+      const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
       return numA - numB;
     });
   }, [products, catalogTab]);
@@ -247,45 +210,14 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     const tabCode = catalogTab.toUpperCase().trim();
     products.forEach((p) => {
       const pCat = (p.category || '').toUpperCase().trim();
-      const matchesCategory = tabCode === 'ALL' || pCat === tabCode || (p.category_id && String(p.category_id) === catalogTab);
+      const matchesCategory =
+        tabCode === 'ALL' || pCat === tabCode || (p.category_id && String(p.category_id) === catalogTab);
       if (matchesCategory && p.is_active !== false && p.brand && p.brand.trim()) {
         brands.add(p.brand.trim());
       }
     });
     return Array.from(brands).sort();
   }, [products, catalogTab]);
-
-  const [customerName, setCustomerName] = useState('');
-  const [vehiclePlate, setVehiclePlate] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
-
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('TUNAI');
-  const [cashTenderedInput, setCashTenderedInput] = useState<string>('');
-  const [manualDiscount, setManualDiscount] = useState<number>(0);
-
-  const [editLineIndex, setEditLineIndex] = useState<number | null>(null);
-  const [pendingZeroPriceItem, setPendingZeroPriceItem] = useState<CartItem | null>(null);
-  const [showParkedDrawer, setShowParkedDrawer] = useState<boolean>(false);
-  const [printTransaction, setPrintTransaction] = useState<PosTransaction | null>(null);
-  const [completedSaleTx, setCompletedSaleTx] = useState<PosTransaction | null>(null);
-  const [showReceiptPreviewModal, setShowReceiptPreviewModal] = useState<boolean>(false);
-  const [previewReceiptTx, setPreviewReceiptTx] = useState<PosTransaction | null>(null);
-
-  const [showCheckoutModal, setShowCheckoutModal] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F2') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   const filteredProducts = useMemo(() => {
     if (isEmptyState || catalogTab === 'SERVICES' || catalogTab === 'MANUAL') return [];
@@ -295,7 +227,8 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     return products.filter((prod) => {
       if (prod.is_active === false) return false;
       const pCat = (prod.category || '').toUpperCase().trim();
-      const matchesCategory = tabCode === 'ALL' || pCat === tabCode || (prod.category_id && String(prod.category_id) === catalogTab);
+      const matchesCategory =
+        tabCode === 'ALL' || pCat === tabCode || (prod.category_id && String(prod.category_id) === catalogTab);
       if (!matchesCategory) return false;
 
       if (q) {
@@ -354,9 +287,65 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     deferredSearchQuery,
   ]);
 
+  const totals = calculateCartTotals(cart, manualDiscount);
+  const netPayable = totals.grandTotal;
+  const totalCartQty = cart.reduce((sum, item) => sum + item.qty, 0);
+
+  const hasOpenModal =
+    showCheckoutModal ||
+    editLineIndex !== null ||
+    pendingZeroPriceItem !== null ||
+    showParkedDrawer ||
+    showReceiptPreviewModal ||
+    Boolean(completedSaleTx) ||
+    showLogoutConfirm;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === 'F8' && !hasOpenModal && cart.length > 0) {
+        e.preventDefault();
+        setShowCheckoutModal(true);
+      } else if (e.key === 'Escape' && showLogoutConfirm) {
+        setShowLogoutConfirm(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hasOpenModal, cart.length, showLogoutConfirm]);
+
+  const handleSelectTab = (tab: string) => {
+    setCatalogTab(tab);
+    setSelectedRing('ALL');
+    setSelectedBrand('ALL');
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedRing('ALL');
+    setSelectedBrand('ALL');
+    setStockFilter('ALL');
+    setSelectedServiceCategory('ALL');
+    if (catalogTab !== 'SERVICES') {
+      setCatalogTab('ALL');
+    }
+  };
+
+  const hasActiveFilter =
+    catalogTab === 'SERVICES'
+      ? Boolean(searchQuery || selectedServiceCategory !== 'ALL')
+      : Boolean(
+          searchQuery ||
+            selectedRing !== 'ALL' ||
+            selectedBrand !== 'ALL' ||
+            stockFilter !== 'ALL' ||
+            catalogTab !== 'ALL'
+        );
+
   const handleAddToCartManual = (item: CartItem) => {
     setCart((prevCart) => [...prevCart, item]);
-    triggerCartBounce();
   };
 
   const handleAddToCart = (product: ProductItem) => {
@@ -367,8 +356,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       (it) => it.item_type === 'PRODUCT' && it.product.id === product.id
     );
 
-    // Case "Kecolongan": Harga jual lupa ditentukan oleh Owner (masih Rp 0).
-    // Kasir diberi akses melihat HPP dan menentukan harga jual (minimal +15% dari HPP) beserta alasannya.
     if ((product.product_price || product.price || 0) <= 0) {
       if (existingIndex > -1) {
         setEditLineIndex(existingIndex);
@@ -387,12 +374,11 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       });
       toast.info(
         'Penentuan Harga Jual Kasir',
-        `${product.product_name} belum memiliki harga katalog. Silakan cek HPP & tentukan harga jual (min. +15%).`
+        `${product.product_name} belum memiliki harga katalog. Cek HPP dan tentukan harga jual (min. +15%).`
       );
       return;
     }
 
-    triggerCartBounce();
     setCart((prevCart) => {
       const idx = prevCart.findIndex(
         (it) => it.item_type === 'PRODUCT' && it.product.id === product.id
@@ -401,27 +387,26 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       if (idx > -1) {
         const existing = prevCart[idx];
         if (existing.qty + 1 > stockAvailable) {
+          toast.warning('Stok Maksimal Tercapai', `Stok tersedia untuk ${product.product_name} hanya ${stockAvailable} unit.`);
           return prevCart;
         }
         const updated = [...prevCart];
         updated[idx] = { ...existing, qty: existing.qty + 1 };
         return updated;
-      } else {
-        return [
-          ...prevCart,
-          {
-            item_type: 'PRODUCT',
-            product,
-            qty: 1,
-            discount_per_item: 0,
-          },
-        ];
       }
+      return [
+        ...prevCart,
+        {
+          item_type: 'PRODUCT',
+          product,
+          qty: 1,
+          discount_per_item: 0,
+        },
+      ];
     });
   };
 
   const handleAddServiceToCart = (service: ServiceMasterItem) => {
-    triggerCartBounce();
     setCart((prevCart) => {
       const existingIndex = prevCart.findIndex(
         (it) => it.item_type === 'SERVICE' && it.service?.id === service.id
@@ -434,18 +419,17 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           qty: updated[existingIndex].qty + 1,
         };
         return updated;
-      } else {
-        return [
-          ...prevCart,
-          {
-            item_type: 'SERVICE',
-            product: serviceCartProduct(service),
-            service,
-            qty: 1,
-            discount_per_item: 0,
-          },
-        ];
       }
+      return [
+        ...prevCart,
+        {
+          item_type: 'SERVICE',
+          product: serviceCartProduct(service),
+          service,
+          qty: 1,
+          discount_per_item: 0,
+        },
+      ];
     });
   };
 
@@ -472,11 +456,24 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     setCart((prevCart) => prevCart.filter((_, i) => i !== index));
   };
 
+  const handleClearCart = async () => {
+    const ok = await dialog.confirm({
+      title: 'Kosongkan Keranjang Kasir?',
+      message: 'Seluruh item yang ada di keranjang kasir saat ini akan dihapus.',
+      confirmLabel: 'Kosongkan',
+      cancelLabel: 'Batal',
+      tone: 'danger',
+    });
+    if (ok) {
+      setCart([]);
+      setManualDiscount(0);
+    }
+  };
+
   const handleSaveLineItem = (index: number, updatedItem: CartItem) => {
     if (pendingZeroPriceItem && index === -1) {
       setCart((prevCart) => [...prevCart, updatedItem]);
       setPendingZeroPriceItem(null);
-      triggerCartBounce();
       toast.success(
         'Harga Jual Kasir Ditetapkan',
         `${updatedItem.product.product_name} ditambahkan dengan harga ${formatRupiah(updatedItem.custom_price || 0)} (tercatat ke Audit Log Owner).`
@@ -489,12 +486,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       return copy;
     });
   };
-
-  const totals = calculateCartTotals(cart, manualDiscount);
-  const netPayable = totals.grandTotal;
-
-  const cashTenderedVal = parseRupiahInput(cashTenderedInput);
-  const changeAmount = paymentMethod === 'TUNAI' ? Math.max(0, cashTenderedVal - netPayable) : 0;
 
   const handleCheckoutSale = async (
     method: PaymentMethod,
@@ -519,7 +510,6 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       const transaction = await onCheckout(payload);
       setCompletedSaleTx(transaction);
       setCart([]);
-      setCashTenderedInput('');
       setManualDiscount(0);
       setCustomerName('');
       setVehiclePlate('');
@@ -573,6 +563,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
     onSaveParkedOrder?.(newParked);
     setCart([]);
+    setManualDiscount(0);
     toast.info(
       'Nota Berhasil Ditahan',
       `Nota mobil ${newParked.vehicle_plate} (${newParked.customer_name}) telah disimpan di antrian tahan.`
@@ -588,14 +579,12 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         cancelLabel: 'Batal',
         tone: 'warning',
       });
-      if (!ok) {
-        return;
-      }
+      if (!ok) return;
     }
     setCart(order.items);
-    setCustomerName(order.customer_name);
-    setVehiclePlate(order.vehicle_plate);
-    setVehicleModel(order.vehicle_model);
+    setCustomerName(order.customer_name === 'Pelanggan Walk-In' ? '' : order.customer_name);
+    setVehiclePlate(order.vehicle_plate === 'TANPA PLAT' ? '' : order.vehicle_plate);
+    setVehicleModel(order.vehicle_model === '-' ? '' : order.vehicle_model);
     onDeleteParkedOrder?.(order.id);
     setShowParkedDrawer(false);
     toast.success('Antrian Dipanggil', `Nota mobil ${order.vehicle_plate} dimuat kembali ke keranjang kasir.`);
@@ -619,17 +608,13 @@ export const PosScreen: React.FC<PosScreenProps> = ({
       customerName,
       vehiclePlate,
       vehicleModel,
-      paymentMethod,
+      'TUNAI',
       netPayable,
       cashierName,
       manualDiscount
     );
     setPreviewReceiptTx(tempTx);
     setShowReceiptPreviewModal(true);
-  };
-
-  const handlePrintCurrentCartNota = () => {
-    handleOpenReceiptPreview();
   };
 
   const handleExecutePrintFromPreview = () => {
@@ -656,934 +641,236 @@ export const PosScreen: React.FC<PosScreenProps> = ({
     handleOpenReceiptPreview(tempTx);
   };
 
-  const handlePrintReceiptFromSuccessModal = (tx: PosTransaction) => {
-    handleOpenReceiptPreview(tx);
-  };
-
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-slate-50 text-slate-800 overflow-hidden select-none font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* 1. TOP ACTION & STATUS BAR (FULL WIDTH 100vw, spans above BOTH Catalog & Cart) */}
-      <header className="w-full px-3 py-2 bg-white border-b border-slate-200 flex items-center justify-between gap-2.5 shrink-0 z-20 shadow-xs">
-        {/* Left: Brand / Backoffice & Search Bar */}
-        <div className="flex items-center gap-2 min-w-0 flex-1 max-w-xl">
-          {canAccessBackoffice && onExitToBackoffice ? (
-            <button
-              type="button"
-              onClick={onExitToBackoffice}
-              className="p-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5 shrink-0"
-              title="Kembali ke Dashboard Backoffice"
-            >
-              <ArrowLeft className="w-4 h-4 text-slate-600" />
-              <span className="text-xs font-bold hidden sm:inline">Dashboard</span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2.5 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs shrink-0" title="Terminal Kasir Omah Ban">
-              <img
-                src={logoOmahBan}
-                alt="Omah Ban"
-                className="h-6 w-auto object-contain shrink-0"
-              />
-              <div className="h-5 w-px bg-slate-200 hidden sm:block shrink-0" />
-              <div className="leading-tight hidden sm:block">
-                <div className="flex items-center gap-1">
-                  <span className="font-extrabold text-xs text-slate-900 tracking-tight">Terminal Kasir</span>
-                  <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.2 rounded-xs">
-                    POS Aktif
-                  </span>
-                </div>
-                <span className="text-[10px] text-slate-500 font-semibold">Cabang 3 Magelang</span>
-              </div>
-            </div>
-          )}
+    <div className="flex flex-col h-screen max-h-screen bg-[#F4F5F7] text-slate-900 overflow-hidden select-none font-['Plus_Jakarta_Sans',sans-serif]">
+      {/* 1. Header Atas Tunggal */}
+      <PosHeader
+        searchInputRef={searchInputRef}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        canAccessBackoffice={canAccessBackoffice}
+        onExitToBackoffice={onExitToBackoffice}
+        parkedCount={parkedOrders.length}
+        onOpenParkedDrawer={() => setShowParkedDrawer(true)}
+        cashInDrawer={cashInDrawer}
+        canUseCashSession={canUseCashSession}
+        canAccessReceipts={canAccessReceipts}
+        onNavigateToReceipts={onNavigateToReceipts}
+        onOpenGuide={onOpenWireframeModal}
+        cashierName={cashierName}
+        currentUser={currentUser}
+        onRequestLogout={onLogout ? () => setShowLogoutConfirm(true) : undefined}
+      />
 
-          <div className="relative flex-1 min-w-0">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari Ban, Velg, Ban Dalam, Jasa (F2)..."
-              className="w-full bg-slate-50 border border-slate-300 focus:bg-white rounded-xl pl-9 pr-3 py-1.5 text-xs sm:text-sm text-slate-900 placeholder-slate-500 focus:outline-hidden focus:border-blue-600 focus:ring-2 focus:ring-blue-100 shadow-2xs transition-all"
-            />
-          </div>
-        </div>
-
-        {/* Center/Right: Action Buttons, Drawer, Struk & LOGOUT */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowParkedDrawer(true)}
-            className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-            title="Lihat antrian nota yang sedang ditahan (Parked Orders)"
-          >
-            <Clock className="w-3.5 h-3.5 text-amber-700" />
-            <span className="hidden sm:inline">Antrian Tahan</span>
-            {parkedOrders.length > 0 && (
-              <span className="w-4 h-4 rounded-full bg-amber-700 text-white text-[9px] font-black flex items-center justify-center">
-                {parkedOrders.length}
-              </span>
-            )}
-          </button>
-
-          <CashShiftControl cashInDrawer={cashInDrawer} enabled={canUseCashSession} />
-
-          {canAccessReceipts && onNavigateToReceipts && (
-            <button
-              type="button"
-              onClick={onNavigateToReceipts}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-              title="Lihat Riwayat Transaksi & Cetak Ulang Struk"
-            >
-              <Receipt className="w-3.5 h-3.5 text-blue-600" />
-              <span className="hidden md:inline">Riwayat Struk</span>
-            </button>
-          )}
-
-          {onOpenWireframeModal && (
-            <button
-              type="button"
-              onClick={onOpenWireframeModal}
-              className="p-1.5 sm:p-2 rounded-xl bg-white border border-slate-300 hover:bg-slate-100 text-slate-600 transition-colors shadow-2xs cursor-pointer hidden md:flex"
-              title="Buku Panduan Pengguna Toko"
-            >
-              <HelpCircle className="w-4 h-4" />
-            </button>
-          )}
-
-          {/* User Profile & LOGOUT BUTTON (Always in the top right corner of the window) */}
-          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
-            <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-xl shadow-2xs">
-              <div className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px] text-white ${
-                currentUser?.role === 'OWNER' ? 'bg-blue-600' : 'bg-emerald-600'
-              }`}>
-                {cashierName.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="text-left leading-tight">
-                <span className="font-bold text-slate-800 text-xs block truncate max-w-[100px]">
-                  {cashierName}
-                </span>
-                <span className="text-[9px] font-extrabold text-emerald-700 uppercase">
-                  {currentUser?.role || 'KASIR'}
-                </span>
-              </div>
-            </div>
-
-            {onLogout && (
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-black transition-all shadow-xs cursor-pointer"
-                title="Keluar dari Sesi Kasir (Logout)"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Keluar</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Top View Switcher (Only visible on screens < lg) */}
+      {/* Mobile Tab Switcher (hanya layar < lg) */}
       <div className="lg:hidden flex items-center justify-between p-2 bg-slate-100 border-b border-slate-200 shrink-0 gap-2">
         <button
           type="button"
           onClick={() => setMobileTab('catalog')}
-          className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+          className={`flex-1 h-10 px-3 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
             mobileTab === 'catalog'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+              ? 'bg-blue-700 text-white'
+              : 'bg-white text-slate-700 border border-slate-300'
           }`}
         >
-          <Package className="w-3.5 h-3.5" />
-          <span>Katalog Produk</span>
+          <Package className="w-4 h-4" />
+          <span>Katalog</span>
         </button>
 
         <button
           type="button"
           onClick={() => setMobileTab('cart')}
-          className={`flex-1 py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all ${
+          className={`flex-1 h-10 px-3 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer tabular-nums ${
             mobileTab === 'cart'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+              ? 'bg-blue-700 text-white'
+              : 'bg-white text-slate-700 border border-slate-300'
           }`}
         >
-          <ShoppingCart className="w-3.5 h-3.5" />
-          <span>Keranjang ({cart.reduce((s, i) => s + i.qty, 0)})</span>
+          <ShoppingCart className="w-4 h-4" />
+          <span>Keranjang ({totalCartQty})</span>
           {cart.length > 0 && (
-            <span className="font-mono text-[10px] font-bold text-emerald-700 ml-0.5">
-              {formatRupiah(totals.grandTotal)}
+            <span className={mobileTab === 'cart' ? 'text-white/90 font-bold' : 'text-emerald-700 font-bold'}>
+              {formatRupiah(netPayable)}
             </span>
           )}
         </button>
-
-        {onLogout && (
-          <button
-            type="button"
-            onClick={() => setShowLogoutConfirm(true)}
-            className="p-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-2xs shrink-0 cursor-pointer flex items-center gap-1 font-bold text-xs"
-            title="Keluar dari Sesi Kasir (Logout)"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </button>
-        )}
       </div>
 
-      {/* 2. MAIN BODY (Split layout: Catalog Left, Cart Right) */}
+      {/* 2. Area Kerja Utama (Kiri: Katalog, Kanan: Keranjang) */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left Column: Catalog */}
-        <div className={`flex-1 min-w-0 min-h-0 border-r border-slate-200 bg-white h-full ${mobileTab === 'cart' ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}>
-          {/* Category Tabs (Short clean labels, no overflow cutoff) */}
-          <div className="px-3 py-1.5 bg-white border-b border-slate-200 flex flex-wrap items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setCatalogTab('ALL');
-              setSelectedRing('ALL');
-              setSelectedBrand('ALL');
-            }}
-            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
-              catalogTab === 'ALL'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200/90'
-            }`}
-            title="Tampilkan semua produk katalog"
-          >
-            <Disc className="w-3.5 h-3.5 shrink-0" />
-            <span>Semua</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-              catalogTab === 'ALL' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-            }`}>
-              {activeProductsCount}
-            </span>
-          </button>
+        <main
+          className={`flex-1 min-w-0 min-h-0 bg-[#F4F5F7] h-full ${
+            mobileTab === 'cart' ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'
+          }`}
+        >
+          <PosCatalogToolbar
+            availableCategories={availableCategories}
+            catalogTab={catalogTab}
+            onSelectTab={handleSelectTab}
+            activeProductsCount={activeProductsCount}
+            getCategoryProductCount={getCategoryProductCount}
+            servicesCount={services.length}
+            availableRings={availableRings}
+            selectedRing={selectedRing}
+            onSelectRing={setSelectedRing}
+            availableBrands={availableBrands}
+            selectedBrand={selectedBrand}
+            onSelectBrand={setSelectedBrand}
+            stockFilter={stockFilter}
+            onSelectStockFilter={setStockFilter}
+            availableServiceCategories={availableServiceCategories}
+            selectedServiceCategory={selectedServiceCategory}
+            onSelectServiceCategory={setSelectedServiceCategory}
+            hasActiveFilter={hasActiveFilter}
+            onResetFilters={handleResetFilters}
+            filteredCount={catalogTab === 'SERVICES' ? filteredServices.length : filteredProducts.length}
+          />
 
-          {availableCategories.map((cat) => {
-            const isSelected = catalogTab === cat.category_code;
-            const count = getCategoryProductCount(cat.category_code, cat.id);
-            const shortName = getShortCategoryName(cat.category_code, cat.category_name);
-            const renderIcon = () => {
-              const code = (cat.category_code || '').toUpperCase();
-              if (code.includes('VELG')) return <CircleDot className="w-3.5 h-3.5 shrink-0" />;
-              if (code.includes('OLI') || code.includes('LUBRICANT')) return <Droplets className="w-3.5 h-3.5 shrink-0" />;
-              if (code.includes('DALAM') || code.includes('TUBE')) return <Package className="w-3.5 h-3.5 shrink-0" />;
-              if (code.includes('AKSESOR') || code.includes('ACCESSOR')) return <Sparkles className="w-3.5 h-3.5 shrink-0" />;
-              return <Disc className="w-3.5 h-3.5 shrink-0" />;
-            };
-            return (
-              <button
-                key={cat.id || cat.category_code}
-                type="button"
-                onClick={() => {
-                  setCatalogTab(cat.category_code);
-                  setSelectedRing('ALL');
-                  setSelectedBrand('ALL');
-                }}
-                className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
-                  isSelected
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200/90'
-                }`}
-                title={cat.category_name}
-              >
-                {renderIcon()}
-                <span>{shortName}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  isSelected ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-                }`}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => {
-              setCatalogTab('SERVICES');
-              setSelectedRing('ALL');
-              setSelectedBrand('ALL');
-            }}
-            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
-              catalogTab === 'SERVICES' ? 'bg-cyan-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:text-slate-950 hover:bg-slate-200/90'
-            }`}
-            title="Daftar Tarif Jasa & Layanan Pit Omah Ban"
-          >
-            <Wrench className="w-3.5 h-3.5 shrink-0" />
-            <span>Jasa</span>
-            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-              catalogTab === 'SERVICES' ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-700'
-            }`}>
-              {services.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCatalogTab('MANUAL');
-              setSelectedRing('ALL');
-              setSelectedBrand('ALL');
-            }}
-            className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap select-none ${
-              catalogTab === 'MANUAL'
-                ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-400/30'
-                : 'bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200'
-            }`}
-            title="Input Item Manual Non-Katalog"
-          >
-            <Plus className="w-3.5 h-3.5 shrink-0" />
-            <span>Manual</span>
-          </button>
-        </div>
-
-        {/* Quick Ring Chips, Brand & Availability Filter Bar */}
-        {catalogTab !== 'MANUAL' && (
-          <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-200 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 shrink-0">
-            {catalogTab === 'SERVICES' ? (
-              <>
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-0.5">
-                    Kategori Jasa:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedServiceCategory('ALL')}
-                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                      selectedServiceCategory === 'ALL'
-                        ? 'bg-cyan-700 text-white shadow-2xs'
-                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                    }`}
-                  >
-                    Semua
-                  </button>
-                  {availableServiceCategories.map((sc) => (
-                    <button
-                      key={sc}
-                      type="button"
-                      onClick={() => setSelectedServiceCategory(selectedServiceCategory === sc ? 'ALL' : sc)}
-                      className={`px-2 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                        selectedServiceCategory === sc
-                          ? 'bg-cyan-600 text-white shadow-2xs'
-                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                      }`}
-                    >
-                      {sc.replace(/_/g, ' ')}
-                    </button>
+          {catalogTab === 'MANUAL' ? (
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 custom-scrollbar">
+              <ManualItemForm onAddToCart={handleAddToCartManual} />
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 custom-scrollbar">
+              <div className="grid content-start auto-rows-max grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                {catalogTab !== 'SERVICES' &&
+                  posProductPagination.pageItems.map((p) => (
+                    <PosProductCard
+                      key={p.id}
+                      product={p}
+                      qtyInCart={productQtyInCart.get(String(p.id)) ?? 0}
+                      onAdd={handleAddToCart}
+                    />
                   ))}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {(searchQuery || selectedServiceCategory !== 'ALL') && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSelectedServiceCategory('ALL');
-                      }}
-                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Reset</span>
-                    </button>
-                  )}
-                  <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
-                    <b className="text-slate-900 font-mono font-black">{filteredServices.length}</b> Jasa
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Left: Quick Ring Pills */}
-                <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
-                  {availableRings.length > 0 && (
-                    <>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-0.5">
-                        Ring:
-                      </span>
+
+                {catalogTab === 'SERVICES' &&
+                  posServicePagination.pageItems.map((srv) => (
+                    <PosServiceCard
+                      key={srv.id}
+                      service={srv}
+                      qtyInCart={serviceQtyInCart.get(String(srv.id)) ?? 0}
+                      onAdd={handleAddServiceToCart}
+                    />
+                  ))}
+
+                {catalogTab !== 'SERVICES' && filteredProducts.length === 0 && (
+                  <div className="col-span-full py-16 text-center text-slate-500 space-y-3">
+                    <Package className="w-10 h-10 mx-auto text-slate-300 stroke-[1.5]" />
+                    <div>
+                      <p className="font-semibold text-slate-800 text-sm">Tidak ada produk yang cocok</p>
+                      <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                        {searchQuery
+                          ? `Tidak ditemukan produk untuk kata kunci "${searchQuery}" pada filter saat ini.`
+                          : `Tidak ada produk tersedia untuk filter Ring (${selectedRing}), Merek, dan status stok yang dipilih.`}
+                      </p>
+                    </div>
+                    {hasActiveFilter && (
                       <button
                         type="button"
-                        onClick={() => setSelectedRing('ALL')}
-                        className={`px-2.5 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                          selectedRing === 'ALL'
-                            ? 'bg-slate-900 text-white shadow-2xs'
-                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                        }`}
+                        onClick={handleResetFilters}
+                        className="h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 text-xs font-semibold cursor-pointer"
                       >
-                        Semua
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Reset Semua Filter</span>
                       </button>
-                      {availableRings.map((r) => (
-                        <button
-                          key={r}
-                          type="button"
-                          onClick={() => setSelectedRing(selectedRing === r ? 'ALL' : r)}
-                          className={`px-2 py-0.5 rounded-lg text-xs font-bold shrink-0 transition-all cursor-pointer ${
-                            selectedRing === r
-                              ? 'bg-blue-600 text-white shadow-2xs ring-2 ring-blue-300'
-                              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                          }`}
-                        >
-                          {r.startsWith('R') ? r : `R${r}`}
-                        </button>
-                      ))}
-                    </>
-                  )}
-                </div>
-
-                {/* Right: Brand, Availability Status & Counter */}
-                <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  {availableBrands.length > 1 && (
-                    <select
-                      aria-label="Filter merek produk"
-                      value={selectedBrand}
-                      onChange={(e) => setSelectedBrand(e.target.value)}
-                      className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0 shadow-2xs"
-                    >
-                      <option value="ALL">Semua Merk ({availableBrands.length})</option>
-                      {availableBrands.map((b) => (
-                        <option key={b} value={b}>{b}</option>
-                      ))}
-                    </select>
-                  )}
-                  <select
-                    aria-label="Filter ketersediaan stok"
-                    value={stockFilter}
-                    onChange={(e) => setStockFilter(e.target.value as 'ALL' | 'AVAILABLE' | 'LOW' | 'OUT')}
-                    className="text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0 shadow-2xs"
-                  >
-                    <option value="ALL">Stok: Semua</option>
-                    <option value="AVAILABLE">Tersedia (&gt; 0)</option>
-                    <option value="LOW">Stok Menipis</option>
-                    <option value="OUT">Stok Habis (0)</option>
-                  </select>
-                  {(searchQuery || selectedRing !== 'ALL' || selectedBrand !== 'ALL' || stockFilter !== 'ALL' || catalogTab !== 'ALL') && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSelectedRing('ALL');
-                        setSelectedBrand('ALL');
-                        setStockFilter('ALL');
-                        setCatalogTab('ALL');
-                      }}
-                      className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Reset</span>
-                    </button>
-                  )}
-                  <span className="text-[11px] text-slate-500 font-medium whitespace-nowrap bg-white px-2 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
-                    <b className="text-slate-900 font-mono font-black">{filteredProducts.length}</b> Produk
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Product Cards Grid OR Manual Item Form */}
-        {catalogTab === 'MANUAL' ? (
-          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 bg-slate-50 custom-scrollbar">
-            <ManualItemForm onAddToCart={handleAddToCartManual} />
-          </div>
-        ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 bg-slate-50/70 custom-scrollbar">
-            <div className="grid content-start auto-rows-max grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-              {catalogTab !== 'SERVICES' && posProductPagination.pageItems.map((p) => {
-                const stockQty = p.stock || p.product_quantity || 0;
-                const isOutOfStock = stockQty <= 0;
-                const isLowStock = stockQty > 0 && stockQty <= 3;
-                const pKind = categoryKind(p.category);
-
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => !isOutOfStock && handleAddToCart(p)}
-                    style={{ contentVisibility: 'auto', containIntrinsicSize: '150px' }}
-                    className={`bg-white border rounded-2xl p-3.5 flex flex-col justify-between transition-all group shadow-2xs relative ${
-                      isOutOfStock
-                        ? 'opacity-45 bg-slate-100/60 border-slate-200 cursor-not-allowed'
-                        : isLowStock
-                        ? 'border-amber-300/80 hover:border-amber-400 hover:shadow-md cursor-pointer active:scale-[0.98]'
-                        : 'border-slate-200 hover:border-blue-500 hover:shadow-md cursor-pointer active:scale-[0.98]'
-                    }`}
-                  >
-                    <div>
-                      {/* Top Line: Prominent Ring / Category Badge + Stock Status */}
-                      <div className="flex items-center justify-between gap-1.5 mb-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {p.ring && (
-                            <span className="px-2 py-0.5 rounded-lg text-[11px] font-black tracking-tight bg-slate-900 text-amber-400 shadow-2xs">
-                              {/^R/i.test(p.ring) ? p.ring : `R${p.ring}`}
-                            </span>
-                          )}
-                          <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md ${
-                            pKind === 'BAN_BARU'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : pKind === 'VELG'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : pKind === 'OLI_PELUMAS'
-                              ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                              : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          }`}>
-                            {pKind === 'OLI_PELUMAS' ? 'OLI & PELUMAS' : (p.category || 'BAN_BARU').replace(/[_-]/g, ' ')}
-                          </span>
-                        </div>
-
-                        <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-lg border flex items-center gap-1 shrink-0 ${
-                          isOutOfStock
-                            ? 'bg-rose-50 text-rose-700 border-rose-200 font-extrabold'
-                            : isLowStock
-                            ? 'bg-amber-50 text-amber-800 border-amber-300 font-extrabold'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            isOutOfStock ? 'bg-rose-500' : isLowStock ? 'bg-amber-500' : 'bg-emerald-500'
-                          }`} />
-                          {isOutOfStock ? 'Habis' : isLowStock ? `Sisa ${stockQty}` : `Stok: ${stockQty}`}
-                        </span>
-                      </div>
-
-                      {/* Product Title */}
-                      <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
-                        {p.product_name || p.name}
-                      </h3>
-
-                      {/* Specs / Motif */}
-                      <div className="text-[11px] text-slate-500 mt-1 font-medium line-clamp-1">
-                        {pKind === 'BAN_BARU' && `${p.brand ? `${p.brand} • ` : ''}${p.product_size || (p.size_width && p.size_ratio ? `${p.size_width}/${p.size_ratio} R${String(p.ring || '').replace(/^R/i, '')}` : '')} ${p.motif && p.motif !== '-' ? `• ${p.motif}` : ''}`.trim()}
-                        {pKind === 'VELG' && `${p.brand ? `${p.brand} • ` : ''}${p.ring || ''} ${p.pcd ? `| PCD ${p.pcd}` : ''} ${p.color_finish ? `| ${p.color_finish}` : ''}`.trim()}
-                        {pKind === 'OLI_PELUMAS' && `${p.brand ? `${p.brand} • ` : ''}${p.product_size || ''} ${p.motif && p.motif !== '-' ? `• ${p.motif}` : ''}`.trim()}
-                        {pKind === 'BAN_DALAM' && `${p.brand ? `${p.brand} • ` : ''}${p.product_size || p.size_ratio || ''} ${p.valve_type ? `| ${p.valve_type}` : ''}`.trim()}
-                        {(pKind === 'AKSESORIS' || pKind === 'LAINNYA') && `${p.brand ? `${p.brand} ` : ''}${p.motif && p.motif !== '-' ? `• ${p.motif}` : p.product_code || ''}`.trim()}
-                      </div>
-                    </div>
-
-                    {/* Bottom Line: Price & Add Button */}
-                    <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-[9.5px] text-slate-400 font-semibold uppercase tracking-tight">Harga Satuan</span>
-                        {(p.product_price || p.price || 0) > 0 ? (
-                          <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono tracking-tight">
-                            {formatRupiah(p.product_price || p.price || 0)}
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-md">
-                            Set Harga (Min. +15%)
-                          </span>
-                        )}
-                      </div>
-                      <span className="p-1.5 rounded-xl bg-blue-50 group-hover:bg-blue-600 text-blue-700 group-hover:text-white transition-all shadow-2xs">
-                        <Plus className="w-4 h-4" />
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {catalogTab === 'SERVICES' && posServicePagination.pageItems.map((srv) => (
-                <div
-                  key={srv.id}
-                  onClick={() => handleAddServiceToCart(srv)}
-                  title={`${srv.service_name} - ${srv.description || 'Layanan servis & pengerjaan bengkel OB3'}`}
-                  className="bg-white border border-slate-200 hover:border-cyan-500 rounded-2xl p-3.5 flex flex-col justify-between cursor-pointer transition-all shadow-xs hover:shadow-md active:scale-[0.98] group"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-cyan-50 text-cyan-800 border border-cyan-300 flex items-center gap-1">
-                        <Wrench className="w-3 h-3 text-cyan-700" /> JASA PIT
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-500 font-semibold">{srv.service_code}</span>
-                    </div>
-
-                    <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 group-hover:text-cyan-700 transition-colors line-clamp-2 leading-snug">
-                      {srv.service_name}
-                    </h3>
-
-                    {srv.description && (
-                      <p className="text-[11px] text-slate-500 mt-1 line-clamp-1">{srv.description}</p>
                     )}
                   </div>
+                )}
 
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[9.5px] text-slate-400 font-semibold uppercase tracking-tight">Tarif Jasa</span>
-                      <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono tracking-tight">
-                        {formatRupiah(srv.standard_price)}
-                      </span>
+                {catalogTab === 'SERVICES' && filteredServices.length === 0 && (
+                  <div className="col-span-full py-16 text-center text-slate-500 space-y-3">
+                    <Package className="w-10 h-10 mx-auto text-slate-300 stroke-[1.5]" />
+                    <div>
+                      <p className="font-semibold text-slate-800 text-sm">Tidak ada layanan jasa ditemukan</p>
+                      <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                        Ubah kata kunci pencarian atau reset filter kategori jasa.
+                      </p>
                     </div>
-                    <span className="p-1.5 rounded-xl bg-cyan-50 group-hover:bg-cyan-600 text-cyan-700 group-hover:text-white transition-all shadow-2xs">
-                      <Plus className="w-4 h-4" />
-                    </span>
+                    {hasActiveFilter && (
+                      <button
+                        type="button"
+                        onClick={handleResetFilters}
+                        className="h-9 inline-flex items-center gap-1.5 px-3.5 rounded-lg bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 text-xs font-semibold cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Reset Filter Jasa</span>
+                      </button>
+                    )}
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
 
-              {catalogTab !== 'SERVICES' && filteredProducts.length === 0 && (
-                <div className="col-span-full py-16 text-center text-slate-500 space-y-3">
-                  <Package className="w-12 h-12 mx-auto text-slate-300 stroke-[1.5]" />
-                  <div>
-                    <p className="font-bold text-slate-700">Tidak ada produk ditemukan</p>
-                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                      Tidak ada item yang cocok dengan kombinasi filter tab, ukuran Ring ({selectedRing}), merk, atau kata kunci pencarian &quot;{searchQuery}&quot;.
-                    </p>
-                  </div>
-                  {(searchQuery || selectedRing !== 'ALL' || selectedBrand !== 'ALL' || stockFilter !== 'ALL' || catalogTab !== 'ALL') && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery('');
-                        setSelectedRing('ALL');
-                        setSelectedBrand('ALL');
-                        setStockFilter('ALL');
-                        setCatalogTab('ALL');
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Reset Semua Filter &amp; Pencarian</span>
-                    </button>
-                  )}
+              {catalogTab !== 'SERVICES' && filteredProducts.length > 0 && (
+                <div className="mt-4 bg-white border border-slate-200 rounded-xl px-3.5 pb-2.5">
+                  <TablePagination
+                    page={posProductPagination.page}
+                    pageSize={posProductPagination.pageSize}
+                    totalItems={filteredProducts.length}
+                    itemLabel="produk"
+                    pageSizeOptions={[12, 24, 48, 96]}
+                    onPageChange={posProductPagination.setPage}
+                    onPageSizeChange={posProductPagination.setPageSize}
+                    compact
+                  />
+                </div>
+              )}
+
+              {catalogTab === 'SERVICES' && filteredServices.length > 0 && (
+                <div className="mt-4 bg-white border border-slate-200 rounded-xl px-3.5 pb-2.5">
+                  <TablePagination
+                    page={posServicePagination.page}
+                    pageSize={posServicePagination.pageSize}
+                    totalItems={filteredServices.length}
+                    itemLabel="layanan jasa"
+                    pageSizeOptions={[12, 24, 48]}
+                    onPageChange={posServicePagination.setPage}
+                    onPageSizeChange={posServicePagination.setPageSize}
+                    compact
+                  />
                 </div>
               )}
             </div>
-            {catalogTab !== 'SERVICES' && filteredProducts.length > 0 && (
-              <div className="mt-4 bg-white border border-slate-200 rounded-xl px-3.5 pb-2.5">
-                <TablePagination
-                  page={posProductPagination.page}
-                  pageSize={posProductPagination.pageSize}
-                  totalItems={filteredProducts.length}
-                  itemLabel="produk"
-                  pageSizeOptions={[12, 24, 48, 96]}
-                  onPageChange={posProductPagination.setPage}
-                  onPageSizeChange={posProductPagination.setPageSize}
-                  compact
-                />
-              </div>
-            )}
-            {catalogTab === 'SERVICES' && filteredServices.length > 0 && (
-              <div className="mt-4 bg-white border border-slate-200 rounded-xl px-3.5 pb-2.5">
-                <TablePagination
-                  page={posServicePagination.page}
-                  pageSize={posServicePagination.pageSize}
-                  totalItems={filteredServices.length}
-                  itemLabel="layanan jasa"
-                  pageSizeOptions={[12, 24, 48]}
-                  onPageChange={posServicePagination.setPage}
-                  onPageSizeChange={posServicePagination.setPageSize}
-                  compact
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Floating Mobile Cart Bar (Sticky at bottom of catalog when items are in cart) */}
-        {cart.length > 0 && (
-          <div className="lg:hidden p-2.5 bg-white border-t border-slate-200 shrink-0 shadow-lg">
-            <button
-              type="button"
-              onClick={() => setMobileTab('cart')}
-              className={`w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-xs sm:text-sm flex items-center justify-between shadow-md transition-all cursor-pointer ${
-                isCartBouncing ? 'ring-4 ring-blue-300 scale-[1.02]' : ''
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <span className={`w-5 h-5 rounded-full bg-blue-800 text-white flex items-center justify-center text-[11px] font-bold transition-transform ${
-                  isCartBouncing ? 'scale-125' : ''
-                }`}>
-                  {cart.reduce((s, i) => s + i.qty, 0)}
-                </span>
-                <span>Buka Pembayaran</span>
-              </div>
-              <div className="flex items-center gap-1.5 font-mono">
-                <span className="text-emerald-300 font-black">{formatRupiah(totals.grandTotal)}</span>
-                <ArrowRight className="w-4 h-4" />
-              </div>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Right Column: Cart Panel */}
-      <div className={`w-full lg:w-[410px] xl:w-[450px] flex-col bg-white border-t lg:border-t-0 border-slate-200 shadow-xl h-full min-h-0 ${mobileTab === 'catalog' ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'}`}>
-        {/* Mobile Header Bar for Cart */}
-        <div className="lg:hidden p-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between shrink-0">
-          <button
-            type="button"
-            onClick={() => setMobileTab('catalog')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 hover:text-slate-900 text-xs font-bold shadow-2xs cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Kembali ke Katalog</span>
-          </button>
-          <span className={`text-xs font-bold text-slate-800 transition-transform duration-300 ${
-            isCartBouncing ? 'scale-105 text-blue-700 font-extrabold' : ''
-          }`}>
-            Keranjang Kasir ({cart.reduce((s, i) => s + i.qty, 0)} Pcs)
-          </span>
-        </div>
-
-        {/* Desktop Header Bar for Cart with Quick Park & Clear buttons (persis Cabang 2) */}
-        <div className="hidden lg:flex items-center justify-between px-3 py-2.5 bg-white border-b border-slate-200 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className={`transition-transform duration-300 ${isCartBouncing ? 'animate-bounce text-blue-700' : 'text-blue-600'}`}>
-              <ShoppingCart className="w-4 h-4" />
-            </div>
-            <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">
-              Keranjang Kasir
-            </h2>
-            {cart.length > 0 && (
-              <span className={`text-[10px] font-bold rounded-full bg-blue-100 text-blue-800 px-2 py-0.5 font-mono transition-transform duration-300 ${
-                isCartBouncing ? 'scale-125 bg-blue-600 text-white ring-2 ring-blue-300' : ''
-              }`}>
-                {cart.reduce((s, i) => s + i.qty, 0)}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={handleParkCurrentCart}
-              disabled={cart.length === 0}
-              className="text-xs px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer shadow-2xs"
-              title="Tahan transaksi ini ke antrian pit servis"
-            >
-              <Clock className="w-3 h-3 text-amber-700" />
-              <span>Tahan (Park)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={async () => {
-                const ok = await dialog.confirm({
-                  title: 'Kosongkan Keranjang Kasir?',
-                  message: 'Seluruh item yang ada di keranjang kasir saat ini akan dihapus.',
-                  confirmLabel: 'Kosongkan',
-                  cancelLabel: 'Batal',
-                  tone: 'danger',
-                });
-                if (ok) {
-                  setCart([]);
-                }
-              }}
-              disabled={cart.length === 0}
-              className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              title="Kosongkan Keranjang"
-            >
-              Kosongkan
-            </button>
-          </div>
-        </div>
-
-        {/* Customer / Vehicle Bar */}
-        <div className="p-3 border-b border-slate-200 bg-slate-50 space-y-2 shrink-0">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Informasi Kendaraan & Pelanggan</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Nama Pelanggan</label>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Pelanggan Umum"
-                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-semibold shadow-2xs focus:border-blue-600 focus:outline-none placeholder:text-slate-400"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Plat Nomor</label>
-              <input
-                type="text"
-                value={vehiclePlate}
-                onChange={(e) => setVehiclePlate(e.target.value)}
-                placeholder="AA 1234 XY"
-                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-mono font-bold shadow-2xs focus:border-blue-600 focus:outline-none placeholder:text-slate-400 uppercase"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-600 block mb-0.5">Model Mobil</label>
-              <input
-                type="text"
-                value={vehicleModel}
-                onChange={(e) => setVehicleModel(e.target.value)}
-                placeholder="Avanza / Innova"
-                className="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-xs text-slate-900 font-semibold shadow-2xs focus:border-blue-600 focus:outline-none placeholder:text-slate-400"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Cart Items List */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2 bg-slate-50 custom-scrollbar">
-          {cart.length === 0 ? (
-            <div className="py-12 text-center text-slate-500 space-y-2">
-              <Store className="w-10 h-10 mx-auto text-slate-300" />
-              <p className="text-xs font-bold text-slate-700">Keranjang Kasir Kosong</p>
-              <p className="text-[11px] text-slate-500 max-w-xs mx-auto">Klik ban baru, velg, ban dalam, atau layanan jasa dari katalog untuk menambahkan transaksi.</p>
-            </div>
-          ) : (
-            cart.map((item, idx) => {
-              const standardPrice = item.item_type === 'SERVICE' && item.service
-                ? item.service.standard_price
-                : item.product?.product_price || item.product?.price || 0;
-
-              const activePrice = item.custom_price ?? standardPrice;
-              const lineTotal = Math.max(0, (activePrice - item.discount_per_item) * item.qty);
-              const displayName = item.custom_name_override || (item.item_type === 'SERVICE' && item.service ? item.service.service_name : item.product?.product_name);
-              const cartKind = item.item_type === 'SERVICE' ? 'JASA' : categoryKind(item.product?.category);
-              const cartSubSpec = item.item_type === 'SERVICE'
-                ? item.service?.service_code
-                : [item.product?.product_code, item.product?.product_size].filter(Boolean).join(' • ');
-
-              return (
-                <div
-                  key={idx}
-                  className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-2.5 flex flex-col gap-1.5 transition-all shadow-xs"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md shrink-0 ${
-                          cartKind === 'JASA'
-                            ? 'bg-cyan-50 text-cyan-800 border border-cyan-200'
-                            : cartKind === 'VELG'
-                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                            : cartKind === 'OLI_PELUMAS'
-                            ? 'bg-orange-50 text-orange-800 border border-orange-200'
-                            : cartKind === 'BAN_DALAM'
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                            : 'bg-blue-50 text-blue-800 border border-blue-200'
-                        }`}>
-                          {cartKind === 'JASA' ? 'JASA' : cartKind === 'OLI_PELUMAS' ? 'OLI' : (item.product?.category || 'BAN_BARU').replace(/[_-]/g, ' ')}
-                        </span>
-                        <h4 className="text-xs font-bold text-slate-900 truncate">{displayName}</h4>
-                      </div>
-
-                      {cartSubSpec && (
-                        <div className="text-[10px] text-slate-500 font-mono truncate mt-0.5">
-                          {cartSubSpec}
-                        </div>
-                      )}
-
-                      <div className="text-xs text-slate-600 flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="font-mono">{formatRupiah(activePrice)}</span>
-                        {item.discount_per_item > 0 && (
-                          <span className="text-amber-700 font-bold font-mono">Disc: -{formatRupiah(item.discount_per_item)}/unit</span>
-                        )}
-                        {item.custom_price !== undefined && item.custom_price !== standardPrice && (
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            standardPrice <= 0
-                              ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                              : 'bg-blue-50 text-blue-700 border border-blue-200'
-                          }`}>
-                            {standardPrice <= 0 ? 'Harga Darurat Kasir' : 'Ubah Harga Nota'}
-                          </span>
-                        )}
-                      </div>
-
-                      {item.override_reason && item.custom_price !== undefined && item.custom_price !== standardPrice && (
-                        <div className="text-[10.5px] text-amber-800 font-medium mt-0.5 truncate">
-                          Alasan: {item.override_reason}
-                        </div>
-                      )}
-
-                      {item.note && (
-                        <div className="text-[11px] text-slate-500 italic mt-0.5">Catatan: {item.note}</div>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setEditLineIndex(idx)}
-                      title="Edit Detail Baris (Qty, Harga, Diskon, Nama Struk, Catatan)"
-                      className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-colors shrink-0"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Edit</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleUpdateCartQty(idx, -1)}
-                        className="w-6 h-6 rounded-md bg-slate-100 hover:bg-blue-600 hover:text-white flex items-center justify-center text-slate-800 font-bold transition-all cursor-pointer"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="text-xs font-extrabold text-slate-900 w-6 text-center font-mono">{item.qty}</span>
-                      <button
-                        onClick={() => handleUpdateCartQty(idx, 1)}
-                        className="w-6 h-6 rounded-md bg-slate-100 hover:bg-blue-600 hover:text-white flex items-center justify-center text-slate-800 font-bold transition-all cursor-pointer"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs sm:text-sm font-black text-emerald-700 font-mono">{formatRupiah(lineTotal)}</span>
-                      <button
-                        onClick={() => handleRemoveFromCart(idx)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors"
-                        title="Hapus dari Keranjang"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
           )}
-        </div>
 
-        {/* Payment & Action Footer */}
-        <div className="p-3.5 bg-white border-t border-slate-200 space-y-3 shrink-0">
-          {/* Ringkasan Subtotal, Diskon & Total Tagihan */}
-          <div className="space-y-1 text-xs">
-            <div className="flex justify-between text-slate-600">
-              <span className="font-medium">Subtotal Kotor:</span>
-              <span className="font-bold text-slate-900 font-mono">{formatRupiah(totals.subtotal)}</span>
+          {/* Bar Ringkas Keranjang Mobile */}
+          {cart.length > 0 && (
+            <div className="lg:hidden p-2.5 bg-white border-t border-slate-200 shrink-0">
+              <button
+                type="button"
+                onClick={() => setMobileTab('cart')}
+                className="w-full h-11 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-[0.98] text-white font-bold text-sm flex items-center justify-between cursor-pointer transition-[background-color,transform] duration-150"
+              >
+                <span className="tabular-nums">Buka Keranjang ({totalCartQty} item)</span>
+                <span className="font-mono tabular-nums">{formatRupiah(netPayable)}</span>
+              </button>
             </div>
-            {totals.discount > 0 && (
-              <div className="flex justify-between text-amber-700 font-medium">
-                <span>Potongan Diskon:</span>
-                <span className="font-bold font-mono">-{formatRupiah(totals.discount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between items-center text-sm font-extrabold pt-2 border-t border-slate-200">
-              <span className="text-slate-900">Total Tagihan Bersih:</span>
-              <span className="text-emerald-700 text-lg font-mono font-black">{formatRupiah(netPayable)}</span>
-            </div>
-          </div>
+          )}
+        </main>
 
-          {/* Tombol Aksi 1: Cetak & Pratinjau Nota Fisik Langsung */}
-          <button
-            type="button"
-            onClick={handlePrintCurrentCartNota}
-            disabled={cart.length === 0}
-            className="w-full py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 border border-sky-300 text-sky-900 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-2xs transition-colors"
-            title="Buka pratinjau fisik nota kasir thermal 80mm sebelum bayar"
-          >
-            <Printer className="w-4 h-4 text-sky-700" />
-            <span>Pratinjau &amp; Cetak Struk (80mm)</span>
-          </button>
-
-          {/* Tombol Aksi 2: Bayar (setiap nota lunas saat checkout) */}
-          <button
-            type="button"
-            onClick={handleOpenCheckout}
-            disabled={cart.length === 0}
-            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed active:scale-98 transition-all cursor-pointer"
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>Proses Pesanan (Bayar) ➔</span>
-          </button>
-        </div>
+        {/* Panel Kanan: Keranjang Kasir */}
+        <PosCartPanel
+          visibleOnMobile={mobileTab === 'cart'}
+          onBackToCatalogMobile={() => setMobileTab('catalog')}
+          cart={cart}
+          customerName={customerName}
+          onCustomerNameChange={setCustomerName}
+          vehiclePlate={vehiclePlate}
+          onVehiclePlateChange={setVehiclePlate}
+          vehicleModel={vehicleModel}
+          onVehicleModelChange={setVehicleModel}
+          manualDiscount={manualDiscount}
+          onManualDiscountChange={setManualDiscount}
+          totals={totals}
+          netPayable={netPayable}
+          onParkCart={handleParkCurrentCart}
+          onClearCart={handleClearCart}
+          onEditItem={setEditLineIndex}
+          onUpdateQty={handleUpdateCartQty}
+          onRemoveItem={handleRemoveFromCart}
+          onPrintPreview={() => handleOpenReceiptPreview()}
+          onOpenCheckout={handleOpenCheckout}
+        />
       </div>
-    </div>
 
       <CartLineEditModal
         isOpen={editLineIndex !== null || pendingZeroPriceItem !== null}
@@ -1624,22 +911,20 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         vehicleModel={vehicleModel}
         totals={totals}
         netPayable={netPayable}
-        onPrintPhysicalNota={handlePrintCurrentCartNota}
+        onPrintPhysicalNota={() => handleOpenReceiptPreview()}
         onParkCart={handleParkCurrentCart}
         onConfirmCheckout={handleConfirmCheckoutFromModal}
       />
 
-      {/* Modern POS Transaction Success & Instant Receipt Modal */}
       <PosSuccessModal
         isOpen={Boolean(completedSaleTx)}
         transaction={completedSaleTx}
         onClose={() => setCompletedSaleTx(null)}
-        onPrintReceipt={handlePrintReceiptFromSuccessModal}
+        onPrintReceipt={(tx) => handleOpenReceiptPreview(tx)}
         onNavigateToReceipts={onNavigateToReceipts}
         storeSettings={storeSettings}
       />
 
-      {/* Interactive 80mm Thermal Receipt Fast Preview Modal */}
       <ReceiptPreviewModal
         isOpen={showReceiptPreviewModal}
         transaction={previewReceiptTx}
@@ -1648,7 +933,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
         onPrintPhysical={handleExecutePrintFromPreview}
       />
 
-      {/* Hidden printable block for instant physical print of official Nota Penjualan */}
+      {/* Blok cetak thermal 80mm tersembunyi */}
       {printTransaction && (
         <div
           id="pos-quick-nota-printable"
@@ -1658,7 +943,7 @@ export const PosScreen: React.FC<PosScreenProps> = ({
           <div className="text-center pb-2 border-b border-dashed border-slate-400 space-y-1">
             <div className="font-extrabold text-xs tracking-tight text-black whitespace-pre-line">
               OMAH BAN CABANG 3 (OB3)
-              PUSAT BAN BARU, VELG & SPOORING 3D
+              PUSAT BAN BARU, VELG &amp; SPOORING 3D
             </div>
             <div className="text-[9.5px] text-slate-600 leading-tight">
               Jl. Raya Magelang - Secang Km. 5, Magelang, Jawa Tengah
@@ -1701,15 +986,17 @@ export const PosScreen: React.FC<PosScreenProps> = ({
             </div>
             <div className="space-y-2">
               {printTransaction.items.map((item, idx) => {
-                const unitPrice = item.custom_price ?? (item.item_type === 'SERVICE' && item.service ? item.service.standard_price : item.product.product_price);
+                const unitPrice =
+                  item.custom_price ??
+                  (item.item_type === 'SERVICE' && item.service ? item.service.standard_price : item.product.product_price);
                 const lineTotal = (unitPrice - (item.discount_per_item || 0)) * item.qty;
-                const name = item.custom_name_override || (item.item_type === 'SERVICE' && item.service ? item.service.service_name : item.product.name);
+                const name =
+                  item.custom_name_override ||
+                  (item.item_type === 'SERVICE' && item.service ? item.service.service_name : item.product.name);
 
                 return (
                   <div key={idx} className="space-y-0.5">
-                    <div className="font-bold text-black text-[11px] leading-snug">
-                      {name}
-                    </div>
+                    <div className="font-bold text-black text-[11px] leading-snug">{name}</div>
                     <div className="flex justify-between text-[10px]">
                       <span>
                         {item.qty} pcs x {formatRupiah(unitPrice)}
@@ -1742,51 +1029,59 @@ export const PosScreen: React.FC<PosScreenProps> = ({
 
           <div className="pt-3 pb-2 text-center space-y-2 text-[9px] text-slate-600 leading-tight">
             <div className="p-1.5 bg-slate-100 rounded border border-slate-200 text-slate-700 font-semibold">
-              ★ KEBIJAKAN GARANSI OMAH BAN ★
+              KEBIJAKAN GARANSI OMAH BAN
               <div className="font-normal text-[8.5px] mt-0.5 whitespace-pre-line">
                 Garansi resmi pabrik 1 tahun untuk cacat produksi.
-                Gratis Nitrogen & Balancing 2x dalam 6 bulan.
+                Gratis Nitrogen &amp; Balancing 2x dalam 6 bulan.
               </div>
             </div>
-            <p className="font-bold text-black text-[10px] pt-1">
-              TERIMA KASIH ATAS KUNJUNGAN ANDA!
-            </p>
+            <p className="font-bold text-black text-[10px] pt-1">TERIMA KASIH ATAS KUNJUNGAN ANDA</p>
           </div>
         </div>
       )}
 
-      {/* Modal Konfirmasi Logout Kasir */}
+      {/* Modal Konfirmasi Keluar Kasir */}
       {showLogoutConfirm && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-start gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                <LogOut className="w-6 h-6" />
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/55 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowLogoutConfirm(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-confirm-title"
+            className="bg-white rounded-2xl p-5 max-w-md w-full shadow-xl border border-slate-200 space-y-4"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center shrink-0">
+                <LogOut className="w-5 h-5" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-900">
+                <h3 id="logout-confirm-title" className="text-base font-bold text-slate-900">
                   Keluar dari Sesi Kasir?
                 </h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Sesi kasir atas nama <strong className="text-slate-800">{cashierName}</strong> ({currentUser?.role || 'KASIR'}) akan diakhiri. Anda akan dialihkan kembali ke layar login sistem Omah Ban Cabang 3.
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Sesi atas nama <strong className="text-slate-900">{cashierName}</strong> ({currentUser?.role || 'KASIR'}) akan diakhiri dan dialihkan ke halaman masuk.
                 </p>
               </div>
             </div>
 
             {cart.length > 0 && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2">
-                <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                <Clock className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
                 <span>
-                  Terdapat <strong>{cart.reduce((s, i) => s + i.qty, 0)} item</strong> di keranjang belanja. Nota dapat ditahan di antrian terlebih dahulu sebelum keluar.
+                  Masih ada <strong>{totalCartQty} item</strong> di keranjang. Anda dapat menahan nota terlebih dahulu sebelum keluar.
                 </span>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                className="h-10 px-4 rounded-lg text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Batal
               </button>
@@ -1796,10 +1091,10 @@ export const PosScreen: React.FC<PosScreenProps> = ({
                   setShowLogoutConfirm(false);
                   onLogout?.();
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="h-10 px-4 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors inline-flex items-center gap-1.5 cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Ya, Keluar (Logout)</span>
+                <span>Ya, Keluar</span>
               </button>
             </div>
           </div>

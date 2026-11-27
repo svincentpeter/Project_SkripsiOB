@@ -16,7 +16,6 @@ import {
   Plus,
   Trash2,
   Layers,
-  Sparkles,
   Calendar,
 } from 'lucide-react';
 import { CartItem, PaymentMethod, SplitPaymentLine } from '../../../shared/types';
@@ -694,7 +693,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           {/* Midtrans Payment Gateway (Pengganti EDC Fisik): QRIS Dinamis vs Snap (Kartu/VA/E-Wallet) */}
                           <div className="flex items-center justify-between gap-2">
                             <div className="font-bold flex items-center gap-1.5">
-                              <Sparkles className="w-4 h-4 text-cyan-700 shrink-0" />
+                              <QrCode className="w-4 h-4 text-cyan-700 shrink-0" />
                               <span>Midtrans Gateway (Pengganti EDC):</span>
                             </div>
                             <span className="text-[10px] font-black bg-cyan-700 text-white px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">

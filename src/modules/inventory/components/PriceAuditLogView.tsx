@@ -188,7 +188,7 @@ export const PriceAuditLogView: React.FC<PriceAuditLogViewProps> = ({
     if (item.change_source === 'owner_review_adjustment') {
       return {
         label: 'Koreksi Tinjauan Owner',
-        cls: 'bg-purple-50 text-purple-800 border border-purple-200',
+        cls: 'bg-blue-50 text-blue-800 border border-blue-200',
       };
     }
     return {
@@ -345,13 +345,13 @@ export const PriceAuditLogView: React.FC<PriceAuditLogViewProps> = ({
             ))}
           </div>
 
-          <div className="relative w-full md:w-80">
+          <div className="relative w-full md:w-96">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari kasir, produk, no. nota, alasan..."
+              placeholder="Cari kasir, produk, nota, atau alasan..."
               className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-900 focus:bg-white focus:border-blue-500 focus:outline-none"
             />
           </div>

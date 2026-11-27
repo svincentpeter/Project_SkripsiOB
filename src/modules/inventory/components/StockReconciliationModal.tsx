@@ -17,7 +17,6 @@ import {
   ArrowUpRight,
   TrendingUp,
   TrendingDown,
-  Sparkles,
   Database,
   PlusCircle,
   Eye,
@@ -818,7 +817,7 @@ export const StockReconciliationModal: React.FC<StockReconciliationModalProps> =
                       onClick={handleSelectAllDifferent}
                       className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold transition-colors cursor-pointer flex items-center gap-1.5"
                     >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-amber-700" />
                       <span>Pilih Semua Yang Beda</span>
                     </button>
 

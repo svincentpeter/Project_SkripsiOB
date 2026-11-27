@@ -7,7 +7,6 @@ import {
   Clock,
   ExternalLink,
   ShieldCheck,
-  Sparkles,
   AlertCircle,
   Copy,
   Check,
@@ -352,7 +351,7 @@ export const QrisDynamicModal: React.FC<QrisDynamicModalProps> = ({
             <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <QrCode className="w-4 h-4 text-amber-700" />
                   <span className="text-xs font-extrabold text-amber-950">Cara Bayar Dummy (Sandbox Skripsi)</span>
                 </div>
                 <span className="bg-amber-200 text-amber-950 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase">

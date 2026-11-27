@@ -184,7 +184,7 @@ export const BankReconciliationTab: React.FC<BankReconciliationTabProps> = ({ re
   const candidates = (line: BankStatementLine): OutstandingLedgerItem[] =>
     unmatched.filter((i) => cents(ledgerAmount(i)) === cents(line.amount));
 
-  const field = 'px-2.5 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none';
+  const field = 'px-2.5 py-1.5 text-xs leading-5 bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none';
   const button = 'px-3 py-2 font-bold rounded-xl flex items-center gap-1.5 cursor-pointer disabled:opacity-40';
 
   return (

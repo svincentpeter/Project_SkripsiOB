@@ -109,7 +109,14 @@ export const SakEmkmReportTab: React.FC<SakEmkmReportTabProps> = ({ refreshKey =
           {fs && tab === 'equity' && <ExportMenu reportId="fin_equity_statement" data={fs} ctx={ctx} />}
           {cf && tab === 'cashflow' && <ExportMenu reportId="fin_cash_flow" data={cf} ctx={ctx} />}
           {calk.data && tab === 'calk' && <ExportMenu reportId="fin_calk" data={calk.data} ctx={ctx} />}
-          {fs && cf && calk.data && <ExportMenu reportId="sak_emkm_package" data={{ financials: fs, cashFlow: cf, calk: calk.data }} ctx={ctx} />}
+          {fs && cf && calk.data && (
+            <ExportMenu
+              reportId="sak_emkm_package"
+              data={{ financials: fs, cashFlow: cf, calk: calk.data }}
+              ctx={ctx}
+              label="Paket SAK EMKM"
+            />
+          )}
           {fs && (
             <button type="button" onClick={() => setIsPrintOpen(true)}
               className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg flex items-center gap-1.5 cursor-pointer">

@@ -7,7 +7,6 @@ import {
   RefreshCw,
   Save,
   Search,
-  Sparkles,
   Tag,
 } from 'lucide-react';
 import { BrandPricingItem } from '../../../shared/types';
@@ -625,7 +624,7 @@ export const BrandMarkupSettingsView: React.FC<BrandMarkupSettingsViewProps> = (
                               className="h-8 px-2.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold inline-flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                               title={`Simpan & hitung ulang harga jual semua ${brand.active_product_count} produk aktif merek ${brand.name}`}
                             >
-                              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                              <RefreshCw className={`w-3.5 h-3.5 text-emerald-700 ${applyingId === brand.id ? 'motion-safe:animate-spin' : ''}`} />
                               <span>{applyingId === brand.id ? 'Menerapkan...' : 'Terapkan'}</span>
                             </button>
                           </div>

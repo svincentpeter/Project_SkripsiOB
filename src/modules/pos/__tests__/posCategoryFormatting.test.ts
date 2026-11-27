@@ -10,6 +10,12 @@ describe('getShortCategoryName', () => {
     expect(getShortCategoryName('TIRE', 'Ban Radial')).toBe('Ban');
   });
 
+  it('distinguishes Ban Mobil, Ban Truk, and Ban Jeep categories without duplicate labels', () => {
+    expect(getShortCategoryName('BAN-MOBIL', 'Ban Mobil')).toBe('Ban Mobil');
+    expect(getShortCategoryName('BAN-TRUCK', 'Ban Niaga, Pickup & Truk Ringan')).toBe('Ban Truk');
+    expect(getShortCategoryName('BAN-JEEP', 'Ban Jeep, SUV & Offroad 4x4')).toBe('Ban Jeep');
+  });
+
   it('shortens wheel categories to "Velg"', () => {
     expect(getShortCategoryName('VELG', 'Velg Mobil Racing & OEM')).toBe('Velg');
     expect(getShortCategoryName('WHEEL', 'Velg Racing')).toBe('Velg');

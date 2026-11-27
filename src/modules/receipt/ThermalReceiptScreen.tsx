@@ -403,7 +403,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                 aria-label="Filter rentang waktu nota"
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value as DateFilter)}
-                className="text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600 shrink-0"
+                className="text-xs leading-5 font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-600 shrink-0"
               >
                 <option value="ALL">Semua Waktu</option>
                 <option value="TODAY">Hari Ini</option>
@@ -420,7 +420,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                   aria-label="Dari tanggal nota"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1"
+                  className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5"
                 />
                 <input
                   type="date"
@@ -428,7 +428,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                   value={dateTo}
                   min={dateFrom || undefined}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1"
+                  className="text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5"
                 />
               </div>
             )}
@@ -439,7 +439,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                 aria-label="Filter metode pembayaran nota"
                 value={paymentFilter}
                 onChange={(e) => setPaymentFilter(e.target.value)}
-                className="flex-1 text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                className="flex-1 text-xs leading-5 font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-600"
               >
                 <option value="ALL">Metode: Semua</option>
                 <option value="TUNAI">Tunai</option>
@@ -452,7 +452,7 @@ export const ThermalReceiptScreen: React.FC<ThermalReceiptScreenProps> = ({
                   aria-label="Filter kasir nota"
                   value={cashierFilter}
                   onChange={(e) => setCashierFilter(e.target.value)}
-                  className="flex-1 text-[10px] font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-600"
+                  className="flex-1 text-xs leading-5 font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-600"
                 >
                   <option value="ALL">Kasir: Semua</option>
                   {uniqueCashiers.map((c) => (

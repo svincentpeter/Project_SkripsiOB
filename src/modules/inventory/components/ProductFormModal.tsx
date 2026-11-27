@@ -3,7 +3,7 @@ import {
   Plus, 
   Edit3, 
   X, 
-  Sparkles, 
+  Save, 
   Layers, 
   Package, 
   DollarSign, 
@@ -687,7 +687,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
               type="submit"
               className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 flex items-center gap-2"
             >
-              <Sparkles className="w-4 h-4" />
+              <Save className="w-4 h-4" />
               {mode === 'CREATE' ? 'Simpan Master Produk' : 'Perbarui Produk'}
             </button>
           </div>

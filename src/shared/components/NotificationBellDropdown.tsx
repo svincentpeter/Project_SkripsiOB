@@ -110,7 +110,7 @@ export const NotificationBellDropdown: React.FC<NotificationBellDropdownProps> =
                 >
                   <div className={`p-2 rounded-xl shrink-0 ${
                     n.type === 'PRICE_OVERRIDE'
-                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
                       : n.type === 'STOCK_LOW'
                       ? 'bg-amber-50 text-amber-600'
                       : n.type === 'DEBT_DUE'

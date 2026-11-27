@@ -14,6 +14,8 @@ interface MarkupPercentStepperProps {
   onChangeSellingPrice: (newPrice: number) => void;
   /** Batas harga minimal rupiah (misal harga katalog untuk Kasir saat harga katalog > Rp 0). */
   minPriceFloor?: number;
+  /** Override batas persentase markup minimal (misal margin minimal merek; default MIN_MARKUP_PERCENT). */
+  minPercent?: number;
   label?: string;
 }
 
@@ -27,16 +29,22 @@ export const MarkupPercentStepper: React.FC<MarkupPercentStepperProps> = ({
   sellingPrice,
   onChangeSellingPrice,
   minPriceFloor = 0,
+  minPercent,
   label = 'Penentuan Persentase Keuntungan dari HPP (Real-Time):',
 }) => {
   const [draftPct, setDraftPct] = useState<string | null>(null);
 
   if (referenceHpp <= 0) return null;
 
-  const minStandardPrice = getMinSellingPrice(referenceHpp);
+  const baseMinPct =
+    minPercent !== undefined && Number.isFinite(minPercent) ? minPercent : MIN_MARKUP_PERCENT;
+  const minStandardPrice =
+    minPercent !== undefined && Number.isFinite(minPercent)
+      ? getPriceFromMarkupPercent(referenceHpp, baseMinPct)
+      : getMinSellingPrice(referenceHpp);
   const effectiveMinPrice = Math.max(minStandardPrice, minPriceFloor);
   const effectiveMinPct = Math.max(
-    MIN_MARKUP_PERCENT,
+    baseMinPct,
     calculateMarkupPercent(effectiveMinPrice, referenceHpp)
   );
 
@@ -97,7 +105,7 @@ export const MarkupPercentStepper: React.FC<MarkupPercentStepperProps> = ({
           onClick={() => applyPercentDelta(-5)}
           disabled={!canDecrease}
           title="Kurangi 5% keuntungan"
-          className="h-8 px-2.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 text-xs font-extrabold font-mono cursor-pointer transition-colors"
+          className="h-8 px-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 text-xs font-extrabold font-mono tabular-nums cursor-pointer transition-colors"
         >
           -5%
         </button>
@@ -113,7 +121,7 @@ export const MarkupPercentStepper: React.FC<MarkupPercentStepperProps> = ({
           <Minus className="w-3.5 h-3.5" />
         </button>
 
-        <div className="relative w-28">
+        <div className="relative w-20">
           <input
             type="number"
             step="0.5"
@@ -122,9 +130,9 @@ export const MarkupPercentStepper: React.FC<MarkupPercentStepperProps> = ({
             value={displayPctValue}
             onChange={handlePercentInputChange}
             onBlur={handlePercentInputBlur}
-            className="w-full h-8 bg-white border border-blue-300 rounded-lg pl-2.5 pr-6 text-center text-slate-900 text-xs font-black font-mono focus:border-blue-600 focus:outline-none"
+            className="w-full h-8 bg-white border border-blue-300 rounded-lg pl-2 pr-5 text-center text-slate-900 text-xs font-black font-mono tabular-nums focus:border-blue-600 focus:outline-none"
           />
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-black text-blue-700 pointer-events-none">
+          <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-xs font-black text-blue-700 pointer-events-none">
             %
           </span>
         </div>
@@ -134,7 +142,7 @@ export const MarkupPercentStepper: React.FC<MarkupPercentStepperProps> = ({
           aria-label="Tambah 1 persen"
           onClick={() => applyPercentDelta(1)}
           title="Tambah +1% keuntungan"
-          className="w-8 h-8 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center cursor-pointer transition-colors shadow-2xs"
+          className="w-8 h-8 rounded-lg bg-blue-700 hover:bg-blue-800 text-white flex items-center justify-center cursor-pointer transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
         </button>
@@ -143,7 +151,7 @@ export const MarkupPercentStepper: React.FC<MarkupPercentStepperProps> = ({
           type="button"
           onClick={() => applyPercentDelta(5)}
           title="Tambah +5% keuntungan"
-          className="h-8 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-extrabold font-mono cursor-pointer transition-colors"
+          className="h-8 px-2 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-extrabold font-mono tabular-nums cursor-pointer transition-colors"
         >
           +5%
         </button>
@@ -152,7 +160,7 @@ export const MarkupPercentStepper: React.FC<MarkupPercentStepperProps> = ({
           type="button"
           onClick={() => applyPercentDelta(10)}
           title="Tambah +10% keuntungan"
-          className="h-8 px-2.5 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-extrabold font-mono cursor-pointer transition-colors"
+          className="h-8 px-2 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-extrabold font-mono tabular-nums cursor-pointer transition-colors"
         >
           +10%
         </button>

@@ -15,9 +15,10 @@ interface ExportMenuProps<K extends ReportId> {
   reportId: K;
   data: ReportData<K>;
   ctx: ExportCtx;
+  label?: string;
 }
 
-export function ExportMenu<K extends ReportId>({ reportId, data, ctx }: ExportMenuProps<K>) {
+export function ExportMenu<K extends ReportId>({ reportId, data, ctx, label = 'Export' }: ExportMenuProps<K>) {
   const { busy, run, formats } = useExport(reportId, data, ctx);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -25,8 +26,15 @@ export function ExportMenu<K extends ReportId>({ reportId, data, ctx }: ExportMe
     const close = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, []);
   return (
     <div ref={ref} className="relative">
@@ -37,7 +45,7 @@ export function ExportMenu<K extends ReportId>({ reportId, data, ctx }: ExportMe
         className="px-3 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center gap-1.5 transition-colors border border-slate-200 cursor-pointer disabled:opacity-50"
       >
         <Download className="w-3.5 h-3.5" />
-        <span>{busy ? 'Memproses...' : 'Export'}</span>
+        <span>{busy ? 'Memproses...' : label}</span>
         <ChevronDown className="w-3 h-3" />
       </button>
       {open && (

@@ -7,7 +7,6 @@ import {
   Clock,
   ExternalLink,
   ShieldCheck,
-  Sparkles,
   AlertCircle,
   Copy,
   Check,
@@ -413,7 +412,7 @@ export const MidtransSnapModal: React.FC<MidtransSnapModalProps> = ({
               ) : (
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-1.5">
                   <div className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
-                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <ShieldCheck className="w-4 h-4 text-blue-700 shrink-0" />
                     <span>Mode Simulasi Sandbox Aktif (Tanpa Kunci Midtrans Asli)</span>
                   </div>
                   <p className="text-[11px] text-slate-600 leading-relaxed">
@@ -442,7 +441,7 @@ export const MidtransSnapModal: React.FC<MidtransSnapModalProps> = ({
                 <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                      <CreditCard className="w-4 h-4 text-amber-700 shrink-0" />
                       <span className="text-xs font-extrabold text-amber-950">
                         Cara Bayar Dummy (Uji Coba &amp; Sidang Skripsi)
                       </span>

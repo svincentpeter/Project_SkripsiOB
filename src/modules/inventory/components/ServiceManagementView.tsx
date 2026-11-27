@@ -11,7 +11,6 @@ import {
   DollarSign, 
   Clock, 
   AlertCircle,
-  Sparkles,
   Tag,
   RotateCcw
 } from 'lucide-react';
@@ -169,9 +168,9 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
         </div>
 
         {/* Filter and Search Bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-col gap-3">
           {/* Category Pills Filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full scrollbar-none">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => setSelectedCategoryFilter('ALL')}
               className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
@@ -190,7 +189,7 @@ export const ServiceManagementView: React.FC<ServiceManagementViewProps> = ({
                   onClick={() => setSelectedCategoryFilter(sc.code)}
                   className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     selectedCategoryFilter.toUpperCase() === sc.code.toUpperCase()
-                      ? 'bg-cyan-700 text-white shadow-xs'
+                      ? 'bg-blue-700 text-white shadow-xs'
                       : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                   }`}
                 >

@@ -36,19 +36,28 @@ export const CashShiftControl: React.FC<CashShiftControlProps> = ({ cashInDrawer
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen]);
+
   const balance = cashInDrawer === null ? null : (
-    <b className="text-emerald-950 font-mono font-extrabold text-xs">{formatRupiah(cashInDrawer)}</b>
+    <b className="font-mono font-bold text-xs tabular-nums">{formatRupiah(cashInDrawer)}</b>
   );
 
   if (!enabled) {
     if (balance === null) return null;
     return (
       <div
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-800 font-semibold shadow-2xs"
+        className="h-9 flex items-center gap-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-semibold"
         title="Saldo buku kas laci (akun 1-1000)"
       >
         <Banknote className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-        <span className="hidden md:inline text-[11px] text-emerald-700">Kas Laci:</span>
+        <span className="hidden md:inline text-[11px] text-emerald-800">Kas Laci:</span>
         {balance}
       </div>
     );
@@ -97,15 +106,18 @@ export const CashShiftControl: React.FC<CashShiftControlProps> = ({ cashInDrawer
       <button
         type="button"
         onClick={openModal}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold shadow-2xs cursor-pointer ${
+        className={`h-9 flex items-center gap-1.5 px-2.5 sm:px-3 rounded-lg border text-xs font-semibold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-1 ${
           session
-            ? 'bg-emerald-50 border-emerald-300 text-emerald-800 hover:bg-emerald-100'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100'
             : 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100'
         }`}
-        title={session ? `Shift #${session.id} terbuka — klik untuk tutup shift` : 'Belum ada shift — klik untuk buka shift'}
+        title={session ? `Shift #${session.id} sedang aktif, klik untuk tutup shift` : 'Shift belum dibuka, klik untuk buka shift kasir'}
       >
-        <Banknote className="w-3.5 h-3.5 shrink-0" />
-        <span className="hidden md:inline text-[11px]">{session ? 'Tutup Shift' : 'Buka Shift'}</span>
+        <span
+          className={`w-2 h-2 rounded-full shrink-0 ${session ? 'bg-emerald-600' : 'bg-amber-600'}`}
+          aria-hidden="true"
+        />
+        <span className="hidden md:inline text-xs">{session ? 'Shift Aktif' : 'Buka Shift'}</span>
         {balance}
       </button>
 

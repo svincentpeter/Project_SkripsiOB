@@ -293,7 +293,7 @@ export const ChartOfAccountsTab: React.FC<ChartOfAccountsTabProps> = ({
               aria-label="Filter status akun"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'ALL' | 'ACTIVE' | 'INACTIVE')}
-              className="h-9 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600"
+              className="py-2 px-2.5 leading-5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:border-blue-600"
             >
               <option value="ALL">Semua Status</option>
               <option value="ACTIVE">Aktif</option>
@@ -510,7 +510,7 @@ export const ChartOfAccountsTab: React.FC<ChartOfAccountsTabProps> = ({
                   value={accountType}
                   disabled={isStructuralLocked}
                   onChange={(e) => handleTypeSelect(e.target.value as AccountType)}
-                  className="w-full h-9 px-3 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-600 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full py-2 px-3 leading-5 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:outline-none focus:border-blue-600 disabled:bg-slate-100 disabled:text-slate-500"
                 >
                   {(Object.keys(ACCOUNT_TYPE_META) as AccountType[]).map((t) => (
                     <option key={t} value={t}>
@@ -548,7 +548,7 @@ export const ChartOfAccountsTab: React.FC<ChartOfAccountsTabProps> = ({
                     value={normalBalance}
                     disabled={isStructuralLocked}
                     onChange={(e) => setNormalBalance(e.target.value as NormalBalance)}
-                    className="w-full h-9 px-3 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 disabled:bg-slate-100 disabled:text-slate-500"
+                    className="w-full py-2 px-3 leading-5 bg-white border border-slate-300 rounded-lg font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600 disabled:bg-slate-100 disabled:text-slate-500"
                   >
                     <option value="DEBIT">DEBIT</option>
                     <option value="CREDIT">CREDIT</option>

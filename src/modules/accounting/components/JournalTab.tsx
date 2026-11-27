@@ -212,7 +212,7 @@ export const JournalTab: React.FC<JournalTabProps> = ({ refreshKey = 0, onOpenMa
                   <span className="text-slate-600 font-bold text-[11px]">{formatDateIndo(journal.date)}</span>
                   <span className="font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 text-[10px]">Ref: {journal.ref_doc}</span>
                   {journal.reference_type && TYPE_BADGE[journal.reference_type] && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800">{TYPE_BADGE[journal.reference_type]}</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-800">{TYPE_BADGE[journal.reference_type]}</span>
                   )}
                   {journal.reversed_by && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">Dibalik oleh {journal.reversed_by}</span>
